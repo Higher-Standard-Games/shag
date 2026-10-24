@@ -74,9 +74,9 @@ The FPS path includes Quake/Warsow-style acceleration, air control, bunny hoppin
 ## Validation
 
 ```bash
-npm run cli:game -- --exec 'sim replay "W+CROUCH 60; JUMP 1; W 30"; quit'
-npm run test:simulation
-npm run test:physics
+npm --prefix src/games/fps run cli:game -- --exec 'sim replay "W+CROUCH 60; JUMP 1; W 30"; quit'
+npm --prefix src/games/fps run test:simulation
+npm --prefix src/games/fps run test:physics
 ```
 
 For networked movement changes, also run server tick/fuzz tests and verify prediction/reconciliation in a real client-server session.

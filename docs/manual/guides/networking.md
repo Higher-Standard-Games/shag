@@ -349,7 +349,7 @@ oldest view the budget allows rather than the present one. A server running at
 a different tick rate must override `tickRate` in the same config, because the
 ms-per-tick conversion depends on it.
 
-`src/engine/server/lagcomp/` owns this; `npm run net:viewlag` measures the lag
+`src/engine/server/lagcomp/` owns this; `npm --prefix src/games/fps run net:viewlag` measures the lag
 a server actually observes over a real socket.
 
 ---
@@ -419,13 +419,13 @@ GameServer
 
 ```bash
 # Start dedicated server
-npm run net:server -- --map washoi_dm2
+npm --prefix src/games/fps run net:server -- --map washoi_dm2
 
 # With options
-npm run net:server -- --port 8080 --name "My Server" --map washoi_dm2 --max 8
+npm --prefix src/games/fps run net:server -- --port 8080 --name "My Server" --map washoi_dm2 --max 8
 
 # Custom snapshot rate
-npm run net:server -- --map washoi_dm2 --snapshotrate 30
+npm --prefix src/games/fps run net:server -- --map washoi_dm2 --snapshotrate 30
 ```
 
 ### Client
@@ -707,7 +707,7 @@ recording may lack:
 
 ```bash
 # Terminal 1: Server
-npm run net:server -- --map washoi_dm2
+npm --prefix src/games/fps run net:server -- --map washoi_dm2
 
 # Terminal 2: Client 1 (browser)
 npm run dev
@@ -719,7 +719,7 @@ npm run net:client -- --name Bob
 
 ### In-Game Test
 
-1. Start server: `npm run net:server -- --map washoi_dm2`
+1. Start server: `npm --prefix src/games/fps run net:server -- --map washoi_dm2`
 2. Start game: `npm run dev`
 3. Open console: `~`
 4. Connect: `connect localhost:7777`

@@ -95,7 +95,7 @@ are unreachable in the built site. Link files outside the manual by their
 GitHub URL: the built site does not serve them.
 
 Player-facing documentation for the FPS game is a separate manual in
-`src/games/fps/docs/manual` (`npm run docs:fps:dev`).
+`src/games/fps/docs/manual` (`npm --prefix src/games/fps run docs:dev`).
 
 ## Issues
 

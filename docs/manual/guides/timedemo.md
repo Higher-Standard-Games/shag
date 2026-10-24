@@ -11,8 +11,8 @@ when creating the fixture, then saved. Dead/absent bots are skipped in that orde
 From the repository root:
 
 ```powershell
-npm run benchmark:fixture -- --dry-run
-npm run benchmark:fixture -- --bot-control ws://127.0.0.1:9100
+npm --prefix src/games/fps run benchmark:fixture -- --dry-run
+npm --prefix src/games/fps run benchmark:fixture -- --bot-control ws://127.0.0.1:9100
 ```
 
 The second command creates a separate `washoi_dm2` match on port 7787, borrows ten bots
@@ -29,7 +29,7 @@ The match itself remains ordinary FFA; ten is a population baseline, not a team 
 To freeze an existing suitable recording:
 
 ```powershell
-npm run benchmark:fixture -- --demo public/data/demos/<recording>.shagdemo
+npm --prefix src/games/fps run benchmark:fixture -- --demo public/data/demos/<recording>.shagdemo
 ```
 
 The generator checks map, roster, timeline, camera schedule and watched-bot gunfire.
@@ -145,8 +145,8 @@ visible Edge profile for each backend. It does not use your normal browser profi
 Run from the repository root with the local benchmark fixture installed:
 
 ```powershell
-npm run benchmark:profile -- --dry-run
-npm run benchmark:profile
+npm --prefix src/games/fps run benchmark:profile -- --dry-run
+npm --prefix src/games/fps run benchmark:profile
 ```
 
 It defaults to one WebGL2 run followed by one WebGPU compatibility-mode run, the
@@ -204,7 +204,7 @@ reports drops and restores the original method after collection. It preserves
 the delta, callback delivery, exceptions and the 250 ms catch-up policy.
 
 ```powershell
-npm run benchmark:profile -- --trace-readiness --trace-playback --interval 1000
+npm --prefix src/games/fps run benchmark:profile -- --trace-readiness --trace-playback --interval 1000
 ```
 
 Trace wrappers add diagnostic overhead. A long incoming delta can include native
@@ -215,9 +215,9 @@ pre-roll skips to make a workload appear valid.
 ## Compare player outlines
 
 ```powershell
-npm run benchmark:outlines -- --dry-run
-npm run benchmark:outlines -- --prepare-only
-npm run benchmark:outlines -- --repeats 5 --out public/data/benchmarks/results/my-outline-series
+npm --prefix src/games/fps run benchmark:outlines -- --dry-run
+npm --prefix src/games/fps run benchmark:outlines -- --prepare-only
+npm --prefix src/games/fps run benchmark:outlines -- --repeats 5 --out public/data/benchmarks/results/my-outline-series
 ```
 
 The [comparison script](https://github.com/Higher-Standard-Games/shag/blob/main/src/games/fps/scripts/benchmarks/outline-comparison.mjs) derives
@@ -247,7 +247,7 @@ Powerup/weapon outlines may remain through their separate gameplay styling path.
 For separate pass attribution, use a derived outline-on fixture ID:
 
 ```powershell
-npm run benchmark:profile -- --fixture <outline-on-id> --trace-outlines --interval 1000
+npm --prefix src/games/fps run benchmark:profile -- --fixture <outline-on-id> --trace-outlines --interval 1000
 ```
 
 `outline-trace.json` separates engine submissions for body colour/alpha/depth and
@@ -271,9 +271,9 @@ still invalidate the workload. The regular demo player's catch-up policy is unch
 ## Fixed player crowd benchmark
 
 ```powershell
-npm run benchmark:crowd -- --dry-run
-npm run benchmark:crowd -- --repeats 1 --counts 0,10
-npm run benchmark:crowd -- --repeats 5 --out public/data/benchmarks/results/my-crowd-series
+npm --prefix src/games/fps run benchmark:crowd -- --dry-run
+npm --prefix src/games/fps run benchmark:crowd -- --repeats 1 --counts 0,10
+npm --prefix src/games/fps run benchmark:crowd -- --repeats 5 --out public/data/benchmarks/results/my-crowd-series
 ```
 
 The [saved recipe](https://github.com/Higher-Standard-Games/shag/blob/main/benchmarks/recipes/player-crowd-v1.json) builds a fixed
@@ -316,9 +316,9 @@ proposed gameplay setting change.
 ### Experimental outline geometry comparison
 
 ```powershell
-npm run benchmark:outline-proxy:build
-npm run benchmark:crowd -- --outline-proxy --repeats 1 --counts 0,10
-npm run benchmark:crowd -- --outline-proxy --visual --repeats 5 --out public/data/benchmarks/results/my-outline-proxy-series
+npm --prefix src/games/fps run benchmark:outline-proxy:build
+npm --prefix src/games/fps run benchmark:crowd -- --outline-proxy --repeats 1 --counts 0,10
+npm --prefix src/games/fps run benchmark:crowd -- --outline-proxy --visual --repeats 5 --out public/data/benchmarks/results/my-outline-proxy-series
 ```
 
 The [proxy recipe](https://github.com/Higher-Standard-Games/shag/blob/main/benchmarks/recipes/player-outline-proxy-v1.json) and
@@ -349,7 +349,7 @@ experiments can append `&outlineProxy=1` to the crowd-page URL.
 
 ### Player outline proxy in gameplay and timedemo
 
-After `npm run benchmark:outline-proxy:build`, the game console accepts:
+After `npm --prefix src/games/fps run benchmark:outline-proxy:build`, the game console accepts:
 
 ```text
 cl_player_outline 1
@@ -368,8 +368,8 @@ warning; regenerate the proxy and reload the map to retry a failed import.
 To create immutable full/reduced profiles and run paired map timedemos:
 
 ```powershell
-npm run benchmark:outlines -- --proxy --dry-run --repeats 3
-npm run benchmark:outlines -- --proxy --repeats 3
+npm --prefix src/games/fps run benchmark:outlines -- --proxy --dry-run --repeats 3
+npm --prefix src/games/fps run benchmark:outlines -- --proxy --repeats 3
 ```
 
 The saved combat and camera schedule stay identical; both profiles require

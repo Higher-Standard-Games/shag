@@ -11,7 +11,7 @@ assembled checkout. Reusable lobby, account, result and process-management
 services remain in SHAG. Run lobby commands from the assembled project root.
 
 Washoi's demo-ownership and real lobby/match integration tests live in
-`src/games/fps/server/__tests__/lobby/`. `npm run ranking:acceptance` includes
+`src/games/fps/server/__tests__/lobby/`. `npm --prefix src/games/fps run ranking:acceptance` includes
 these tests alongside SHAG's reusable lobby and ranking tests.
 
 Application name reservations are explicit: pass the same predicate to
@@ -29,23 +29,23 @@ game-specific aliases. Washoi supplies `resolveFPSDemoMap`; the recorded map
 identity and ownership checks keep using the recording's original map.
 
 ```bash
-npm run lobby:server -- --port 9000 --data-dir ./server-data
+npm --prefix src/games/fps run lobby:server -- --port 9000 --data-dir ./server-data
 ```
 
 The default server runtime is Node 24 or newer. The start command first builds
 the server artifacts under `dist-server/`, then runs the lobby with Node.
-`npm run lobby:server:node` selects Node explicitly.
-`npm run lobby:server:bun` is an experimental alternative requiring the Bun
+`npm --prefix src/games/fps run lobby:server:node` selects Node explicitly.
+`npm --prefix src/games/fps run lobby:server:bun` is an experimental alternative requiring the Bun
 version recorded in `.bun-version`. Node and npm remain required for building
 and development; Bun is optional.
-`npm run lobby:server:dev` retains the Vite-based development launch.
-The bot server follows the same pattern: `npm run bot:server` builds and runs
-`dist-server/bot-server.mjs`, `npm run bot:server:dev` the Vite launch.
+`npm --prefix src/games/fps run lobby:server:dev` retains the Vite-based development launch.
+The bot server follows the same pattern: `npm --prefix src/games/fps run bot:server` builds and runs
+`dist-server/bot-server.mjs`, `npm --prefix src/games/fps run bot:server:dev` the Vite launch.
 
 A bundled server starts in about a quarter of a second and uses about half the
 memory of the Vite launch, which transpiles the TypeScript sources at every
 start (a `washoi_dm2` match server: 0.26 s and 122 MB against 1.1 s and
-268 MB). `npm run build:server` builds into a staging directory and swaps it in
+268 MB). `npm --prefix src/games/fps run build:server` builds into a staging directory and swaps it in
 at the end, so a lobby spawning a match during a rebuild never loads a
 half-written bundle. Rebuild after changing server code: bundled servers run
 what was built, not the working tree.
@@ -132,8 +132,8 @@ The lobby takes at most 64 players online at once. A player over the cap is
 told so at login, before an account is opened or created, and disconnected:
 
 ```bash
-npm run lobby:server -- --max-players 40     # or SHAG_LOBBY_MAX_PLAYERS=40
-npm run lobby:server -- --max-players 0      # no cap
+npm --prefix src/games/fps run lobby:server -- --max-players 40     # or SHAG_LOBBY_MAX_PLAYERS=40
+npm --prefix src/games/fps run lobby:server -- --max-players 0      # no cap
 ```
 
 - **Who counts:** connections that have logged in. Bots don't count and are
@@ -482,7 +482,7 @@ drains the whole backlog.
 ### Diagnosing empty boards
 
 ```bash
-npm run lobby:server -- --results-info --data-dir ./server-data
+npm --prefix src/games/fps run lobby:server -- --results-info --data-dir ./server-data
 ```
 
 This prints the resolved data directory, total match and participant counts,
@@ -505,8 +505,8 @@ restarts.
 For the ranking journal:
 
 ```bash
-npm run lobby:server -- --ratings-info --data-dir ./server-data
-npm run lobby:server -- --ratings-verify --data-dir ./server-data
+npm --prefix src/games/fps run lobby:server -- --ratings-info --data-dir ./server-data
+npm --prefix src/games/fps run lobby:server -- --ratings-verify --data-dir ./server-data
 ```
 
 `--ratings-info` reports the schema and policy version, receipt, seat, update
@@ -523,7 +523,7 @@ The ranking schema has its own version, separate from the account database's
 schema, or a changed policy, fails without an automatic reset.
 
 `npm run ranking:simulate` exercises the TrueSkill policy on synthetic matches,
-and `npm run ranking:acceptance` runs real lobby and game-server result
+and `npm --prefix src/games/fps run ranking:acceptance` runs real lobby and game-server result
 handoffs in isolation; run it before live browser testing.
 
 ### Demo privacy

@@ -5,7 +5,7 @@ Headless validation is split by responsibility rather than one all-purpose engin
 ## Map and command smoke test
 
 ```bash
-npm run cli:game -- --exec 'bsp load washoi_dm2; bsp info; quit'
+npm --prefix src/games/fps run cli:game -- --exec 'bsp load washoi_dm2; bsp info; quit'
 ```
 
 This uses the PK3 index and engine command registry with Babylon `NullEngine`.
@@ -24,9 +24,9 @@ This CLI takes an extracted filesystem BSP and calls the synchronous `BspLoader.
 ## Deterministic gameplay
 
 ```bash
-npm run test:simulation
-npm run test:physics
-npm run cli:game -- --exec 'sim replay "W+CROUCH 60; JUMP 1; W 30"; quit'
+npm --prefix src/games/fps run test:simulation
+npm --prefix src/games/fps run test:physics
+npm --prefix src/games/fps run cli:game -- --exec 'sim replay "W+CROUCH 60; JUMP 1; W 30"; quit'
 ```
 
 Prefer deterministic assertions over snapshots of volatile log output.
@@ -34,9 +34,9 @@ Prefer deterministic assertions over snapshots of volatile log output.
 ## Server and protocol
 
 ```bash
-npm run server:tick
-npm run server:fuzz -- --ticks 1000
-npm run net:server -- --map washoi_dm2 --port 7777
+npm --prefix src/games/fps run server:tick
+npm --prefix src/games/fps run server:fuzz -- --ticks 1000
+npm --prefix src/games/fps run net:server -- --map washoi_dm2 --port 7777
 npm run net:client -- --connect ws://127.0.0.1:7777
 ```
 

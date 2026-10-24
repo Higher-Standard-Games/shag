@@ -43,7 +43,7 @@ The selected game composition must have registered `GameplayMapLauncher`. If the
 ## Validate
 
 ```bash
-npm run cli:game -- --exec 'bsp load washoi_dm2; bsp info; quit'
+npm --prefix src/games/fps run cli:game -- --exec 'bsp load washoi_dm2; bsp info; quit'
 npm run typecheck
 ```
 

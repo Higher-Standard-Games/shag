@@ -13,10 +13,10 @@ can use a demo instead (see `browser-probe`).
 
 | Process | Command | Port |
 | --- | --- | --- |
-| Lobby | `npm run lobby:server -- --port 9000 --data-dir <dir>` | 9000 |
-| Bot server | `npm run bot:server -- --data-dir <dir>` | 9100 (loopback control) |
+| Lobby | `npm --prefix src/games/fps run lobby:server -- --port 9000 --data-dir <dir>` | 9000 |
+| Bot server | `npm --prefix src/games/fps run bot:server -- --data-dir <dir>` | 9100 (loopback control) |
 | Game servers | spawned by the lobby, one per match | 7777 upward |
-| Browser | `npm run dev` (or the private probe server) | 3000 (3100) |
+| Browser | `npm --prefix src/games/fps run dev` (or the private probe server) | 3000 (3100) |
 
 ## Choose the data directory
 
@@ -40,10 +40,10 @@ secret will not match and bots are refused.
    killing a process you did not start, since the user may be playing on it.
    On Windows: `netstat -ano | findstr ":7777 :9000 :9100"`.
 2. **Start the lobby**, in the background:
-   `npm run lobby:server -- --port 9000 --data-dir ./server-data-test`.
+   `npm --prefix src/games/fps run lobby:server -- --port 9000 --data-dir ./server-data-test`.
    It logs its storage summary and player cap when ready.
 3. **Start the bot server** when bots are needed, in the background:
-   `npm run bot:server -- --data-dir ./server-data-test`. Invites from a
+   `npm --prefix src/games/fps run bot:server -- --data-dir ./server-data-test`. Invites from a
    private room then reach it on `ws://127.0.0.1:9100` (`BOT_SERVER_URL`
    overrides).
 4. **Start the browser side.** The client connects to `VITE_LOBBY_URL`
@@ -61,7 +61,7 @@ Bots join only **private** rooms. Public matchmaking is people only.
 - The lobby logs each spawned game server's port and each received result.
   Match demos land in `public/data/demos/`.
 - Read-only inspection without disturbing the running lobby:
-  `npm run lobby:server -- --results-info --data-dir <dir>` and
+  `npm --prefix src/games/fps run lobby:server -- --results-info --data-dir <dir>` and
   `--ratings-info`.
 
 ## Stop

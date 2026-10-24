@@ -6,7 +6,7 @@ SHAG has separate inspection and gameplay paths.
 | --- | --- | --- |
 | BSP inspection | `bsp load <name>` | Parsed map data; optionally render with `bsp render` |
 | Browser gameplay | `map <name> [gametype]` | Ask the registered game launcher to start/connect a match |
-| Dedicated server | `npm run net:server -- --map <name>` | Authoritative server process |
+| Dedicated server | `npm --prefix src/games/fps run net:server -- --map <name>` | Authoritative server process |
 
 ## Browser gameplay command
 
@@ -52,13 +52,13 @@ These refer to the gameplay launcher state, not the lower-level `BspManager` ins
 `cli:game` registers engine commands but not the browser gameplay launcher:
 
 ```bash
-npm run cli:game -- --exec 'bsp load washoi_dm2; bsp info; quit'
+npm --prefix src/games/fps run cli:game -- --exec 'bsp load washoi_dm2; bsp info; quit'
 ```
 
 For a real network smoke test, run:
 
 ```bash
-npm run net:server -- --map washoi_dm2 --port 7777
+npm --prefix src/games/fps run net:server -- --map washoi_dm2 --port 7777
 npm run net:client -- --connect ws://127.0.0.1:7777
 ```
 

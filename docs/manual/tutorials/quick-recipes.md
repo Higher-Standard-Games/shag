@@ -105,7 +105,7 @@ teleport 0 128 0
 ## Headless smoke test
 
 ```bash
-npm run cli:game -- --exec 'bsp load washoi_dm2; bsp info; quit'
+npm --prefix src/games/fps run cli:game -- --exec 'bsp load washoi_dm2; bsp info; quit'
 ```
 
 See [Console system](../guides/console-system.md), [PK3 filesystem](../guides/pk3-filesystem.md), and [Headless mode](../guides/headless-mode.md).

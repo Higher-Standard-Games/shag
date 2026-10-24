@@ -29,9 +29,9 @@ It provides BSP/PK3 loading, Quake shader compatibility, deterministic movement 
 
 ```bash
 npm install
-npm run cli:game -- --exec 'bsp load washoi_dm2; bsp info; quit'
-npm run test:simulation
-npm run test:physics
+npm --prefix src/games/fps run cli:game -- --exec 'bsp load washoi_dm2; bsp info; quit'
+npm --prefix src/games/fps run test:simulation
+npm --prefix src/games/fps run test:physics
 npm run dev
 ```
 

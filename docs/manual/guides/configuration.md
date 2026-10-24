@@ -69,8 +69,11 @@ desktop application from `public/engine.json` or `GAME`.
 
 SHAG's CI checks out only the engine and runs installation, typecheck, engine
 tests, lint, the engine build and its manual build. Washoi owns the assembled
-CI workflow, including the server/runtime checks. Package command ownership
-and the tracked game submodule still require their remaining separation work.
+CI workflow, including the server/runtime checks. Its private command package
+is invoked from the assembled root with `npm --prefix src/games/fps run <command>`.
+Game commands select their application and run with the engine root as cwd.
+Dependencies are installed once at the engine root; the game package has no
+separate dependency tree. The tracked game submodule remains until Git cutover.
 `@game` in Vite resolves to the selected application directory;
 engine source must not import it. The previous `GAME` variable no longer selects
 the browser application.

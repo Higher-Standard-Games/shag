@@ -4,9 +4,9 @@
 
 | Tool | Command | Purpose |
 | --- | --- | --- |
-| [Headless game](./headless-game.md) | `npm run cli:game` | Engine commands and indexed map inspection |
+| [Headless game](./headless-game.md) | `npm --prefix src/games/fps run cli:game` | Engine commands and indexed map inspection |
 | [Headless BSP](./headless-bsp.md) | `npm run cli:bsp` | Direct BSP-file analysis |
-| [Network server](./network-server.md) | `npm run net:server` | Dedicated authoritative server |
+| [Network server](./network-server.md) | `npm --prefix src/games/fps run net:server` | Dedicated authoritative server |
 | [Network client](./network-client.md) | `npm run net:client` | Protocol/connectivity smoke client |
 | [Agent orchestration](./agent-orchestration.md) | `npm run dev:research:wizard` | Multi-agent research document workflow |
 

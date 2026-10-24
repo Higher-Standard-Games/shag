@@ -7,7 +7,7 @@
 
 1. Verify facts in source before coding:
    - APIs and imports in actual `.ts` files
-   - command/script names in `package.json`
+   - command/script names in the engine or `src/games/fps/package.json`
    - behavior/usage in `docs/manual/guides/*`
 2. Choose architecture correctly:
    - default to `src/games/fps` extensions
@@ -25,6 +25,11 @@
 
 ## Quick Reference
 
+Run engine commands from the assembled root. Washoi owns its command package:
+`npm --prefix src/games/fps run <command>` from that root, or `npm run <command>`
+inside the game folder. Game commands select Washoi and use the assembled root
+for data, storage and artifacts. Install dependencies once at the engine root.
+
 There is no `@/` import alias: import with relative paths (`../../engine/...`).
 The aliases that exist are `@game/*` (the FPS module), `@engine/server`,
 `@shared/server` and `@games/fps/server`.
@@ -32,7 +37,7 @@ The aliases that exist are `@game/*` (the FPS module), `@engine/server`,
 | I want to... | Do this |
 |--------------|---------|
 | Run a console command | `await CommandRegistry.getInstance().executeChecked('map washoi_dm2 duel')` (one command per call; `ok` tells failure from output) |
-| Inspect a BSP map | `executeChecked('bsp load washoi_dm2')`, then `executeChecked('bsp info')`; or headless `npm run cli:game -- --exec "bsp load washoi_dm2; bsp info; quit"` |
+| Inspect a BSP map | `executeChecked('bsp load washoi_dm2')`, then `executeChecked('bsp info')`; or headless `npm --prefix src/games/fps run cli:game -- --exec "bsp load washoi_dm2; bsp info; quit"` |
 | Load a map in code | `await MapLoader.getInstance().loadMap('washoi_dm2', scene)` |
 | Change camera controller | `CameraSystem.getInstance().setController('freefly')` |
 | Play a one-shot sound | `AudioManager.getInstance().playSfx(path)` |
@@ -122,11 +127,11 @@ Renderer and networking are high-value and high-risk systems. Edit with extra ca
 If either area is edited, always run targeted regressions after changes:
 
 ```bash
-npm run test:simulation
-npm run test:physics
-npm run server:tick
-npm run server:fuzz -- --ticks 1000
-npm run cli:game -- --exec "bsp load washoi_dm2; bsp info; quit"
+npm --prefix src/games/fps run test:simulation
+npm --prefix src/games/fps run test:physics
+npm --prefix src/games/fps run server:tick
+npm --prefix src/games/fps run server:fuzz -- --ticks 1000
+npm --prefix src/games/fps run cli:game -- --exec "bsp load washoi_dm2; bsp info; quit"
 ```
 
 `test:physics` prints a position warning on a passing run; read its pass/fail
@@ -147,7 +152,7 @@ SHAG Engine is a Babylon.js engine for Quake 3 / Warsow-style gameplay:
 - SHAGGED, a built-in brush map editor with a scripting API
 
 Full manual: `docs/manual/` (`npm run docs:dev`). The player-facing game manual
-is `src/games/fps/docs/manual` (`npm run docs:fps:dev`).
+is `src/games/fps/docs/manual` (`npm --prefix src/games/fps run docs:dev`).
 
 ## Directory Structure
 
@@ -313,11 +318,11 @@ Guide: `docs/manual/guides/movement-system.md`
 ### Networking
 
 ```bash
-npm run net:server -- --map washoi_dm2 --port 7777
+npm --prefix src/games/fps run net:server -- --map washoi_dm2 --port 7777
 ```
 
 Then `connect localhost:7777` in the browser console. Normal play goes through
-the lobby (`npm run lobby:server`), which spawns one game server per match.
+the lobby (`npm --prefix src/games/fps run lobby:server`), which spawns one game server per match.
 
 Guides: `docs/manual/guides/networking.md`, `docs/manual/guides/lobby-server.md`
 
@@ -340,27 +345,27 @@ events rather than inventing global ones.
 Run these before asking for manual browser tests:
 
 ```bash
-npm run cli:game -- --exec "bsp load washoi_dm2; bsp info; quit"
-npm run cli:game -- --exec 'sim replay "W+CROUCH 60; JUMP 1; W 30"; quit'
-npm run test:simulation
-npm run test:physics
+npm --prefix src/games/fps run cli:game -- --exec "bsp load washoi_dm2; bsp info; quit"
+npm --prefix src/games/fps run cli:game -- --exec 'sim replay "W+CROUCH 60; JUMP 1; W 30"; quit'
+npm --prefix src/games/fps run test:simulation
+npm --prefix src/games/fps run test:physics
 ```
 
 Windows PowerShell through `npm.cmd` needs escaped inner quotes for the replay:
-`npm.cmd run cli:game -- --exec 'sim replay \"W+CROUCH 60; JUMP 1; W 30\"; quit'`.
+`npm.cmd --prefix src/games/fps run cli:game -- --exec 'sim replay \"W+CROUCH 60; JUMP 1; W 30\"; quit'`.
 
 Useful command groups:
 
-- REPL: `npm run cli:game`, `npm run cli:bsp`
-- Network: `npm run net:server`, `npm run net:client`, `npm run lobby:server`, `npm run bot:server`
-- Server tests: `npm run server:tick`, `npm run server:fuzz -- --ticks 1000`
-- Debug: `npm run debug:textures -- washoi_dm2`; spawn/grounding checks: `npm run test:physics`
+- REPL: `npm --prefix src/games/fps run cli:game`, `npm run cli:bsp`
+- Network: `npm --prefix src/games/fps run net:server`, `npm run net:client`, `npm --prefix src/games/fps run lobby:server`, `npm --prefix src/games/fps run bot:server`
+- Server tests: `npm --prefix src/games/fps run server:tick`, `npm --prefix src/games/fps run server:fuzz -- --ticks 1000`
+- Debug: `npm run debug:textures -- washoi_dm2`; spawn/grounding checks: `npm --prefix src/games/fps run test:physics`
 - Unit tests: `npm run test:run` (once), `npm test` (watch)
-- Demos: `npm run demo:record -- --map washoi_dm2 --bots 2 --seconds 30` (one-shot: server + AI bots + record). See the [headless-mode guide](docs/manual/guides/headless-mode.md#demos-and-anti-cheat-tools).
-- Verify re-sim: `npm run demo:verify -- <bundle.shagverify>` — replays a re-sim bundle's usercmds through the deterministic sim and checks the recorded per-tick checksums reconcile. Exit 0 = reconciled, 1 = diverged.
-- Calibrate anti-cheat: `npm run anticheat:calibrate -- [--trials 40] [--ticks 1500]` — synthetic aimbot-vs-human trials; prints detection% vs false-positive% per threshold. Numbers are directional until calibrated on real player demos. See [ANTICHEAT_FEATURES.md](docs/research/ANTICHEAT_FEATURES.md).
-- Ranking: `npm run ranking:simulate`, `npm run ranking:acceptance`, `npm run lobby:server -- --ratings-verify --data-dir ./server-data`
-- Maps: `npm run shagged -- report <map.json>` (see `docs/manual/guides/shagged-api.md`)
+- Demos: `npm --prefix src/games/fps run demo:record -- --map washoi_dm2 --bots 2 --seconds 30` (one-shot: server + AI bots + record). See the [headless-mode guide](docs/manual/guides/headless-mode.md#demos-and-anti-cheat-tools).
+- Verify re-sim: `npm --prefix src/games/fps run demo:verify -- <bundle.shagverify>` — replays a re-sim bundle's usercmds through the deterministic sim and checks the recorded per-tick checksums reconcile. Exit 0 = reconciled, 1 = diverged.
+- Calibrate anti-cheat: `npm --prefix src/games/fps run anticheat:calibrate -- [--trials 40] [--ticks 1500]` — synthetic aimbot-vs-human trials; prints detection% vs false-positive% per threshold. Numbers are directional until calibrated on real player demos. See [ANTICHEAT_FEATURES.md](docs/research/ANTICHEAT_FEATURES.md).
+- Ranking: `npm run ranking:simulate`, `npm --prefix src/games/fps run ranking:acceptance`, `npm --prefix src/games/fps run lobby:server -- --ratings-verify --data-dir ./server-data`
+- Maps: `npm --prefix src/games/fps run shagged -- report <map.json>` (see `docs/manual/guides/shagged-api.md`)
 
 Headless map loading goes through the pk3 index (`src/engine/loader/pk3/NodePk3.ts` — `resolveMapBspViaIndex`), the same database the game uses. Do NOT re-introduce ad-hoc BSP path searches.
 

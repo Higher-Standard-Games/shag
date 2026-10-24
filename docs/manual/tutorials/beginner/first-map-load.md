@@ -70,7 +70,7 @@ map washoi_dm2 duel
 ## Headless equivalent
 
 ```bash
-npm run cli:game -- --exec 'bsp load washoi_dm2; bsp info; quit'
+npm --prefix src/games/fps run cli:game -- --exec 'bsp load washoi_dm2; bsp info; quit'
 ```
 
 ## Troubleshooting

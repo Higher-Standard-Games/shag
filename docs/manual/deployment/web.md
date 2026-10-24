@@ -31,11 +31,11 @@ beside it:
 
 | Process | Start (production) | Start (development) |
 | --- | --- | --- |
-| Lobby (spawns one match server per match) | `npm run lobby:server` | `npm run lobby:server:dev` |
-| Bot server | `npm run bot:server` | `npm run bot:server:dev` |
-| Match server (normally spawned by the lobby) | `npm run net:server` | `npm run net:server:dev` |
+| Lobby (spawns one match server per match) | `npm --prefix src/games/fps run lobby:server` | `npm --prefix src/games/fps run lobby:server:dev` |
+| Bot server | `npm --prefix src/games/fps run bot:server` | `npm --prefix src/games/fps run bot:server:dev` |
+| Match server (normally spawned by the lobby) | `npm --prefix src/games/fps run net:server` | `npm --prefix src/games/fps run net:server:dev` |
 
-The production scripts build `dist-server/` (`npm run build:server`) and run
+The production scripts build `dist-server/` (`npm --prefix src/games/fps run build:server`) and run
 the bundles with plain Node. The development scripts run the TypeScript
 sources through `vite-node`, which transpiles them at every start. Match
 servers inherit the lobby's mode: a bundled lobby spawns bundled matches.
@@ -53,7 +53,7 @@ for as long as it runs.
 What a deployment has to do with bundles:
 
 - **Rebuild on server changes.** Bundled processes run what was built, not the
-  working tree. Run `npm run build:server` after updating the source; it builds
+  working tree. Run `npm --prefix src/games/fps run build:server` after updating the source; it builds
   into a staging directory and swaps it in only when complete, so a match the
   lobby spawns during the build still gets a whole bundle.
 - **Match servers** pick up a rebuild at their next spawn; running matches keep

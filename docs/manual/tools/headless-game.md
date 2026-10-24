@@ -5,7 +5,7 @@ The headless game runner creates a Babylon `NullEngine`, initializes shared engi
 ## Interactive mode
 
 ```bash
-npm run cli:game
+npm --prefix src/games/fps run cli:game
 ```
 
 Use `help` to inspect commands and `quit` to stop. This runner adds `sim`, `anim`, `headless`, `leaktest` and `trace_test` to the engine command set.
@@ -13,7 +13,7 @@ Use `help` to inspect commands and `quit` to stop. This runner adds `sim`, `anim
 ## Batch mode
 
 ```bash
-npm run cli:game -- --exec 'bsp load washoi_dm2; bsp info; quit'
+npm --prefix src/games/fps run cli:game -- --exec 'bsp load washoi_dm2; bsp info; quit'
 ```
 
 `--command` is an alias for `--exec`. A semicolon-separated batch is the simplest CI form. There is no `--map` option.
@@ -23,8 +23,8 @@ This composition does not register the browser gameplay launcher, so use `bsp lo
 ## Useful batches
 
 ```bash
-npm run cli:game -- --exec 'developer 1; pk3 stats; bsp load washoi_dm2; bsp entities; quit'
-npm run cli:game -- --exec 'sim replay "W+CROUCH 60; JUMP 1; W 30"; quit'
+npm --prefix src/games/fps run cli:game -- --exec 'developer 1; pk3 stats; bsp load washoi_dm2; bsp entities; quit'
+npm --prefix src/games/fps run cli:game -- --exec 'sim replay "W+CROUCH 60; JUMP 1; W 30"; quit'
 ```
 
 `pk3` is one of the developer-gated commands, so a batch that uses it starts with `developer 1`; `bsp` is not gated. A batch is split on semicolons and newlines except inside double quotes, which is why the replay sequence above is quoted.

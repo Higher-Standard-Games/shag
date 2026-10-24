@@ -56,9 +56,9 @@ BSP contents and surface flags originate in Quake data. Keep raw BSP bit flags a
 Collision or movement changes should be checked headlessly:
 
 ```bash
-npm run test:simulation
-npm run test:physics
-npm run cli:game -- --exec 'bsp load washoi_dm2; bsp info; quit'
+npm --prefix src/games/fps run test:simulation
+npm --prefix src/games/fps run test:physics
+npm --prefix src/games/fps run cli:game -- --exec 'bsp load washoi_dm2; bsp info; quit'
 ```
 
 Renderer or networking changes require the wider regression set described in the repository `AGENTS.md`.

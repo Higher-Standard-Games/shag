@@ -51,9 +51,9 @@ The `map` command uses the configured gameplay/lobby launcher. See [Map launchin
 ## Headless check
 
 ```bash
-npm run cli:game -- --exec 'bsp load washoi_dm2; bsp info; quit'
-npm run test:simulation
-npm run test:physics
+npm --prefix src/games/fps run cli:game -- --exec 'bsp load washoi_dm2; bsp info; quit'
+npm --prefix src/games/fps run test:simulation
+npm --prefix src/games/fps run test:physics
 ```
 
 The headless game runner uses `bsp load`; it does not register the browser gameplay launcher.
@@ -68,9 +68,9 @@ The headless game runner uses `bsp load`; it does not register the browser gamep
 | `npm run typecheck` | TypeScript validation without emit |
 | `npm run lint` | Biome lint |
 | `npm run test:run` | One-shot Vitest suite |
-| `npm run cli:game` | Headless engine console |
-| `npm run net:server` | Dedicated authoritative server |
-| `npm run lobby:server` | Lobby and matchmaker |
+| `npm --prefix src/games/fps run cli:game` | Headless engine console |
+| `npm --prefix src/games/fps run net:server` | Dedicated authoritative server |
+| `npm --prefix src/games/fps run lobby:server` | Lobby and matchmaker |
 | `npm run docs:dev` | Manual development server |
 
 ## Repository shape

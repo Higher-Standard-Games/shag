@@ -80,9 +80,9 @@ The parser and renderer exist, but `MapLoader` loads indexed BSP maps only, so a
 ```bash
 npm run typecheck
 npm run test:run
-npm run cli:game -- --exec 'bsp load washoi_dm2; bsp info; quit'
-npm run test:simulation
-npm run test:physics
+npm --prefix src/games/fps run cli:game -- --exec 'bsp load washoi_dm2; bsp info; quit'
+npm --prefix src/games/fps run test:simulation
+npm --prefix src/games/fps run test:physics
 ```
 
 Renderer or networking edits need the extended regression set in `AGENTS.md`.

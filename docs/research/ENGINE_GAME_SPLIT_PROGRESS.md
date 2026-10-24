@@ -3039,3 +3039,168 @@ package manifest, finish deployment/checkout ownership and revision-pairing
 documentation, then detach Git only after the final assembled validation.
 
 Washoi commit: `beb1781` (`refactor: own application prebundles and assembled CI`).
+
+
+## Step 26: game-owned package commands (2026-10-24)
+
+Washoi has a private, command-only package manifest. Forty-eight original
+commands/hooks retain their recipes; sixteen proxies expose the engine's generic
+dev/build/check/platform commands with Washoi selected (64 scripts total).
+SHAG's package manifest contains no game source paths or game build recipes.
+Its ranking acceptance command retains the engine subset; Washoi owns the full
+assembled acceptance list. Game manual commands are named docs:dev/build/preview.
+
+From the assembled root use `npm --prefix src/games/fps run <command>`;
+from the game directory use `npm run <command>`. The launcher runs children
+at the SHAG root, sets SHAG_APP, passes arguments without a shell, preserves
+exit status, and resolves Bun through the existing runtime helper. Prehooks
+still build server bundles before launching. A standalone game checkout gives
+an explicit assembly error. Dependencies and the lockfile are unchanged:
+install once at the SHAG root; the game has no separate npm dependency tree.
+This checkpoint does not attempt npm publication or dependency-library purity.
+
+BotRatingIdentity now finds the named SHAG manifest rather than stopping at
+the newly added game manifest. Its hashing inputs/algorithm and rating policy
+remain the same. A source-versus-bundled probe produced identical references
+and behavior hash 008af3b67473a7669041459dc0e12e9067c710ea45ba96ba515ed00ff6deb03c.
+Changing source bytes naturally changes the conservative behavior fingerprint.
+No real database, schema, protocol or rating rule was changed.
+
+Current manuals, agent procedures and game CI use the scoped commands;
+historical changelog/research command receipts keep their original spelling.
+Game CI also tests the launcher. Meaningful launcher tests cover literal
+arguments, arbitrary caller cwd, selected app, exit code and missing assembly.
+
+Validation used isolated exports of SHAG 6c679dda948b8b763ba8d5fe7df884bbc7ecd511 and
+Washoi beb17817ae10e01fbb461ad36ae493df83a0dfb1, with only this checkpoint's changes copied in.
+The other client's live HitscanEffects/CollisionBackend/SweepCollisionBackend
+performance edits were excluded. Existing node_modules was attached by junction;
+these checks do not prove a fresh npm ci. The assembled build ran before media
+was attached, so its index generation could not modify the live data tree.
+Tests/headless checks then used existing public/data through a junction.
+The final benchmark README explanation was added after copying the snapshot;
+it changes prose only. The changelog and this receipt were also added afterwards.
+
+Exact commands in the isolated assembled export (arguments containing spaces
+were passed directly as process arguments, including the quoted replay payload):
+
+| Command | Result |
+| --- | --- |
+| `npm.cmd --prefix src/games/fps run build` | Passed |
+| `npm.cmd --prefix src/games/fps run typecheck` | Passed |
+| `npm.cmd --prefix src/games/fps run test:run` | Passed |
+| `npm.cmd --prefix src/games/fps run gate:biome` | Passed |
+| `npm.cmd --prefix src/games/fps run test:simulation` | Passed |
+| `npm.cmd --prefix src/games/fps run test:physics` | Passed |
+| `npm.cmd --prefix src/games/fps run server:tick` | Passed |
+| `npm.cmd --prefix src/games/fps run server:fuzz -- --ticks 1000 --seed 42` | Passed |
+| `npm.cmd --prefix src/games/fps run cli:game -- --exec "bsp load washoi_dm2; bsp info; quit"` | Passed |
+| `npm.cmd --prefix src/games/fps run cli:game -- --exec "sim replay \"W+CROUCH 60; JUMP 1; W 30\"; quit"` | Passed |
+| `npm.cmd --prefix src/games/fps run test:runtime-equivalence` | Passed |
+| `npm.cmd --prefix src/games/fps run test:server-runtime` | Passed |
+| `npm.cmd run docs:build` | Passed |
+| `npm.cmd --prefix src/games/fps run docs:build` | Passed |
+
+The full suite passed all 721 files: 5,643 tests passed, one optional-data skip.
+Biome reported zero errors / 47 warnings. The game build relocated 49 maps.
+Simulation/physics passed; tick checksum 2768943778; 1,000-tick fuzz seed42
+checksum 2481546443; Node/Bun 10,000-tick parity checksum 507638786.
+BSP load reported 7,475 faces; replay completed 91 ticks. The production
+server-runtime probe built and exercised the bundled lobby/server with owned
+child shutdown code 0. Both manuals built successfully.
+
+Engine-only export (no game repository or media): `npm.cmd run typecheck`,
+`npm.cmd run test:run`, `npm.cmd run gate:biome`, `npm.cmd run build`
+all passed. All 393 files passed: 3,284 tests passed, three optional-data skips;
+zero Biome errors / 35 warnings; engine example build relocated 15 maps.
+
+Additional checks in the live tree:
+
+- `npm.cmd --prefix src/games/fps run server:tick`: passed, 2768943778.
+- `npm.cmd run server:tick` from the game directory: same result.
+- `npm.cmd --prefix src/games/fps run test:run -- src/games/fps/bot/__tests__/BotRatingIdentity.test.ts src/games/fps/bot/__tests__/BotLobbyReference.test.ts`: six passed.
+- `node --test src/games/fps/scripts/__tests__/run-in-engine.test.mjs`: two passed.
+- `node .cache/engine-game-split/audit-step26.mjs`: all 48 migrated recipes
+  equivalent; zero root game references; dependency/lock contents unchanged;
+  CI command names resolve. Tooling suite: 24 passed, one optional Vanguard skip.
+- `node .cache/engine-game-split/identity-step26.mjs`: source/bundle parity.
+- Drivers `validate-step26.mjs` and `engine-only-step26.mjs` under
+  `.cache/engine-game-split/` captured the isolated checks above.
+
+Local receipts/logs are under `.cache/engine-game-split/step26-validation/`.
+No browser/GPU play session, hosted Actions, interactive Windows Ctrl+C test,
+fresh dependency install, long soak, installer build or production deployment
+was performed. Windows Ctrl+C is left to inherited console delivery so the
+child can run its existing graceful cleanup. No Git detachment or push yet.
+
+Exact changed-file inventory (game paths are relative to the assembled root):
+
+- `.claude/skills/docs-edit/SKILL.md`
+- `.claude/skills/local-stack/SKILL.md`
+- `.claude/skills/protocol-change/SKILL.md`
+- `.claude/skills/ranking-change/SKILL.md`
+- `.claude/skills/regression-check/SKILL.md`
+- `AGENTS.md`
+- `README.md`
+- `docs/changelog/v1.0.0-alpha.3.md`
+- `docs/manual/contributing/index.md`
+- `docs/manual/deployment/web.md`
+- `docs/manual/faq/index.md`
+- `docs/manual/getting-started/index.md`
+- `docs/manual/guides/bsp-system.md`
+- `docs/manual/guides/command-reference.md`
+- `docs/manual/guides/configuration.md`
+- `docs/manual/guides/headless-mode.md`
+- `docs/manual/guides/lobby-server.md`
+- `docs/manual/guides/map-launching.md`
+- `docs/manual/guides/movement-system.md`
+- `docs/manual/guides/networking.md`
+- `docs/manual/guides/physics-system.md`
+- `docs/manual/guides/pk3-filesystem.md`
+- `docs/manual/guides/shagged-api.md`
+- `docs/manual/guides/shagged-editor.md`
+- `docs/manual/guides/timedemo.md`
+- `docs/manual/guides/weapon-system.md`
+- `docs/manual/index.md`
+- `docs/manual/tools/headless-bsp.md`
+- `docs/manual/tools/headless-game.md`
+- `docs/manual/tools/index.md`
+- `docs/manual/tools/network-client.md`
+- `docs/manual/tools/network-server.md`
+- `docs/manual/tutorials/advanced/entity-system.md`
+- `docs/manual/tutorials/advanced/headless-testing.md`
+- `docs/manual/tutorials/beginner/first-map-load.md`
+- `docs/manual/tutorials/beginner/using-console.md`
+- `docs/manual/tutorials/intermediate/fps-skeleton.md`
+- `docs/manual/tutorials/intermediate/map-viewer.md`
+- `docs/manual/tutorials/quick-recipes.md`
+- `docs/research/ENGINE_GAME_SPLIT_PROGRESS.md`
+- `package.json`
+- `src/games/fps/.github/workflows/ci.yml`
+- `src/games/fps/.gitignore`
+- `src/games/fps/README.md`
+- `src/games/fps/bot/BotRatingIdentity.ts`
+- `src/games/fps/docs/manual/developer/index.md`
+- `src/games/fps/docs/manual/developer/server-commands.md`
+- `src/games/fps/docs/manual/faq/index.md`
+- `src/games/fps/docs/manual/gametypes/search-and-destroy.md`
+- `src/games/fps/docs/manual/getting-started/index.md`
+- `src/games/fps/docs/manual/getting-started/project-structure.md`
+- `src/games/fps/docs/manual/getting-started/troubleshooting.md`
+- `src/games/fps/docs/manual/index.md`
+- `src/games/fps/docs/manual/multiplayer/connecting.md`
+- `src/games/fps/docs/manual/multiplayer/demos.md`
+- `src/games/fps/docs/manual/tools/bot-server.md`
+- `src/games/fps/docs/manual/tools/bot-training.md`
+- `src/games/fps/package.json`
+- `src/games/fps/scripts/__tests__/run-in-engine.test.mjs`
+- `src/games/fps/scripts/benchmarks/README.md`
+- `src/games/fps/scripts/run-in-engine.mjs`
+
+Remaining for the requested Git split: finish checkout/deployment instructions
+and matching revision documentation, then perform the Git cutover with a final
+assembled validation. Neither repository must run standalone gameplay.
+
+Final shared-tree `npm.cmd run typecheck` and `npm.cmd run gate:biome` passed
+(zero errors / 47 warnings). Both repositories' `git diff --check` passed.
+Washoi commit: `b8a191e` (`refactor: own assembled game package commands`).

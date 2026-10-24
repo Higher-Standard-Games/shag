@@ -76,7 +76,7 @@ echo "hello world"
 Headless batches are semicolon-separated:
 
 ```bash
-npm run cli:game -- --exec 'bsp load washoi_dm2; bsp info; quit'
+npm --prefix src/games/fps run cli:game -- --exec 'bsp load washoi_dm2; bsp info; quit'
 ```
 
 The console has no user-defined aliases. Put repeatable sequences in a configuration file and run it with `exec`, or add a command class.

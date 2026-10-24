@@ -91,7 +91,7 @@ Headless authoritative game server with physics, weapons, combat, and gametype s
 
 ```bash
 # Start a standalone game server (for development/testing)
-npm run net:server
+npm --prefix src/games/fps run net:server
 ```
 
 The lobby server spawns game servers automatically for production use.
@@ -102,10 +102,10 @@ Central matchmaking and server management. Spawns game server processes, manages
 
 ```bash
 # Start the lobby server (default port: 9000)
-npm run lobby:server
+npm --prefix src/games/fps run lobby:server
 
 # Custom port
-npm run lobby:server -- --port 9001
+npm --prefix src/games/fps run lobby:server -- --port 9001
 ```
 
 ### Bot Intelligence Server (BIS)
@@ -114,13 +114,13 @@ Separate Node.js process that spawns AI bot clients. Bots connect to game server
 
 ```bash
 # Start BIS with control API (default port: 9100)
-npm run bot:server
+npm --prefix src/games/fps run bot:server
 
 # Auto-connect 3 medium bots to a game server
-npm run bot:server -- --auto ws://localhost:7777 --count 3
+npm --prefix src/games/fps run bot:server -- --auto ws://localhost:7777 --count 3
 
 # 5 hard bots
-npm run bot:server -- --auto ws://localhost:7777 --count 5 --difficulty hard
+npm --prefix src/games/fps run bot:server -- --auto ws://localhost:7777 --count 5 --difficulty hard
 ```
 
 BIS provides an interactive CLI for managing bots at runtime:
@@ -136,13 +136,13 @@ BIS provides an interactive CLI for managing bots at runtime:
 
 ```bash
 # Terminal 1: Lobby server (matchmaking + server spawner)
-npm run lobby:server
+npm --prefix src/games/fps run lobby:server
 
 # Terminal 2: Client (browser)
 npm run dev
 
 # Terminal 3 (optional): Bot server
-npm run bot:server -- --auto ws://localhost:7777 --count 3
+npm --prefix src/games/fps run bot:server -- --auto ws://localhost:7777 --count 3
 ```
 
 ## Documentation

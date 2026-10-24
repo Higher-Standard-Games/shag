@@ -55,9 +55,9 @@ Never point a changed build at the real data directory first.
 1. Copy it: `cp -r server-data /tmp/ranking-check` (or a scratch directory in
    the session's temp space). Copy the whole directory: SQLite's `-wal` and
    `-shm` files hold recent commits.
-2. Inspect before: `npm run lobby:server -- --ratings-info --data-dir <copy>`.
+2. Inspect before: `npm --prefix src/games/fps run lobby:server -- --ratings-info --data-dir <copy>`.
 3. Open the copy with the changed code, which runs the upgrade, then verify:
-   `npm run lobby:server -- --ratings-verify --data-dir <copy>`. It replays
+   `npm --prefix src/games/fps run lobby:server -- --ratings-verify --data-dir <copy>`. It replays
    every applied result and must report no divergence.
 4. Check the outcome the change is for: the boards (`--results-info`, or the
    leaderboard against the copy through the `local-stack` skill), and the
@@ -70,7 +70,7 @@ Never point a changed build at the real data directory first.
 ```bash
 npm run test:run
 npm run ranking:simulate     # policy sanity on synthetic matches
-npm run ranking:acceptance   # real lobby and game-server result handoffs
+npm --prefix src/games/fps run ranking:acceptance   # real lobby and game-server result handoffs
 ```
 
 ## Report

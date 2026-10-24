@@ -42,7 +42,7 @@ This page is organized by task rather than generated from source. Engine command
 
 `training_demo` can record multiple tricks in one demo. Start each attempt on
 the ground at a low speed and land clearly before the next attempt. Finish with
-`training_demo stop`, then run `npm run bot:learn -- <map>_<name>` to extract and
+`training_demo stop`, then run `npm --prefix src/games/fps run bot:learn -- <map>_<name>` to extract and
 verify movement routes. Failed or unreliable attempts are rejected individually.
 A name that already exists gets `_2`, `_3` and so on rather than being overwritten.
 

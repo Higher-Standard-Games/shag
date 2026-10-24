@@ -304,7 +304,7 @@ map washoi_dm2 duel
 The headless/inspection flow uses:
 
 ```bash
-npm run cli:game -- --exec 'bsp load washoi_dm2; bsp info; quit'
+npm --prefix src/games/fps run cli:game -- --exec 'bsp load washoi_dm2; bsp info; quit'
 ```
 
 Headless loading resolves the BSP through the same PK3 index. Do not add ad-hoc filesystem searches for map files.
@@ -377,7 +377,7 @@ manifest. Existing supported `sounds/` paths
 remain compatible. The extensionless UI keys `ui_click` and `button_press` resolve
 to packaged WAV aliases; reload feedback uses `sounds/weapons/reload.ogg`.
 
-`npm run tools:sounds:audit` writes the usage/status matrix under
+`npm --prefix src/games/fps run tools:sounds:audit` writes the usage/status matrix under
 `docs/research/media/`. It expands the real FPS preload banks, scans source string
 literals, and reads the three production BSPs through the published PK3 index.
 It distinguishes supported cues, preloads without playback, and retained

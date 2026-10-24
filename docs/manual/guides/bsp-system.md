@@ -239,8 +239,8 @@ It verifies authored geometry hashes, reports mesh/triangle counts before frustu
 ## Headless verification
 
 ```bash
-npm run cli:game -- --exec 'bsp load washoi_dm2; bsp info; quit'
-npm run test:physics
+npm --prefix src/games/fps run cli:game -- --exec 'bsp load washoi_dm2; bsp info; quit'
+npm --prefix src/games/fps run test:physics
 ```
 
 ## Source of truth

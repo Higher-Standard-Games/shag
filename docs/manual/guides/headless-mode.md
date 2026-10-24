@@ -4,7 +4,11 @@ SHAG provides CLI entry points for map inspection, deterministic simulation, ser
 
 Washoi's game console runner, simulation/server checks, demo tools and SHAGGED
 application entry points live in `src/games/fps/cli/` in the assembled checkout.
-Run the npm commands below from the assembled root. Generic BSP inspection and
+Its command package is `src/games/fps/package.json`. Run the scoped npm commands
+below from the assembled root, or use `npm run <command>` inside the game folder.
+Game commands select their application and keep data/storage/output paths
+relative to the assembled root. Install dependencies once at that root.
+Generic BSP inspection and
 shared CLI helpers remain in SHAG's `src/cli/`.
 
 Washoi's benchmark drivers and their Node tests live in
@@ -27,13 +31,13 @@ Beyond the engine commands, this runner registers `sim`, `anim`, `headless`,
 Start an interactive REPL:
 
 ```bash
-npm run cli:game
+npm --prefix src/games/fps run cli:game
 ```
 
 Run a batch:
 
 ```bash
-npm run cli:game -- --exec 'bsp load washoi_dm2; bsp info; quit'
+npm --prefix src/games/fps run cli:game -- --exec 'bsp load washoi_dm2; bsp info; quit'
 ```
 
 `--command` is accepted as an alias for `--exec`. The runner does not have a `--map` option.
@@ -43,9 +47,9 @@ The headless composition registers engine commands but not the browser gameplay 
 ## Deterministic movement
 
 ```bash
-npm run cli:game -- --exec 'sim replay "W+CROUCH 60; JUMP 1; W 30"; quit'
-npm run test:simulation
-npm run test:physics
+npm --prefix src/games/fps run cli:game -- --exec 'sim replay "W+CROUCH 60; JUMP 1; W 30"; quit'
+npm --prefix src/games/fps run test:simulation
+npm --prefix src/games/fps run test:physics
 ```
 
 A batch is split on semicolons and newlines, except inside double quotes — so a
@@ -55,10 +59,10 @@ read as separate console commands.
 ## Dedicated server
 
 ```bash
-npm run net:server -- --map washoi_dm2 --port 7777
+npm --prefix src/games/fps run net:server -- --map washoi_dm2 --port 7777
 npm run net:client -- --connect ws://localhost:7777
-npm run server:tick
-npm run server:fuzz -- --ticks 1000
+npm --prefix src/games/fps run server:tick
+npm --prefix src/games/fps run server:fuzz -- --ticks 1000
 ```
 
 `net:server` builds and runs the production artifact with Node 24 or newer;
@@ -66,7 +70,7 @@ npm run server:fuzz -- --ticks 1000
 alternative requiring the Bun version recorded in `.bun-version`. Bun is
 optional for normal server startup. Game servers launched by a lobby inherit
 that lobby's runtime. `net:server:dev` retains the Vite runner. npm owns
-dependencies and the lockfile. `npm run build:server` builds only the server
+dependencies and the lockfile. `npm --prefix src/games/fps run build:server` builds only the server
 artifacts — match server, lobby and bot server — into `dist-server/`, swapping
 the new build in only once it is complete.
 
@@ -81,11 +85,11 @@ argument, resolved relative to that root (or an absolute path). The default is
 Build first, then run an equivalent-artifact comparison:
 
 ```bash
-npm run build:server
-npm run benchmark:server-memory -- --runtimes node,bun --maps washoi_dm2,washoi_dm5,washoi_dm11 --warmup 10 --seconds 15 --repeats 3 --out .cache/server-memory/report.json
-npm run benchmark:server-memory -- --runtimes node,bun --maps washoi_dm11 --clients 8 --recording --warmup 15 --seconds 1800 --repeats 1 --out .cache/server-soak/report.json
-npm run test:runtime-equivalence
-npm run test:server-runtime
+npm --prefix src/games/fps run build:server
+npm --prefix src/games/fps run benchmark:server-memory -- --runtimes node,bun --maps washoi_dm2,washoi_dm5,washoi_dm11 --warmup 10 --seconds 15 --repeats 3 --out .cache/server-memory/report.json
+npm --prefix src/games/fps run benchmark:server-memory -- --runtimes node,bun --maps washoi_dm11 --clients 8 --recording --warmup 15 --seconds 1800 --repeats 1 --out .cache/server-soak/report.json
+npm --prefix src/games/fps run test:runtime-equivalence
+npm --prefix src/games/fps run test:server-runtime
 ```
 
 The memory runner launches real dedicated processes on temporary free ports.
@@ -127,7 +131,7 @@ The dedicated server is a different entry point from `cli:game`; it owns the aut
 
 ```bash
 npm run ranking:simulate
-npm run ranking:acceptance
+npm --prefix src/games/fps run ranking:acceptance
 ```
 
 `ranking:simulate` runs reproducible synthetic Duel, ten-player FFA and shuffled
@@ -141,10 +145,10 @@ handoffs in isolation.
 The lobby's stored results and ratings can be inspected without starting it:
 
 ```bash
-npm run lobby:server -- --results-info --data-dir ./server-data
-npm run lobby:server -- --ratings-info --data-dir ./server-data
-npm run lobby:server -- --ratings-verify --data-dir ./server-data
-npm run lobby:server -- --results-recover --data-dir ./server-data
+npm --prefix src/games/fps run lobby:server -- --results-info --data-dir ./server-data
+npm --prefix src/games/fps run lobby:server -- --ratings-info --data-dir ./server-data
+npm --prefix src/games/fps run lobby:server -- --ratings-verify --data-dir ./server-data
+npm --prefix src/games/fps run lobby:server -- --results-recover --data-dir ./server-data
 ```
 
 The first three open storage read-only; `--ratings-verify` replays every applied
@@ -157,9 +161,9 @@ and how bots are rated as their preset accounts in the Private pools.
 ## Demos and anti-cheat tools
 
 ```bash
-npm run demo:record -- --map washoi_dm2 --bots 2 --seconds 30
-npm run demo:verify -- path/to/bundle.shagverify
-npm run anticheat:calibrate -- --trials 40 --ticks 1500
+npm --prefix src/games/fps run demo:record -- --map washoi_dm2 --bots 2 --seconds 30
+npm --prefix src/games/fps run demo:verify -- path/to/bundle.shagverify
+npm --prefix src/games/fps run anticheat:calibrate -- --trials 40 --ticks 1500
 ```
 
 `demo:record` starts a server, connects AI bots and records one match. It takes

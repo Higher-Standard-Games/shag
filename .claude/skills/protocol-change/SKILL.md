@@ -87,7 +87,7 @@ Work through all of them; search for a neighbouring field to find each spot.
 1. The gates and the full regression set: this is networking code, so follow
    the `regression-check` skill.
 2. Record a fresh demo and check the new data is in it:
-   `npm run demo:record -- --map washoi_dm2 --bots 2 --seconds 30`.
+   `npm --prefix src/games/fps run demo:record -- --map washoi_dm2 --bots 2 --seconds 30`.
 3. Play that demo and an **older** recording in the browser (`browser-probe`
    skill): both must play, the old one without the new detail.
 4. For live data, spectate a bot over a real server connection and confirm the

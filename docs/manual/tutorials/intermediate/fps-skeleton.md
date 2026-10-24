@@ -39,17 +39,17 @@ map washoi_dm2 duel
 The browser command uses the gameplay launcher. A direct headless inspection uses:
 
 ```bash
-npm run cli:game -- --exec 'bsp load washoi_dm2; bsp info; quit'
+npm --prefix src/games/fps run cli:game -- --exec 'bsp load washoi_dm2; bsp info; quit'
 ```
 
 ## Baseline validation
 
 ```bash
 npm run typecheck
-npm run test:simulation
-npm run test:physics
-npm run server:tick
-npm run server:fuzz -- --ticks 1000
+npm --prefix src/games/fps run test:simulation
+npm --prefix src/games/fps run test:physics
+npm --prefix src/games/fps run server:tick
+npm --prefix src/games/fps run server:fuzz -- --ticks 1000
 ```
 
 Networking and renderer changes need all targeted regressions in `AGENTS.md`.

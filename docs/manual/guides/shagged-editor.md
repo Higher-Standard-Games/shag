@@ -228,8 +228,8 @@ Give a new map a **Map ID** (lowercase, e.g. `arena1`) in the MAP menu before it
 Compiling needs the SHAGGED server and the MakeBSP/MakeLight toolchain (bundled for Windows in `tools/makebsp`):
 
 ```text
-npm run shagged:server
-npm run shagged:server -- --check-config   # show the resolved toolchain and folders
+npm --prefix src/games/fps run shagged:server
+npm --prefix src/games/fps run shagged:server -- --check-config   # show the resolved toolchain and folders
 ```
 
 With the server running, the BUILD group is enabled:
@@ -238,7 +238,7 @@ With the server running, the BUILD group is enabled:
 2. **Playtest** (enabled once the current revision is built and published) saves your editor state, closes the editor and starts the map in a local match.
 3. **Return to Editor** in the match's pause menu, or `editor return` in the console, comes back with the same draft, selection and cameras.
 
-The same compile runs from the command line with `npm run shagged:compile -- <mapid>`.
+The same compile runs from the command line with `npm --prefix src/games/fps run shagged:compile -- <mapid>`.
 
 ## Limits
 

@@ -105,9 +105,9 @@ Use `help weapon` for the active command metadata.
 ## Validation
 
 ```bash
-npm run test:simulation
-npm run server:tick
-npm run server:fuzz -- --ticks 1000
+npm --prefix src/games/fps run test:simulation
+npm --prefix src/games/fps run server:tick
+npm --prefix src/games/fps run server:fuzz -- --ticks 1000
 ```
 
 Then run a real client/server match for prediction, effects, and interpolation. Weapon/network changes are high-risk and require the full networking regressions in `AGENTS.md`.

@@ -15,7 +15,7 @@ written against the source, one claim at a time.
 | Content | Location |
 | --- | --- |
 | Engine systems, APIs, tools, deployment | `docs/manual/` (VitePress, `npm run docs:dev`) |
-| Player-facing game manual | `src/games/fps/docs/manual/` (`npm run docs:fps:dev`) |
+| Player-facing game manual | `src/games/fps/docs/manual/` (`npm --prefix src/games/fps run docs:dev`) |
 | What changed this cycle | `docs/changelog/v<version>.md` (now `v1.0.0-alpha.md`), the living changelog |
 | Investigations, plans, status | `docs/research/` |
 | Rules every agent follows | `AGENTS.md` (keep it short; procedures belong in skills) |
@@ -79,7 +79,7 @@ and stage only your hunk.
 
 ```bash
 npm run docs:build        # fails on a dead link
-npm run docs:fps:build    # when the game manual changed
+npm --prefix src/games/fps run docs:build    # when the game manual changed
 ```
 
 Report which pages changed and which facts you corrected, and list anything you

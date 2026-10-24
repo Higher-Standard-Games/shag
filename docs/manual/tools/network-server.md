@@ -5,7 +5,7 @@ The dedicated game server, for multiplayer testing and deployment.
 ## Quick start
 
 ```bash
-npm run net:server
+npm --prefix src/games/fps run net:server
 ```
 
 Washoi owns the entry point at `src/games/fps/cli/headless-netserver-v2.ts`
@@ -21,7 +21,7 @@ and the lobby spawner.
 ## Command-line options
 
 ```bash
-npm run net:server -- [options]
+npm --prefix src/games/fps run net:server -- [options]
 ```
 
 | Option | Default | Description |
@@ -41,7 +41,7 @@ npm run net:server -- [options]
 | `--training-demo <name>` | – | Record a training demo: warmup never ends and every tick is recorded, saved to `public/data/demos/training/<map>_<name>.shagdemo` |
 | `--help`, `-h` | – | Show help |
 
-The first two bare arguments are read as the map and the gametype, so `npm run net:server -- washoi_dm2 Duel` also works.
+The first two bare arguments are read as the map and the gametype, so `npm --prefix src/games/fps run net:server -- washoi_dm2 Duel` also works.
 
 `SHAG_GAME_CERT_PATH` and `SHAG_GAME_KEY_PATH` replace the default certificate paths, which is how servers spawned by the lobby find them.
 
@@ -49,16 +49,16 @@ The first two bare arguments are read as the map and the gametype, so `npm run n
 
 ```bash
 # Default settings
-npm run net:server
+npm --prefix src/games/fps run net:server
 
 # Custom port and name
-npm run net:server -- --port 8080 --name "My Server"
+npm --prefix src/games/fps run net:server -- --port 8080 --name "My Server"
 
 # Search & Destroy on a bomb map, 10 players
-npm run net:server -- --map wbomb1 --gametype SnD --max 10
+npm --prefix src/games/fps run net:server -- --map wbomb1 --gametype SnD --max 10
 
 # One-shot match server, exits when the match ends
-npm run net:server -- --map washoi_dm2 --gametype Duel --single-match
+npm --prefix src/games/fps run net:server -- --map washoi_dm2 --gametype Duel --single-match
 ```
 
 ## TLS
@@ -120,7 +120,7 @@ Alternatively, start it with `--shutdown` to exit once the last client leaves, o
 Terminal 1:
 
 ```bash
-npm run net:server
+npm --prefix src/games/fps run net:server
 ```
 
 Terminal 2:
@@ -133,7 +133,7 @@ npm run net:client
 
 ```bash
 # Terminal 1: server
-npm run net:server
+npm --prefix src/games/fps run net:server
 
 # Terminals 2-4: clients
 npm run net:client -- --name Alice
@@ -143,7 +143,7 @@ npm run net:client -- --name Charlie
 
 ### From the game
 
-1. Start the server: `npm run net:server`
+1. Start the server: `npm --prefix src/games/fps run net:server`
 2. Start the game: `npm run dev`
 3. Open the console with backquote/tilde
 4. Type `connect ws://localhost:7777`

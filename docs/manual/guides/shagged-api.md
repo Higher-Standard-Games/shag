@@ -7,16 +7,16 @@ Build Washoi maps from scripts or AI agents: typed edit operations on the SHAGGE
 **CLI**, for scripts and shells. Output is JSON.
 
 ```text
-npm run shagged -- new map.json --name arena1        # empty document (add --room for the sealed test room)
-npm run shagged -- apply map.json ops.json           # apply a batch; --dry-run to preview
-npm run shagged -- info map.json --objects           # counts, bounds, every object
-npm run shagged -- read map.json                     # complete authoring snapshot
-npm run shagged -- query map.json region.json        # paged object/region query
-npm run shagged -- health map.json                   # Map Health issues
-npm run shagged -- export map.json arena1.map        # deterministic .map source
-npm run shagged -- compile map.json --quality fast   # MakeBSP + MakeLight, publish a playable package
-npm run shagged -- report map.json                   # health + compile + reachability
-npm run shagged -- textures metal floor              # find texture names and image sizes
+npm --prefix src/games/fps run shagged -- new map.json --name arena1        # empty document (add --room for the sealed test room)
+npm --prefix src/games/fps run shagged -- apply map.json ops.json           # apply a batch; --dry-run to preview
+npm --prefix src/games/fps run shagged -- info map.json --objects           # counts, bounds, every object
+npm --prefix src/games/fps run shagged -- read map.json                     # complete authoring snapshot
+npm --prefix src/games/fps run shagged -- query map.json region.json        # paged object/region query
+npm --prefix src/games/fps run shagged -- health map.json                   # Map Health issues
+npm --prefix src/games/fps run shagged -- export map.json arena1.map        # deterministic .map source
+npm --prefix src/games/fps run shagged -- compile map.json --quality fast   # MakeBSP + MakeLight, publish a playable package
+npm --prefix src/games/fps run shagged -- report map.json                   # health + compile + reachability
+npm --prefix src/games/fps run shagged -- textures metal floor              # find texture names and image sizes
 ```
 
 After `compile`, play the map with `map <mapName>` in the game console.
@@ -40,7 +40,7 @@ External compiler installations must have `makebspdata/washoi.json` beside
 each executable as well as in the configured toolchain root. Changing only
 the process working directory does not change native profile lookup.
 
-**MCP server**, for AI clients: `npm run shagged:mcp` (stdio). It exposes the same operations and checks as tools, and this guide as resources.
+**MCP server**, for AI clients: `npm --prefix src/games/fps run shagged:mcp` (stdio). It exposes the same operations and checks as tools, and this guide as resources.
 
 Compile results include `jobId`, `logPath` and `diagnostics` (warning/error counts,
 missing-asset count, leak status, native phase and bounded diagnostic samples).
@@ -86,7 +86,7 @@ descriptor. These classes are recognized by Map Health and shown in the editor
 palette/inspector; their projected appearance must be checked after compilation.
 
 Find props with MCP `shagged_models {search?, offset?, limit?, includeBounds?}`
-or CLI `npm run shagged -- models lamp --bounds`. All search words must match
+or CLI `npm --prefix src/games/fps run shagged -- models lamp --bounds`. All search words must match
 the path. Pages default to 50 entries (maximum 500); continue at `nextOffset`
 until `total`. Results identify the owning package, or `null` for loose models.
 Later alphabetically sorted packages override earlier ones; loose models win.
@@ -99,7 +99,7 @@ unsupported; inspect the compiled BSP and verify prop collision there.
 
 For a compiled reference map, use MCP
 `shagged_inspect_installed_map {mapName: "washoi_dm5", search?, offset?, limit?}`
-or CLI `npm run shagged -- inspect-bsp washoi_dm5 --limit 100`.
+or CLI `npm --prefix src/games/fps run shagged -- inspect-bsp washoi_dm5 --limit 100`.
 This reads the installed BSP through the game's package index, independently
 of managed authoring documents. It returns world bounds in Quake coordinates,
 spawn properties, entity-class counts and a used-material palette with face

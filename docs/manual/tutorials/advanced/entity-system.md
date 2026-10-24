@@ -57,10 +57,10 @@ When adding networked state:
 ## Verification
 
 ```bash
-npm run test:simulation
-npm run test:physics
-npm run server:tick
-npm run server:fuzz -- --ticks 1000
+npm --prefix src/games/fps run test:simulation
+npm --prefix src/games/fps run test:physics
+npm --prefix src/games/fps run server:tick
+npm --prefix src/games/fps run server:fuzz -- --ticks 1000
 ```
 
 Use `bsp entities <classname> details` to verify source map data before debugging behavior.
