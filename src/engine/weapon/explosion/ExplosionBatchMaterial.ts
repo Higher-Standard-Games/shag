@@ -143,7 +143,9 @@ void main() {
   float t = clamp(seconds * speed / ${EXPLOSION_FIRE_TIME.toFixed(1)}, 0.0, 1.0);
   float ringT = min(t / 0.7, 1.0);
   float expand = easeOut(ringT) * (iD.y * 2.0) / scale;
-  vec3 local = position * scale * vec3(expand, max(0.1, 1.0 - ringT * 0.8), expand);
+  // The disc lies across +Y, which the rotation turns to the hit normal, and
+  // rides just off the surface so it does not fight it for depth.
+  vec3 local = vec3(position.x, 2.0, position.y) * vec3(scale * expand, 1.0, scale * expand);
   world = origin + rotateByQuat(local, iB);
   vColor = iC.rgb;
   vAlpha = 0.5 * (1.0 - ringT);
