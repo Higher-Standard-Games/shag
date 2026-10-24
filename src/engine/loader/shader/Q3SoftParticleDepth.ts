@@ -8,6 +8,7 @@ import type { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh";
 import { DepthRenderer } from "@babylonjs/core/Rendering/depthRenderer";
 import type { Scene } from "@babylonjs/core/scene";
 import { RenderVars } from "../../rendering/RenderVars";
+import { SceneDepthCapture } from "../../rendering/SceneDepthCapture";
 
 const providers = new WeakMap<Scene, Q3SoftParticleDepth>();
 const WEAPON_LAYER = 0x10000000;
@@ -65,11 +66,13 @@ export class Q3SoftParticleDepth {
   private readonly materials = new Set<Material>();
   private renderer: DepthRenderer | null = null;
   private camera: Camera | null = null;
+  /** The camera whose depth this frame comes from its main pass instead of a pass of our own. */
+  private sharedCamera: Camera | null = null;
   private unavailable = false;
   /**
    * Each soft surface in view as `screenBounds` writes it, its depth range
-   * extended by the fade depth: the only pixels and depths where the scene
-   * behind can fade it.
+   * extended by the fade depth: the pixels where the scene can fade it, and
+   * the depth past which it cannot.
    */
   private readonly reach: number[] = [];
   private readonly meshBounds: number[] = [];
@@ -99,6 +102,7 @@ export class Q3SoftParticleDepth {
   private prepare(camera: Camera): void {
     if ((camera.layerMask & WEAPON_LAYER) !== 0) return;
     this.reach.length = 0;
+    this.sharedCamera = null;
     if ((RenderVars.getInstance().get("r_softhalos") ?? 1) < 0.5) {
       this.setRendering(false);
       return;
@@ -119,6 +123,13 @@ export class Q3SoftParticleDepth {
     }
     if (!this.reach.length || this.unavailable) {
       this.setRendering(false);
+      return;
+    }
+    const shared = SceneDepthCapture.for(this.scene);
+    if (shared.supports(camera)) {
+      this.release();
+      shared.request(camera);
+      this.sharedCamera = camera;
       return;
     }
     if (this.camera === camera) {
@@ -167,10 +178,11 @@ export class Q3SoftParticleDepth {
   }
 
   /**
-   * Only a mesh that shares screen with a soft surface in view, at a depth from
-   * that surface to the fade depth behind it, can fade one. Elsewhere the
-   * mesh's depth changes nothing: past the fade depth the surface reads no
-   * fade either way, and in front of the surface the mesh hides it.
+   * Only a mesh that shares screen with a soft surface in view, and reaches
+   * nearer than the fade depth behind it, can fade one; past the fade depth
+   * the surface reads no fade either way. A mesh in front of the surface counts:
+   * flares drawn without a depth test fade out behind it rather than being
+   * hidden.
    */
   private withinReach(mesh: AbstractMesh): boolean {
     if (!this.camera) return true;
@@ -178,20 +190,13 @@ export class Q3SoftParticleDepth {
     screenBounds(mesh, this.camera.getViewMatrix(), this.camera.getProjectionMatrix(), m, 0);
     const r = this.reach;
     for (let i = 0; i < r.length; i += 6) {
-      if (
-        m[2] >= r[i] &&
-        m[0] <= r[i + 2] &&
-        m[3] >= r[i + 1] &&
-        m[1] <= r[i + 3] &&
-        m[5] >= r[i + 4] &&
-        m[4] <= r[i + 5]
-      )
-        return true;
+      if (m[2] >= r[i] && m[0] <= r[i + 2] && m[3] >= r[i + 1] && m[1] <= r[i + 3] && m[4] <= r[i + 5]) return true;
     }
     return false;
   }
 
   mapFor(camera: Camera | null): Texture | null {
+    if (this.sharedCamera) return SceneDepthCapture.for(this.scene).textureFor(camera);
     const map = this.renderer?.getDepthMap();
     return map && camera && camera === this.camera && camera.customRenderTargets.includes(map) ? map : null;
   }

@@ -26,6 +26,7 @@ import type { Texture } from "@babylonjs/core/Materials/Textures/texture";
 import type { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh";
 import { DepthRenderer } from "@babylonjs/core/Rendering/depthRenderer";
 import type { Scene } from "@babylonjs/core/scene";
+import { SceneDepthCapture } from "../SceneDepthCapture";
 
 /** Matches the default `scene.enableDepthRenderer` used before this existed. */
 const SAMPLING_MODE = Constants.TEXTURE_TRILINEAR_SAMPLINGMODE;
@@ -38,6 +39,8 @@ export class WaterDepthProvider {
   private ceiling: number | null = null;
   private renderer: DepthRenderer | null = null;
   private camera: Camera | null = null;
+  /** The camera whose depth comes from its main pass instead of a pass of our own. */
+  private sharedCamera: Camera | null = null;
   /** null once we know this device cannot give us a usable depth format. */
   private unavailable = false;
 
@@ -55,6 +58,13 @@ export class WaterDepthProvider {
    */
   mapFor(camera: Camera): Texture | null {
     if (this.unavailable) return null;
+    const shared = SceneDepthCapture.for(this.scene);
+    if (shared.supports(camera)) {
+      this.release();
+      this.sharedCamera = camera;
+      return shared.textureFor(camera);
+    }
+    this.sharedCamera = null;
     if (this.renderer && this.camera === camera) return this.renderer.getDepthMap();
 
     this.release();
@@ -153,6 +163,10 @@ export class WaterDepthProvider {
    * texture allocated so turning back toward the pool does not rebuild it.
    */
   setRendering(enabled: boolean): void {
+    if (this.sharedCamera) {
+      if (enabled) SceneDepthCapture.for(this.scene).request(this.sharedCamera);
+      return;
+    }
     if (!this.renderer) return;
 
     const map = this.renderer.getDepthMap();

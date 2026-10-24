@@ -102,11 +102,14 @@ strength at 50 world units of separation). Source-alpha blends fade their alpha;
 pure additive stages fade their RGB contribution. Clear background depth leaves
 the effect at full strength.
 
-Soft particles share a separate camera-space depth capture. It runs when a
+Soft particles read camera-space depth of the opaque scene. On WebGL2 with
+the post-process pipeline on, `SceneDepthCapture` copies it from the main
+pass's depth buffer once the opaque surfaces are drawn, the same copy water
+reads. Elsewhere they share a separate depth capture. It runs when a
 registered effect is enabled and in the world camera frustum, excluding sky,
-viewmodels and alpha-blended geometry. It draws only meshes whose screen
-rectangle overlaps a soft effect's and whose depth reaches from that effect to
-50 units behind it; no other depth can change a faded pixel. Camera changes
+viewmodels and alpha-blended geometry, and draws only meshes whose screen
+rectangle overlaps a soft effect's and that come nearer than 50 units behind
+it; no other depth can change a faded pixel. Camera changes
 replace the capture; disposing the last material releases it. `r_softhalos 0`
 (the Smooth preset) turns the capture off and leaves effects at full strength.
 Devices without float render targets retain the authored effect without

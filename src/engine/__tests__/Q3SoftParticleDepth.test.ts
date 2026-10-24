@@ -104,7 +104,7 @@ describe("soft particle depth ownership", () => {
     expect(camera.customRenderTargets).toHaveLength(0);
     expect(provider.fallback).toBeDefined();
   });
-  it("draws only meshes that share screen with a soft surface, from its depth to the fade depth behind it", () => {
+  it("draws only meshes that share screen with a soft surface and come nearer than the fade depth behind it", () => {
     const at = (name: string, position: Vector3) => {
       const box = CreateBox(name, {}, scene);
       box.position = position;
@@ -122,7 +122,7 @@ describe("soft particle depth ownership", () => {
     frame();
     const map = provider.mapFor(camera) as RenderTargetTexture;
     const drawn = map.getCustomRenderList!(0, scene.meshes, scene.meshes.length)!.map((mesh) => mesh.name);
-    expect(drawn).toEqual(["behind", "around the camera"]);
+    expect(drawn).toEqual(["behind", "in front", "around the camera"]);
   });
   it("stops the capture while soft halos are off", () => {
     frame();
