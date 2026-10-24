@@ -8,7 +8,7 @@
 | --- | --- |
 | Material | `r_deluxe`, `r_bsp_pbr`, `r_normalmap`, `r_glossmap`, `r_lightmap`, `r_emissive` |
 | Texture | `r_anisotropy`, `r_ktx2`, `r_picmip` |
-| Display | `r_webgpu`, `r_bsp_freeze`, `r_ssr`, `r_glow`, `r_bloom`, `r_exposure`, `r_contrast` |
+| Display | `r_webgpu`, `r_bsp_freeze`, `r_ssr`, `r_softhalos`, `r_glow`, `r_bloom`, `r_exposure`, `r_contrast` |
 | Lighting | `r_ambient`, `r_lightintensity`, `r_lightmapscale`, god-ray, area-light, and day/night groups |
 | Debug | `r_wireframe`, `r_showtris`, `r_water_debug` |
 

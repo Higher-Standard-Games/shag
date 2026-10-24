@@ -104,10 +104,13 @@ the effect at full strength.
 
 Soft particles share a separate camera-space depth capture. It runs when a
 registered effect is enabled and in the world camera frustum, excluding sky,
-viewmodels and alpha-blended geometry. Camera changes replace the capture;
-disposing the last material releases it. This costs an additional depth pass
-while visible. Devices without float render targets retain the authored effect
-without intersection fading. Custom overlay shaders are outside this path.
+viewmodels and alpha-blended geometry. It draws only meshes whose screen
+rectangle overlaps a soft effect's and whose depth reaches from that effect to
+50 units behind it; no other depth can change a faded pixel. Camera changes
+replace the capture; disposing the last material releases it. `r_softhalos 0`
+(the Smooth preset) turns the capture off and leaves effects at full strength.
+Devices without float render targets retain the authored effect without
+intersection fading. Custom overlay shaders are outside this path.
 
 Material stages retain their own UV and blend state when an earlier pass uses
 environment coordinates. An authored additive shine stage uses a separate

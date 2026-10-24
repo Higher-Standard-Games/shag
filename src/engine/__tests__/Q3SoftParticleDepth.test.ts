@@ -8,6 +8,7 @@ import { Scene } from "@babylonjs/core/scene";
 import "@babylonjs/core/Rendering/depthRendererSceneComponent";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { Q3SoftParticleDepth } from "../loader/shader/Q3SoftParticleDepth";
+import { RenderVars } from "../rendering/RenderVars";
 
 let engine: NullEngine;
 let scene: Scene;
@@ -26,9 +27,14 @@ beforeEach(() => {
   provider = Q3SoftParticleDepth.acquire(material);
 });
 afterEach(() => {
+  softHalos(1);
   scene.dispose();
   engine.dispose();
 });
+// The variable's value directly: setting it schedules a scene update on an animation frame
+const softHalos = (value: number) => {
+  RenderVars.getInstance().getVar("r_softhalos")!.value = value;
+};
 const frame = () => {
   camera.getViewMatrix();
   camera.getProjectionMatrix();
@@ -97,5 +103,36 @@ describe("soft particle depth ownership", () => {
     expect(provider.mapFor(camera)).toBeNull();
     expect(camera.customRenderTargets).toHaveLength(0);
     expect(provider.fallback).toBeDefined();
+  });
+  it("draws only meshes that share screen with a soft surface, from its depth to the fade depth behind it", () => {
+    const at = (name: string, position: Vector3) => {
+      const box = CreateBox(name, {}, scene);
+      box.position = position;
+      box.computeWorldMatrix(true);
+      return box;
+    };
+    // The soft box sits 10 in front of the camera; it fades over 50 behind it
+    at("behind", new Vector3(0, 0, 20));
+    at("past the fade", new Vector3(0, 0, 100));
+    at("beside it", new Vector3(30, 0, 0));
+    at("in front", new Vector3(0, 0, -5));
+    const around = at("around the camera", new Vector3(0, 0, -10));
+    around.scaling.setAll(400);
+    around.computeWorldMatrix(true);
+    frame();
+    const map = provider.mapFor(camera) as RenderTargetTexture;
+    const drawn = map.getCustomRenderList!(0, scene.meshes, scene.meshes.length)!.map((mesh) => mesh.name);
+    expect(drawn).toEqual(["behind", "around the camera"]);
+  });
+  it("stops the capture while soft halos are off", () => {
+    frame();
+    const map = provider.mapFor(camera);
+    softHalos(0);
+    frame();
+    expect(provider.mapFor(camera)).toBeNull();
+    expect(camera.customRenderTargets).not.toContain(map);
+    softHalos(1);
+    frame();
+    expect(provider.mapFor(camera)).toBe(map);
   });
 });

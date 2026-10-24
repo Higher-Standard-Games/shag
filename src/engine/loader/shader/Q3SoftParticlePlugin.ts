@@ -6,7 +6,7 @@ import type { StandardMaterial } from "@babylonjs/core/Materials/standardMateria
 import type { UniformBuffer } from "@babylonjs/core/Materials/uniformBuffer";
 import type { Scene } from "@babylonjs/core/scene";
 import type { ResolvedMaterialProps } from "./Q3ShaderTypes";
-import { Q3SoftParticleDepth } from "./Q3SoftParticleDepth";
+import { Q3_SOFT_FADE_RATE, Q3SoftParticleDepth } from "./Q3SoftParticleDepth";
 
 export function configureQ3SoftParticle(material: StandardMaterial | PBRMaterial, props: ResolvedMaterialProps): void {
   if (props.softParticle && props.isTransparent && !material.pluginManager?.getPlugin("Q3SoftParticle"))
@@ -45,7 +45,13 @@ class Q3SoftParticlePlugin extends MaterialPluginBase {
   override hardBindForSubMesh(buffer: UniformBuffer, scene: Scene, engine: AbstractEngine): void {
     const map = this.depth.mapFor(scene.activeCamera);
     buffer.setTexture("q3SoftDepthSampler", map ?? this.depth.fallback);
-    buffer.updateFloat4("q3SoftParams", engine.getRenderWidth(), engine.getRenderHeight(), 0.02, map ? 1 : 0);
+    buffer.updateFloat4(
+      "q3SoftParams",
+      engine.getRenderWidth(),
+      engine.getRenderHeight(),
+      Q3_SOFT_FADE_RATE,
+      map ? 1 : 0,
+    );
     if (scene.activeCamera) buffer.updateMatrix("q3SoftView", scene.activeCamera.getViewMatrix());
   }
   override getCustomCode(type: string, language?: ShaderLanguage): Record<string, string> {

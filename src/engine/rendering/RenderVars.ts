@@ -88,6 +88,7 @@ export type RenderVarName =
   | "r_arealights_intensity"
   | "r_wireframe"
   | "r_glow"
+  | "r_softhalos"
   | "r_ssr"
   | "r_ssr_strength"
   | "r_bloom"
@@ -346,6 +347,16 @@ const DEFAULT_VARS: Record<string, Omit<RenderVar, "name">> = {
     min: 0,
     max: 2,
     description: "SSR reflection strength (subtle by default). Tunes live when r_ssr is on.",
+    category: "display",
+  },
+  // Map halos and flares fading where they meet a surface (Q3SoftParticleDepth)
+  r_softhalos: {
+    value: 1,
+    defaultValue: 1,
+    min: 0,
+    max: 1,
+    description:
+      "Soft halos (0/1): light halos and flares fade where they meet walls instead of ending in a hard line. Costs a depth pass of the meshes near them.",
     category: "display",
   },
   // Emissive glow layer (see GlowEffect) — controllable glow on top of bloom.
