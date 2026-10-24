@@ -3309,3 +3309,88 @@ The changelog remains unreleased; checked-in version files still report alpha.2
 and need deliberate release preparation before tagging alpha.3. Remaining:
 in-place repository cutover, operator/deployment updates, revision pairing and
 final release validation with persistent media preserved.
+
+## EU and US operator migration (2026-10-24)
+
+User explicitly requested updating both production regions. Inspected EU via
+`root@washoi.net` (Frankfurt) and US via `root@us.washoi.net` (Chicago).
+Both were on alpha.2: SHAG `c47cfc5c8926096402d7f1e2b27a8e1d00ac0ffe`,
+Washoi `d1c1689e8923d57ba46ac41e8e852c502debe593`. No application revision
+was changed, published or pushed. EU had a lobby connection; no game services
+were stopped or restarted on either host.
+
+Installed independent game Git metadata in place under the existing game's
+`.git` directory. Origins/read-only keys and working files were preserved;
+the old parent module store remains intact. Deployment fetches both repositories
+directly, with recursive submodule checkout explicitly disabled. Each host's
+`/srv/washoi/release-pair.json` pins the exact current engine and game revisions.
+Timers now select that explicit pair; publishing main alone does not deploy a
+new application revision. Both-revision fingerprint:
+`538d41ffc873f5891abe8c58259c5029e961f4c5`.
+
+Backups of scripts, deploy state, original Git metadata and actual media are at
+`/srv/washoi/backups/git-split-20261024-eu` and `...-us` on their respective hosts.
+Verified `public/data` still links to `/srv/washoi/assets/data`, with unchanged
+target inode and top-level media names/sizes. Accounts, DBs, environment files,
+certificates, proxy configuration and live demos were not edited. No data was
+deleted. Only deploy/activation/access-check timers were briefly paused for
+installation; their prior active state was restored. Service configuration was
+reloaded without restarting processes. Lobby/bot PIDs remained EU 162180/162176
+and US 1179/1180.
+
+Exact installed configuration:
+
+- `/srv/washoi/deploy.sh`: region-specific paired fetch/build recipe.
+- `/srv/washoi/workspace.sh`: media guard, revision pairing and old/new package
+  command dispatch, including the alpha.2 fallback.
+- `/srv/washoi/run-server.sh`: bundle-first startup with source-path fallback.
+- Both service `20-independent-checkout.conf` drop-ins: only ExecStart changed;
+  existing environment files, limits and sandbox settings retained.
+- US `/srv/washoi/validate.sh` and `/usr/local/sbin/washoi-activate`: updated
+  command ownership and data-preserving static publication; idle guard retained.
+- `release-pair.json`, deploy surface fingerprints and checkout-pair receipt.
+
+Static publication now excludes `data/` from destructive synchronization and
+copies media separately without deletion. US retains staged artifacts for
+rollback. EU still requires an explicit idle backend stop/restart during an
+application release; the operator runbook makes that step clear. Updating the
+operator configuration did not switch the running backend to new code.
+
+Validation on both hosts:
+
+- `bash -n` for every staged/installed shell script: passed.
+- Disposable fixtures exercised exact revision receipts, legacy and modern
+  package dispatch, pair-change invalidation, missing-media rejection and
+  publication retaining an existing media sentinel: passed.
+- `washoi_prepare`: direct fetches of both selected revisions passed.
+- EU `/srv/washoi/deploy.sh game engine-docs fps-docs`: no-op, surfaces unchanged.
+- US `/srv/washoi/deploy.sh`: no-op, selected pair unchanged.
+- `source /srv/washoi/workspace.sh; washoi_game run server:tick` as washoi:
+  passed on both; deterministic checksum `2768943778`.
+- Startup wrapper `--check lobby` / `--check bot`: selected existing entries.
+- Active lobby/bot services and deploy timers verified; US activation and
+  GitHub-access timers also active.
+- HTTPS game and `data/map_washoi_dm2.pk3` HEAD requests: HTTP 200 on both.
+  Lobby requests: expected HTTP 426 WebSocket-upgrade response on both.
+- Local `npm.cmd run docs:build` and
+  `npm.cmd --prefix src/games/fps run docs:build`: passed.
+
+A manual US deploy initially exposed the existing root-invocation cwd issue:
+find could not restore `/root` after switching users. Both entry scripts now
+normalize cwd to `/srv/washoi`; the final no-op deploy checks passed. A brief
+US deploy-lock collision delayed one helper replacement; retry passed its
+freshness check. The remote update used script-content freshness checks and
+the existing deployment lock. Local scratch scripts/fixtures are under
+`.cache/production-split/` and `.cache/engine-game-split/`.
+
+Exact repository files changed: game `scripts/deployment/README.md`,
+`workspace.sh`, `run-server.sh`, `deploy-eu.sh`, `deploy-us.sh`,
+`activate-us.sh`, `validate-us.sh` (all under `scripts/deployment/`), plus
+`docs/manual/developer/server-commands.md`. Engine
+`docs/manual/deployment/web.md`, `docs/changelog/v1.0.0-alpha.3.md`, this log
+and the game pin. No new application runtime source was changed.
+
+Unverified: changed-pair production build/activation of alpha.3, an actual
+backend restart through the new wrapper, fresh dependency installation and a
+new browser match. Current processes and endpoints stayed healthy. No local
+submodule cutover, release tag, version bump or repository push was performed.
