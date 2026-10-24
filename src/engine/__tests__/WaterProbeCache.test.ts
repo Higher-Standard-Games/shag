@@ -201,3 +201,29 @@ it("clamps the lifted capture below an overhang and supports the waterline basel
     cache.dispose();
   }
 });
+it("captures every pool in one call for the loading screen, and gives up on a target not ready", async () => {
+  const camera = new FreeCamera("world", new Vector3(0, 80, -100), scene);
+  const root = new Mesh("map", scene);
+  const wall = CreateBox("wall", { size: 20 }, scene);
+  wall.parent = root;
+  wall.position.z = 50;
+  wall.material = new StandardMaterial("wall-material", scene);
+  const pools = [0, 300].map((x) => {
+    const pool = CreateGround(`pool-${x}`, { width: 100, height: 100 }, scene);
+    pool.position.x = x;
+    pool.parent = root;
+    pool.metadata = { liquidKind: "water" };
+    return pool;
+  });
+  const cache = new WaterProbeCache(scene);
+  cache.claim(root, pools);
+  await scene.whenReadyAsync();
+  vi.spyOn(RenderTargetTexture.prototype, "render").mockImplementation(() => {});
+  const ready = vi.spyOn(RenderTargetTexture.prototype, "isReadyForRendering").mockReturnValue(false);
+  expect(cache.captureAll(camera)).toBe(0);
+  ready.mockReturnValue(true);
+  expect(cache.captureAll(camera)).toBe(2);
+  expect(cache.entries.map((entry) => entry.ready)).toEqual([true, true]);
+  expect(cache.captureAll(camera)).toBe(0);
+  cache.dispose();
+});

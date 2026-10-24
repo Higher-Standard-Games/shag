@@ -196,16 +196,39 @@ export class WaterProbeCache {
     return patch ? { x: position.x, y: patch.min.y, z: position.z } : null;
   }
 
-  /** Called before main rendering. One complete capture per frame, with a fixed total budget. */
+  /**
+   * Called before main rendering: one capture per frame, with a fixed total
+   * budget, for a pool the load-time capture could not take (its world was not
+   * ready yet).
+   */
   update(camera: Camera): void {
     if (this.lastCaptureFrame === this.scene.getFrameId()) return;
+    if (this.captureNext(camera)) this.lastCaptureFrame = this.scene.getFrameId();
+  }
+
+  /**
+   * Capture every pool still without a room cubemap, up to the budget. Map
+   * loading calls this behind the loading screen, so the captures (each six
+   * renders of the static world) do not stall play when a pool first comes
+   * into view. Returns how many it captured.
+   */
+  captureAll(camera: Camera): number {
+    const before = this.entries.length;
+    // One attempt per pool: a target not ready to render leaves its pool pending
+    for (let attempt = new Set(this.patches.values()).size; attempt > 0; attempt--) {
+      if (!this.captureNext(camera)) break;
+    }
+    return this.entries.length - before;
+  }
+
+  /** Capture one pending pool. False when none is pending, the budget is spent, or the world is not ready. */
+  private captureNext(camera: Camera): boolean {
     const patch = Array.from(this.patches.values()).find(
       (p) => !this.failed.has(p) && !this.entries.some((e) => e.patch === p),
     );
-    if (!patch || this.entries.length >= MAX_PROBES) return;
+    if (!patch || this.entries.length >= MAX_PROBES) return false;
     const meshes = Array.from(this.staticMeshes).filter((m) => !m.isDisposed() && m.isEnabled());
-    if (!meshes.length || meshes.some((m) => !m.isReady(true) || (m.material && !m.material.isReady(m)))) return;
-    this.lastCaptureFrame = this.scene.getFrameId();
+    if (!meshes.length || meshes.some((m) => !m.isReady(true) || (m.material && !m.material.isReady(m)))) return false;
     let probe: ReflectionProbe | undefined;
     const visibility = meshes.map((m) => m.isVisible);
     const transientLights = this.scene.lights.filter((light) => light.metadata?.excludeFromWaterCapture);
@@ -292,6 +315,7 @@ export class WaterProbeCache {
         if (!m.isDisposed()) m.isVisible = visibility[i];
       });
     }
+    return true;
   }
 
   /** BSP water polygons can run UNDER a solid island. A triangle centroid is

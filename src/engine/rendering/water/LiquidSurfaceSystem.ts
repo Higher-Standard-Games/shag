@@ -207,6 +207,11 @@ export class LiquidSurfaceSystem {
    * Bind a borrowed scene environment, or an optionally-owned liquid cubemap.
    * A kind-specific map always wins over the general sky fallback.
    */
+  /** Capture every pool's room cubemap now; map loading calls this behind the loading screen. */
+  captureReflections(camera: Camera): number {
+    return this.probes.captureAll(camera);
+  }
+
   setEnvironmentTexture(texture: BaseTexture | null, options: { kind?: WaterKind; owned?: boolean } = {}): void {
     if (options.kind) {
       const previous = this.environments.get(options.kind);

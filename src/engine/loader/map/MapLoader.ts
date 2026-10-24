@@ -685,6 +685,19 @@ export class MapLoader {
       } catch (e) {
         console.warn("[MapLoader] scene.whenReadyAsync() failed, proceeding anyway:", e);
       }
+
+      // Static reflection cubemaps render the world six times each: behind the
+      // loading screen rather than as a stall when a pool first comes into view
+      const camera = scene.activeCamera;
+      if (camera && this.liquidSurfaces) {
+        progress("Finalizing", "Capturing reflections");
+        try {
+          const captured = this.liquidSurfaces.captureReflections(camera);
+          if (captured) devLog(`[MapLoader] Captured ${captured} water reflection cubemap(s)`);
+        } catch (e) {
+          console.warn("[MapLoader] Reflection capture failed, water will capture in play:", e);
+        }
+      }
     } else {
       devLog("[MapLoader] Background mode: skipped shader warmup and GPU wait");
     }
