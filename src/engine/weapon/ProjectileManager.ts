@@ -40,6 +40,28 @@ import {
 } from "./ExplosionEffect";
 import { getPointLightPool } from "./PointLightPool";
 
+/**
+ * Shorten a trail to `maxLength` along its path, newest point last. Points past
+ * the cut are packed just behind it, a hundredth of a unit apart, so the ribbon
+ * keeps its point count and the width taper ends at the cut.
+ */
+export function clampTrailLength(points: Vector3[], maxLength: number): void {
+  let length = 0;
+  for (let i = points.length - 1; i > 0; i--) {
+    const head = points[i];
+    const tail = points[i - 1];
+    const segment = Vector3.Distance(head, tail);
+    if (length + segment <= maxLength) {
+      length += segment;
+      continue;
+    }
+    const cut = head.add(tail.subtract(head).scale((maxLength - length) / segment));
+    const back = segment > 0 ? tail.subtract(head).scale(1 / segment) : Vector3.Zero();
+    for (let j = i - 1; j >= 0; j--) cut.addToRef(back.scale((i - 1 - j) * 0.01), points[j]);
+    return;
+  }
+}
+
 /** Fallback ribbon axis for a trail segment parallel to both the view and up. */
 const TRAIL_FORWARD = Vector3.Forward();
 
@@ -835,7 +857,7 @@ export class ProjectileManager {
         // Update trail effect (for projectiles with trailEffect defined)
         const trailDef = getEntityRegistry().get<ProjectileDef>(proj.defId);
         if (trailDef?.trailEffect) {
-          this.updateTrail(proj);
+          this.updateTrail(proj, trailDef.trailLength);
         }
         continue;
       }
@@ -887,7 +909,7 @@ export class ProjectileManager {
       // Update trail for projectiles with trailEffect defined
       const trailDef = getEntityRegistry().get<ProjectileDef>(proj.defId);
       if (trailDef?.trailEffect) {
-        this.updateTrail(proj);
+        this.updateTrail(proj, trailDef.trailLength);
       }
     }
 
@@ -1148,7 +1170,7 @@ export class ProjectileManager {
    * vertices at the end (v0.9.16 "ghost triangle" GL trail bug). Never let
    * the point count differ from the mesh's creation count.
    */
-  private updateTrail(proj: ActiveProjectile): void {
+  private updateTrail(proj: ActiveProjectile, maxLength?: number): void {
     if (!this.scene) return;
 
     const MAX_TRAIL_POINTS = 60;
@@ -1176,6 +1198,7 @@ export class ProjectileManager {
     if (overshoot > 0) {
       proj.trailPoints.splice(0, overshoot);
     }
+    if (maxLength) clampTrailLength(proj.trailPoints, maxLength);
 
     // Build a single camera-facing ribbon.
     // The previous X-formation looked volumetric on straight shots, but on

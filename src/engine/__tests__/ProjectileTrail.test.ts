@@ -16,7 +16,7 @@ import { getEntityRegistry } from "../../shared/entities";
 import { getMD3Loader, type MD3LoadResult } from "../loader/model/MD3Loader";
 import { PK3Loader } from "../loader/pk3/PK3Loader";
 import { getExplosionEffect } from "../weapon/ExplosionEffect";
-import { ProjectileManager } from "../weapon/ProjectileManager";
+import { clampTrailLength, ProjectileManager } from "../weapon/ProjectileManager";
 
 const ribbons = vi.hoisted(() => [] as number[][][]);
 
@@ -214,5 +214,28 @@ describe("projectile trails", () => {
     manager.despawn(second as string);
     manager.clear();
     expect(idle.isDisposed()).toBe(true);
+  });
+});
+
+describe("trail length", () => {
+  it("cuts a long trail to its length along the path and packs the rest behind the cut", () => {
+    // A fast bolt: 60 frames, 50 units apart, the newest last
+    const points = Array.from({ length: 60 }, (_, i) => new Vector3(i * 50, 0, 0));
+    clampTrailLength(points, 120);
+    expect(points).toHaveLength(60);
+    expect(points[59].x).toBe(2950);
+    expect(points[57].x).toBe(2850);
+    // The cut lands 120 units back, inside the segment it crosses
+    expect(points[56].x).toBeCloseTo(2830, 5);
+    expect(points[0].x).toBeCloseTo(2830 - 56 * 0.01, 5);
+    let length = 0;
+    for (let i = 1; i < points.length; i++) length += Vector3.Distance(points[i], points[i - 1]);
+    expect(length).toBeCloseTo(120 + 56 * 0.01, 5);
+  });
+
+  it("leaves a trail shorter than the limit alone", () => {
+    const points = Array.from({ length: 60 }, (_, i) => new Vector3(i, 0, 0));
+    clampTrailLength(points, 120);
+    expect(points.map((p) => p.x)).toEqual(Array.from({ length: 60 }, (_, i) => i));
   });
 });

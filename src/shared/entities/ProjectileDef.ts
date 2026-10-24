@@ -42,6 +42,8 @@ export interface ProjectileDef extends EntityDef {
 
   /** Trail effect ID */
   trailEffect?: string;
+  /** Longest the trail may be, in world units; without it the trail spans its last 60 frames of flight */
+  trailLength?: number;
   /** Impact effect ID */
   impactEffect?: string;
 
