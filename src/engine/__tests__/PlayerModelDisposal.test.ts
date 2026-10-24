@@ -46,7 +46,7 @@ function playerModel(id: string, shared: StandardMaterial): PlayerModelInstance 
 }
 
 describe("disposing a player model", () => {
-  it("releases per-player texture wrappers across respawns while keeping source and surviving players", () => {
+  it("shares the source's textures across respawns and keeps them for the source and surviving players", () => {
     scene = new Scene(new NullEngine());
     const manager = new PlayerModelManager(scene);
     const source = new PBRMaterial("vanguard", scene);
@@ -71,9 +71,12 @@ describe("disposing a player model", () => {
     const survivor = spawn("survivor");
     const survivorTextures = survivor.mesh.material!.getActiveTextures();
     const before = scene.textures.length;
+    // A player's style material samples the source's own textures: no copy to
+    // decode and upload again on each respawn
+    expect(survivorTextures).toEqual(source.getActiveTextures());
     for (let i = 0; i < 100; i++) {
       const player = spawn(`respawn_${i}`);
-      expect(scene.textures.length).toBeGreaterThan(before);
+      expect(scene.textures.length).toBe(before);
       manager.applyVisualStyle(player, style);
       disposePlayerModel(player);
       expect(scene.textures.length).toBe(before);
