@@ -3264,3 +3264,48 @@ symlink/junction. No media was modified, copied, moved or deleted. Production
 was not accessed. Added the same preservation rule to
 `docs/manual/deployment/web.md`; this entry and that page are the only files
 changed for this requirement. No migration or backup has been performed.
+
+## Alpha.3 local main preparation (2026-10-24)
+
+The user confirmed rendering work ready and requested local main integration
+and committing the WIP Markdown. Media-preservation documentation was committed
+as `cd89a11b`. Both feature trees were clean afterwards. Before merging, an
+isolated assembled export validated SHAG `e9631385` and Washoi `718c7fc`, plus
+the two documentation changes subsequently committed as `cd89a11b`.
+
+Exact validation commands (from the isolated assembled root):
+
+| Command | Result |
+| --- | --- |
+| `npm --prefix src/games/fps run build` | Passed; 48 source maps relocated |
+| `npm --prefix src/games/fps run typecheck` | Passed |
+| `npm --prefix src/games/fps run test:run` | 723 files passed; 5,648 tests passed, one skipped |
+| `npm --prefix src/games/fps run gate:biome` | Passed; zero errors / 47 warnings |
+| `npm --prefix src/games/fps run test:simulation` | Passed |
+| `npm --prefix src/games/fps run test:physics` | Passed |
+| `npm --prefix src/games/fps run server:tick` | Passed; 2768943778 |
+| `npm --prefix src/games/fps run server:fuzz -- --ticks 1000 --seed 42` | Passed; 2481546443 |
+| `npm --prefix src/games/fps run cli:game -- --exec "bsp load washoi_dm2; bsp info; quit"` | Passed |
+| `npm --prefix src/games/fps run cli:game -- --exec 'sim replay "W+CROUCH 60; JUMP 1; W 30"; quit'` | Passed; 91 ticks |
+| `npm --prefix src/games/fps run test:runtime-equivalence` | Node/Bun 10,000 ticks, seed 42: 507638786 |
+| `npm --prefix src/games/fps run test:server-runtime` | Passed; bundled lobby/match shut down with code 0 |
+| `npm run docs:build` | Passed |
+| `npm --prefix src/games/fps run docs:build` | Passed |
+
+The harness invoked npm's CLI with Node and direct argument arrays, avoiding
+shell quoting ambiguity for replay. Local driver:
+`.cache/engine-game-split/release-prep-alpha3.mjs`; logs and exact revision/command
+receipt: `.cache/release-prep-alpha3-20261024/`. Dependencies were the existing
+installation via junction, not a fresh install. The build ran with no media
+attached; tests then read the existing data via junction. Live media remained
+at `public/data`, inspected as a normal directory. No data migration or cleanup
+was performed. The receipt documents this checkpoint, not future commits.
+
+Merge scope: fast-forward the existing feature branch into local Washoi main
+first, then local SHAG main, preserving the matching game pin. This log entry
+is documentation only. No push, release tag, version bump, Git detachment,
+production deployment, fresh install or new GPU/browser playtest is included.
+The changelog remains unreleased; checked-in version files still report alpha.2
+and need deliberate release preparation before tagging alpha.3. Remaining:
+in-place repository cutover, operator/deployment updates, revision pairing and
+final release validation with persistent media preserved.
