@@ -125,6 +125,16 @@ concurrent builds or browser probes: 727 files passed, 5,671 tests passed and
 one skipped. The earlier remote-weapon timing failure did not recur. This is a
 separate complete run; the failed run below remains recorded.
 
+The local alpha 4 cutover committed FPS as `c97487d` and the engine feature work
+as `a67c6f13`, then fast-forwarded both to `main`. The engine pin matches FPS
+`main`. Release metadata is `1.0.0-alpha.4` in the version file, package and both
+root lockfile fields; alpha 5 has only an unreleased changelog stub.
+All gates and the simulation/physics/server/BSP regression set passed before
+merging. The merged alpha 4 build, typecheck, Biome and final release
+documentation builds also passed. A before/after
+inventory of `public/data` matched exactly: 3,394 files, no missing files and no
+path/size differences. No push or production deployment was performed.
+
 ## Shared download service proposal
 
 User preference: automatically prepare common assets and the selected room map.
