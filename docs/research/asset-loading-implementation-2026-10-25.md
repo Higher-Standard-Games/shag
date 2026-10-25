@@ -3,10 +3,14 @@
 Follow-up to the [full audit](asset-startup-review-2026-10-25.md) and
 [critical-path investigation](asset-startup-reliability-performance-2026-10-25.md).
 The audit findings remain a historical record; this page records the implementation
-and its validation. No commit, production deployment or version bump was made by
-this task; runtime changes remain in the working tree. Concurrent asset work
-advanced the checkout to engine `7e562cae` / FPS `56c66e3`. The shared model-loading
-manual paragraph was included in that concurrent engine commit.
+and its validation. The follow-up committed this implementation on
+`v1.0.0-alpha.5-tuning`: engine `29fe2cb1`, FPS `bee7c92`. No production deployment
+or version bump was made. Concurrent asset work had advanced the checkout to
+engine `7e562cae` / FPS `56c66e3`; the shared model-loading manual paragraph was
+included in that concurrent engine commit.
+
+The [follow-up review](asset-loading-followup-review-2026-10-25.md) records four
+additional fault reproductions and the next reliability/performance priorities.
 
 ## Implemented
 
