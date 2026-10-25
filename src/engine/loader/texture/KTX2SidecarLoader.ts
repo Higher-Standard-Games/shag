@@ -14,6 +14,9 @@ class SidecarContainer extends KhronosTextureContainer2 {
     texture: InternalTexture,
     options?: IKTX2DecoderOptions & IDecodedData,
   ): void {
+    // Decoding runs in a worker and may outlive timeout/map cleanup.
+    // Babylon's upload binds GPU state before checking the hardware texture.
+    if (texture._references <= 0) return;
     super._createTexture(data, texture, options);
     // Babylon 9.17 leaves raw RGBA/R/RG textures at the LAST mip's dimensions.
     // Restore the decoded base extent before the engine's load callback runs.
@@ -30,6 +33,13 @@ export class KTX2SidecarLoader extends _KTXTextureLoader {
     callback: Parameters<_KTXTextureLoader["loadData"]>[2],
     options?: IKTX2DecoderOptions & IDecodedData,
   ): void {
+    const retired = () => {
+      if (texture._references > 0) return false;
+      // The pending entry belongs to InternalTexture, not its disposed wrapper.
+      for (const scene of texture.getEngine().scenes) scene.removePendingData(texture);
+      return true;
+    };
+    if (retired()) return;
     if (!KhronosTextureContainer2.IsValid(data)) {
       callback(0, 0, false, false, () => {}, true);
       return;
@@ -55,8 +65,11 @@ export class KTX2SidecarLoader extends _KTXTextureLoader {
     }
     const container = new SidecarContainer(texture.getEngine());
     void container._uploadAsync(data, texture, options).then(
-      () => callback(texture.width, texture.height, texture.generateMipMaps, true, () => {}, false),
+      () => {
+        if (!retired()) callback(texture.width, texture.height, texture.generateMipMaps, true, () => {}, false);
+      },
       (error: unknown) => {
+        if (retired()) return;
         console.warn("[KTX2] Sidecar upload failed", error);
         callback(0, 0, false, false, () => {}, true);
       },

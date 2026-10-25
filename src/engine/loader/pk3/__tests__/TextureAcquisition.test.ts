@@ -73,6 +73,26 @@ it("detaches a cancelled map from shared texture acquisition without creating a 
   expect(loader.getCacheInfo().count).toBe(0);
 });
 
+it("does not start a source fallback in a replacement scope after an old sidecar finishes", async () => {
+  let finish!: (texture: null) => void;
+  vi.spyOn(
+    loader as unknown as { tryLoadKTX2Sidecar(path: string): Promise<null> },
+    "tryLoadKTX2Sidecar",
+  ).mockImplementation(
+    () =>
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+  );
+  const read = vi.spyOn(pk3, "getFile").mockResolvedValue(image());
+  const old = loader.resolveAndLoadTexture("textures/retired");
+  loader.clearCache();
+  finish(null);
+  expect(await old).toBeNull();
+  expect(read).not.toHaveBeenCalled();
+  expect(loader.getCacheInfo().count).toBe(0);
+});
+
 it("acquires an indexed but unmounted texture owner without loose HTTP", async () => {
   vi.spyOn(pk3, "hasFile").mockReturnValue(false);
   vi.spyOn(pk3, "getFile").mockResolvedValue(image());

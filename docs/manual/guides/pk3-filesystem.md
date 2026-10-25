@@ -419,6 +419,10 @@ decoded textures on both WebGL and WebGPU. It retains base dimensions after
 uploading all mip levels, and device restoration selects the same loader.
 Decoder resources, including worker-side ZSTD, are served from bundled local
 assets. Failed sidecar loads fall back to the source image in the PK3.
+Timeouts and map cleanup retire the destination texture and release its scene
+readiness entry. A decoder result arriving afterwards is discarded before GPU
+binding or upload. Source fallback belongs to the same load generation; an
+obsolete request cannot populate a replacement map's texture cache.
 
 For visual diagnosis, `shader surface` reports the aimed texture's dimensions,
 source and orientation. Changing `r_ktx2` requires a fresh map/texture load to

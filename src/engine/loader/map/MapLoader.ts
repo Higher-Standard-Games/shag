@@ -656,37 +656,8 @@ export class MapLoader {
       bspManager.setBsp(mapName, bsp);
       bspManager.setMeshResult(meshResult);
 
-      // Phase 11: Freeze world materials before gameplay entities exist. An
-      // unfrozen surface re-derives its shader defines and rewrites its material
-      // uniforms on every draw, and world surfaces are half of all draws.
-      // Gameplay lights live in one clustered container, so the light set a
-      // world shader depends on only changes when a container or a scene light
-      // comes or goes; the watcher re-checks frozen materials then. Animated
-      // shader stages unfreeze their own materials.
-      const frozen = new Set<Material>();
-      const seen = new Set<number>();
-      let skippedCount = 0;
-      for (const mesh of [meshResult.worldMesh, ...meshResult.worldMesh.getChildMeshes()]) {
-        const mat = mesh.material;
-        if (mat && !seen.has(mat.uniqueId)) {
-          seen.add(mat.uniqueId);
-          // Sky layers animate their texture offsets every frame
-          if (mesh.name.startsWith("skybox")) {
-            skippedCount++;
-            continue;
-          }
-          mat.freeze();
-          frozen.add(mat);
-        }
-      }
-      trackFrozenWorldMaterials(scene, frozen);
-      devLog(`[MapLoader] Froze ${frozen.size} world materials, skipped ${skippedCount} sky`);
-
-      // Materials were only half of it: the world meshes still recomputed their
-      // world matrix and bounding info every frame despite never moving. The
-      // `bsp render` path already froze them; the playable path built its meshes
-      // directly and never called the helper. Movers are excluded by annotation
-      // rather than by running before they are parented.
+      // Static world matrices and bounds do not change during shader preparation.
+      // Movers are excluded by their annotation.
       if ((this.renderVars.get("r_bsp_freeze") ?? 1) >= 0.5) {
         const frozenMeshes = BspMeshBuilder.freezeStaticWorld(meshResult);
         devLog(`[MapLoader] Froze ${frozenMeshes} static world meshes (r_bsp_freeze)`);
@@ -808,6 +779,28 @@ export class MapLoader {
         signal,
         SCENE_READY_TIMEOUT_MS,
       );
+
+      // Keep every world surface live through temporary-light preparation,
+      // including meshes sharing a material with the representative compiled.
+      // Frozen PBR draw caches can otherwise reuse readiness from an old effect
+      // while another mesh/pass has installed a pending replacement.
+      const frozen = new Set<Material>();
+      const seen = new Set<number>();
+      let skippedCount = 0;
+      for (const mesh of [meshResult.worldMesh, ...meshResult.worldMesh.getChildMeshes()]) {
+        const mat = mesh.material;
+        if (mat && !seen.has(mat.uniqueId)) {
+          seen.add(mat.uniqueId);
+          if (mesh.name.startsWith("skybox")) {
+            skippedCount++;
+            continue;
+          }
+          mat.freeze();
+          frozen.add(mat);
+        }
+      }
+      trackFrozenWorldMaterials(scene, frozen);
+      devLog(`[MapLoader] Froze ${frozen.size} world materials, skipped ${skippedCount} sky`);
 
       // Start PVS after material setup and entity spawning have established the
       // world's intended visibility. The live camera may arrive on a later frame.

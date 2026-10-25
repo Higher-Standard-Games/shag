@@ -1,5 +1,7 @@
 import { FreeCamera } from "@babylonjs/core/Cameras/freeCamera";
 import { NullEngine } from "@babylonjs/core/Engines/nullEngine";
+import { PointLight } from "@babylonjs/core/Lights/pointLight";
+import { PBRMaterial } from "@babylonjs/core/Materials/PBR/pbrMaterial";
 import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { CreateBox } from "@babylonjs/core/Meshes/Builders/boxBuilder";
@@ -129,4 +131,39 @@ it("detaches cancelled preparation while consuming a late rejection safely", asy
   await Promise.resolve();
   scene.dispose();
   engine.dispose();
+});
+
+it("keeps a frozen PBR surface out of render draws while a replacement light shader is compiling", async () => {
+  const engine = new NullEngine(),
+    scene = new Scene(engine);
+  const mesh = CreateBox("wall", {}, scene);
+  const material = new PBRMaterial("wall", scene);
+  mesh.material = material;
+  material.allowShaderHotSwapping = false;
+  new PointLight("first", Vector3.Zero(), scene);
+  await material.forceCompilationAsync(mesh);
+  material.freeze();
+  const subMesh = mesh.subMeshes[0];
+  expect(material.isReadyForSubMesh(mesh, subMesh, false)).toBe(true);
+  new PointLight("replacement", Vector3.One(), scene);
+  scene.incrementRenderId();
+  const createEffect = engine.createEffect.bind(engine);
+  const compiler = vi.spyOn(engine, "createEffect").mockImplementation((...args) => {
+    const effect = createEffect(...args);
+    vi.spyOn(effect, "isReady").mockReturnValue(false);
+    return effect;
+  });
+  const controller = new AbortController();
+  const pending = prepareMaterial(material, mesh, controller.signal).catch((error: unknown) => error);
+  try {
+    expect(compiler).toHaveBeenCalled();
+    // This is the readiness call made by Babylon's real non-instanced draw.
+    expect(material.isReadyForSubMesh(mesh, subMesh, false)).toBe(false);
+  } finally {
+    controller.abort(new Error("test complete"));
+    await pending;
+    expect(material.isFrozen).toBe(true);
+    scene.dispose();
+    engine.dispose();
+  }
 });

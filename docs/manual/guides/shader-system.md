@@ -233,6 +233,13 @@ This separation keeps existing content loading while selected surface classes re
 
 ## Shader warmup
 
+World materials are frozen after temporary-light warmup and final entity
+readiness. Geometry matrices and bounds stay frozen during preparation.
+Explicit preparation keeps frozen materials unfrozen until compilation finishes,
+then restores their frozen state. Readiness uses the same non-instanced flag as
+the rendered world pass, so a pending replacement effect cannot inherit a
+previous draw's ready flag.
+
 During gameplay map loading, `EffectPreloader` prepares small off-screen fixtures
 and the scene's Standard/PBR materials through Babylon's material readiness APIs.
 The checks use the meshes' actual submeshes and do not depend on a culled fixture

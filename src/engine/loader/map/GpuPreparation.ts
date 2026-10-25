@@ -71,34 +71,43 @@ export function waitForGpuCondition(
   });
 }
 
-/** Compile the actual mesh layout and restore the material's policy after each synchronous check. */
-export function prepareMaterial(material: Material, mesh: AbstractMesh, signal?: AbortSignal): Promise<void> {
+/** Compile the actual mesh layout, keeping frozen readiness caches disabled until preparation ends. */
+export async function prepareMaterial(material: Material, mesh: AbstractMesh, signal?: AbortSignal): Promise<void> {
   const scene = mesh.getScene();
-  return waitForGpuCondition(
-    scene,
-    () => {
-      if (mesh.isDisposed()) throw new Error(`Mesh disposed: ${mesh.name}`);
-      const hotSwapping = material.allowShaderHotSwapping;
-      material.allowShaderHotSwapping = false;
-      try {
-        const subMeshes = mesh.subMeshes ?? [];
-        const ready =
-          material._storeEffectOnSubMeshes && subMeshes.length
-            ? subMeshes.map((subMesh) => material.isReadyForSubMesh(mesh, subMesh)).every(Boolean)
-            : material.isReady(mesh);
-        for (const subMesh of subMeshes) {
-          const effect = subMesh.effect;
-          const error = effect?.getCompilationError();
-          if (error && effect?.allFallbacksProcessed()) throw new Error(`Shader ${material.name}: ${error}`);
+  // Frozen PBR readiness can reuse the previous draw's ready flag after its
+  // effect was replaced with an asynchronously compiling one. Keep normal
+  // readiness checks active until the replacement can actually draw.
+  const wasFrozen = material.isFrozen;
+  if (wasFrozen) material.unfreeze();
+  try {
+    await waitForGpuCondition(
+      scene,
+      () => {
+        if (mesh.isDisposed()) throw new Error(`Mesh disposed: ${mesh.name}`);
+        const hotSwapping = material.allowShaderHotSwapping;
+        material.allowShaderHotSwapping = false;
+        try {
+          const subMeshes = mesh.subMeshes ?? [];
+          const ready =
+            material._storeEffectOnSubMeshes && subMeshes.length
+              ? subMeshes.map((subMesh) => material.isReadyForSubMesh(mesh, subMesh, false)).every(Boolean)
+              : material.isReady(mesh);
+          for (const subMesh of subMeshes) {
+            const effect = subMesh.effect;
+            const error = effect?.getCompilationError();
+            if (error && effect?.allFallbacksProcessed()) throw new Error(`Shader ${material.name}: ${error}`);
+          }
+          return ready;
+        } finally {
+          material.allowShaderHotSwapping = hotSwapping;
         }
-        return ready;
-      } finally {
-        material.allowShaderHotSwapping = hotSwapping;
-      }
-    },
-    `${material.name} on ${mesh.name}`,
-    signal,
-  );
+      },
+      `${material.name} on ${mesh.name}`,
+      signal,
+    );
+  } finally {
+    if (wasFrozen && !scene.isDisposed && scene.materials.includes(material)) material.freeze();
+  }
 }
 
 /** Detach a load from shared async preparation; its resource owner must reject stale completion. */

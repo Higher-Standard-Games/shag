@@ -5,6 +5,7 @@ import { _KTXTextureLoader } from "@babylonjs/core/Materials/Textures/Loaders/kt
 import { _GetCompatibleTextureLoader } from "@babylonjs/core/Materials/Textures/Loaders/textureLoaderManager";
 import { KhronosTextureContainer2 } from "@babylonjs/core/Misc/khronosTextureContainer2";
 import { AutoReleaseWorkerPool } from "@babylonjs/core/Misc/workerPool";
+import { Scene } from "@babylonjs/core/scene";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { KTX2_SIDECAR_EXTENSION, KTX2SidecarLoader, registerKTX2SidecarLoader } from "../KTX2SidecarLoader";
 
@@ -71,6 +72,33 @@ function load(loader: _KTXTextureLoader, texture: InternalTexture, bytes = ident
 }
 
 describe("KTX2 sidecar uploads", () => {
+  it("drops decoded data after its destination was disposed, without touching GPU state or notifying Babylon", async () => {
+    const data = decodedFixture(33779);
+    let finish!: (data: IDecodedData) => void;
+    vi.spyOn(KhronosTextureContainer2.prototype, "_decodeAsync").mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve;
+        }),
+    );
+    const scene = new Scene(engine);
+    const texture = new InternalTexture(engine, InternalTextureSource.Url);
+    scene.addPendingData(texture);
+    const bind = vi.spyOn(engine, "_bindTextureDirectly");
+    const upload = vi.spyOn(engine, "_uploadCompressedDataToTextureDirectly");
+    const callback = vi.fn();
+    new KTX2SidecarLoader().loadData(identifier, texture, callback);
+    texture.dispose();
+    finish(data);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(bind).not.toHaveBeenCalled();
+    expect(upload).not.toHaveBeenCalled();
+    expect(texture.isReady).toBe(false);
+    expect(callback).not.toHaveBeenCalled();
+    expect(scene.getWaitingItemsCount()).toBe(0);
+    scene.dispose();
+  });
+
   it.each([
     [554, 554, true],
     [512, 510, true],

@@ -587,8 +587,10 @@ describe("default PVS through gameplay MapLoader", () => {
     const camera = new FreeCamera("eye", new Vector3(1, 0, 0), scene);
     scene.activeCamera = camera;
     const cullersDuringSetup: (PVSCuller | null)[] = [];
+    const frozenDuringSetup: boolean[] = [];
     vi.mocked(scene.isReady).mockImplementation(() => {
       cullersDuringSetup.push(manager.getPVSCuller());
+      frozenDuringSetup.push(scene.meshes.some((mesh) => mesh.material?.isFrozen));
       return true;
     });
     bsp.entities = [{ classname: "info_player_start", properties: {} }];
@@ -601,6 +603,8 @@ describe("default PVS through gameplay MapLoader", () => {
     expect(loaded.success).toBe(true);
     expect(cullersDuringSetup.length).toBeGreaterThanOrEqual(2);
     expect(cullersDuringSetup.every((culler) => culler === null)).toBe(true);
+    expect(frozenDuringSetup.every((frozen) => !frozen)).toBe(true);
+    expect(loaded.meshResult!.worldMesh.getChildMeshes().every((mesh) => mesh.material?.isFrozen)).toBe(true);
     expect(manager.getPVSStatus()).toContain("Enabled: YES");
     expect(manager.getPVSCuller()?.getStats()).toMatchObject({ totalMeshes: 2, visibleMeshes: 1 });
     const previous = manager.getPVSCuller();

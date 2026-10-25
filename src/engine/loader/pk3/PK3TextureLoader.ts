@@ -165,6 +165,8 @@ export class PK3TextureLoader {
    * @param basePath - Texture path, e.g. "models/weapons/plasmagun/plasmagun" or "textures/foo.tga"
    */
   public async resolveAndLoadTexture(basePath: string, picmip = 0): Promise<Texture | null> {
+    const generation = this.generation;
+    const signal = this.scopeSignal;
     const pk3 = PK3Loader.getInstance();
     const cleanPath = basePath.replace(/^\//, "");
 
@@ -174,16 +176,13 @@ export class PK3TextureLoader {
     // Reduced variants use source pixels/authored KTX1 mips, not a full-resolution KTX2 upload.
     const sidecar =
       picmip === 0
-        ? await waitForAsync(
-            this.tryLoadKTX2Sidecar(stripped),
-            this.scopeSignal,
-            10000,
-            "optional texture variant",
-          ).catch(() => {
-            this.scopeSignal?.throwIfAborted();
+        ? await waitForAsync(this.tryLoadKTX2Sidecar(stripped), signal, 10000, "optional texture variant").catch(() => {
+            signal?.throwIfAborted();
             return null;
           })
         : null;
+    signal?.throwIfAborted();
+    if (generation !== this.generation || this.scene?.isDisposed) return null;
     if (sidecar) {
       return sidecar;
     }
@@ -344,7 +343,11 @@ export class PK3TextureLoader {
           clearTimeout(timer);
           signal.removeEventListener("abort", aborted);
           scene.onDisposeObservable.remove(disposed);
-          if (!value) candidate?.dispose();
+          if (!value && candidate) {
+            const internal = candidate.getInternalTexture();
+            if (internal) scene.removePendingData(internal);
+            candidate.dispose();
+          }
           resolve(value);
         };
         const timer = setTimeout(() => finish(null), 10000);
