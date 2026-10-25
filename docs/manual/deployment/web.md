@@ -61,10 +61,14 @@ Large PK3 files may be more practical on a CDN: build with `VITE_PK3_MIRROR_URL`
 ## Server processes
 
 Washoi's EU and US deployment operators fetch the engine and game independently.
-`/srv/washoi/release-pair.json` selects both exact commit IDs; pushing a branch
+`/srv/washoi/release-pair.json` records both exact commit IDs. Deploy timers
+follow engine `main` and its recorded game revision by default; `mode: pinned`
+holds an explicitly selected pair for rollback. Publishing engine `main` after
+the matching game commit automatically selects, builds and activates that pair.
+Connected players do not defer the backend restart. Pushing a feature branch
 alone does not change that selection. The
 [game-owned production runbook](https://github.com/Higher-Standard-Games/wash-fps/blob/main/scripts/deployment/README.md)
-describes the regional scripts, idle activation and rollback. Updating this
+describes the regional scripts, automatic activation and rollback. Updating this
 operator configuration does not itself publish a new application release.
 
 The static build is only the client. Multiplayer needs three Node 24 processes
