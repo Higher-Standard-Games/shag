@@ -293,6 +293,10 @@ await MapLoader.getInstance().loadMap("washoi_dm2", scene);
 ```
 
 After adding PK3s under `public/data/`, run `npm run tools:manifest`.
+`public/data/` is not in Git. Packaged media is built from `assets-source/` and
+the master `washoi_textures.pk3` (`tools:weapon-models`, `tools:map-media`,
+`tools:textures`); publishing it to production is a release step in the
+`merge-and-release` skill.
 
 Guides:
 - `docs/manual/guides/pk3-filesystem.md`

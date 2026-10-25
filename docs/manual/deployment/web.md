@@ -39,6 +39,24 @@ deployment deletion and empty-directory replacement. After switching code,
 verify the link, installed packages and representative map/model/sound requests
 before declaring the migration complete. Rollback must preserve the same data.
 
+## Updating media
+
+Deployment builds from `public/data` but never writes to it, so rebuilt media
+(a package from `tools:weapon-models` or `tools:map-media`, or a regenerated
+`ktx2cache/`) reaches production only when it is copied there. Washoi's
+regions keep it at `/srv/washoi/assets/data`. A deploy copies the built `data/`
+into the served release without deleting files, skipping demos and the
+unpublished master texture bank, and regenerates `pk3_index.json` while
+building. Upload changed media first, then publish the code that needs it; the
+next deploy serves both together.
+
+Upload only files whose checksum differs from production, never the generated
+index or manifest. Keep a copy of each replaced file, write to a temporary name
+and rename into place, and keep the existing owner and mode. After the deploy,
+check that the changed files return 200 with their new size and that maps and
+weapons load. The `merge-and-release` skill in the repository has the exact
+commands.
+
 ## Link previews
 
 The selected application's HTML template supplies link-preview metadata. Washoi's

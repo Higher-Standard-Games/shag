@@ -72,6 +72,51 @@ Verify after each repository: `git log --oneline -3` and `git status --short`.
 The outer `git submodule status` should show the fps `main` commit with no
 leading `+`.
 
+## Publishing media
+
+`public/data` is not in Git. Production keeps it at `/srv/washoi/assets/data` on
+each region (EU `root@washoi.net`, US `root@us.washoi.net`), and deployment never
+writes there. If the cycle rebuilt anything in `public/data` (a pk3 from
+`tools:weapon-models`, `tools:map-media` or another packager, or `ktx2cache/`
+from `tools:textures`), the release has to upload it. Code that expects new
+media breaks without it: a renamed model path, for example, loads nothing until
+its package arrives. Production is outward-facing: upload only when the user
+asks for this release to be published.
+
+The served copy is not `assets/data` itself. Each deploy builds from it and
+copies the build's `data/` into the web root (`releases/game/data`) without
+deleting anything, skipping `demos/` and `washoi_textures.pk3`. The build also
+regenerates `pk3_index.json` from it. So media uploaded to `assets/data` goes
+live together with the code of the next deploy, and the order is:
+
+1. **Find what changed.** Compare checksums of the local and production files:
+
+   ```bash
+   cd /c/Users/sundf/Desktop/wash/shag/public/data && sha256sum *.pk3
+   ssh root@washoi.net 'cd /srv/washoi/assets/data && sha256sum *.pk3'
+   ssh root@us.washoi.net 'cd /srv/washoi/assets/data && sha256sum *.pk3'
+   ```
+
+   Upload only packages whose checksum differs, and `ktx2cache/` only when it
+   was regenerated. Never upload `pk3_index.json` or `pk3_manifest.json` (the
+   build makes them), demos, or `washoi_textures.pk3` (the master source bank,
+   which is never served).
+2. **Back up what you replace,** on each host, into
+   `/srv/washoi/backups/media-v<version>/`.
+3. **Upload** into `/srv/washoi/assets/data` on both hosts. Copy to a temporary
+   name and rename it into place, so a deploy never reads a half-written file;
+   keep the existing files' owner and mode (check with `ls -l` first). Do not
+   use `--delete`.
+4. **Then push** fps `main` and outer `main` (see the merge steps). The deploy
+   timers build and activate the pair with the new media.
+5. **Verify** on both regions after activation:
+   - a `HEAD` request for each changed file (`https://eu.washoi.net/data/<file>`,
+     `https://us.washoi.net/data/<file>`) returns 200 with the new
+     `Content-Length`;
+   - a map loads, and every weapon shows its model.
+
+Report which files went to which host, and where the backups are.
+
 ## The living changelog
 
 Each cycle keeps `docs/changelog/v<version>.md` (the version in
