@@ -67,6 +67,7 @@ export class AudioManager {
   private currentPlaylist: Playlist | null = null;
   private currentTrackIndex = 0;
   private playlistName: string | null = null;
+  private readonly mutedPlaylists = new Set<string>();
   private isPlayingPlaylist = false;
 
   /** Map of active audio elements to their associated Blob URLs for proper cleanup */
@@ -295,6 +296,28 @@ export class AudioManager {
     }
   }
 
+  /**
+   * Keep one playlist silent, by its name, without turning music off. It stays
+   * the current playlist while muted and plays again when unmuted; other
+   * playlists play as usual.
+   */
+  public setPlaylistMuted(name: string, muted: boolean): void {
+    if (muted === this.mutedPlaylists.has(name)) return;
+    if (muted) this.mutedPlaylists.add(name);
+    else this.mutedPlaylists.delete(name);
+    if (this.playlistName !== name) return;
+    if (muted) {
+      this.loadingRequestId++; // a track still loading must not start
+      this.stopMusic(true);
+    } else if (this.isPlayingPlaylist && !this.currentMusic) {
+      background(this.playCurrentTrack(true), "AudioManager");
+    }
+  }
+
+  public isPlaylistMuted(name: string): boolean {
+    return this.mutedPlaylists.has(name);
+  }
+
   public getMusicVolume(): number {
     return this.musicVolume;
   }
@@ -471,6 +494,7 @@ export class AudioManager {
 
   private async playCurrentTrack(fadeIn = true): Promise<void> {
     if (!this.currentPlaylist || !this.isPlayingPlaylist || !this.musicEnabled) return;
+    if (this.playlistName !== null && this.mutedPlaylists.has(this.playlistName)) return;
 
     const track = this.currentPlaylist.tracks[this.currentTrackIndex];
     if (!track) {

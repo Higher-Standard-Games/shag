@@ -21,6 +21,7 @@
 
 import type { LoadProgress } from "../AssetLoader";
 import { AudioManager } from "../AudioManager";
+import { MENU_PLAYLIST } from "../audio/MenuPlaylist";
 import { devLog } from "../core/DevLog";
 import { EngineVersion } from "../core/EngineVersion";
 import { buildTwinLight, buildTwinRail, TWIN_ROOT_CLASS, type TwinRail } from "./components/LobbyTwin";
@@ -320,7 +321,7 @@ export class LoadingScreen {
 
     // Unlock browser audio context
     AudioManager.getInstance().unlockAudio();
-    background(AudioManager.getInstance().loadPlaylist("data/menu.playlist.json"), "LoadingScreen");
+    background(AudioManager.getInstance().loadPlaylist(MENU_PLAYLIST), "LoadingScreen");
 
     this.kickerEl.textContent = "Starting";
     this.container.classList.add("ui-loading-screen--started");

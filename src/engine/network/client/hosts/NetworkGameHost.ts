@@ -35,6 +35,7 @@
 
 import { MatchPhase } from "../../../../shared/server/gametype/GametypeTypes";
 import { AudioManager } from "../../../AudioManager";
+import { MENU_PLAYLIST } from "../../../audio/MenuPlaylist";
 import { background } from "../../../core/AsyncErrors";
 import { devLog } from "../../../core/DevLog";
 import type { Command } from "../../core/Command";
@@ -564,7 +565,7 @@ export class NetworkGameHost implements IGameHost {
       this.lastMatchPhase = null;
       this.snapshotReceiver.reset();
       NetGraph.reset();
-      background(AudioManager.getInstance().loadPlaylist("data/menu.playlist.json"), "NetworkGameHost");
+      background(AudioManager.getInstance().loadPlaylist(MENU_PLAYLIST), "NetworkGameHost");
       // A connection that drops mid-match leaves a seat waiting; take it back
       // rather than making the player rejoin as someone new.
       if (wasConnected && this.resumeToken) void this.resumeSession();

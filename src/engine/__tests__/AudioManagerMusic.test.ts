@@ -2,10 +2,13 @@
 /**
  * Music off and volume 0 must hold across map loads and menu returns: a saved
  * choice reaches a fresh AudioManager, and starting a playlist while music is
- * off plays nothing until music is turned back on.
+ * off plays nothing until music is turned back on. A muted playlist (the
+ * lobby's) stays silent while others play.
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { AssetLoader } from "../AssetLoader";
 import { AudioManager } from "../AudioManager";
+import { MENU_PLAYLIST } from "../audio/MenuPlaylist";
 import { Cvar } from "../core/Cvar";
 
 // biome-ignore lint/suspicious/noExplicitAny: reaches the private track player
@@ -47,5 +50,33 @@ describe("music settings", () => {
     const plays = trackPlays(audio);
     audio.startPlaylist(playlist, "data/menu.playlist.json");
     expect(plays).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps a muted playlist silent, plays others, and resumes it when unmuted", async () => {
+    const audio = AudioManager.getInstance();
+    const lookups = vi.spyOn(AssetLoader.getInstance(), "getAudio");
+    audio.setPlaylistMuted(MENU_PLAYLIST, true);
+    audio.startPlaylist(playlist, MENU_PLAYLIST);
+    await Promise.resolve();
+    expect(lookups).not.toHaveBeenCalled();
+    expect(audio.getCurrentPlaylistName()).toBe(MENU_PLAYLIST);
+
+    const plays = trackPlays(audio);
+    audio.setPlaylistMuted(MENU_PLAYLIST, false);
+    expect(plays).toHaveBeenCalledTimes(1);
+    audio.setPlaylistMuted(MENU_PLAYLIST, true);
+    audio.startPlaylist(playlist, "data/game.playlist.json");
+    expect(plays).toHaveBeenCalledTimes(2);
+    expect(audio.isPlaylistMuted(MENU_PLAYLIST)).toBe(true);
+  });
+
+  it("stops the music when the playing playlist is muted", () => {
+    const audio = AudioManager.getInstance();
+    trackPlays(audio);
+    audio.startPlaylist(playlist, MENU_PLAYLIST);
+    // biome-ignore lint/suspicious/noExplicitAny: reaches the private music stop
+    const stops = vi.spyOn(audio as any, "stopMusic");
+    audio.setPlaylistMuted(MENU_PLAYLIST, true);
+    expect(stops).toHaveBeenCalledWith(true);
   });
 });
