@@ -57,13 +57,20 @@ while the match loading screen is still visible. Joining consumes that prepared
 view instead of rebuilding its model cache. The pickup-model cache is separate
 from this held-weapon cache.
 
+Held-weapon and projectile preparation use bounded material checks. A match
+cancellation detaches its waits; late held-weapon imports cannot replace the
+cancelled view. Required projectile-model failures are reported as preparation
+failures. Simultaneous reads of the same mounted ZIP entry share extraction,
+while pickup and held-view instances retain their separate scene ownership.
+
 The map loading screen temporarily silences sound effects, including ambient
 loops and announcer channels, through the end of its fade. Music continues.
 Saved sound levels and enabled settings are preserved; muted one-shots are
 dropped rather than played when loading finishes.
 
-Weapon GLBs and their configs live inside `public/data/washoi_weapons.pk3`, alongside
-the original IQM/MD3 models and textures. First-person weapons, loadout previews,
+Weapon GLBs and their configs live inside `public/data/washoi_weapons.pk3`, with the
+projectile and impact media. The package carries only what the game loads; the
+original IQM/MD3 models and textures stay in the source bank. First-person weapons, loadout previews,
 pickups, dropped weapons and remote weapons resolve indexed GLBs to embedded bytes; the ordinary
 PK3 loader handles lazy downloads and mirrors. Unindexed custom URLs retain
 normal file loading. Ammo counters read their packaged `.cfg` sidecars too.
@@ -83,7 +90,9 @@ option; consumers using it must keep these materials read-only. Source and
 instance cleanup retain a shared material until its last scene user is gone.
 
 `config/weapon-models.json` defines the original source archive, export directory
-and required main/barrel GLBs. The original bank is preserved at
+and `files`, a map from each packaged path to its export. Voltaic's model and
+config are packaged as `voltaic/voltaic.*` from the `lasergun` exports; the
+`lasergun` weapon id remains an alias of Voltaic. The original bank is preserved at
 `assets-source/weapons/z_weapons-source.pk3`; exports and authoring intermediates
 live in `assets-source/weapons/exports/`. These ignored inputs must be supplied
 separately to rebuild; a normal game build consumes the existing runtime PK3.
@@ -94,7 +103,7 @@ separately to rebuild; a normal game build consumes the existing runtime PK3.
 npm run convert:weapons
 # Once: extract legacy projectiles from archive/data0_21pure.pk3.
 npm run tools:projectile-media
-# Package existing exports, retaining the original source bank entries.
+# Package the listed exports with their surface maps, as WebP.
 npm run tools:weapon-models
 npm run tools:pk3-index
 ```
@@ -102,14 +111,23 @@ npm run tools:pk3-index
 Conversion writes to the unserved export directory; it does not publish the
 package. Custom FBX-derived exports, such as the Blade, need their own export
 step and are preserved by the IQM conversion. Packaging accepts `--source-dir`,
-`--base-package` and `--output` overrides, validates required GLBs and embedded
-image/buffer resources, and records export hashes in
-`models/weapons/manifest.json`. The supplemental archive configured by
+`--base-package` and `--output` overrides, validates the listed GLBs and their
+embedded image/buffer resources, and records each packaged file's export and
+hash in `models/weapons/manifest.json`.
+
+Packaging also finishes each GLB's materials. A material named after a texture
+path (`models/weapons/<weapon>/<name>`) gets the source bank's `<name>_norm`
+as its normal map, and `<name>_gloss` as a roughness map: black gloss is
+roughness 0.85, white is 0.3. Every texture is then re-encoded as WebP
+(`EXT_texture_webp`), at most 1024 px on a side; normal maps at quality 92, the
+rest at 85. The source normal maps use glTF's green-up convention and are not
+flipped. Solid-colour glow and emit textures stay textures, because the renderer
+recognises glowing parts by them. The supplemental archive configured by
 `projectilePackage` supplies rocket, grenade, plasma and blade-blast MD3s,
 textures, impact models and their selected shaders. It is generated at
 `assets-source/weapons/projectiles.pk3`, with source hashes in
-`models/objects/projectile/manifest.json`. GLB/config exports and `tags.txt` attachment rules are also added;
-loose authoring files are excluded. Reload the page after installing a rebuilt
+`models/objects/projectile/manifest.json`. Exports not listed in `files`,
+such as the retired gunblade, the old blade and authoring files, are not packaged. Reload the page after installing a rebuilt
 package so the browser replaces any already-mounted old copy.
 
 The Blade uses `models/weapons/blade/arc_blade.glb` (Arc Blade). To import its

@@ -1433,9 +1433,8 @@ export class WeaponViewManager {
       const anchor = this.findWeaponTag(glbRoot, ["tag_ammo", "tag_ammo_digit_1"]);
       if (!anchor) return;
 
-      // Derive the cfg from the MODEL path, not the weapon id: Voltaic reuses the
-      // lasergun model dir, so weaponName ("voltaic") != the model directory and
-      // /data/models/weapons/voltaic/voltaic.cfg 404s — the counter never appears.
+      // The cfg sits beside the model, which is not always named after the
+      // weapon id (an alias id such as `lasergun` shares Voltaic's model).
       const cfgPath = modelPath.replace(/\.glb$/i, ".cfg");
       const bytes = await readIndexedModelAsset(cfgPath);
       const res = bytes ? null : await fetch(cfgPath);

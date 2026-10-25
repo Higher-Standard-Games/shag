@@ -4,51 +4,54 @@ import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
 import JSZip from 'jszip';
 import { validateEmbeddedGlb } from './package-player-model.mjs';
+import { buildRuntimeWeaponGlb } from './weapon-textures.mjs';
 
 const repoRoot = fileURLToPath(new URL('../', import.meta.url));
 const recipe = JSON.parse(await fs.readFile(path.join(repoRoot, 'config/weapon-models.json'), 'utf8'));
 const sha256 = bytes => createHash('sha256').update(bytes).digest('hex');
 const options = { date: new Date('1980-01-01T00:00:00Z'), createFolders: false };
 
-async function exportsIn(directory, prefix = '') {
-  const files = [];
-  for (const entry of await fs.readdir(directory, { withFileTypes: true })) {
-    const name = prefix + entry.name;
-    if (entry.isDirectory()) files.push(...await exportsIn(path.join(directory, entry.name), name + '/'));
-    else if (entry.isFile() && (/\.(glb|cfg)$/i.test(entry.name) || entry.name === 'tags.txt')) files.push(name);
-  }
-  return files.sort();
-}
-
-/** Preserve the original override bank and add validated, embedded runtime exports. */
+/**
+ * Build the runtime weapon package: the recipe's files (pack path → export
+ * path), each GLB given its surface maps and WebP textures from the source
+ * bank, plus the projectile package. The source bank itself is not shipped.
+ */
 export async function buildWeaponModelPackage(sourceDir, basePackage, projectilePackage = null) {
-  const names = await exportsIn(sourceDir);
-  for (const name of recipe.required)
-    if (!names.includes(name)) throw new Error(`Required weapon asset missing: ${name}`);
   const baseBytes = await fs.readFile(basePackage);
-  const base = await JSZip.loadAsync(baseBytes), output = new JSZip();
+  const base = await JSZip.loadAsync(baseBytes);
+  const bankFiles = new Map();
+  for (const entry of Object.values(base.files))
+    if (!entry.dir) bankFiles.set(entry.name.toLowerCase(), await entry.async('nodebuffer'));
+  const bank = (name) => bankFiles.get(name) ?? null;
   const files = new Map();
-  for (const entry of Object.values(base.files)) {
-    if (entry.dir) continue;
-    if (entry.name.startsWith('/') || entry.name.includes('\\') || entry.name.split('/').includes('..'))
-      throw new Error(`Invalid base package path: ${entry.name}`);
-    files.set(entry.name, await entry.async('nodebuffer'));
-  }
-  const exports = {};
   if (projectilePackage) {
     const projectiles = await JSZip.loadAsync(await fs.readFile(projectilePackage));
     for (const entry of Object.values(projectiles.files)) {
       if (!entry.dir) files.set(entry.name, await entry.async('nodebuffer'));
     }
   }
-  for (const name of names) {
-    const bytes = await fs.readFile(path.join(sourceDir, name));
-    if (/\.glb$/i.test(name)) validateEmbeddedGlb(bytes, name);
+  const exports = {};
+  for (const [name, source] of Object.entries(recipe.files)) {
+    for (const part of [name, source])
+      if (part.startsWith('/') || part.includes('\\') || part.split('/').includes('..'))
+        throw new Error(`Invalid weapon asset path: ${part}`);
+    let bytes;
+    try {
+      bytes = await fs.readFile(path.join(sourceDir, source));
+    } catch {
+      throw new Error(`Required weapon asset missing: ${source}`);
+    }
+    if (/\.glb$/i.test(name)) {
+      validateEmbeddedGlb(bytes, source);
+      bytes = (await buildRuntimeWeaponGlb(bytes, bank)).bytes;
+      validateEmbeddedGlb(bytes, name);
+    }
     files.set(recipe.root + name, bytes);
-    exports[name] = { bytes: bytes.length, sha256: sha256(bytes) };
+    exports[name] = { source, bytes: bytes.length, sha256: sha256(bytes) };
   }
-  const manifest = { version: 1, baseSha256: sha256(baseBytes), files: exports, credits: recipe.credits ?? [] };
+  const manifest = { version: 2, baseSha256: sha256(baseBytes), files: exports, credits: recipe.credits ?? [] };
   files.set(recipe.root + 'manifest.json', Buffer.from(JSON.stringify(manifest, null, 2) + '\n'));
+  const output = new JSZip();
   for (const [name, bytes] of [...files].sort(([a], [b]) => a.localeCompare(b))) output.file(name, bytes, options);
   const bytes = await output.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE', compressionOptions: { level: 9 } });
   return { bytes, manifest };

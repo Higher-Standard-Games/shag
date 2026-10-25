@@ -16,17 +16,27 @@
       "changes": "Renamed Arc Blade; added export-space rotation, uniform scale and positioning to match the previous blade."
     }
   ],
-  "required": [
-    "blade/arc_blade.glb",
-    "electrobolt/electrobolt.glb",
-    "glauncher/glauncher.glb",
-    "glauncher/glauncher_barrel.glb",
-    "lasergun/lasergun.glb",
-    "machinegun/machinegun.glb",
-    "plasmagun/plasmagun.glb",
-    "plasmagun/plasmagun_barrel.glb",
-    "plasmagun/tags.txt",
-    "riotgun/riotgun.glb",
-    "rlauncher/rlauncher.glb"
-  ]
+  "files": {
+    "blade/arc_blade.glb": "blade/arc_blade.glb",
+    "electrobolt/electrobolt.cfg": "electrobolt/electrobolt.cfg",
+    "electrobolt/electrobolt.glb": "electrobolt/electrobolt.glb",
+    "glauncher/glauncher.cfg": "glauncher/glauncher.cfg",
+    "glauncher/glauncher.glb": "glauncher/glauncher.glb",
+    "glauncher/glauncher_barrel.glb": "glauncher/glauncher_barrel.glb",
+    "machinegun/machinegun.cfg": "machinegun/machinegun.cfg",
+    "machinegun/machinegun.glb": "machinegun/machinegun.glb",
+    "machinegun/machinegun_barrel.glb": "machinegun/machinegun_barrel.glb",
+    "plasmagun/plasmagun.cfg": "plasmagun/plasmagun.cfg",
+    "plasmagun/plasmagun.glb": "plasmagun/plasmagun.glb",
+    "plasmagun/plasmagun_barrel.glb": "plasmagun/plasmagun_barrel.glb",
+    "plasmagun/tags.txt": "plasmagun/tags.txt",
+    "riotgun/riotgun.cfg": "riotgun/riotgun.cfg",
+    "riotgun/riotgun.glb": "riotgun/riotgun.glb",
+    "riotgun/riotgun_barrel.glb": "riotgun/riotgun_barrel.glb",
+    "rlauncher/rlauncher.cfg": "rlauncher/rlauncher.cfg",
+    "rlauncher/rlauncher.glb": "rlauncher/rlauncher.glb",
+    "rlauncher/rlauncher_barrel.glb": "rlauncher/rlauncher_barrel.glb",
+    "voltaic/voltaic.cfg": "lasergun/lasergun.cfg",
+    "voltaic/voltaic.glb": "lasergun/lasergun.glb"
+  }
 }
