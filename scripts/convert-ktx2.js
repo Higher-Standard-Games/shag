@@ -4,7 +4,9 @@
  * The browser reads public/data/ktx2cache/manifest.json and prefers a listed
  * sidecar before falling back to the original PK3 texture. PK3 archives are
  * indexed in alphabetical order so later packages override earlier packages,
- * matching PK3Loader.
+ * matching PK3Loader. A texture a published package carries as WebP (its
+ * lossy, packaged form) is encoded from the lossless TGA/PNG of the same name
+ * in an unpublished source bank, such as the master texture package.
  *
  * Requirements:
  * - Khronos KTX-Software 5.x (`ktx`) or legacy `toktx`
@@ -119,25 +121,44 @@ function findKtxTool() {
 
 async function indexEffectiveTextures() {
   const policy = readPackagePolicy();
-  const packageNames = publishedPackageNames(readdirSync(SOURCE_DIR), policy);
+  const packageFiles = readdirSync(SOURCE_DIR);
+  const packageNames = publishedPackageNames(packageFiles, policy);
   const exactFiles = new Map();
+  const packaged = new Set();
+  const record = (packageName, packagePath, entry) => {
+    const path = normalizePath(entry.name);
+    exactFiles.set(path, {
+      packageName,
+      packagePath,
+      entryName: entry.name,
+      path,
+      size: entry._data?.uncompressedSize ?? 0,
+      date: entry.date?.toISOString?.() ?? "",
+    });
+  };
 
   for (const packageName of packageNames) {
     const packagePath = join(SOURCE_DIR, packageName);
     const zip = await JSZip.loadAsync(readFileSync(packagePath));
     for (const entry of Object.values(zip.files)) {
+      if (!entry.dir && /\.webp$/i.test(entry.name)) packaged.add(normalizePath(entry.name).replace(/\.webp$/i, ""));
       if (entry.dir || !isTexturePath(entry.name)) continue;
       const path = normalizePath(entry.name);
       const shared = sharedPackageForPath(path, policy);
       if (shared && policy.sharedTexturePackages[shared].dynamic) continue;
-      exactFiles.set(path, {
-        packageName,
-        packagePath,
-        entryName: entry.name,
-        path,
-        size: entry._data?.uncompressedSize ?? 0,
-        date: entry.date?.toISOString?.() ?? "",
-      });
+      record(packageName, packagePath, entry);
+    }
+  }
+
+  // Packaged WebP textures take their pixels from the lossless source bank
+  const sourceBanks = packageFiles.filter((name) => policy.ignoredPackages.includes(name.toLowerCase()));
+  for (const packageName of sourceBanks) {
+    const packagePath = join(SOURCE_DIR, packageName);
+    const zip = await JSZip.loadAsync(readFileSync(packagePath));
+    for (const entry of Object.values(zip.files)) {
+      if (entry.dir || !isTexturePath(entry.name)) continue;
+      const path = normalizePath(entry.name);
+      if (packaged.has(stripTextureExtension(path)) && !exactFiles.has(path)) record(packageName, packagePath, entry);
     }
   }
 
@@ -409,7 +430,16 @@ async function main() {
   const modeCounts = { etc1s: 0, uastc: 0 };
   for (const path of selected.keys()) modeCounts[isUastc(path) ? "uastc" : "etc1s"]++;
   console.log(`[KTX2] Plan: ${modeCounts.etc1s} ETC1S, ${modeCounts.uastc} UASTC`);
-  if (dryRun) return;
+  if (dryRun) {
+    const previous = readPreviousManifest();
+    let current = 0;
+    for (const source of selected.values()) {
+      const signature = `${source.packageName}:${source.path}:${source.size}:${source.date}`;
+      if (previous?.textures?.[source.canonicalPath]?.source === signature) current++;
+    }
+    console.log(`[KTX2] ${current} of ${selected.size} sidecars are current; ${selected.size - current} would be encoded`);
+    return;
+  }
 
   const tool = findKtxTool();
   if (!tool) {

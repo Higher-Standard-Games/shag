@@ -12,8 +12,9 @@ The generator scans that directory and publishes two matched files: discovery
 in `pk3_manifest.json` and file/shader/map ownership in `pk3_index.json`.
 `config/pk3-packages.json` supplies an `ignoredPackages` array of exact PK3
 basenames (case-insensitive, no paths or globs). Ignored archives stay on disk
-but are excluded from both generated files, KTX2 source selection and the Vite
-release output. The policy is build-time input, not an editable generated
+but are excluded from both generated files and the Vite release output. KTX2
+generation reads them only as the lossless source of textures that published
+packages carry as WebP. The policy is build-time input, not an editable generated
 manifest field or a runtime access restriction. It also applies with `--data-dir`.
 Its `sharedTexturePackages` rules route configured virtual-path prefixes out of
 map banks and declare shared dependencies in each affected map's package manifest.
@@ -186,7 +187,38 @@ the index before testing them. Install the five `tex_` banks; do not replace the
 master with them. Existing map packages need replacement only if their content
 changed. `--combined` remains a development utility that deduplicates identical
 files/shaders and rejects conflicting definitions; its output is not deployed
-as the production texture bank.
+as the production texture bank. It needs `--lossless`, so the master is never
+rebuilt from WebP banks.
+
+The `tex_` banks carry their TGA and PNG textures as WebP under the same name
+(`foo.tga` becomes `foo.webp`); JPG and KTX files stay as they are, and a KTX
+with a TGA/PNG/JPG twin, which the loader never picks, is left out. Each
+texture's encoding comes from `config/map-texture-encoding.json`:
+
+| Class | WebP |
+| --- | --- |
+| `colour` | quality 85 |
+| `alpha` | quality 85, lossless alpha (cut-out edges stay exact) |
+| `normal` | quality 92 |
+| `gloss` | quality 90 |
+| `sky` | quality 95 |
+| `keep` | the source file, unchanged |
+
+A texture also keeps its source file when WebP would not be smaller. The list
+is generated once from the master and then edited by hand:
+
+```bash
+npm run tools:map-media -- --master-package washoi_textures.pk3 --init-encoding
+```
+
+It classifies `_norm`/`_normal`/`_bump` as `normal`, `_gloss`/`_spec` as `gloss`,
+images a shader uses as a sky box as `sky`, images with any transparency as
+`alpha` and the rest as `colour`. Packaging fails, naming the textures, when a
+TGA or PNG it would ship is not listed. `--lossless` packages the source files
+without the list.
+
+The texture loader looks for a name's WebP form first, so shaders and models
+that name `.tga` or `.png` files load the packaged WebP.
 
 When `tex_<map>.pk3` is indexed, the client loads it before resolving map assets.
 Its `media-manifests/<map>.json` must identify that map. Other indexed maps' exact
@@ -351,6 +383,9 @@ its manifest after upgrading the converter.
 
 Rebuild sidecars after replacing source artwork or repackaging media. Runtime
 loading trusts the sidecar manifest and does not compare source signatures.
+A texture a published package carries as WebP is encoded from the TGA/PNG of
+the same name in the master (an `ignoredPackages` archive), not from the WebP.
+`npm run tools:textures:audit` reports how many sidecars are current.
 `npm run tools:textures` incrementally refreshes changed sources; for a complete
 rebuild, archive the existing `public/data/ktx2cache` directory first, then run
 that command. Set `KTX_TOOLS_PATH` to the KTX executable when it is not on PATH.

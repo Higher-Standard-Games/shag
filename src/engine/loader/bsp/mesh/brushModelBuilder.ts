@@ -8,6 +8,7 @@ import type { Scene } from "@babylonjs/core/scene";
 import { devLog } from "../../../core/DevLog";
 import { applySafeMaxSimultaneousLights } from "../../../lighting/DynamicLightSafety";
 import { RenderVars } from "../../../rendering/RenderVars";
+import { PACKAGED_TEXTURE_EXTENSION, stripTextureExtension } from "../../texture/TextureExtensions";
 import { configureBspBakedLighting } from "../BspBakedLightingPlugin";
 import { bspLightingProfile, scaleBspLighting } from "../BspLightingProfile";
 import type { BspFile } from "../BspLoader";
@@ -208,12 +209,12 @@ export async function buildBrushModel(
         }
       }
 
-      const extensions = [".jpg", ".png", ".tga", ".ktx"];
+      const extensions = [PACKAGED_TEXTURE_EXTENSION, ".jpg", ".png", ".tga", ".ktx"];
       let texture: Texture | null = null;
 
       for (const basePath of allPaths) {
         if (texture) break;
-        const cleanPath = basePath.replace(/\.(tga|jpg|jpeg|png|ktx)$/i, "");
+        const cleanPath = stripTextureExtension(basePath);
         for (const ext of extensions) {
           texture = await texLoader.loadTexture(`${cleanPath}${ext}`);
           if (texture) break;

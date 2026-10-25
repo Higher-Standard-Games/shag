@@ -20,6 +20,7 @@ import { Cvar } from "../../core/Cvar";
 import { createTextureFromKTX1, parseKTX1, reduceKTX1MipChain } from "../texture/KTX1Loader";
 import { ensureKTX2Decoder } from "../texture/KTX2DecoderRuntime";
 import { KTX2_SIDECAR_EXTENSION, registerKTX2SidecarLoader } from "../texture/KTX2SidecarLoader";
+import { PACKAGED_TEXTURE_EXTENSION, stripTextureExtension } from "../texture/TextureExtensions";
 import { reducedTextureSize, reduceTexturePixels } from "../texture/TextureReduction";
 import { PackageStore } from "./PackageStore";
 import { PK3Index } from "./PK3Index";
@@ -98,7 +99,7 @@ export class PK3TextureLoader {
 
     // Find base textures (exclude _gloss, _norm, _blue, _red, etc.)
     const suffixPattern = /_(gloss|norm|normal|spec|bump|ao|height|blue|red|green|orange|daze)$/i;
-    const textureExts = [".ktx", ".tga", ".png", ".jpg", ".jpeg", ".dds"];
+    const textureExts = [PACKAGED_TEXTURE_EXTENSION, ".ktx", ".tga", ".png", ".jpg", ".jpeg", ".dds"];
 
     const baseTextures = new Map<string, TextureSet>();
 
@@ -152,8 +153,9 @@ export class PK3TextureLoader {
 
   /**
    * Resolve a texture path by trying multiple extensions, then load it.
-   * Accepts paths with or without extension. Prefers lossless formats (TGA, PNG, JPG)
-   * and falls back to KTX (lossy ETC1) only when no lossless source exists.
+   * Accepts paths with or without extension. The packaged WebP form comes
+   * first, then the named file, then TGA, PNG and JPG; KTX (lossy ETC1) only
+   * when nothing else exists.
    *
    * @param basePath - Texture path, e.g. "models/weapons/plasmagun/plasmagun" or "textures/foo.tga"
    */
@@ -162,7 +164,7 @@ export class PK3TextureLoader {
     const cleanPath = basePath.replace(/^\//, "");
 
     // Strip existing extension to get the base
-    const stripped = cleanPath.replace(/\.(ktx|tga|png|jpg|jpeg)$/i, "");
+    const stripped = stripTextureExtension(cleanPath);
 
     // Reduced variants use source pixels/authored KTX1 mips, not a full-resolution KTX2 upload.
     const sidecar = picmip === 0 ? await this.tryLoadKTX2Sidecar(stripped) : null;
@@ -170,10 +172,9 @@ export class PK3TextureLoader {
       return sidecar;
     }
 
-    // Try extensions in priority order: lossless formats first,
-    // then KTX (lossy ETC1 compression) as fallback only when no lossless source exists
     const candidates = [
-      cleanPath, // original path with original extension (highest priority)
+      stripped + PACKAGED_TEXTURE_EXTENSION,
+      cleanPath,
       `${stripped}.tga`,
       `${stripped}.png`,
       `${stripped}.jpg`,
@@ -526,7 +527,7 @@ export class PK3TextureLoader {
     const basePath = ktxPath.replace(/\.ktx$/i, "");
     const pk3 = PK3Loader.getInstance();
 
-    for (const altExt of [".jpg", ".png", ".tga"]) {
+    for (const altExt of [PACKAGED_TEXTURE_EXTENSION, ".jpg", ".png", ".tga"]) {
       const altPath = basePath + altExt;
       const altData = await pk3.getFile(altPath);
       if (altData) {
@@ -903,7 +904,7 @@ export class PK3TextureLoader {
     let normPath: string | undefined;
 
     // Check common extensions for companions
-    const exts = [".tga", ".ktx", ".png", ".jpg"];
+    const exts = [PACKAGED_TEXTURE_EXTENSION, ".tga", ".ktx", ".png", ".jpg"];
 
     for (const pattern of glossPatterns) {
       for (const e of exts) {
@@ -983,7 +984,7 @@ export class PK3TextureLoader {
 
   private isTextureFile(path: string): boolean {
     const ext = this.getExtension(path).toLowerCase();
-    return [".ktx", ".tga", ".png", ".jpg", ".jpeg", ".dds"].includes(ext);
+    return [PACKAGED_TEXTURE_EXTENSION, ".ktx", ".tga", ".png", ".jpg", ".jpeg", ".dds"].includes(ext);
   }
 
   /**

@@ -20,6 +20,12 @@ import type { Scene } from "@babylonjs/core/scene";
 import { devLog } from "../../core/DevLog";
 import { PK3Loader } from "../pk3/PK3Loader";
 import { canSoftwareDecode, parseKTX1, parseKTX1CubeFaces, softwareDecodeMip } from "./KTX1Loader";
+import {
+  PACKAGED_TEXTURE_EXTENSION,
+  packagedTexturePath,
+  stripTextureExtension,
+  TEXTURE_EXTENSION_PATTERN,
+} from "./TextureExtensions";
 
 /** One stage of a cloud sky: a texture tiled over the cloud dome, as Quake 3 draws it. */
 export interface SkyCloudLayer {
@@ -407,11 +413,15 @@ export class SkyboxLoader {
     devLog(`[SkyboxLoader] Creating sky sphere from texture: ${texturePath}`);
 
     const pk3 = PK3Loader.getInstance();
-    const extensions = [".ktx", ".tga", ".jpg", ".png", ".jpeg"];
+    const extensions = [PACKAGED_TEXTURE_EXTENSION, ".ktx", ".tga", ".jpg", ".png", ".jpeg"];
 
     // Try to load the texture from PK3; a named extension is a hint, as in Quake
-    let fileData = await pk3.getFile(texturePath);
-    let actualPath = texturePath;
+    let actualPath = packagedTexturePath(texturePath);
+    let fileData = await pk3.getFile(actualPath);
+    if (!fileData) {
+      actualPath = texturePath;
+      fileData = await pk3.getFile(texturePath);
+    }
     if (!fileData) {
       const found = await this.findImage(texturePath);
       if (found) {
@@ -421,7 +431,7 @@ export class SkyboxLoader {
     }
 
     // If path has no extension, try common image extensions
-    if (!fileData && !texturePath.match(/\.(ktx|tga|jpg|jpeg|png)$/i)) {
+    if (!fileData && !TEXTURE_EXTENSION_PATTERN.test(texturePath)) {
       for (const ext of extensions) {
         fileData = await pk3.getFile(texturePath + ext);
         if (fileData) {
@@ -527,7 +537,7 @@ export class SkyboxLoader {
     suffix: string,
   ): Promise<{ data: Uint8Array; size: number; path: string } | null> {
     const pk3 = PK3Loader.getInstance();
-    const extensions = [".ktx", ".tga", ".jpg", ".png", ".jpeg"];
+    const extensions = [PACKAGED_TEXTURE_EXTENSION, ".ktx", ".tga", ".jpg", ".png", ".jpeg"];
 
     // Try different path prefixes
     const pathPrefixes = ["", "textures/"];
@@ -800,6 +810,7 @@ export class SkyboxLoader {
       ".jpg": "image/jpeg",
       ".jpeg": "image/jpeg",
       ".png": "image/png",
+      ".webp": "image/webp",
     };
 
     const mimeType = mimeTypes[ext];
@@ -1009,9 +1020,13 @@ export class SkyboxLoader {
    */
   private async findImage(path: string): Promise<{ rgba: { data: Uint8Array; size: number }; path: string } | null> {
     const pk3 = PK3Loader.getInstance();
-    const base = path.replace(/\.(ktx|tga|jpe?g|png)$/i, "");
+    const base = stripTextureExtension(path);
     const named = path !== base ? [path] : [];
-    const candidates = [...named, ...[".ktx", ".tga", ".jpg", ".png", ".jpeg"].map((ext) => base + ext)];
+    const candidates = [
+      base + PACKAGED_TEXTURE_EXTENSION,
+      ...named,
+      ...[".ktx", ".tga", ".jpg", ".png", ".jpeg"].map((ext) => base + ext),
+    ];
     const prefixed = base.startsWith("textures/") ? [] : candidates.map((candidate) => `textures/${candidate}`);
     for (const candidate of [...candidates, ...prefixed]) {
       const data = await pk3.getFile(candidate);

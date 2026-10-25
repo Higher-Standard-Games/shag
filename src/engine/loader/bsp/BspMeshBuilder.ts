@@ -31,6 +31,7 @@ import { Q3ShaderRegistry } from "../shader/Q3ShaderRegistry";
 import { DEFAULT_SKY_HEIGHT, type ResolvedMaterialProps } from "../shader/Q3ShaderTypes";
 import { configureQ3SoftParticle } from "../shader/Q3SoftParticlePlugin";
 import { Q3StageColorPlugin } from "../shader/Q3StageColorPlugin";
+import { TEXTURE_EXTENSION_PATTERN } from "../texture/TextureExtensions";
 import { configureBspBakedLighting } from "./BspBakedLightingPlugin";
 import { bspLightingProfile, scaleBspLighting } from "./BspLightingProfile";
 import type { BspFile } from "./BspLoader";
@@ -1117,7 +1118,7 @@ export class BspMeshBuilder {
     // Get shader registry for looking up actual texture paths
     const { Q3ShaderRegistry } = await import("../shader/Q3ShaderRegistry");
     const shaderRegistry = Q3ShaderRegistry.getInstance();
-    const stripTextureExtension = (path: string): string => path.replace(/\.(tga|jpg|jpeg|png|ktx)$/i, "");
+    const stripTextureExtension = (path: string): string => path.replace(TEXTURE_EXTENSION_PATTERN, "");
     const normalizeTexturePath = (path: string): string => path.replace(/\\/g, "/");
     const isSpecialTextureToken = (path?: string): boolean => Boolean(path?.startsWith("$"));
     const addTexturePrefixes = (path: string): string[] => {

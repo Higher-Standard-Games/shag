@@ -7,6 +7,15 @@ import { PK3Index } from "../engine/loader/pk3/PK3Index";
 import { parseShaderFile } from "../engine/loader/shader/Q3ShaderParser";
 import type { Q3Shader } from "../engine/loader/shader/Q3ShaderTypes";
 import { shaderSourceBlocks } from "../engine/loader/shader/ShaderSourceBlocks";
+import {
+  classify,
+  ENCODING_LIST,
+  type EncodingList,
+  encodeTexture,
+  isEncodableTexture,
+  readEncodingList,
+  type TextureEncoding,
+} from "./map-texture-encoding";
 import { readPackagePolicy, sharedPackageForPath } from "./pk3-package-policy";
 
 const hash = (bytes: ArrayLike<number>) => createHash("sha256").update(Uint8Array.from(bytes)).digest("hex");
@@ -119,7 +128,18 @@ export class MediaBank {
   }
 }
 
-export async function packageMap(bank: MediaBank, map: string, outputDirectory: string, auditOnly = false) {
+/**
+ * Package one map: its BSP and map media, and the textures and shaders it uses.
+ * With an encoding list, listed TGA/PNG textures are written as WebP and a KTX
+ * with a TGA/PNG/JPG twin (which the loader never picks) is left out.
+ */
+export async function packageMap(
+  bank: MediaBank,
+  map: string,
+  outputDirectory: string,
+  auditOnly = false,
+  encoding: EncodingList | null = null,
+) {
   const policy = readPackagePolicy();
   const sharedDependencies = new Set<string>();
   if (!/^[a-z0-9_]+$/.test(map)) throw new Error(`Invalid map name: ${map}`);
@@ -262,11 +282,33 @@ export async function packageMap(bank: MediaBank, map: string, outputDirectory: 
     texZip = new JSZip();
   const options = { date: new Date("1980-01-01T00:00:00Z"), createFolders: false };
   mapZip.file(bspPath, new Uint8Array(bspBytes), options);
+  const decoded = new Set(
+    [...assets.keys()].filter((name) => /\.(tga|png|jpe?g)$/i.test(name)).map((name) => stem(name)),
+  );
+  const unlisted: string[] = [];
+  const packaged: Record<string, string> = {};
   for (const asset of [...assets.values()].sort((a, b) => a.name.localeCompare(b.name))) {
     if (sharedPackageForPath(asset.name, policy)) continue;
     const mapAsset = /^(levelshots|minimaps|navigation|maps)\//.test(asset.name) || asset.name.endsWith(".arena");
-    (mapAsset ? mapZip : texZip).file(asset.name, new Uint8Array(await bank.read(asset.name)), options);
+    if (mapAsset) {
+      mapZip.file(asset.name, new Uint8Array(await bank.read(asset.name)), options);
+      continue;
+    }
+    if (encoding && asset.name.endsWith(".ktx") && decoded.has(stem(asset.name))) continue;
+    let file = { name: asset.name, bytes: await bank.read(asset.name) };
+    if (encoding && isEncodableTexture(asset.name)) {
+      const kind = encoding.textures[asset.name];
+      if (!kind) {
+        unlisted.push(asset.name);
+        continue;
+      }
+      file = await encodeTexture(asset.name, file.bytes, kind);
+      if (file.name !== asset.name) packaged[asset.name] = file.name;
+    }
+    texZip.file(file.name, new Uint8Array(file.bytes), options);
   }
+  if (unlisted.length)
+    throw new Error(`Textures missing from ${ENCODING_LIST} (classify them first):\n  ${unlisted.join("\n  ")}`);
   const neededTemplates = new Map<string, string>();
   const includeTemplates = (source: string) => {
     const clean = source.replace(/\/\*[\s\S]*?\*\/|\/\/[^\r\n]*/g, " ");
@@ -315,7 +357,9 @@ export async function packageMap(bank: MediaBank, map: string, outputDirectory: 
       texturePrefixes: policy.sharedTexturePackages[packageName].prefixes,
     })),
     bsp: { owner: bank.index.files[bspPath], sha256: hash(bspBytes) },
-    assets: [...assets.values()],
+    assets: [...assets.values()].map((asset) =>
+      packaged[asset.name] ? { ...asset, packagedAs: packaged[asset.name] } : asset,
+    ),
     shaders: [...shaders].map(([name, entry]) => ({
       name,
       owner: entry.owner,
@@ -414,6 +458,29 @@ export async function indexWithMasterBank(directory: string, index: Index, maste
   }
 }
 
+/**
+ * Classify every TGA/PNG in the master package for `config/map-texture-encoding.json`:
+ * normal and gloss maps by name, sky images from the shaders' sky parameters,
+ * images with any transparency as `alpha`, the rest as `colour`.
+ */
+export async function generateEncodingList(bank: MediaBank, master: string): Promise<EncodingList> {
+  const skies = new Set<string>();
+  for (const { parsed } of bank.shaderSources.values()) {
+    const sky = parsed.skyParms;
+    if (!sky) continue;
+    for (const box of [sky.farbox, sky.nearbox])
+      if (box && box !== "-")
+        for (const suffix of ["rt", "bk", "lf", "ft", "up", "dn"]) skies.add(stem(`${box}_${suffix}`));
+    for (const side of sky.sides ?? []) skies.add(stem(side));
+  }
+  const textures: Record<string, TextureEncoding> = {};
+  const names = Object.keys(bank.index.files)
+    .filter((name) => bank.index.files[name] === master && isEncodableTexture(name))
+    .sort();
+  for (const name of names) textures[name] = await classify(name, await bank.read(name), skies);
+  return { version: 1, textures };
+}
+
 export async function main(): Promise<void> {
   const args = process.argv.slice(2).filter((value) => value !== "--");
   const value = (flag: string, fallback: string) => (args.includes(flag) ? args[args.indexOf(flag) + 1] : fallback);
@@ -425,9 +492,22 @@ export async function main(): Promise<void> {
   const maps = value("--maps", "washoi_dm2,washoi_dm5,washoi_dm11").split(",");
   const bank = new MediaBank(directory, index);
   await bank.loadShaders();
+  if (args.includes("--init-encoding")) {
+    if (!args.includes("--master-package")) throw new Error("--init-encoding needs --master-package");
+    const list = await generateEncodingList(bank, value("--master-package", ""));
+    await fs.writeFile(ENCODING_LIST, `${JSON.stringify(list, null, 2)}\n`);
+    const counts: Record<string, number> = {};
+    for (const kind of Object.values(list.textures)) counts[kind] = (counts[kind] ?? 0) + 1;
+    console.log(`[map-media] ${ENCODING_LIST}: ${JSON.stringify(counts)}`);
+    return;
+  }
+  // The master is rebuilt from lossless map banks only
+  const lossless = args.includes("--lossless");
+  if (args.includes("--combined") && !lossless) throw new Error("--combined needs --lossless map banks");
+  const encoding = lossless ? null : await readEncodingList();
   const report = [];
   for (const map of maps) {
-    const item = await packageMap(bank, map, output, args.includes("--audit-only"));
+    const item = await packageMap(bank, map, output, args.includes("--audit-only"), encoding);
     report.push(item);
     console.log(
       `[map-media] ${map}: ${item.assets.length} assets, ${item.shaders.length} shaders, ${item.unresolved.length} unresolved`,

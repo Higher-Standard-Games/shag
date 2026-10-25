@@ -7,6 +7,7 @@
 
 import { devLog } from "../../core/DevLog";
 import { PK3Loader } from "../pk3/PK3Loader";
+import { PACKAGED_TEXTURE_EXTENSION, stripTextureExtension } from "../texture/TextureExtensions";
 import { parseShaderFile } from "./Q3ShaderParser";
 import type {
   Q3MaterialDirective,
@@ -31,13 +32,13 @@ type NormalizedMaterialDirective = {
   glow: MaterialChannelResolution;
 };
 
-const IMPLICIT_TEXTURE_EXTENSIONS = [".ktx", ".tga", ".png", ".jpg", ".jpeg"];
+const IMPLICIT_TEXTURE_EXTENSIONS = [PACKAGED_TEXTURE_EXTENSION, ".ktx", ".tga", ".png", ".jpg", ".jpeg"];
 const IMPLICIT_NORMAL_SUFFIXES = ["_norm", "_normal", "_bump"];
 const IMPLICIT_GLOSS_SUFFIXES = ["_gloss", "_spec"];
 const IMPLICIT_GLOW_SUFFIXES = ["_glow", "_add"];
 
 function normalizeShaderName(textureName: string): string {
-  return textureName.toLowerCase().replace(/\.(tga|jpg|jpeg|png|ktx)$/i, "");
+  return stripTextureExtension(textureName.toLowerCase());
 }
 
 function normalizeTextureReference(texturePath: string): string {
