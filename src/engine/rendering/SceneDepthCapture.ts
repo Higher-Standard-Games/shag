@@ -135,7 +135,10 @@ export class SceneDepthCapture {
    * before any transparent mesh reads it.
    */
   textureFor(camera: Camera | null): RenderTargetTexture | null {
-    return camera && camera === this.camera && this.engine.frameId - this.capturedFrame <= REQUEST_FRAMES
+    return camera &&
+      camera === this.camera &&
+      this.viewZ?.getInternalTexture() &&
+      this.engine.frameId - this.capturedFrame <= REQUEST_FRAMES
       ? this.viewZ
       : null;
   }
@@ -181,26 +184,33 @@ export class SceneDepthCapture {
     if (engine.frameId - this.requestedFrame > REQUEST_FRAMES) return;
     const source = this.mainTarget(camera);
     if (!source || engine._currentRenderTarget !== source) return;
-    if (!this.prepare(source)) return;
-    const gl = engine._gl!;
-    const sourceFramebuffer = (source as unknown as { _framebuffer: WebGLFramebuffer })._framebuffer;
-    const copyFramebuffer = (this.depthTarget as unknown as { _framebuffer: WebGLFramebuffer })._framebuffer;
-    const { width, height } = source;
-
-    gl.bindFramebuffer(gl.READ_FRAMEBUFFER, sourceFramebuffer);
-    gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, copyFramebuffer);
-    gl.blitFramebuffer(0, 0, width, height, 0, 0, width, height, gl.DEPTH_BUFFER_BIT, gl.NEAREST);
-    gl.bindFramebuffer(gl.FRAMEBUFFER, sourceFramebuffer);
-
-    const effect = this.effect!;
-    if (!effect.effect.isReady()) return;
     const alphaMode = engine.getAlphaMode();
-    engine.setAlphaMode(Constants.ALPHA_DISABLE);
-    this.effectRenderer!.render(effect, this.viewZ!);
-    engine.setAlphaMode(alphaMode);
-    // Back to the main target for the transparent meshes
-    engine.bindFramebuffer(source);
-    this.capturedFrame = engine.frameId;
+    try {
+      if (!this.prepare(source)) return;
+      // Target allocation can change GL bindings behind Babylon's cached target.
+      engine.bindFramebuffer(source);
+      const gl = engine._gl!;
+      const sourceFramebuffer = (source as unknown as { _framebuffer: WebGLFramebuffer })._framebuffer;
+      const copyFramebuffer = (this.depthTarget as unknown as { _framebuffer: WebGLFramebuffer })._framebuffer;
+      const { width, height } = source;
+
+      gl.bindFramebuffer(gl.READ_FRAMEBUFFER, sourceFramebuffer);
+      gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, copyFramebuffer);
+      gl.blitFramebuffer(0, 0, width, height, 0, 0, width, height, gl.DEPTH_BUFFER_BIT, gl.NEAREST);
+      gl.bindFramebuffer(gl.FRAMEBUFFER, sourceFramebuffer);
+
+      const effect = this.effect!;
+      if (!effect.effect.isReady()) return;
+      engine.setAlphaMode(Constants.ALPHA_DISABLE);
+      this.effectRenderer!.render(effect, this.viewZ!);
+      engine.setAlphaMode(alphaMode);
+      // Back to the main target for the transparent meshes
+      engine.bindFramebuffer(source);
+      this.capturedFrame = engine.frameId;
+    } finally {
+      engine.setAlphaMode(alphaMode);
+      engine.bindFramebuffer(source);
+    }
   }
 
   /** Size the copies to `source`, building them on first use and again when it resizes in place. */
@@ -209,7 +219,8 @@ export class SceneDepthCapture {
     if (
       this.source === source &&
       viewZ &&
-      this.depthTarget &&
+      viewZ.getInternalTexture() &&
+      this.depthTarget?._depthStencilTexture &&
       viewZ.getSize().width === source.width &&
       viewZ.getSize().height === source.height
     )

@@ -42,6 +42,7 @@ import {
   setWaterEnvironment,
   type WaterKind,
   waterFallbackCube,
+  waterFallbackTexture,
 } from "./UnifiedWaterMaterial";
 import { WaterActorReflection } from "./WaterActorReflection";
 import { WaterDepthProvider } from "./WaterDepth";
@@ -423,8 +424,11 @@ export class LiquidSurfaceSystem {
         material.setFloat("uDetailStrength", detail);
         material.setFloat("uContactStrength", contact);
         material.setFloat("uHasRefraction", colourMap && sceneDepth && visible ? 1 : 0);
+        material.setTexture(
+          "uSceneColour",
+          colourMap && sceneDepth && visible ? colourMap : waterFallbackTexture(this.scene),
+        );
         if (colourMap) {
-          material.setTexture("uSceneColour", colourMap);
           const processing = this.scene.imageProcessingConfiguration;
           material.setFloat("uRefractionIsLinear", processing.isEnabled && processing.applyByPostProcess ? 1 : 0);
         }
@@ -445,6 +449,8 @@ export class LiquidSurfaceSystem {
           this.depthProjection.set(camera.minZ, camera.maxZ, engine.isNDCHalfZRange ? 1 : 0, colourDepth ? 1 : 0);
           material.setVector4("uDepthProjection", this.depthProjection);
         } else {
+          // ShaderMaterial checks bound samplers even when uHasDepth disables their use.
+          material.setTexture("uSceneDepth", waterFallbackTexture(this.scene));
           material.setFloat("uHasDepth", 0);
         }
       }

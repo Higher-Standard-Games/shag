@@ -10,6 +10,19 @@ afterEach(() => {
   PK3Loader.getInstance().unloadAll();
 });
 
+it("keeps caller cancellation connected after response headers", async () => {
+  const controller = new AbortController();
+  let requestSignal: AbortSignal | null | undefined;
+  const response = await fetchAsset("test", { signal: controller.signal }, async (_url, init) => {
+    requestSignal = init?.signal;
+    return new Response(new ReadableStream());
+  });
+  expect(requestSignal?.aborted).toBe(false);
+  controller.abort();
+  expect(requestSignal?.aborted).toBe(true);
+  await response.body?.cancel();
+});
+
 it("aborts stalled headers even when fetch ignores cancellation", async () => {
   vi.useFakeTimers();
   let signal: AbortSignal | undefined;

@@ -64,6 +64,17 @@ are replaced, and unavailable or full browser storage falls back to HTTP.
 Legacy metadata without hashes retains ordinary HTTP/in-memory loader behavior.
 Different page origins have separate persistent caches.
 
+Browser storage operations have a deadline. Validated downloads become usable
+before optional disk persistence finishes, and at most two pending writes retain
+their bodies. A stalled write does not occupy a download slot. A validated cached
+index retains its package content identities when published metadata is unavailable.
+
+Indexed textures acquire their owning archive before reading the virtual path;
+an indexed package failure does not trigger loose-file probes. Simultaneous
+requests share entry extraction and texture creation. Unindexed custom textures
+retain the loose-file fallback. Scene cache clearing discards stale texture
+results; independent package transfers remain shared across consumers.
+
 With `developer 1`, package-store diagnostics distinguish memory, disk-cache,
 and HTTP acquisition. HTTP acquisition can itself be served by the browser's
 HTTP cache; use browser network transfer measurements to distinguish that case.

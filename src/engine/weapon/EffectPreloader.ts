@@ -31,6 +31,7 @@ import { MeshBuilder } from "@babylonjs/core/Meshes/meshBuilder";
 import type { Scene } from "@babylonjs/core/scene";
 import { devLog } from "../core/DevLog";
 import { applySafeMaxSimultaneousLights } from "../lighting/DynamicLightSafety";
+import { prepareMaterial, sceneGpuReady, waitForGpuCondition } from "../loader/map/GpuPreparation";
 
 interface Disposable {
   dispose: () => void;
@@ -39,25 +40,19 @@ interface Disposable {
 /** Longest wait for a rendered frame. A stopped render loop draws nothing that could still need a retired light. */
 const RETIRE_FRAME_TIMEOUT_MS = 250;
 
-/**
- * How long the material pass waits for every material to compile. One that
- * never reports ready (a texture disposed under it) would otherwise hold the
- * loading screen up for good; past this, the map loads and that material
- * compiles on first use.
- */
-const FORCE_COMPILE_TIMEOUT_MS = 10000;
-
 /** The next rendered frame, or the timeout; the observer is removed either way. */
-function nextRenderedFrame(scene: Scene): Promise<void> {
+function nextRenderedFrame(scene: Scene, signal?: AbortSignal): Promise<void> {
   return new Promise<void>((resolve) => {
-    const timer = setTimeout(() => {
-      scene.onAfterRenderObservable.remove(observer);
-      resolve();
-    }, RETIRE_FRAME_TIMEOUT_MS);
-    const observer = scene.onAfterRenderObservable.addOnce(() => {
+    const finish = () => {
       clearTimeout(timer);
+      scene.onAfterRenderObservable.remove(observer);
+      signal?.removeEventListener("abort", finish);
       resolve();
-    });
+    };
+    const timer = setTimeout(finish, RETIRE_FRAME_TIMEOUT_MS);
+    const observer = scene.onAfterRenderObservable.addOnce(finish);
+    signal?.addEventListener("abort", finish, { once: true });
+    if (signal?.aborted) finish();
   });
 }
 
@@ -77,6 +72,7 @@ export async function retireTemporaryLight(scene: Scene, light: PointLight): Pro
   for (const material of scene.materials) {
     if (material.isFrozen) material.markDirty(true);
   }
+  let gpuOwnsRetirement = false;
   try {
     await nextRenderedFrame(scene);
     await nextRenderedFrame(scene);
@@ -84,9 +80,28 @@ export async function retireTemporaryLight(scene: Scene, light: PointLight): Pro
       isWebGPU?: boolean;
       _device?: { queue: { onSubmittedWorkDone(): Promise<void> } };
     };
-    if (engine.isWebGPU) await engine._device?.queue.onSubmittedWorkDone();
+    if (engine.isWebGPU && engine._device) {
+      // A stalled queue must not hold startup, nor may we destroy an in-flight buffer.
+      const submitted = engine._device.queue.onSubmittedWorkDone();
+      gpuOwnsRetirement = true;
+      let retired = false;
+      const completion = submitted.then(
+        () => {
+          if (!light.isDisposed()) light.dispose();
+          retired = true;
+        },
+        () => {
+          if (!light.isDisposed()) light.dispose();
+          retired = true;
+        },
+      );
+      await Promise.race([
+        completion,
+        waitForGpuCondition(scene, () => retired, "retiring compile light", undefined, 1000).catch(() => {}),
+      ]);
+    }
   } finally {
-    light.dispose();
+    if (!gpuOwnsRetirement) light.dispose();
   }
 }
 
@@ -98,7 +113,8 @@ export async function retireTemporaryLight(scene: Scene, light: PointLight): Pro
  * Resolves after explicit compilation and the scene-material settling frames.
  * A shader compilation failure rejects; this is not a GPU validation/readback test.
  */
-export async function preloadEffectShaders(scene: Scene): Promise<void> {
+export async function preloadEffectShaders(scene: Scene, signal?: AbortSignal): Promise<void> {
+  signal?.throwIfAborted();
   const warmupMeshes: Mesh[] = [];
   const warmupDisposables: Disposable[] = [];
 
@@ -227,7 +243,7 @@ export async function preloadEffectShaders(scene: Scene): Promise<void> {
   try {
     // Sequential fixtures also ensure cleanup cannot dispose another fixture
     // while Babylon is still polling its compilation after an earlier failure.
-    for (const mesh of warmupMeshes) await mesh.material!.forceCompilationAsync(mesh, { clipPlane: false });
+    for (const mesh of warmupMeshes) await prepareMaterial(mesh.material!, mesh, signal);
     devLog(`[EffectPreloader] Shader warm-up complete — ${warmupMeshes.length} permutations compiled`);
   } finally {
     for (const mesh of warmupMeshes) mesh.dispose();
@@ -287,25 +303,8 @@ export async function preloadEffectShaders(scene: Scene): Promise<void> {
       );
 
       try {
-        const compiled = await Promise.race([
-          Promise.all(
-            [...matMeshMap, ...pbrMatMeshMap].map(([mat, mesh]) =>
-              mat.forceCompilationAsync(mesh, { clipPlane: false }),
-            ),
-          ).then(() => true),
-          new Promise<boolean>((resolve) => setTimeout(() => resolve(false), FORCE_COMPILE_TIMEOUT_MS)),
-        ]);
-        if (!compiled) {
-          const waiting = [...matMeshMap, ...pbrMatMeshMap]
-            .filter(([mat, mesh]) => !mat.isReady(mesh))
-            .map(([mat]) => mat.name);
-          console.warn(
-            `[EffectPreloader] ${waiting.length} materials not ready after ${FORCE_COMPILE_TIMEOUT_MS / 1000}s, going on: ${waiting.slice(0, 8).join(", ")}`,
-          );
-        }
-        await new Promise<void>((resolve) => {
-          scene.onAfterRenderObservable.addOnce(() => resolve());
-        });
+        await prepareSceneMaterials([...matMeshMap, ...pbrMatMeshMap], signal);
+        await nextRenderedFrame(scene, signal);
       } finally {
         await retireTemporaryLight(scene, tmpLight);
       }
@@ -316,9 +315,7 @@ export async function preloadEffectShaders(scene: Scene): Promise<void> {
       // Phase 3: Wait one more render frame for the "without light" variant
       // to settle. This prevents any dirty-flag cascade from the light removal
       // causing recompilation flicker during the first gameplay frame.
-      await new Promise<void>((resolve) => {
-        scene.onAfterRenderObservable.addOnce(() => resolve());
-      });
+      await nextRenderedFrame(scene, signal);
       devLog(`[EffectPreloader] Shader settling complete`);
     }
   }
@@ -327,26 +324,16 @@ export async function preloadEffectShaders(scene: Scene): Promise<void> {
 /**
  * Revalidate all scene materials after tab was backgrounded.
  *
- * When the browser tab is hidden during map loading, WebGL texture uploads
- * and shader compilations silently fail. This function forces:
- * 0. Unfreeze all materials — frozen materials have stale texture bindings
- * 1. Engine texture cache reset — forces all textures to re-bind on next render
- * 2. All textures to re-upload to GPU via updateSamplingMode()
- * 3. All materials marked dirty — forces shader re-evaluation
- * 4. All StandardMaterials force-compiled with PointLight variant
- * 5. Scene whenReadyAsync — final GPU readiness gate
- * 6. Re-freeze the materials step 0 unfroze, and only those
- *
- * Called by MapLoader when it detects the tab was backgrounded during load.
+ * Refresh bindings and observe material readiness after visibility resumes.
+ * Context restoration belongs to the renderer; sampler changes do not restore pixels.
+ * All polls are bounded and map cancellation releases their timers/observers.
  */
-export async function revalidateMaterials(scene: Scene): Promise<void> {
+export async function revalidateMaterials(scene: Scene, signal?: AbortSignal): Promise<void> {
+  signal?.throwIfAborted();
   const startTime = performance.now();
   const engine = scene.getEngine();
 
-  // 0. CRITICAL: Unfreeze ALL materials first.
-  //    Materials frozen during a backgrounded load have stale/empty texture
-  //    handles baked into them. Unfreezing allows them to pick up the
-  //    re-uploaded textures during recompilation.
+  // Restore the owner's frozen state even when readiness rejects or is cancelled.
   const unfrozen: StandardMaterial[] = [];
   for (const mat of scene.materials) {
     if (mat instanceof StandardMaterial && mat.isFrozen) {
@@ -362,89 +349,78 @@ export async function revalidateMaterials(scene: Scene): Promise<void> {
   engine.resetTextureCache?.();
   devLog(`[EffectPreloader] Reset engine texture cache`);
 
-  // 2. Force all textures to re-upload to GPU
-  //    When backgrounded, texture.isReady() may return true but the
-  //    actual WebGL texture handle may be empty. Calling updateSamplingMode()
-  //    forces Babylon to re-bind and re-upload the texture data.
-  let texCount = 0;
-  for (const tex of scene.textures) {
-    if (tex?.isReady()) {
+  try {
+    // 3. Mark all materials as dirty to force shader re-evaluation
+    const { Constants } = await import("@babylonjs/core/Engines/constants");
+    scene.markAllMaterialsAsDirty(Constants.MATERIAL_AllDirtyFlag);
+    devLog(`[EffectPreloader] Marked all materials dirty for revalidation`);
+
+    // 4. Force-compile all StandardMaterials AND PBRMaterials with PointLight variant (same as Phase 2)
+    const matMeshMap = new Map<StandardMaterial, Mesh>();
+    const pbrMatMeshMap = new Map<Material, Mesh>();
+    for (const mesh of scene.meshes) {
+      if (mesh.material instanceof StandardMaterial) {
+        applySafeMaxSimultaneousLights(mesh.material);
+        if (!matMeshMap.has(mesh.material)) {
+          matMeshMap.set(mesh.material, mesh as Mesh);
+        }
+      } else if (mesh.material && mesh.material.getClassName() === "PBRMaterial") {
+        applySafeMaxSimultaneousLights(mesh.material);
+        if (!pbrMatMeshMap.has(mesh.material)) {
+          pbrMatMeshMap.set(mesh.material, mesh as Mesh);
+        }
+      }
+    }
+
+    if (matMeshMap.size > 0 || pbrMatMeshMap.size > 0) {
+      const tmpLight = new PointLight("_revalidation_light", new Vector3(0, 0, 0), scene);
+      tmpLight.intensity = 1;
+      tmpLight.range = 999999;
+      tmpLight.diffuse = new Color3(1, 1, 1);
+
       try {
-        // Force the texture to re-initialize its WebGL sampler
-        // This triggers an internal _rebuild-like path
-        const sampling = tex.samplingMode;
-        tex.updateSamplingMode(sampling);
-        texCount++;
-      } catch (_) {
-        // Some texture types may not support this — skip
+        await prepareSceneMaterials([...matMeshMap, ...pbrMatMeshMap], signal);
+        await nextRenderedFrame(scene, signal);
+      } finally {
+        await retireTemporaryLight(scene, tmpLight);
       }
-    }
-  }
-  devLog(`[EffectPreloader] Forced ${texCount} textures to re-upload`);
 
-  // 3. Mark all materials as dirty to force shader re-evaluation
-  const { Constants } = await import("@babylonjs/core/Engines/constants");
-  scene.markAllMaterialsAsDirty(Constants.MATERIAL_AllDirtyFlag);
-  devLog(`[EffectPreloader] Marked all materials dirty for revalidation`);
-
-  // 4. Force-compile all StandardMaterials AND PBRMaterials with PointLight variant (same as Phase 2)
-  const matMeshMap = new Map<StandardMaterial, Mesh>();
-  const pbrMatMeshMap = new Map<Material, Mesh>();
-  for (const mesh of scene.meshes) {
-    if (mesh.material instanceof StandardMaterial) {
-      applySafeMaxSimultaneousLights(mesh.material);
-      if (!matMeshMap.has(mesh.material)) {
-        matMeshMap.set(mesh.material, mesh as Mesh);
-      }
-    } else if (mesh.material && mesh.material.getClassName() === "PBRMaterial") {
-      applySafeMaxSimultaneousLights(mesh.material);
-      if (!pbrMatMeshMap.has(mesh.material)) {
-        pbrMatMeshMap.set(mesh.material, mesh as Mesh);
-      }
-    }
-  }
-
-  if (matMeshMap.size > 0 || pbrMatMeshMap.size > 0) {
-    const tmpLight = new PointLight("_revalidation_light", new Vector3(0, 0, 0), scene);
-    tmpLight.intensity = 1;
-    tmpLight.range = 999999;
-    tmpLight.diffuse = new Color3(1, 1, 1);
-
-    try {
-      await Promise.all(
-        [...matMeshMap, ...pbrMatMeshMap].map(([mat, mesh]) => mat.forceCompilationAsync(mesh, { clipPlane: false })),
-      );
-      await new Promise<void>((resolve) => {
-        scene.onAfterRenderObservable.addOnce(() => resolve());
-      });
-    } finally {
-      await retireTemporaryLight(scene, tmpLight);
+      // Wait one settle frame
+      await nextRenderedFrame(scene, signal);
     }
 
-    // Wait one settle frame
-    await new Promise<void>((resolve) => {
-      scene.onAfterRenderObservable.addOnce(() => resolve());
-    });
+    // Observe the restored scene without leaving a global whenReadyAsync poll behind.
+    await waitForGpuCondition(scene, () => sceneGpuReady(scene), "revalidating scene", signal);
+  } finally {
+    // 6. Re-freeze what step 0 unfroze, and nothing else. Their owners chose to
+    //    freeze them and watch the light set for them (the map's world
+    //    materials). A material nobody froze, such as a gib's, may meet a new
+    //    light set later, and frozen it keeps a shader built for the old one:
+    //    its draws then fail and it is never seen.
+    let refrozenCount = 0;
+    for (const mat of unfrozen) {
+      if (scene.isDisposed || mat.isFrozen || !scene.materials.includes(mat)) continue;
+      mat.freeze();
+      refrozenCount++;
+    }
+    devLog(`[EffectPreloader] Re-froze ${refrozenCount} materials after revalidation`);
   }
-
-  // 5. Wait for scene readiness (ensures all textures are GPU-uploaded)
-  await scene.whenReadyAsync();
-
-  // 6. Re-freeze what step 0 unfroze, and nothing else. Their owners chose to
-  //    freeze them and watch the light set for them (the map's world
-  //    materials). A material nobody froze, such as a gib's, may meet a new
-  //    light set later, and frozen it keeps a shader built for the old one:
-  //    its draws then fail and it is never seen.
-  let refrozenCount = 0;
-  for (const mat of unfrozen) {
-    if (mat.isFrozen) continue;
-    mat.freeze();
-    refrozenCount++;
-  }
-  devLog(`[EffectPreloader] Re-froze ${refrozenCount} materials after revalidation`);
 
   const elapsed = (performance.now() - startTime).toFixed(0);
-  devLog(
-    `[EffectPreloader] Material revalidation complete — ${matMeshMap.size} materials, ${texCount} textures, ${unfrozenCount} unfrozen→${refrozenCount} refrozen in ${elapsed}ms`,
-  );
+  devLog(`[EffectPreloader] Material revalidation complete in ${elapsed}ms`);
+}
+
+async function prepareSceneMaterials(entries: [Material, Mesh][], signal?: AbortSignal): Promise<void> {
+  const controller = new AbortController();
+  const aborted = () => controller.abort(signal?.reason);
+  signal?.addEventListener("abort", aborted, { once: true });
+  if (signal?.aborted) aborted();
+  try {
+    await Promise.all(entries.map(([material, mesh]) => prepareMaterial(material, mesh, controller.signal)));
+  } catch (error) {
+    controller.abort(error);
+    throw error;
+  } finally {
+    signal?.removeEventListener("abort", aborted);
+  }
 }

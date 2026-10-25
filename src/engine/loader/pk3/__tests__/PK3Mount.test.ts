@@ -124,3 +124,16 @@ it("does not merge sources with the same basename and preserves alphabetical ove
   expect(fetch).toHaveBeenCalledTimes(3);
   expect(new TextDecoder().decode((await loader.getFile("probe.txt"))!)).toBe("override");
 });
+
+it("shares simultaneous extraction but observes replacement ZIP entries on the next read", async () => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () => new Response(Uint8Array.from(bytes))),
+  );
+  await loader.ensurePK3("probe.pk3");
+  const [a, b] = await Promise.all([loader.getFile("probe.txt"), loader.getFile("probe.txt")]);
+  expect(a).toBe(b);
+  bytes = await new JSZip().file("probe.txt", "replacement").generateAsync({ type: "uint8array" });
+  await loader.loadPK3("probe.pk3");
+  expect(new TextDecoder().decode((await loader.getFile("probe.txt"))!)).toBe("replacement");
+});

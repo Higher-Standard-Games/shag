@@ -39,6 +39,7 @@ import {
   clampMaterialLightCap,
   getSafeMaxSimultaneousLights,
 } from "../lighting/DynamicLightSafety";
+import { prepareMaterial, waitForPreparation } from "../loader/map/GpuPreparation";
 import { getMD3Loader, MD3Coords, type MD3LoadResult } from "../loader/model/MD3Loader";
 import { readIndexedModelAsset, resolveModelAsset } from "../loader/model/ModelAsset";
 import { ModelInstanceCache } from "../loader/model/ModelInstanceCache";
@@ -143,16 +144,24 @@ export class WeaponViewManager {
   private weaponDetailsReady: Promise<unknown> = Promise.resolve();
 
   /** Prepare the same instances/material variants that live weapon switches use. */
-  public async preloadWeapons(weaponIds: readonly string[], onProgress?: (id: string) => void): Promise<void> {
+  public async preloadWeapons(
+    weaponIds: readonly string[],
+    onProgress?: (id: string) => void,
+    signal?: AbortSignal,
+  ): Promise<void> {
+    const scene = this.scene;
+    if (!scene) throw new Error("Weapon view is not initialized");
     this.preparedForJoin = false;
     this.setVisible(false);
     try {
       for (const id of new Set(weaponIds.map(resolveWeaponId))) {
         onProgress?.(id);
-        if (!(await this.loadWeapon(id))) throw new Error(`Could not prepare weapon ${id}`);
-        await this.weaponDetailsReady;
+        signal?.throwIfAborted();
+        if (!(await waitForPreparation(this.loadWeapon(id), scene, `weapon ${id}`, signal)))
+          throw new Error(`Could not prepare weapon ${id}`);
+        await waitForPreparation(this.weaponDetailsReady, scene, `weapon details ${id}`, signal);
         for (const mesh of this.currentWeapon?.root.getChildMeshes() ?? []) {
-          if (mesh.material) await mesh.material.forceCompilationAsync(mesh);
+          if (mesh.material) await prepareMaterial(mesh.material, mesh, signal);
         }
       }
       this.preparedForJoin = true;

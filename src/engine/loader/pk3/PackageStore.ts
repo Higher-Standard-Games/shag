@@ -20,6 +20,22 @@ interface Job {
 const CACHE_NAME = "shag-packages-v1";
 const DISK_BUDGET = 512 * 1024 * 1024;
 const MEMORY_BUDGET = 128 * 1024 * 1024;
+const STORAGE_TIMEOUT_MS = 1000;
+
+/** CacheStorage is optional and its promises cannot be cancelled by the browser API. */
+async function storageOperation<T>(work: Promise<T>): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      work,
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(() => reject(new Error("Package storage timed out")), STORAGE_TIMEOUT_MS);
+      }),
+    ]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
 
 /** Application-owned archive acquisition. Reading an archive never mounts it. */
 export class PackageStore {
@@ -95,6 +111,7 @@ export class PackageStore {
   }
   private refreshId = 0;
   private cacheWrites: Promise<void> = Promise.resolve();
+  private pendingWrites = 0;
 
   setPaused(paused: boolean): void {
     this.paused = paused;
@@ -167,7 +184,7 @@ export class PackageStore {
 
   private async cache(): Promise<Cache | null> {
     try {
-      return typeof caches === "undefined" ? null : await caches.open(CACHE_NAME);
+      return typeof caches === "undefined" ? null : await storageOperation(caches.open(CACHE_NAME));
     } catch {
       return null;
     }
@@ -205,16 +222,18 @@ export class PackageStore {
     try {
       if (bytes.byteLength > DISK_BUDGET) return;
       const url = this.cacheUrl(job);
-      await cache.delete(url);
+      await storageOperation(cache.delete(url));
       let total = bytes.byteLength;
-      const entries = await cache.keys();
+      const entries = await storageOperation(cache.keys());
       for (let i = entries.length - 1; i >= 0; i--) {
-        const response = await cache.match(entries[i]);
+        const response = await storageOperation(cache.match(entries[i]));
         const size = Number(response?.headers.get("content-length") ?? DISK_BUDGET);
-        if (total + size > DISK_BUDGET) await cache.delete(entries[i]);
+        if (total + size > DISK_BUDGET) await storageOperation(cache.delete(entries[i]));
         else total += size;
       }
-      await cache.put(url, new Response(bytes, { headers: { "content-length": String(bytes.byteLength) } }));
+      await storageOperation(
+        cache.put(url, new Response(bytes, { headers: { "content-length": String(bytes.byteLength) } })),
+      );
     } catch {
       /* Storage denial/quota must never prevent playing. */
     }
@@ -224,16 +243,19 @@ export class PackageStore {
     const cache = job.hash ? await this.cache() : null;
     if (cache && !refresh) {
       try {
-        const response = await cache.match(this.cacheUrl(job));
+        const response = await storageOperation(cache.match(this.cacheUrl(job)));
         if (response) {
-          const bytes = await response.arrayBuffer();
+          const bytes = await storageOperation(response.arrayBuffer());
           const zip = await this.validate(bytes, job.hash);
           this.remember(job, zip, bytes.byteLength);
           devLog(`[PackageStore] disk: ${job.filename}`);
           return zip;
         }
       } catch {
-        await cache.delete(this.cacheUrl(job)).catch(() => false);
+        background(
+          storageOperation(cache.delete(this.cacheUrl(job))).catch(() => false),
+          "PackageStore cache repair",
+        );
       }
     }
     const progress = new PackageDownload(job.filename);
@@ -262,9 +284,12 @@ export class PackageStore {
           progress.phase = "Preparing";
           const zip = await this.validate(bytes, job.hash);
           this.remember(job, zip, bytes.byteLength);
-          if (cache) {
-            this.cacheWrites = this.cacheWrites.then(() => this.persist(cache, job, bytes));
-            await this.cacheWrites;
+          if (cache && this.pendingWrites < 2) {
+            this.pendingWrites++;
+            this.cacheWrites = this.cacheWrites
+              .then(() => this.persist(cache, job, bytes))
+              .finally(() => this.pendingWrites--);
+            // Validated bytes are usable now. Persistence owns its bounded queue separately.
           }
           devLog(`[PackageStore] network (${source}): ${job.filename}, ${bytes.byteLength} bytes`);
           return zip;

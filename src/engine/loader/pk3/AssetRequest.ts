@@ -31,7 +31,12 @@ export async function fetchAsset(
   init.signal?.addEventListener("abort", abort, { once: true });
   let expired = false;
   try {
-    const request = fetchImpl(url, { ...init, signal: controller.signal }).then((response) => {
+    // Native composition retains caller cancellation through body consumption too.
+    const signal =
+      init.signal && typeof AbortSignal.any === "function"
+        ? AbortSignal.any([controller.signal, init.signal])
+        : controller.signal;
+    const request = fetchImpl(url, { ...init, signal }).then((response) => {
       if (expired) void response.body?.cancel().catch(() => {});
       return response;
     });

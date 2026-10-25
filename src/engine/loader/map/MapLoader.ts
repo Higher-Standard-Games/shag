@@ -40,8 +40,10 @@ import { PK3Loader } from "../pk3/PK3Loader";
 import type { PK3PackageScope } from "../pk3/PK3PackageScope";
 import { Q3ShaderRegistry } from "../shader/Q3ShaderRegistry";
 import { shaderSourceBlocks } from "../shader/ShaderSourceBlocks";
+import { PACKAGED_TEXTURE_EXTENSION, stripTextureExtension } from "../texture/TextureExtensions";
 import { getGameMapEntities } from "./GameMapEntities";
-import { waitForMapAsset, waitForMapReady, waitForMapVisibility } from "./MapLoadWait";
+import { sceneGpuReady, waitForGpuCondition } from "./GpuPreparation";
+import { waitForMapAsset, waitForMapVisibility } from "./MapLoadWait";
 
 /**
  * Entities the client draws or plays nothing for: map markers that only the
@@ -385,16 +387,18 @@ export class MapLoader {
     const requiredPk3s = await this.resolveMapDependencies(bsp);
 
     let loaded = 0;
-    for (const pk3 of requiredPk3s) {
-      progress("Dependencies", `Loading ${pk3}`, loaded / requiredPk3s.size);
-      try {
-        const pk3Path = this.pk3Index.getPK3Path(pk3);
-        if (pk3Path) await waitForMapAsset(this.pk3Loader.ensurePK3FromUrl(pk3Path), signal);
-      } catch (e) {
-        console.warn(`[MapLoader] Failed to load dependency ${pk3}:`, e);
-      }
-      loaded++;
-    }
+    await Promise.all(
+      [...requiredPk3s].map(async (pk3) => {
+        progress("Dependencies", `Loading ${pk3}`, loaded / requiredPk3s.size);
+        try {
+          const pk3Path = this.pk3Index.getPK3Path(pk3);
+          if (pk3Path) await waitForMapAsset(this.pk3Loader.ensurePK3FromUrl(pk3Path), signal);
+        } catch (e) {
+          console.warn(`[MapLoader] Failed to load dependency ${pk3}:`, e);
+        }
+        loaded++;
+      }),
+    );
 
     // Phase 3b: Resolve entity model dependencies (weapons, ammo, items)
     // Skip for background-only loads — no gameplay entities needed
@@ -402,15 +406,17 @@ export class MapLoader {
       progress("Dependencies", "Resolving entity model PK3s");
       getGameMapEntities()?.initializeDefinitions();
       const modelPk3s = this.resolveEntityModelDependencies(bsp);
-      for (const pk3 of modelPk3s) {
-        progress("Dependencies", `Loading model assets from ${pk3}`);
-        try {
-          const pk3Path = this.pk3Index.getPK3Path(pk3);
-          if (pk3Path) await waitForMapAsset(this.pk3Loader.ensurePK3FromUrl(pk3Path), signal);
-        } catch (e) {
-          console.warn(`[MapLoader] Failed to load model dependency ${pk3}:`, e);
-        }
-      }
+      await Promise.all(
+        [...modelPk3s].map(async (pk3) => {
+          progress("Dependencies", `Loading model assets from ${pk3}`);
+          try {
+            const pk3Path = this.pk3Index.getPK3Path(pk3);
+            if (pk3Path) await waitForMapAsset(this.pk3Loader.ensurePK3FromUrl(pk3Path), signal);
+          } catch (e) {
+            console.warn(`[MapLoader] Failed to load model dependency ${pk3}:`, e);
+          }
+        }),
+      );
 
       const weaponPackage = weaponModelRecipe.package;
       if (this.pk3Index.getPK3Path(weaponPackage)) {
@@ -672,26 +678,20 @@ export class MapLoader {
       progress("Finalizing", "Warming up effect shaders");
       try {
         const { preloadEffectShaders } = await import("../../weapon/EffectPreloader");
-        await preloadEffectShaders(scene);
+        await preloadEffectShaders(scene, signal);
       } catch (e) {
+        signal.throwIfAborted();
         console.warn("[MapLoader] Effect shader warm-up failed, proceeding anyway:", e);
       }
 
-      // Final gate: wait for the scene to be ready, but not forever. One object
-      // that never reports ready would otherwise hold the loading screen up for
-      // good, which is worse than a shader compiling on the first frame.
+      // A required scene that cannot draw fails the load instead of exposing holes.
       progress("Finalizing", "Waiting for GPU readiness");
       try {
-        const ready = await waitForMapReady(scene.whenReadyAsync(), signal, SCENE_READY_TIMEOUT_MS);
-        if (ready) {
-          devLog("[MapLoader] Scene fully ready — all textures and shaders compiled");
-        } else {
-          console.warn(
-            `[MapLoader] Scene not ready after ${SCENE_READY_TIMEOUT_MS / 1000}s, proceeding anyway: ${describeNotReady(scene)}`,
-          );
-        }
+        await waitForGpuCondition(scene, () => sceneGpuReady(scene), "map scene", signal, SCENE_READY_TIMEOUT_MS);
+        devLog("[MapLoader] Scene fully ready — all textures and shaders compiled");
       } catch (e) {
-        console.warn("[MapLoader] scene.whenReadyAsync() failed, proceeding anyway:", e);
+        signal.throwIfAborted();
+        throw new Error(`Map rendering did not become ready: ${describeNotReady(scene)} (${String(e)})`);
       }
 
       // Static reflection cubemaps render the world six times each: behind the
@@ -711,7 +711,14 @@ export class MapLoader {
         const captured = await this.surfaceCubemaps.captureAll(camera);
         devLog(`[MapLoader] Captured ${captured} $cubemap surface reflection(s)`);
         // The reflecting surfaces' shaders gained a cubemap: compile them here too
-        if (captured) await waitForMapReady(scene.whenReadyAsync(), signal, SCENE_READY_TIMEOUT_MS).catch(() => false);
+        if (captured)
+          await waitForGpuCondition(
+            scene,
+            () => sceneGpuReady(scene),
+            "reflection materials",
+            signal,
+            SCENE_READY_TIMEOUT_MS,
+          ).catch(() => false);
       }
       this.surfaceCubemaps?.captureInPlay();
     } else {
@@ -736,10 +743,11 @@ export class MapLoader {
 
       try {
         const { revalidateMaterials } = await import("../../weapon/EffectPreloader");
-        await revalidateMaterials(scene);
+        await revalidateMaterials(scene, signal);
         devLog("[MapLoader] Post-background revalidation complete");
       } catch (e) {
-        console.warn("[MapLoader] Post-background revalidation failed:", e);
+        signal.throwIfAborted();
+        throw new Error(`Could not restore map rendering after returning to the tab: ${String(e)}`);
       }
 
       this.wasBackgroundedDuringLoad = false;
@@ -858,7 +866,7 @@ export class MapLoader {
       const source = await waitForMapAsset(this.pk3Loader.getPackageFile(filename, file), signal);
       if (source === null) throw new Error(`Missing companion shader: ${filename}:${file}`);
       for (const block of shaderSourceBlocks(source)) {
-        shaders.add(block.name.toLowerCase().replace(/\.(tga|jpg|jpeg|png|ktx)$/i, ""));
+        shaders.add(stripTextureExtension(block.name.toLowerCase()));
       }
     }
     const scope: PK3PackageScope = {
@@ -933,7 +941,7 @@ export class MapLoader {
       }
 
       // Check for texture file
-      const extensions = [".tga", ".jpg", ".png", ".ktx"];
+      const extensions = [PACKAGED_TEXTURE_EXTENSION, ".tga", ".jpg", ".png", ".ktx"];
       for (const ext of extensions) {
         const texPath = `textures/${texName}${ext}`;
         const pk3 = this.pk3Index.findFile(texPath);
@@ -981,7 +989,7 @@ export class MapLoader {
         }
 
         const suffixes = ["_ft", "_bk", "_lf", "_rt", "_up", "_dn"];
-        const extensions = [".ktx", ".tga", ".jpg", ".png"];
+        const extensions = [PACKAGED_TEXTURE_EXTENSION, ".ktx", ".tga", ".jpg", ".png"];
 
         for (const suffix of suffixes) {
           for (const ext of extensions) {

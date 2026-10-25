@@ -24,9 +24,10 @@ import { DEFAULT_PROJECTILE_BOUNCE_FACTOR, getEntityRegistry, type ProjectileDef
 import { devLog } from "../core/DevLog";
 import { log } from "../core/Log";
 import { applySafeMaxSimultaneousLights } from "../lighting/DynamicLightSafety";
+import { prepareMaterial, waitForPreparation } from "../loader/map/GpuPreparation";
 import { getMD3Loader, type MD3LoadResult } from "../loader/model/MD3Loader";
 import { readIndexedModelAsset } from "../loader/model/ModelAsset";
-import { ModelSourceCache } from "../loader/model/ModelSourceCache";
+import { disposeModelResources, ModelSourceCache } from "../loader/model/ModelSourceCache";
 import { PK3Loader } from "../loader/pk3/PK3Loader";
 import { PK3TextureLoader } from "../loader/pk3/PK3TextureLoader";
 import { Q3ShaderRegistry } from "../loader/shader/Q3ShaderRegistry";
@@ -154,6 +155,7 @@ export class ProjectileManager {
   private impactTextureCache: Map<string, string> = new Map();
   /** Preloads in progress by def id, so every spawn during a reload shares one load. */
   private preloads = new Map<string, Promise<boolean>>();
+  private assetGeneration = 0;
 
   // Pre-allocated temporaries for hot-loop reuse (avoids per-frame GC pressure)
   private _tmpMoveDir = Vector3.Zero();
@@ -213,6 +215,13 @@ export class ProjectileManager {
   public init(scene: Scene): void {
     if (this.tickObserver) this.scene?.onBeforeRenderObservable.remove(this.tickObserver);
     if (this.scene !== scene) {
+      this.assetGeneration++;
+      this.preloads.clear();
+      this.modelCache.clear();
+      this.impactModelCache.clear();
+      this.spriteCache.clear();
+      this.modelTextureCache.clear();
+      this.impactTextureCache.clear();
       this.trailMaterials.clear();
       this.idleShots.clear();
     }
@@ -331,7 +340,9 @@ export class ProjectileManager {
   public preloadModel(defId: string): Promise<boolean> {
     const pending = this.preloads.get(defId);
     if (pending) return pending;
-    const load = this.loadModelAssets(defId).finally(() => this.preloads.delete(defId));
+    const load = this.loadModelAssets(defId).finally(() => {
+      if (this.preloads.get(defId) === load) this.preloads.delete(defId);
+    });
     this.preloads.set(defId, load);
     return load;
   }
@@ -341,20 +352,30 @@ export class ProjectileManager {
    * first shot of each type in a match neither loads a model nor compiles a
    * shader. Map loading calls this beside the weapon view preload.
    */
-  public async prepare(scene: Scene, defIds: readonly string[]): Promise<void> {
+  public async prepare(scene: Scene, defIds: readonly string[], signal?: AbortSignal): Promise<void> {
     if (this.scene !== scene) this.init(scene);
-    await Promise.all(defIds.map((defId) => this.preloadModel(defId)));
+    const results = await waitForPreparation(
+      Promise.all(defIds.map((defId) => this.preloadModel(defId))),
+      scene,
+      "projectile models",
+      signal,
+    );
+    const missing = defIds.filter((_, index) => !results[index]);
+    if (missing.length) throw new Error(`Could not prepare projectiles: ${missing.join(", ")}`);
     const compiles: Promise<void>[] = [];
     for (const defId of defIds) {
       for (const mesh of this.modelCache.get(defId)?.meshes ?? []) {
-        if (mesh.material) compiles.push(mesh.material.forceCompilationAsync(mesh));
+        if (mesh.material) compiles.push(prepareMaterial(mesh.material, mesh, signal));
       }
     }
     await Promise.all(compiles);
   }
 
   private async loadModelAssets(defId: string): Promise<boolean> {
-    if (!this.scene) return false;
+    const scene = this.scene;
+    if (!scene) return false;
+    const generation = this.assetGeneration;
+    const current = () => this.scene === scene && !scene.isDisposed && this.assetGeneration === generation;
 
     const registry = getEntityRegistry();
     const def = registry.get<ProjectileDef>(defId);
@@ -378,6 +399,7 @@ export class ProjectileManager {
       try {
         devLog(`[ProjectileManager] Loading sprite from: ${path}`);
         const textureUrl = await pk3.getFileAsURL(path, "image/png");
+        if (!current()) return false;
         devLog(`[ProjectileManager] Got URL: ${textureUrl ? "yes" : "no"}`);
         if (textureUrl) {
           this.spriteCache.set(defId, textureUrl);
@@ -395,11 +417,11 @@ export class ProjectileManager {
       // (which sets up the texture loader) may have reached yet. Without that, a
       // shot fired while the map loads cached its model untextured.
       const md3Loader = getMD3Loader();
-      md3Loader.init(this.scene);
-      PK3TextureLoader.getInstance().init(this.scene.getEngine(), this.scene);
+      PK3TextureLoader.getInstance().init(scene.getEngine(), scene);
       try {
         // Through the index, so the owning package is fetched if it is not yet
         const modelData = (await readIndexedModelAsset(path)) ?? (await pk3.getFile(path));
+        if (!current()) return false;
         if (!modelData) {
           console.warn(`[ProjectileManager] Model not found: ${path}`);
           return false;
@@ -408,12 +430,18 @@ export class ProjectileManager {
         // black meaning clear). Before the map has read the scripts, a model built
         // now fell back to a plain opaque texture and kept it.
         await Q3ShaderRegistry.getInstance().loadShaders();
+        if (!current()) return false;
+        md3Loader.init(scene);
 
         const parsed = md3Loader.parseMD3(modelData);
         const model = md3Loader.createMeshes(parsed, def.id);
         if (model) {
           if (defId === "blade_blast" && def.lightColor) {
             await Promise.all(model.textureLoadPromises ?? []);
+            if (!current()) {
+              disposeModelResources([model.root]);
+              return false;
+            }
             const color = def.lightColor;
             for (const mesh of model.meshes) {
               if (mesh.material instanceof StandardMaterial) {
@@ -468,6 +496,7 @@ export class ProjectileManager {
             }
 
             if (textureUrl) {
+              if (!current()) return false;
               this.modelTextureCache.set(defId, textureUrl);
               devLog(`[ProjectileManager] Cached model texture: ${defId}`);
             } else {
@@ -486,7 +515,9 @@ export class ProjectileManager {
         try {
           const md3Loader = getMD3Loader();
           const impactData = await pk3.getFile(def.impactModelPath);
+          if (!current()) return false;
           if (impactData) {
+            md3Loader.init(scene);
             const parsed = md3Loader.parseMD3(impactData);
             const model = md3Loader.createMeshes(parsed, `${def.id}_impact`);
             if (model) {
@@ -505,6 +536,7 @@ export class ProjectileManager {
     if (def.impactTexturePath && !this.impactTextureCache.has(defId)) {
       try {
         const textureUrl = await pk3.getFileAsURL(def.impactTexturePath, "image/png");
+        if (!current()) return false;
         if (textureUrl) {
           this.impactTextureCache.set(defId, textureUrl);
           devLog(`[ProjectileManager] Cached impact texture: ${defId}`);
@@ -1143,6 +1175,8 @@ export class ProjectileManager {
    * Clear all projectiles
    */
   public clear(): void {
+    this.assetGeneration++;
+    this.preloads.clear();
     for (const proj of this.projectiles) {
       getPointLightPool().release(proj.light);
       disposeShot(proj);

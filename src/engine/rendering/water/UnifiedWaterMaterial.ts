@@ -784,6 +784,11 @@ function noiseTexture(scene: Scene): RawTexture {
   return texture;
 }
 
+/** Ready 2D sampler binding when an optional scene capture is unavailable. */
+export function waterFallbackTexture(scene: Scene): RawTexture {
+  return noiseTexture(scene);
+}
+
 /** Drop the shared noise for a scene. Called when the last surface goes. */
 export function disposeWaterNoise(scene: Scene): void {
   fallbackByScene.get(scene)?.dispose();

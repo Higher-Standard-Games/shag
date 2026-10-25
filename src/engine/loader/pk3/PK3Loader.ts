@@ -35,6 +35,7 @@ export class PK3Loader {
   private generation = 0;
   private packageScope: PK3PackageScope | null = null;
   private filesystemRevision = 0;
+  private readonly fileReads = new WeakMap<JSZip.JSZipObject, Promise<ArrayBuffer>>();
 
   public setPackageScope(scope: PK3PackageScope | null): void {
     if (scope === this.packageScope) return;
@@ -362,7 +363,11 @@ export class PK3Loader {
       return null;
     }
 
-    return await zipObj.async("arraybuffer");
+    const pending = this.fileReads.get(zipObj);
+    if (pending) return pending;
+    const reading = zipObj.async("arraybuffer").finally(() => this.fileReads.delete(zipObj));
+    this.fileReads.set(zipObj, reading);
+    return reading;
   }
 
   /**

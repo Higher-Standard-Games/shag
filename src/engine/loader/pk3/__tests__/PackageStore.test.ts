@@ -190,7 +190,44 @@ it("retains older entries that fit after evicting a large cached package", async
   const store = new PackageStore();
   store.register("data/hello.pk3", hash);
   await store.acquire("data/hello.pk3", "hello.pk3");
+  await vi.waitFor(() => expect(entries.has(`http://pk3.local/data/hello.pk3?shag-content=${hash}`)).toBe(true));
   expect(entries.has(newer)).toBe(false);
   expect(entries.has(older)).toBe(true);
   expect(entries.has(`http://pk3.local/data/hello.pk3?shag-content=${hash}`)).toBe(true);
+});
+
+it("falls back to network when optional storage never opens", async () => {
+  const { bytes, hash } = await archive();
+  vi.stubGlobal("caches", { open: () => new Promise(() => {}) });
+  const fetch = vi.fn(async () => new Response(bytes));
+  vi.stubGlobal("fetch", fetch);
+  const store = new PackageStore();
+  store.register("data/hello.pk3", hash);
+  const zip = await store.acquire("data/hello.pk3", "hello.pk3");
+  expect(await zip.file("hello.txt")!.async("string")).toBe("hello");
+  expect(fetch).toHaveBeenCalledOnce();
+});
+
+it("returns validated downloads while a disk write stalls and allows the next write to proceed", async () => {
+  const { cache } = disk();
+  const { bytes, hash } = await archive();
+  let release!: () => void;
+  cache.put.mockImplementationOnce(
+    () =>
+      new Promise<void>((resolve) => {
+        release = resolve;
+      }),
+  );
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () => new Response(bytes)),
+  );
+  const store = new PackageStore();
+  store.register("data/first.pk3", hash);
+  store.register("data/next.pk3", hash);
+  await store.acquire("data/first.pk3", "first.pk3");
+  await store.acquire("data/next.pk3", "next.pk3");
+  expect(store.pendingCount).toBe(0);
+  await vi.waitFor(() => expect(cache.put).toHaveBeenCalledTimes(2), { timeout: 2000 });
+  release();
 });

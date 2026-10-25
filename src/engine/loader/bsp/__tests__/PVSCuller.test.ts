@@ -486,7 +486,7 @@ describe("default PVS through gameplay MapLoader", () => {
     vi.spyOn(getCollisionManager(), "init").mockResolvedValue(undefined);
     vi.spyOn(AssetPreloader.getInstance(), "preloadFromBsp").mockResolvedValue(0);
     vi.spyOn(EffectPreloader, "preloadEffectShaders").mockResolvedValue(undefined);
-    vi.spyOn(scene, "whenReadyAsync").mockResolvedValue(undefined);
+    vi.spyOn(scene, "isReady").mockReturnValue(true);
     vi.spyOn(BspEntityHandlers, "registerBspEntityHandlers").mockImplementation(() => {});
     registerGameMapEntities({ initializeDefinitions() {}, registerHandlers() {}, disposeMapEntities() {} });
     vi.spyOn(EntityHandlerRegistry, "runPreRenderHooks").mockResolvedValue(undefined);
@@ -587,8 +587,9 @@ describe("default PVS through gameplay MapLoader", () => {
     const camera = new FreeCamera("eye", new Vector3(1, 0, 0), scene);
     scene.activeCamera = camera;
     const cullersDuringSetup: (PVSCuller | null)[] = [];
-    vi.mocked(scene.whenReadyAsync).mockImplementation(async () => {
+    vi.mocked(scene.isReady).mockImplementation(() => {
       cullersDuringSetup.push(manager.getPVSCuller());
+      return true;
     });
     bsp.entities = [{ classname: "info_player_start", properties: {} }];
     vi.spyOn(EntityHandlerRegistry, "getHandler").mockReturnValue(async () => {
@@ -614,6 +615,24 @@ describe("default PVS through gameplay MapLoader", () => {
     expect(manager.getPVSCuller()?.getStats()).toMatchObject({ enabled: true, currentCluster: 1, visibleMeshes: 1 });
     await loader.disposeCurrentMap();
     expect(manager.getPVSCuller()).toBeNull();
+  });
+
+  it("reports a failed map instead of entering gameplay when rendering never becomes ready", async () => {
+    vi.useFakeTimers();
+    vi.mocked(scene.isReady).mockReturnValue(false);
+    let waiting = false;
+    try {
+      const pending = loader.loadMap("test", scene, (progress) => {
+        if (progress.detail === "Waiting for GPU readiness") waiting = true;
+      });
+      await vi.waitFor(() => expect(waiting).toBe(true));
+      await vi.advanceTimersByTimeAsync(16000);
+      const result = await pending;
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("Map rendering did not become ready");
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("waits conservatively for a camera and starts culling when the eye is assigned", async () => {

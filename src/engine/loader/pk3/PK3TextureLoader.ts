@@ -21,6 +21,8 @@ import { createTextureFromKTX1, parseKTX1, reduceKTX1MipChain } from "../texture
 import { ensureKTX2Decoder } from "../texture/KTX2DecoderRuntime";
 import { KTX2_SIDECAR_EXTENSION, registerKTX2SidecarLoader } from "../texture/KTX2SidecarLoader";
 import { reducedTextureSize, reduceTexturePixels } from "../texture/TextureReduction";
+import { PackageStore } from "./PackageStore";
+import { PK3Index } from "./PK3Index";
 import { PK3Loader } from "./PK3Loader";
 
 type KTX2ManifestEntry = string | { file: string };
@@ -64,6 +66,8 @@ export class PK3TextureLoader {
   private textureCache: Map<string, Texture> = new Map();
   private ktx2ManifestPromise: Promise<LocatedKTX2Manifest | null> | null = null;
   private failedKTX2Sidecars = new Set<string>();
+  private pendingTextures = new Map<string, Promise<Texture | null>>();
+  private generation = 0;
 
   private constructor() {}
 
@@ -78,6 +82,7 @@ export class PK3TextureLoader {
    * Initialize with BabylonJS engine and scene
    */
   public init(engine: AbstractEngine, scene: Scene): void {
+    if (this.scene && this.scene !== scene) this.clearCache();
     this.engine = engine;
     this.scene = scene;
     devLog("[PK3TextureLoader] Initialized");
@@ -182,7 +187,7 @@ export class PK3TextureLoader {
       if (seen.has(key)) continue;
       seen.add(key);
 
-      if (pk3.hasFile(candidate)) {
+      if (pk3.hasFile(candidate) || PK3Index.getInstance().findFile(candidate)) {
         return this.loadTexture(candidate, picmip);
       }
     }
@@ -221,7 +226,18 @@ export class PK3TextureLoader {
     return this.ktx2ManifestPromise;
   }
 
-  private async tryLoadKTX2Sidecar(strippedPath: string): Promise<Texture | null> {
+  private tryLoadKTX2Sidecar(strippedPath: string): Promise<Texture | null> {
+    const key = `sidecar:${strippedPath.toLowerCase()}`;
+    const pending = this.pendingTextures.get(key);
+    if (pending) return pending;
+    const loading = this.loadKTX2Sidecar(strippedPath, this.generation).finally(() => {
+      if (this.pendingTextures.get(key) === loading) this.pendingTextures.delete(key);
+    });
+    this.pendingTextures.set(key, loading);
+    return loading;
+  }
+
+  private async loadKTX2Sidecar(strippedPath: string, generation: number): Promise<Texture | null> {
     if (!this.scene || !this.isKTX2Enabled()) {
       return null;
     }
@@ -264,23 +280,45 @@ export class PK3TextureLoader {
     const url = `${located.baseUrl}ktx2cache/${normalizedRelativeFile}`;
     try {
       await ensureKTX2Decoder();
+      if (generation !== this.generation || this.scene?.isDisposed) return null;
       registerKTX2SidecarLoader();
+      const scene = this.scene!;
       const texture = await new Promise<Texture | null>((resolve) => {
-        let candidate: Texture;
-        candidate = new Texture(url, this.scene!, {
-          noMipmap: false,
-          invertY: false,
-          forcedExtension: KTX2_SIDECAR_EXTENSION,
-          samplingMode: Texture.TRILINEAR_SAMPLINGMODE,
-          onLoad: () => resolve(candidate),
-          onError: (message, exception) => {
-            candidate.dispose();
-            console.warn(`[PK3TextureLoader] KTX2 sidecar failed, using source texture: ${url}`, message, exception);
-            resolve(null);
-          },
-        });
-        candidate.name = strippedPath;
+        let candidate: Texture | undefined;
+        let settled = false;
+        const finish = (value: Texture | null) => {
+          if (settled) return;
+          settled = true;
+          clearTimeout(timer);
+          scene.onDisposeObservable.remove(disposed);
+          if (!value) candidate?.dispose();
+          resolve(value);
+        };
+        const timer = setTimeout(() => finish(null), 10000);
+        const disposed = scene.onDisposeObservable.addOnce(() => finish(null));
+        try {
+          candidate = new Texture(url, scene, {
+            noMipmap: false,
+            invertY: false,
+            forcedExtension: KTX2_SIDECAR_EXTENSION,
+            samplingMode: Texture.TRILINEAR_SAMPLINGMODE,
+            onLoad: () => queueMicrotask(() => finish(candidate ?? null)),
+            onError: (message, exception) => {
+              console.warn(`[PK3TextureLoader] KTX2 sidecar failed, using source texture: ${url}`, message, exception);
+              finish(null);
+            },
+          });
+          candidate.name = strippedPath;
+        } catch (error) {
+          console.warn(`[PK3TextureLoader] KTX2 sidecar creation failed: ${url}`, error);
+          finish(null);
+        }
       });
+
+      if (generation !== this.generation || scene.isDisposed) {
+        texture?.dispose();
+        return null;
+      }
 
       if (!texture) {
         this.failedKTX2Sidecars.add(canonicalPath);
@@ -293,6 +331,7 @@ export class PK3TextureLoader {
       devLog(`[PK3TextureLoader] Loaded KTX2 sidecar: ${url}`);
       return texture;
     } catch (error) {
+      if (generation !== this.generation) return null;
       this.failedKTX2Sidecars.add(canonicalPath);
       console.warn(`[PK3TextureLoader] KTX2 decoder unavailable, using source texture: ${url}`, error);
       return null;
@@ -302,7 +341,32 @@ export class PK3TextureLoader {
   /**
    * Load a single texture from PK3
    */
-  public async loadTexture(path: string, picmip = 0): Promise<Texture | null> {
+  public loadTexture(path: string, picmip = 0): Promise<Texture | null> {
+    path = path
+      .replace(/\\/g, "/")
+      .replace(/^\/?data\//i, "")
+      .replace(/^\/+/, "");
+    picmip = Math.max(0, Math.min(8, Math.round(picmip)));
+    const index = PK3Index.getInstance();
+    const owner = index.findFile(path);
+    const identity = owner ? PackageStore.shared.sourceKey(index.getPK3Path(owner) ?? owner) : "unindexed";
+    const key = `${identity}:${path.toLowerCase()}:${picmip}`;
+    const pending = this.pendingTextures.get(key);
+    if (pending) return pending;
+    const generation = this.generation;
+    const loading = this.loadTextureInternal(path, picmip, key, generation).finally(() => {
+      if (this.pendingTextures.get(key) === loading) this.pendingTextures.delete(key);
+    });
+    this.pendingTextures.set(key, loading);
+    return loading;
+  }
+
+  private async loadTextureInternal(
+    path: string,
+    picmip: number,
+    cacheKey: string,
+    generation: number,
+  ): Promise<Texture | null> {
     if (!this.engine || !this.scene) {
       console.error("[PK3TextureLoader] Not initialized");
       return null;
@@ -310,7 +374,6 @@ export class PK3TextureLoader {
 
     // Check cache
     picmip = Math.max(0, Math.min(8, Math.round(picmip)));
-    const cacheKey = path.toLowerCase() + (picmip ? `:picmip=${picmip}` : "");
     if (this.textureCache.has(cacheKey)) {
       const cached = this.textureCache.get(cacheKey)!;
       // Check if cached texture is still valid (not disposed)
@@ -325,7 +388,12 @@ export class PK3TextureLoader {
     }
 
     const pk3 = PK3Loader.getInstance();
+    const owner = PK3Index.getInstance().findFile(path);
+    if (owner) await pk3.ensurePK3(owner);
+    if (generation !== this.generation || this.scene.isDisposed) return null;
     let data = await pk3.getFile(path);
+    if (generation !== this.generation || this.scene.isDisposed) return null;
+    if (owner && !data) throw new Error(`Texture missing from indexed package ${owner}: ${path}`);
 
     // Fallback: check for a loose file (loose assets that aren't packed into a
     // loaded pk3). Try the game() root AND the PK3 search roots (e.g. "data/") —
@@ -356,6 +424,7 @@ export class PK3TextureLoader {
     if (!data) {
       return null;
     }
+    if (generation !== this.generation || this.scene.isDisposed) return null;
 
     const ext = this.getExtension(path).toLowerCase();
     let texture: Texture | null = null;
@@ -383,6 +452,10 @@ export class PK3TextureLoader {
       }
 
       if (texture) {
+        if (generation !== this.generation || this.scene.isDisposed) {
+          texture.dispose();
+          return null;
+        }
         // Enable texture tiling (Quake/Warsow textures always repeat by default)
         texture.wrapU = Texture.WRAP_ADDRESSMODE;
         texture.wrapV = Texture.WRAP_ADDRESSMODE;
@@ -917,6 +990,8 @@ export class PK3TextureLoader {
    * Clear texture cache
    */
   public clearCache(): void {
+    this.generation++;
+    this.pendingTextures.clear();
     for (const texture of this.textureCache.values()) {
       texture.dispose();
     }

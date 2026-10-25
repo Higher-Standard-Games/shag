@@ -31,16 +31,18 @@ describe("effect shader warmup", () => {
     if (webgpu) Object.defineProperty(engine, "isWebGPU", { value: true });
     const scene = new Scene(engine);
     const compiled: string[] = [];
-    const original = StandardMaterial.prototype.forceCompilationAsync;
-    vi.spyOn(StandardMaterial.prototype, "forceCompilationAsync").mockImplementation(async function (
+    const original = StandardMaterial.prototype.isReadyForSubMesh;
+    vi.spyOn(StandardMaterial.prototype, "isReadyForSubMesh").mockImplementation(function (
       this: StandardMaterial,
       mesh,
-      options,
+      subMesh,
+      instances,
     ) {
       const temporaryLight = scene.getLightByName("_warmup_pointlight")!;
       expect(temporaryLight.includedOnlyMeshes.map((item) => item.name)).toEqual(["_warmup_bsp_b"]);
-      await original.call(this, mesh, options);
-      compiled.push(this.name);
+      const ready = original.call(this, mesh, subMesh, instances);
+      if (ready) compiled.push(this.name);
+      return ready;
     });
     try {
       expect(scene.activeCamera).toBeFalsy();
@@ -60,19 +62,11 @@ describe("effect shader warmup", () => {
   it("rejects a fixture compilation error and releases all fixture resources", async () => {
     const engine = readyTextureEngine();
     const scene = new Scene(engine);
-    // Babylon may invoke onCompiled after onError; its async API rejects first.
-    vi.spyOn(StandardMaterial.prototype, "forceCompilation").mockImplementation(function (
-      this: StandardMaterial,
-      _mesh,
-      compiled,
-      _options,
-      error,
-    ) {
-      error?.("fixture shader rejected");
-      compiled?.(this);
+    vi.spyOn(StandardMaterial.prototype, "isReadyForSubMesh").mockImplementation(() => {
+      throw new Error("fixture shader rejected");
     });
     try {
-      await expect(preloadEffectShaders(scene)).rejects.toBe("fixture shader rejected");
+      await expect(preloadEffectShaders(scene)).rejects.toThrow("fixture shader rejected");
       expect(scene.meshes).toHaveLength(0);
       expect(scene.materials.filter((material) => material.name.startsWith("_warmup"))).toHaveLength(0);
       expect(scene.textures).toHaveLength(0);
@@ -91,12 +85,11 @@ describe("effect shader warmup", () => {
       const mesh = CreateBox("world", {}, scene);
       const material = new StandardMaterial("world", scene);
       mesh.material = material;
-      vi.spyOn(material, "forceCompilation").mockImplementation((_mesh, compiled, _options, error) => {
-        error?.("world shader rejected");
-        compiled?.(material);
+      vi.spyOn(material, "isReadyForSubMesh").mockImplementation(() => {
+        throw new Error("world shader rejected");
       });
       try {
-        await expect(mode === "preload" ? preloadEffectShaders(scene) : revalidateMaterials(scene)).rejects.toBe(
+        await expect(mode === "preload" ? preloadEffectShaders(scene) : revalidateMaterials(scene)).rejects.toThrow(
           "world shader rejected",
         );
         expect(scene.lights).toHaveLength(0);
@@ -200,5 +193,29 @@ describe("effect shader warmup", () => {
       scene.dispose();
       engine.dispose();
     }
+  });
+
+  it("restores frozen ownership and removes compile observers when recovery is cancelled", async () => {
+    vi.useFakeTimers();
+    const engine = readyTextureEngine(),
+      scene = new Scene(engine);
+    const world = CreateBox("world", {}, scene),
+      material = new StandardMaterial("world", scene);
+    world.material = material;
+    material.freeze();
+    vi.spyOn(material, "isReadyForSubMesh").mockReturnValue(false);
+    const controller = new AbortController();
+    const pending = revalidateMaterials(scene, controller.signal);
+    const rejected = expect(pending).rejects.toThrow("cancelled");
+    await vi.dynamicImportSettled();
+    controller.abort(new Error("cancelled"));
+    await vi.advanceTimersByTimeAsync(1000);
+    await rejected;
+    expect(material.isFrozen).toBe(true);
+    expect(scene.lights).toHaveLength(0);
+    expect(scene.onAfterRenderObservable.hasObservers()).toBe(false);
+    scene.dispose();
+    engine.dispose();
+    vi.useRealTimers();
   });
 });

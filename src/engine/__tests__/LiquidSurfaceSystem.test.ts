@@ -13,6 +13,7 @@ import { FreeCamera } from "@babylonjs/core/Cameras/freeCamera";
 import { NullEngine } from "@babylonjs/core/Engines/nullEngine";
 import type { ShaderMaterial } from "@babylonjs/core/Materials/shaderMaterial";
 import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
+import { Texture } from "@babylonjs/core/Materials/Textures/texture";
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh";
 import { CreateBox } from "@babylonjs/core/Meshes/Builders/boxBuilder";
@@ -50,6 +51,26 @@ function buildWorld(kinds: Array<string | null>): Mesh {
   });
   return root;
 }
+
+it("replaces unavailable borrowed depth and colour samplers instead of retaining disposed captures", () => {
+  const root = buildWorld(["water"]);
+  scene.activeCamera = new FreeCamera("eye", Vector3.Zero(), scene);
+  RenderVars.getInstance().getVar("r_water_quality")!.value = 1;
+  const system = new LiquidSurfaceSystem(scene);
+  system.claim(root);
+  const material = root.getChildMeshes(false)[0].material as ShaderMaterial;
+  const texture = new Texture(null, scene);
+  material.setTexture("uSceneDepth", texture);
+  material.setTexture("uSceneColour", texture);
+  texture.dispose();
+  try {
+    scene.onBeforeRenderObservable.notifyObservers(scene);
+    expect(material.getActiveTextures()).not.toContain(texture);
+    expect(material.getActiveTextures().some((entry) => entry.name === "unified-water-noise")).toBe(true);
+  } finally {
+    system.dispose();
+  }
+});
 
 describe("LiquidSurfaceSystem", () => {
   it("updates polish controls without replacing the material or allocating capture targets", () => {

@@ -9,6 +9,7 @@ import type { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh";
 import type { Scene } from "@babylonjs/core/scene";
 import type { EmissiveSurface } from "../../lighting/MapEmissiveSurfaces";
 import type { BspEntity } from "../../loader/bsp/BspLoader";
+import { StaticVisibilityIndex } from "./StaticVisibilityIndex";
 import type { WaterPatch } from "./WaterProbeCache";
 
 export const MAX_WATER_LIGHTS = 4;
@@ -91,7 +92,8 @@ export class WaterSurfaceLighting {
         !(mesh.layerMask & 0x10000000) &&
         !mesh.material?.needAlphaBlendingForMesh(mesh),
     );
-    for (const mesh of blockers) mesh.computeWorldMatrix(true);
+    // One acceleration structure per bake; no scene mutation or per-frame retention.
+    let visibility: StaticVisibilityIndex | undefined;
     for (const patch of new Set(patches)) {
       if (this.entries.has(patch) || this.entries.size >= MAX_LIT_PATCHES) continue;
       const nearest = sources
@@ -108,6 +110,7 @@ export class WaterSurfaceLighting {
         .sort((a, b) => a.distance / a.light.range - b.distance / b.light.range)
         .slice(0, MAX_WATER_LIGHTS);
       if (!nearest.length) continue;
+      visibility ??= new StaticVisibilityIndex(blockers);
       const lights = new Float32Array(MAX_WATER_LIGHTS * 4),
         colours = lights.slice();
       nearest.forEach(({ light }, i) => {
@@ -132,8 +135,7 @@ export class WaterSurfaceLighting {
             if (distance >= light.range) return;
             const ray = new Ray(point, delta.scale(1 / distance), Math.max(0, distance - 0.5));
             const facing = light.normal ? Math.max(0, -Vector3.Dot(light.normal, ray.direction)) : 1;
-            if (facing > 0 && !blockers.some((mesh) => ray.intersectsMesh(mesh, true).hit))
-              data[(y * MASK_SIZE + x) * 4 + i] = Math.round(255 * facing);
+            if (facing > 0 && !visibility!.hits(ray)) data[(y * MASK_SIZE + x) * 4 + i] = Math.round(255 * facing);
           });
         }
       const mask = RawTexture.CreateRGBATexture(

@@ -9,6 +9,7 @@ import { fetchAsset, readAssetBuffer, readAssetJson, readAssetText } from "./Ass
 
 import JSZip from "jszip";
 import { shaderSourceBlocks } from "../shader/ShaderSourceBlocks";
+import { PACKAGED_TEXTURE_EXTENSION, stripTextureExtension } from "../texture/TextureExtensions";
 import { PackageStore } from "./PackageStore";
 import type { PK3PackageScope } from "./PK3PackageScope";
 import {
@@ -58,7 +59,7 @@ export interface PK3IndexData {
  * Shader names, including bare aliases, precede top-level brace blocks.
  */
 function extractShaderNames(content: string): string[] {
-  return shaderSourceBlocks(content).map((block) => block.name.toLowerCase().replace(/\.(tga|jpg|jpeg|png|ktx)$/i, ""));
+  return shaderSourceBlocks(content).map((block) => stripTextureExtension(block.name.toLowerCase()));
 }
 
 export class PK3Index {
@@ -574,8 +575,8 @@ export class PK3Index {
 
     for (const texPath of texturePaths) {
       // Try multiple extensions
-      const extensions = ["", ".tga", ".jpg", ".png", ".ktx"];
-      const basePath = texPath.toLowerCase().replace(/\.(tga|jpg|png|ktx)$/i, "");
+      const extensions = [PACKAGED_TEXTURE_EXTENSION, "", ".tga", ".jpg", ".png", ".ktx"];
+      const basePath = stripTextureExtension(texPath.toLowerCase());
 
       let found = false;
       for (const ext of extensions) {
@@ -781,6 +782,7 @@ export class PK3Index {
     const currentChecksum = await this.computeCurrentChecksum();
 
     if (currentChecksum === this.index?.listChecksum) {
+      PackageStore.shared.registerSnapshot(this.index.packages);
       const stats = this.getStats();
       progressCallback?.(`Index valid: ${stats.fileCount} files, ${stats.shaderCount} shaders, ${stats.mapCount} maps`);
       return false; // Used cache

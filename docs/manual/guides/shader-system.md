@@ -233,15 +233,30 @@ This separation keeps existing content loading while selected surface classes re
 
 ## Shader warmup
 
-During gameplay map loading, `EffectPreloader` explicitly compiles small off-screen
-fixtures for each effect material variant and the scene's Standard/PBR materials through Babylon. Off-screen
-fixtures cannot rely on a render frame to compile them because they may be
-culled. Fixture resources are released after compilation; compilation errors
-reject the warmup and release its temporary lights. MapLoader logs a warmup
-failure, or a warmup that has not finished within ten seconds, and continues to
-its scene-readiness gate. This process
-warms matching shader configurations on both backends; it does not validate GPU
-commands or guarantee every runtime variant is already cached.
+During gameplay map loading, `EffectPreloader` prepares small off-screen fixtures
+and the scene's Standard/PBR materials through Babylon's material readiness APIs.
+The checks use the meshes' actual submeshes and do not depend on a culled fixture
+being drawn. Each material wait has a ten-second deadline; map cancellation or
+scene disposal stops its polling. A failed batch cancels its remaining checks.
+Rendered-frame settling waits are bounded too. Temporary lights are disabled
+before retirement; WebGPU buffers remain owned until their submitted work completes.
+
+MapLoader logs a warmup failure and continues to its separate, bounded scene
+readiness gate. If that required scene gate cannot become ready, map loading
+fails with a diagnostic rather than entering a partially rendered map.
+Visibility recovery uses the same cancellable checks and restores
+the material freeze state in cleanup, including on failure. It refreshes bindings;
+changing texture sampler settings does not restore lost texture pixels. Actual
+context restoration remains the renderer's responsibility.
+
+This warms matching configurations on both backends; it does not validate GPU
+commands or guarantee every runtime variant is already cached. Static water-light
+visibility uses a temporary spatial index over the same blocker triangles, avoiding
+repeated scans of the whole world while preparing each mask sample.
+
+Scene-depth captures validate their GPU texture before reuse after a map change.
+Water binds its fallback texture when a depth or colour capture is unavailable;
+an inactive shader term must not retain a disposed sampler that blocks readiness.
 
 ## Source of truth
 
