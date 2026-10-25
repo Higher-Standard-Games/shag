@@ -69,6 +69,12 @@ The light peaks at 0.25 intensity, uses a 60-unit range and expires with the
 0.16-second impact effect. Local and remote machinegun presentation share this
 tracer path.
 
+Projectile visuals retire when their transform or either trail ribbon is
+disposed, including scene clears that leave parent transforms alive. Trail
+materials are shared by projectile type and replaced after disposal. In-place
+ribbon updates require the original vertex layout; rebuilding scene resources
+must not update retired geometry.
+
 ## Console inspection
 
 ```text

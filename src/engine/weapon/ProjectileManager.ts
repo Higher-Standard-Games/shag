@@ -840,9 +840,9 @@ export class ProjectileManager {
     const toRemove: string[] = [];
 
     for (const proj of this.projectiles) {
-      // A map unload disposes every scene mesh, ours included. A projectile
-      // whose node is gone is gone; ticking it would update a disposed ribbon.
-      if (proj.node.isDisposed()) {
+      // Scene clearing retires ribbon meshes without disposing their parent
+      // TransformNode. Retire the whole visual before touching stale buffers.
+      if (proj.node.isDisposed() || proj.trailMesh?.isDisposed() || proj.trailMeshCross?.isDisposed()) {
         toRemove.push(proj.id);
         continue;
       }
@@ -1381,7 +1381,7 @@ export class ProjectileManager {
 
   private trailMaterialFor(defId: string, scene: Scene): StandardMaterial {
     let material = this.trailMaterials.get(defId);
-    if (material) return material;
+    if (material && scene.materials.includes(material)) return material;
     const def = getEntityRegistry().get<ProjectileDef>(defId);
     const trailColor = def?.lightColor
       ? new Color3(def.lightColor.r, def.lightColor.g, def.lightColor.b)

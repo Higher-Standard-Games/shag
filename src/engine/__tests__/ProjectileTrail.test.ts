@@ -43,6 +43,7 @@ interface TrailState {
   trailPoints: Vector3[];
   trailMaterial: StandardMaterial | null;
   trailMesh: { name: string; isEnabled(): boolean; isDisposed(): boolean } | null;
+  trailMeshCross: { dispose(): void; isDisposed(): boolean } | null;
 }
 
 function loadedModel(): MD3LoadResult {
@@ -214,6 +215,54 @@ describe("projectile trails", () => {
     manager.despawn(second as string);
     manager.clear();
     expect(idle.isDisposed()).toBe(true);
+  });
+
+  it("retires an active shot when scene clear disposed its ribbons but left its transform alive", async () => {
+    await manager.preloadModel("rocket");
+    const id = fire();
+    tick();
+    const shot = stateOf(id);
+    // SceneCommand.clearScene disposes meshes, not their parent TransformNodes.
+    for (const mesh of [...scene.meshes]) mesh.dispose(false, true);
+    expect(shot.node.isDisposed()).toBe(false);
+    expect(shot.trailMesh?.isDisposed()).toBe(true);
+    expect(() => tick()).not.toThrow();
+    expect(manager.getCount()).toBe(0);
+    expect(shot.node.isDisposed()).toBe(true);
+    expect(scene.meshes).toHaveLength(0);
+  });
+
+  it("creates a live trail material after scene clear invalidated the cached material and idle ribbons", async () => {
+    await manager.preloadModel("rocket");
+    const id = fire();
+    tick();
+    const old = stateOf(id);
+    manager.despawn(id as string);
+    for (const mesh of [...scene.meshes]) mesh.dispose(false, true);
+    expect(scene.materials.includes(old.trailMaterial!)).toBe(false);
+    await manager.preloadModel("rocket");
+    const next = stateOf(fire());
+    tick();
+    expect(next.node).not.toBe(old.node);
+    expect(next.trailMesh?.isDisposed()).toBe(false);
+    expect(next.trailMaterial?.uniqueId).not.toBe(old.trailMaterial?.uniqueId);
+    expect(scene.materials.includes(next.trailMaterial!)).toBe(true);
+    expect(() => tick()).not.toThrow();
+  });
+
+  it("retires a shot with a disposed crossing ribbon while other shots keep updating", async () => {
+    await manager.preloadModel("rocket");
+    const broken = stateOf(fire());
+    const healthy = stateOf(fire());
+    tick();
+    broken.trailMeshCross!.dispose();
+    healthy.node.position.x += 20;
+    expect(() => tick()).not.toThrow();
+    expect(manager.getCount()).toBe(1);
+    expect(broken.node.isDisposed()).toBe(true);
+    expect(broken.trailMesh?.isDisposed()).toBe(true);
+    expect(healthy.node.isDisposed()).toBe(false);
+    expect(healthy.trailPoints.at(-1)?.x).toBe(healthy.node.position.x);
   });
 });
 
