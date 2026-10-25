@@ -6,7 +6,7 @@ import JSZip from 'jszip';
 const args = process.argv.slice(2);
 const option = (flag, fallback) => args.includes(flag) ? args[args.indexOf(flag) + 1] : fallback;
 const source = path.resolve(option('--source-dir', 'archive/media/effects'));
-const output = path.resolve(option('--output', 'public/data/effects.pk3'));
+const output = path.resolve(option('--output', 'public/data/washoi_effects.pk3'));
 const zip = new JSZip();
 const files = {};
 const hash = bytes => createHash('sha256').update(bytes).digest('hex');

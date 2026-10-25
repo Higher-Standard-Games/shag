@@ -107,6 +107,9 @@ live together with the code of the next deploy, and the order is:
    name and rename it into place, so a deploy never reads a half-written file;
    keep the existing files' owner and mode (check with `ls -l` first). Do not
    use `--delete`.
+   A package that was renamed or retired is the one deletion: move its old
+   name out of `assets/data` into the backup, or the server's regenerated index
+   keeps listing it. The web root keeps its stale copy, which nothing requests.
 4. **Then push** fps `main` and outer `main` (see the merge steps). The deploy
    timers build and activate the pair with the new media.
 5. **Verify** on both regions after activation:

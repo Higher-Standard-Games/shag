@@ -175,7 +175,7 @@ owner before resolving the texture. Rebuild the eight used icons with
 virtual paths. The unused gunblade icon stays archived. The packager checks TGA
 headers, ZIP CRCs and unchanged byte hashes; regenerate the index after rebuilding.
 
-Shared cartoon hit artwork ships in `effects.pk3`, with virtual paths
+Shared cartoon hit artwork ships in `washoi_effects.pk3`, with virtual paths
 `effects/cartoonhit1.png` and `effects/cartoonhit2.png`. Rebuild it with
 `npm run tools:effects` from the unserved originals in `archive/media/effects/`,
 or pass `-- --source-dir <directory>`. Regenerate the PK3 index after rebuilding.
