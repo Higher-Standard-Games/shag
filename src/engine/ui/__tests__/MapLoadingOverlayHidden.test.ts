@@ -43,6 +43,33 @@ afterEach(() => {
 });
 
 describe("MapLoadingOverlay hidden event", () => {
+  it("keeps a replacement held when an older operation releases or cancels", () => {
+    const first = MapLoadingOverlay.acquire("postload", "first", vi.fn());
+    EventBus.emit(LOADING_EVENTS.START, { type: "map", id: "old", operationId: "first" });
+    const second = MapLoadingOverlay.acquire("postload", "second", vi.fn());
+    EventBus.emit(LOADING_EVENTS.START, { type: "map", id: "new", operationId: "second" });
+    EventBus.emit(LOADING_EVENTS.COMPLETE, { type: "map", operationId: "first", success: true, duration: 1 });
+    first.release();
+    MapLoadingOverlay.cancel("first");
+    EventBus.emit(LOADING_EVENTS.COMPLETE, { type: "map", operationId: "second", success: true, duration: 1 });
+    vi.advanceTimersByTime(1000);
+    expect(hidden).not.toHaveBeenCalled();
+    second.release();
+    vi.advanceTimersByTime(100);
+    expect(hidden).toHaveBeenCalledOnce();
+  });
+
+  it("fails an owned preparation watchdog instead of exposing the unprepared world", () => {
+    const fail = vi.fn();
+    const lease = MapLoadingOverlay.acquire("required", "watchdog", fail);
+    EventBus.emit(LOADING_EVENTS.START, { type: "map", id: "new", operationId: "watchdog" });
+    EventBus.emit(LOADING_EVENTS.COMPLETE, { type: "map", operationId: "watchdog", success: true, duration: 1 });
+    Object.defineProperty(document, "hidden", { configurable: true, value: false });
+    vi.advanceTimersByTime(61000);
+    expect(fail).toHaveBeenCalledOnce();
+    expect(hidden).not.toHaveBeenCalled();
+    lease.release();
+  });
   it("starts the post-load watchdog after a slow map finishes", () => {
     MapLoadingOverlay.configure({ holdTimeoutMs: 100 });
     vi.spyOn(console, "warn").mockImplementation(() => {});

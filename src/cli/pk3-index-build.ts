@@ -64,13 +64,16 @@ export async function generatePk3Index(directory: string) {
         previews.set(`${map}.jpg`, levelshotPreview(shot.source));
     }
     const text = `${JSON.stringify(snapshot)}\n`;
-    const manifest = `${JSON.stringify({ files, indexHash: pk3IndexHash(text) }, null, 2)}\n`;
+    const indexFile = `pk3_index.${createHash("sha256").update(text).digest("hex")}.json`;
+    const manifest = `${JSON.stringify({ files, indexHash: pk3IndexHash(text), indexFile }, null, 2)}\n`;
     const suffix = `${process.pid}-${Date.now()}.tmp`;
     const indexTemp = join(dataDir, `pk3_index.${suffix}`);
     const manifestTemp = join(dataDir, `pk3_manifest.${suffix}`);
     try {
       await writeFile(indexTemp, text, { encoding: "utf8", flag: "wx" });
       await writeFile(manifestTemp, manifest, { encoding: "utf8", flag: "wx" });
+      // Publish the immutable payload before the atomic manifest pointer changes.
+      await writeFile(join(dataDir, indexFile), text, { encoding: "utf8" });
       const previewDir = join(dataDir, "levelshots");
       await mkdir(previewDir, { recursive: true });
       let previous: string[] = [];

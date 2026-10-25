@@ -14,7 +14,9 @@ function record(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
-export function hasPublishedIndex(manifest: unknown): manifest is { files: unknown[]; indexHash: string } {
+export function hasPublishedIndex(
+  manifest: unknown,
+): manifest is { files: unknown[]; indexHash: string; indexFile?: string } {
   return record(manifest) && Array.isArray(manifest.files) && typeof manifest.indexHash === "string";
 }
 

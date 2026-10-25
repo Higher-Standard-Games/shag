@@ -25,11 +25,14 @@
  * 'generic' is provided for game-specific operations that don't fit other categories
  */
 export type LoadingType = "map" | "assets" | "save" | "network" | "generic" | string;
+let operationSequence = 0;
+export const createLoadingOperationId = () => `load-${++operationSequence}`;
 
 /**
  * Emitted when a loading operation begins
  */
 export interface LoadingStartEvent {
+  operationId?: string;
   /** Type of loading operation */
   type: LoadingType;
   /** Identifier for what's being loaded (e.g., map name, save slot) */
@@ -47,6 +50,7 @@ export interface LoadingStartEvent {
  * Emitted during loading to report progress
  */
 export interface LoadingProgressEvent {
+  operationId?: string;
   /** Type of loading operation (should match the start event) */
   type: LoadingType;
   /** Current phase of loading (e.g., 'parsing', 'shaders', 'textures') */
@@ -61,6 +65,7 @@ export interface LoadingProgressEvent {
  * Emitted when loading completes (success or failure)
  */
 export interface LoadingCompleteEvent {
+  operationId?: string;
   /** Type of loading operation (should match the start event) */
   type: LoadingType;
   /** Whether loading succeeded */

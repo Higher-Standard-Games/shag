@@ -10,6 +10,10 @@ The Vanguard player model and animation GLBs are shipped in
 for rebuilding it from the unserved asset sources.
 The generator scans that directory and publishes two matched files: discovery
 in `pk3_manifest.json` and file/shader/map ownership in `pk3_index.json`.
+The manifest also names an immutable `pk3_index.<sha256>.json` payload. The
+generator writes that payload before replacing the manifest pointer. Deploy
+the referenced payload with the manifest; `pk3_index.json` remains available
+for older tools. Retain immutable payloads needed by clients during a rollout.
 `config/pk3-packages.json` supplies an `ignoredPackages` array of exact PK3
 basenames (case-insensitive, no paths or globs). Ignored archives stay on disk
 but are excluded from both generated files and the Vite release output. KTX2
@@ -66,9 +70,20 @@ Legacy metadata without hashes retains ordinary HTTP/in-memory loader behavior.
 Different page origins have separate persistent caches.
 
 Browser storage operations have a deadline. Validated downloads become usable
-before optional disk persistence finishes, and at most two pending writes retain
-their bodies. A stalled write does not occupy a download slot. A validated cached
+before optional disk persistence finishes. The disk queue retains package
+identities; its bodies come from the bounded archive memory cache, with one
+active write allowed to retain its body after eviction. A burst of downloads
+can all be saved while their bodies remain resident. Evicted/unavailable bodies
+may need HTTP acquisition on another page; a memory hit retries missing
+persistence. A stalled write does not occupy a download slot. A validated cached
 index retains its package content identities when published metadata is unavailable.
+Storage-open failures temporarily bypass storage rather than delaying every
+package. Existing valid entries remain until replacement writes succeed.
+
+Concurrent index ensures share a request. Incomplete published metadata retries
+once, then retains a coherent cached snapshot or reports an update/retry error.
+It does not trigger an archive scan. Files-only legacy manifests retain their
+scan path.
 
 Indexed textures acquire their owning archive before reading the virtual path;
 an indexed package failure does not trigger loose-file probes. Simultaneous

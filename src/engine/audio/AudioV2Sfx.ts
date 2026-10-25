@@ -7,6 +7,7 @@ import { EngineStore } from "@babylonjs/core/Engines/engineStore";
 import type { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import type { Observer } from "@babylonjs/core/Misc/observable";
 import type { Scene } from "@babylonjs/core/scene";
+import { waitForAsync } from "../core/AsyncWait";
 import { devLog } from "../core/DevLog";
 import { PK3Index } from "../loader/pk3/PK3Index";
 import { PK3Loader } from "../loader/pk3/PK3Loader";
@@ -387,11 +388,25 @@ export class AudioV2Sfx {
     const existing = this.bufferPromises.get(key);
     if (existing) return existing;
 
-    const loading = this.loadBuffer(path).then((buffer) => {
-      // Missing assets may become available after another PK3 is indexed/loaded.
-      if (!buffer) this.bufferPromises.delete(key);
+    const generation = this.generation;
+    let active = true;
+    const work = this.loadBuffer(path).then((buffer) => {
+      if (!active || generation !== this.generation || this.disposed) {
+        return null;
+      }
       return buffer;
     });
+    const loading = waitForAsync(work, undefined, 30000, `sound ${key}`)
+      .catch((error: unknown) => {
+        console.warn(`[AudioManager] Sound preparation failed: ${key}`, error);
+        return null;
+      })
+      .then((buffer) => {
+        active = false;
+        // Missing assets may become available after another PK3 is indexed/loaded.
+        if (!buffer && this.bufferPromises.get(key) === loading) this.bufferPromises.delete(key);
+        return buffer;
+      });
     this.bufferPromises.set(key, loading);
     return loading;
   }

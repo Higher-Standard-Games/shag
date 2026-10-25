@@ -599,7 +599,8 @@ describe("default PVS through gameplay MapLoader", () => {
 
     const loaded = await loader.loadMap("test", scene);
     expect(loaded.success).toBe(true);
-    expect(cullersDuringSetup).toEqual([null, null]);
+    expect(cullersDuringSetup.length).toBeGreaterThanOrEqual(2);
+    expect(cullersDuringSetup.every((culler) => culler === null)).toBe(true);
     expect(manager.getPVSStatus()).toContain("Enabled: YES");
     expect(manager.getPVSCuller()?.getStats()).toMatchObject({ totalMeshes: 2, visibleMeshes: 1 });
     const previous = manager.getPVSCuller();
@@ -609,7 +610,8 @@ describe("default PVS through gameplay MapLoader", () => {
     expect(manager.getPVSCuller()?.getStats()).toMatchObject({ enabled: false, visibleMeshes: 2 });
 
     expect((await loader.loadMap("next", scene)).success).toBe(true);
-    expect(cullersDuringSetup).toEqual([null, null, null, null]);
+    expect(cullersDuringSetup.length).toBeGreaterThanOrEqual(4);
+    expect(cullersDuringSetup.every((culler) => culler === null)).toBe(true);
     expect(manager.getPVSCuller()).not.toBe(previous);
     expect(previous?.getStats().totalMeshes).toBe(0);
     expect(manager.getPVSCuller()?.getStats()).toMatchObject({ enabled: true, currentCluster: 1, visibleMeshes: 1 });

@@ -129,6 +129,12 @@ export class MapLoadingOverlay {
   // Holds keeping the curtain down past `loading:complete`
   private holds: Set<string> = new Set();
   private holdTimers: Map<string, ReturnType<typeof setTimeout>> = new Map();
+  private operationId: string | undefined;
+  private requestedOperationId: string | undefined;
+  private holdOwners = new Map<string, string>();
+  private holdFailures = new Map<string, () => void>();
+  private holdLabels = new Map<string, string>();
+  private leaseSequence = 0;
 
   // EventBus subscriptions
   private unsubscribers: (() => void)[] = [];
@@ -203,11 +209,23 @@ export class MapLoadingOverlay {
   }
 
   /** Dismiss a cancelled match load and restore audio without disabling future loads. */
-  static cancel(): void {
+  static cancel(operationId?: string): void {
     const instance = MapLoadingOverlay.getInstance();
+    if (operationId) {
+      for (const [key, owner] of instance.holdOwners) if (owner === operationId) instance.removeHold(key);
+      if (
+        instance.operationId !== operationId ||
+        (instance.requestedOperationId !== operationId &&
+          [...instance.holdOwners.values()].includes(instance.requestedOperationId ?? ""))
+      )
+        return;
+    }
     instance.holds.clear();
     for (const timer of instance.holdTimers.values()) clearTimeout(timer);
     instance.holdTimers.clear();
+    instance.holdOwners.clear();
+    instance.holdFailures.clear();
+    instance.holdLabels.clear();
     instance.hide();
   }
 
@@ -229,6 +247,10 @@ export class MapLoadingOverlay {
     instance.holds.clear();
     for (const timer of instance.holdTimers.values()) clearTimeout(timer);
     instance.holdTimers.clear();
+    instance.holdOwners.clear();
+    instance.holdFailures.clear();
+    instance.holdLabels.clear();
+    instance.requestedOperationId = undefined;
 
     // Hide if currently showing
     if (instance.state !== "idle") {
@@ -254,6 +276,14 @@ export class MapLoadingOverlay {
   // ==================== Event Handlers ====================
 
   private onLoadingStart(event: LoadingStartEvent): void {
+    if (
+      this.requestedOperationId &&
+      [...this.holdOwners.values()].includes(this.requestedOperationId) &&
+      event.operationId !== this.requestedOperationId
+    )
+      return;
+    this.operationId = event.operationId;
+    for (const [key, owner] of this.holdOwners) if (owner !== event.operationId) this.removeHold(key);
     // If already showing (rapid map switches), reset instead of re-creating
     if (this.state !== "idle") {
       if (this.fadeTimer !== null) clearTimeout(this.fadeTimer);
@@ -272,11 +302,23 @@ export class MapLoadingOverlay {
   }
 
   private onLoadingProgress(event: LoadingProgressEvent): void {
+    if (event.operationId !== this.operationId) return;
+    if (
+      this.requestedOperationId !== this.operationId &&
+      [...this.holdOwners.values()].includes(this.requestedOperationId ?? "")
+    )
+      return;
     if (this.state === "idle" || this.state === "fading") return;
     this.view?.progress(event);
   }
 
   private onLoadingComplete(event: LoadingCompleteEvent): void {
+    if (event.operationId !== this.operationId) return;
+    if (
+      this.requestedOperationId !== this.operationId &&
+      [...this.holdOwners.values()].includes(this.requestedOperationId ?? "")
+    )
+      return;
     if (this.state === "idle" || this.state === "fading") return;
 
     this.state = "completing";
@@ -285,7 +327,10 @@ export class MapLoadingOverlay {
 
     // The MAP is loaded, which is not the same as the GAME being ready to show.
     // Anything still holding keeps the curtain down — see `hold()`.
-    this.view?.complete(event, [...this.holds]);
+    this.view?.complete(
+      event,
+      [...this.holds].map((key) => this.holdLabels.get(key) ?? key),
+    );
     if (this.holds.size > 0) return;
 
     this.scheduleFadeOut();
@@ -331,6 +376,28 @@ export class MapLoadingOverlay {
     MapLoadingOverlay.getInstance().addHold(name);
   }
 
+  /** A unique, idempotent lease. Old operations cannot release a replacement's hold. */
+  static acquire(name: string, operationId: string, onTimeout: () => void): { release(): void; pulse(): void } {
+    const instance = MapLoadingOverlay.getInstance();
+    const key = `${name}:${operationId}:${++instance.leaseSequence}`;
+    instance.requestedOperationId = operationId;
+    instance.holdOwners.set(key, operationId);
+    instance.holdFailures.set(key, onTimeout);
+    instance.holdLabels.set(key, name);
+    instance.addHold(key);
+    let released = false;
+    return {
+      release() {
+        if (released) return;
+        released = true;
+        instance.removeHold(key);
+      },
+      pulse() {
+        if (!released) instance.addHold(key);
+      },
+    };
+  }
+
   static release(name: string): void {
     MapLoadingOverlay.getInstance().removeHold(name);
   }
@@ -346,14 +413,28 @@ export class MapLoadingOverlay {
     this.fadeTimer = null;
     this.holdTimers.set(
       name,
-      setTimeout(() => {
-        console.warn(`[MapLoadingOverlay] hold "${name}" was never released — forcing it after timeout`);
-        this.removeHold(name);
-      }, this.config.holdTimeoutMs),
+      setTimeout(
+        () => {
+          if (this.holdOwners.has(name)) {
+            if (typeof document !== "undefined" && document.hidden) {
+              this.addHold(name);
+              return;
+            }
+            this.holdFailures.get(name)?.();
+            return;
+          }
+          console.warn(`[MapLoadingOverlay] hold "${name}" was never released — forcing it after timeout`);
+          this.removeHold(name);
+        },
+        this.holdOwners.has(name) ? Math.max(60000, this.config.holdTimeoutMs) : this.config.holdTimeoutMs,
+      ),
     );
   }
 
   private removeHold(name: string): void {
+    this.holdOwners.delete(name);
+    this.holdFailures.delete(name);
+    this.holdLabels.delete(name);
     if (!this.holds.delete(name)) return;
     const timer = this.holdTimers.get(name);
     if (timer) {

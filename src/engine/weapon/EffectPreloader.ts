@@ -97,7 +97,7 @@ export async function retireTemporaryLight(scene: Scene, light: PointLight): Pro
       );
       await Promise.race([
         completion,
-        waitForGpuCondition(scene, () => retired, "retiring compile light", undefined, 1000).catch(() => {}),
+        waitForGpuCondition(scene, () => retired, "retiring compile light", undefined, 1000, false).catch(() => {}),
       ]);
     }
   } finally {

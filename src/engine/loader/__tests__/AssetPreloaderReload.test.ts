@@ -54,6 +54,34 @@ function loadedModel(): ModelLoadResult {
 }
 
 describe("AssetPreloader", () => {
+  it("cancels a cleared import at once and disposes its late model without recaching it", async () => {
+    let finish!: (result: ModelLoadResult) => void;
+    vi.spyOn(ModelLoader.getInstance(), "loadModel").mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve;
+        }),
+    );
+    const preloader = AssetPreloader.getInstance();
+    const pending = preloader.preloadFromBsp(BSP, scene);
+    const rejected = expect(pending).rejects.toThrow("cleared");
+    await vi.waitFor(() => expect(finish).toBeTypeOf("function"));
+    preloader.clearCache();
+    await rejected;
+    const model = loadedModel();
+    finish(model);
+    await vi.waitFor(() => expect(model.root.isDisposed()).toBe(true));
+    expect(preloader.hasModel(MODEL)).toBe(false);
+  });
+
+  it("does not clone a cached source into a different scene", async () => {
+    vi.spyOn(ModelLoader.getInstance(), "loadModel").mockImplementation(async () => loadedModel());
+    const preloader = AssetPreloader.getInstance();
+    await preloader.preloadFromBsp(BSP, scene);
+    const replacement = new Scene(engine);
+    expect(preloader.cloneCachedModel(MODEL, replacement)).toBeNull();
+    replacement.dispose();
+  });
   it("loads a model again after the scene clear instead of handing out an empty clone", async () => {
     const load = vi.spyOn(ModelLoader.getInstance(), "loadModel").mockImplementation(async () => loadedModel());
     const preloader = AssetPreloader.getInstance();

@@ -15,6 +15,7 @@ import { EntityType } from "../../shared/entities/EntityType";
 import { devLog } from "../core/DevLog";
 import { applySafeMaxSimultaneousLights } from "../lighting/DynamicLightSafety";
 import type { BspFile } from "./bsp/BspLoader";
+import { waitForPreparation } from "./map/GpuPreparation";
 import { resolveModelAsset } from "./model/ModelAsset";
 import {
   collectModelAttachmentPoints,
@@ -22,7 +23,7 @@ import {
   ModelLoader,
   type ModelLoadResult,
 } from "./model/ModelLoader";
-import { ModelSourceCache } from "./model/ModelSourceCache";
+import { disposeModelResources, ModelSourceCache } from "./model/ModelSourceCache";
 
 export interface PreloadProgress {
   current: number;
@@ -37,6 +38,9 @@ export class AssetPreloader {
 
   /** Preloaded models by path. An entry that lost what it renders with is dropped on lookup. */
   private modelCache = new ModelSourceCache<ModelLoadResult>("AssetPreloader");
+  private scene: Scene | null = null;
+  private generation = 0;
+  private preparation: AbortController | null = null;
   private constructor() {}
 
   static getInstance(): AssetPreloader {
@@ -65,6 +69,9 @@ export class AssetPreloader {
    * Materials and textures a remaining clone still uses are kept.
    */
   clearCache(): void {
+    this.generation++;
+    this.preparation?.abort(new Error("Pickup preparation cleared"));
+    this.preparation = null;
     const count = this.modelCache.size;
     this.modelCache.clear();
     if (count > 0) devLog(`[AssetPreloader] Released ${count} cached models`);
@@ -73,132 +80,198 @@ export class AssetPreloader {
   /**
    * Scan BSP entities and preload all pickup models
    */
-  async preloadFromBsp(bsp: BspFile, scene: Scene, onProgress?: PreloadProgressCallback): Promise<number> {
-    const registry = EntityRegistry.getInstance();
-
-    // Collect unique model paths from BSP entities
-    const modelPaths = new Set<string>();
-
-    for (const entity of bsp.entities) {
-      const classname = entity.classname;
-      if (!classname) continue;
-
-      // Look up entity definition by classname
-      const def = registry.getByClassname(classname);
-      if (!def) continue;
-
-      // Only preload weapons and ammo
-      if (def.type !== EntityType.WEAPON && def.type !== EntityType.AMMO) continue;
-
-      // Get model path
-      const modelPath = def.modelPath;
-      if (modelPath) {
-        modelPaths.add(modelPath);
-      }
-    }
-
-    if (modelPaths.size === 0) {
-      devLog("[AssetPreloader] No pickup entities found in BSP");
-      return 0;
-    }
-
-    devLog(`[AssetPreloader] Found ${modelPaths.size} unique pickup models to preload`);
-
-    // Preload models in parallel batches for faster loading
-    const loader = ModelLoader.getInstance();
-    if (!loader.isInitialized()) {
-      loader.init(scene);
-    }
-
-    let loaded = 0;
-    const total = modelPaths.size;
-    const BATCH_SIZE = 4;
-
-    const loadOneModel = async (modelPath: string): Promise<void> => {
-      // Skip if already cached and still renderable
-      if (this.modelCache.has(modelPath)) {
-        loaded++;
-        return;
-      }
-
-      onProgress?.({ current: loaded, total, modelPath });
-
-      try {
-        let result: ModelLoadResult | null = null;
-
-        // GLB models use SceneLoader instead of PK3+MD3 ModelLoader
-        if (modelPath.endsWith(".glb") || modelPath.endsWith(".gltf")) {
-          const { ImportMeshAsync } = await import("@babylonjs/core/Loading/sceneLoader");
-          await import("@babylonjs/loaders/glTF");
-
-          const asset = await resolveModelAsset(modelPath);
-          const glbResult = await ImportMeshAsync(asset.source, scene, asset.options);
-          const root = glbResult.meshes[0];
-          const meshes = glbResult.meshes.filter((m) => m.getTotalVertices() > 0) as Mesh[];
-
-          // Configure PBR materials for clustered lighting, matching ModelLoader's
-          // GLB path: cap simultaneous lights, and disable physical light falloff
-          // (GLB PBR + ClusteredLightContainer renders wrong with it on).
-          for (const m of glbResult.meshes) {
-            const mat = m.material as (Material & { usePhysicalLightFalloff?: boolean }) | null;
-            if (mat && "maxSimultaneousLights" in mat) {
-              applySafeMaxSimultaneousLights(mat);
-            }
-            if (mat && "usePhysicalLightFalloff" in mat) {
-              mat.usePhysicalLightFalloff = false;
-            }
-          }
-
-          result = {
-            root,
-            meshes,
-            animationGroups: glbResult.animationGroups || [],
-            skeletons: glbResult.skeletons || [],
-            lights: [],
-            attachmentPoints: collectModelAttachmentPoints(glbResult.transformNodes),
-          };
-        } else {
-          result = await loader.loadModel(modelPath, {
-            position: new Vector3(0, -10000, 0), // Load offscreen
-            scale: 1.0,
-            hasCollision: false,
-            applyLighting: false, // Preloaded models don't need per-model lights
-          });
-        }
-
-        if (result) {
-          // Wait for all textures to finish loading
-          if (result.textureLoadPromises && result.textureLoadPromises.length > 0) {
-            await Promise.all(result.textureLoadPromises);
-          }
-
-          // Hide the preloaded model (it's just for caching).
-          // For GLB models, setEnabled(false) on the root __root__ mesh does NOT
-          // cascade to real weapon meshes (they're children of TransformNodes,
-          // not children of the __root__ mesh). Explicitly disable every mesh.
-          result.root.setEnabled(false);
-          for (const mesh of result.meshes) {
-            mesh.setEnabled(false);
-            mesh.isVisible = false;
-          }
-          this.modelCache.set(modelPath, result);
-        }
-      } catch (e) {
-        console.warn(`[AssetPreloader] Failed to preload ${modelPath}:`, e);
-      }
-
-      loaded++;
+  async preloadFromBsp(
+    bsp: BspFile,
+    scene: Scene,
+    onProgress?: PreloadProgressCallback,
+    signal?: AbortSignal,
+  ): Promise<number> {
+    if (this.scene !== scene) this.clearCache();
+    this.scene = scene;
+    this.preparation?.abort(new Error("Pickup preparation superseded"));
+    const controller = new AbortController();
+    this.preparation = controller;
+    const generation = ++this.generation;
+    const aborted = () => controller.abort(signal?.reason);
+    signal?.addEventListener("abort", aborted, { once: true });
+    if (signal?.aborted) aborted();
+    const disposed = scene.onDisposeObservable.addOnce(() => controller.abort(new Error("Pickup scene disposed")));
+    const check = () => {
+      controller.signal.throwIfAborted();
+      if (generation !== this.generation || scene.isDisposed) throw new Error("Pickup preparation superseded");
     };
+    try {
+      check();
+      const registry = EntityRegistry.getInstance();
 
-    // Process in batches of BATCH_SIZE for bounded concurrency
-    const pathArray = Array.from(modelPaths);
-    for (let i = 0; i < pathArray.length; i += BATCH_SIZE) {
-      const batch = pathArray.slice(i, i + BATCH_SIZE);
-      await Promise.all(batch.map((p) => loadOneModel(p)));
+      // Collect unique model paths from BSP entities
+      const modelPaths = new Set<string>();
+
+      for (const entity of bsp.entities) {
+        const classname = entity.classname;
+        if (!classname) continue;
+
+        // Look up entity definition by classname
+        const def = registry.getByClassname(classname);
+        if (!def) continue;
+
+        // Only preload weapons and ammo
+        if (def.type !== EntityType.WEAPON && def.type !== EntityType.AMMO) continue;
+
+        // Get model path
+        const modelPath = def.modelPath;
+        if (modelPath) {
+          modelPaths.add(modelPath);
+        }
+      }
+
+      if (modelPaths.size === 0) {
+        devLog("[AssetPreloader] No pickup entities found in BSP");
+        return 0;
+      }
+
+      devLog(`[AssetPreloader] Found ${modelPaths.size} unique pickup models to preload`);
+
+      // Preload models in parallel batches for faster loading
+      const loader = ModelLoader.getInstance();
+      loader.init(scene);
+
+      let loaded = 0;
+      const total = modelPaths.size;
+      const BATCH_SIZE = 4;
+
+      const loadOneModel = async (modelPath: string): Promise<void> => {
+        check();
+        // Skip if already cached and still renderable
+        if (this.modelCache.has(modelPath)) {
+          loaded++;
+          return;
+        }
+
+        onProgress?.({ current: loaded, total, modelPath });
+
+        let result: ModelLoadResult | null = null;
+        let active = true;
+        try {
+          const work = (async (): Promise<ModelLoadResult | null> => {
+            // GLB models use SceneLoader instead of PK3+MD3 ModelLoader
+            if (modelPath.endsWith(".glb") || modelPath.endsWith(".gltf")) {
+              const { ImportMeshAsync } = await import("@babylonjs/core/Loading/sceneLoader");
+              await import("@babylonjs/loaders/glTF");
+
+              const asset = await resolveModelAsset(modelPath);
+              check();
+              const glbResult = await ImportMeshAsync(asset.source, scene, asset.options);
+              const root = glbResult.meshes[0];
+              const meshes = glbResult.meshes.filter((m) => m.getTotalVertices() > 0) as Mesh[];
+
+              // Configure PBR materials for clustered lighting, matching ModelLoader's
+              // GLB path: cap simultaneous lights, and disable physical light falloff
+              // (GLB PBR + ClusteredLightContainer renders wrong with it on).
+              for (const m of glbResult.meshes) {
+                const mat = m.material as (Material & { usePhysicalLightFalloff?: boolean }) | null;
+                if (mat && "maxSimultaneousLights" in mat) {
+                  applySafeMaxSimultaneousLights(mat);
+                }
+                if (mat && "usePhysicalLightFalloff" in mat) {
+                  mat.usePhysicalLightFalloff = false;
+                }
+              }
+
+              result = {
+                root,
+                meshes,
+                animationGroups: glbResult.animationGroups || [],
+                skeletons: glbResult.skeletons || [],
+                lights: [],
+                attachmentPoints: collectModelAttachmentPoints(glbResult.transformNodes),
+              };
+            } else {
+              result = await loader.loadModel(modelPath, {
+                position: new Vector3(0, -10000, 0), // Load offscreen
+                scale: 1.0,
+                hasCollision: false,
+                applyLighting: false, // Preloaded models don't need per-model lights
+                signal: controller.signal,
+              });
+            }
+
+            try {
+              check();
+              if (!active) throw new Error("Pickup preparation retired");
+            } catch (error) {
+              if (result) disposeModelResources([result.root], result);
+              result = null;
+              throw error;
+            }
+            return result;
+          })();
+          result = await waitForPreparation(work, scene, `pickup ${modelPath}`, controller.signal);
+
+          if (result) {
+            // Wait for all textures to finish loading
+            if (result.textureLoadPromises && result.textureLoadPromises.length > 0) {
+              await waitForPreparation(
+                Promise.all(result.textureLoadPromises),
+                scene,
+                `pickup textures ${modelPath}`,
+                controller.signal,
+              );
+            }
+            check();
+
+            // Hide the preloaded model (it's just for caching).
+            // For GLB models, setEnabled(false) on the root __root__ mesh does NOT
+            // cascade to real weapon meshes (they're children of TransformNodes,
+            // not children of the __root__ mesh). Explicitly disable every mesh.
+            result.root.setEnabled(false);
+            for (const mesh of result.meshes) {
+              mesh.setEnabled(false);
+              mesh.isVisible = false;
+            }
+            this.modelCache.set(modelPath, result);
+          } else if (
+            bsp.entities.some((entity) => {
+              const def = registry.getByClassname(entity.classname);
+              return def?.type === EntityType.WEAPON && def.modelPath === modelPath;
+            })
+          ) {
+            throw new Error(`Required pickup model unavailable: ${modelPath}`);
+          }
+        } catch (e) {
+          active = false;
+          if (result && this.modelCache.get(modelPath) !== result) disposeModelResources([result.root], result);
+          check();
+          console.warn(`[AssetPreloader] Failed to preload ${modelPath}:`, e);
+          if (
+            bsp.entities.some((entity) => {
+              const def = registry.getByClassname(entity.classname);
+              return def?.type === EntityType.WEAPON && def.modelPath === modelPath;
+            })
+          )
+            throw e;
+        }
+
+        loaded++;
+      };
+
+      // Process in batches of BATCH_SIZE for bounded concurrency
+      const pathArray = Array.from(modelPaths);
+      for (let i = 0; i < pathArray.length; i += BATCH_SIZE) {
+        const batch = pathArray.slice(i, i + BATCH_SIZE);
+        await Promise.all(batch.map((p) => loadOneModel(p)));
+      }
+
+      devLog(`[AssetPreloader] Preloaded ${this.modelCache.size} models`);
+      return this.modelCache.size;
+    } catch (error) {
+      controller.abort(error);
+      throw error;
+    } finally {
+      signal?.removeEventListener("abort", aborted);
+      scene.onDisposeObservable.remove(disposed);
+      if (this.preparation === controller) this.preparation = null;
     }
-
-    devLog(`[AssetPreloader] Preloaded ${this.modelCache.size} models`);
-    return this.modelCache.size;
   }
 
   /**
@@ -207,6 +280,7 @@ export class AssetPreloader {
   cloneCachedModel(modelPath: string, scene: Scene): ModelLoadResult | null {
     const cached = this.modelCache.get(modelPath);
     if (!cached) return null;
+    if (cached.root.getScene() !== scene) return null;
 
     try {
       // Create a new root for the cloned model

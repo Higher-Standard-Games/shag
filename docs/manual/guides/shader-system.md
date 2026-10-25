@@ -236,18 +236,21 @@ This separation keeps existing content loading while selected surface classes re
 During gameplay map loading, `EffectPreloader` prepares small off-screen fixtures
 and the scene's Standard/PBR materials through Babylon's material readiness APIs.
 The checks use the meshes' actual submeshes and do not depend on a culled fixture
-being drawn. Each material wait has a ten-second deadline; map cancellation or
+being drawn. Each material wait has a ten-second visible-active-time deadline; map cancellation or
 scene disposal stops its polling. A failed batch cancels its remaining checks.
+Hidden/frozen tabs suspend GPU checks and their timeout budget. Rendering
+context/device loss fails preparation with a retry message.
 Rendered-frame settling waits are bounded too. Temporary lights are disabled
 before retirement; WebGPU buffers remain owned until their submitted work completes.
 
 MapLoader logs a warmup failure and continues to its separate, bounded scene
 readiness gate. If that required scene gate cannot become ready, map loading
 fails with a diagnostic rather than entering a partially rendered map.
-Visibility recovery uses the same cancellable checks and restores
-the material freeze state in cleanup, including on failure. It refreshes bindings;
-changing texture sampler settings does not restore lost texture pixels. Actual
-context restoration remains the renderer's responsibility.
+Returning to the tab checks resource readiness without dirtying healthy
+materials or recompiling merely because the tab was hidden. Explicit material
+revalidation restores frozen state in cleanup, including on failure. Changing
+texture sampler settings does not restore lost texture pixels. Actual context
+restoration remains the renderer's responsibility.
 
 This warms matching configurations on both backends; it does not validate GPU
 commands or guarantee every runtime variant is already cached. Static water-light

@@ -16,6 +16,7 @@ import { RawTexture } from "@babylonjs/core/Materials/Textures/rawTexture";
 import { Texture } from "@babylonjs/core/Materials/Textures/texture";
 import { Color3 } from "@babylonjs/core/Maths/math.color";
 import type { Scene } from "@babylonjs/core/scene";
+import { waitForAsync } from "../../core/AsyncWait";
 import { Cvar } from "../../core/Cvar";
 import { createTextureFromKTX1, parseKTX1, reduceKTX1MipChain } from "../texture/KTX1Loader";
 import { ensureKTX2Decoder } from "../texture/KTX2DecoderRuntime";
@@ -69,6 +70,9 @@ export class PK3TextureLoader {
   private failedKTX2Sidecars = new Set<string>();
   private pendingTextures = new Map<string, Promise<Texture | null>>();
   private generation = 0;
+  private sidecarControllers = new Set<AbortController>();
+  private manifestRevision = "";
+  private scopeSignal: AbortSignal | undefined;
 
   private constructor() {}
 
@@ -82,10 +86,11 @@ export class PK3TextureLoader {
   /**
    * Initialize with BabylonJS engine and scene
    */
-  public init(engine: AbstractEngine, scene: Scene): void {
+  public init(engine: AbstractEngine, scene: Scene, signal?: AbortSignal): void {
     if (this.scene && this.scene !== scene) this.clearCache();
     this.engine = engine;
     this.scene = scene;
+    if (signal) this.scopeSignal = signal;
     devLog("[PK3TextureLoader] Initialized");
   }
 
@@ -167,7 +172,18 @@ export class PK3TextureLoader {
     const stripped = stripTextureExtension(cleanPath);
 
     // Reduced variants use source pixels/authored KTX1 mips, not a full-resolution KTX2 upload.
-    const sidecar = picmip === 0 ? await this.tryLoadKTX2Sidecar(stripped) : null;
+    const sidecar =
+      picmip === 0
+        ? await waitForAsync(
+            this.tryLoadKTX2Sidecar(stripped),
+            this.scopeSignal,
+            10000,
+            "optional texture variant",
+          ).catch(() => {
+            this.scopeSignal?.throwIfAborted();
+            return null;
+          })
+        : null;
     if (sidecar) {
       return sidecar;
     }
@@ -202,59 +218,93 @@ export class PK3TextureLoader {
   }
 
   private async getKTX2Manifest(): Promise<LocatedKTX2Manifest | null> {
+    const revision = `${PK3Index.getInstance().getStats().lastUpdated?.getTime() ?? 0}:${PK3Loader.getInstance().getSearchPaths().join("|")}`;
+    if (this.manifestRevision !== revision) {
+      this.manifestRevision = revision;
+      this.ktx2ManifestPromise = null;
+      this.failedKTX2Sidecars.clear();
+    }
     if (this.ktx2ManifestPromise) {
       return this.ktx2ManifestPromise;
     }
 
-    this.ktx2ManifestPromise = (async () => {
-      for (const baseUrl of PK3Loader.getInstance().getSearchPaths()) {
-        try {
-          const response = await fetchAsset(`${baseUrl}ktx2cache/manifest.json`);
-          if (!response.ok || (response.headers.get("Content-Type") || "").includes("text/html")) {
-            continue;
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(new Error("Optional KTX2 metadata timed out")), 2500);
+    this.ktx2ManifestPromise = waitForAsync(
+      (async () => {
+        for (const baseUrl of PK3Loader.getInstance().getSearchPaths()) {
+          try {
+            controller.signal.throwIfAborted();
+            const response = await fetchAsset(`${baseUrl}ktx2cache/manifest.json`, {
+              cache: "no-cache",
+              signal: controller.signal,
+            });
+            if (!response.ok || (response.headers.get("Content-Type") || "").includes("text/html")) {
+              continue;
+            }
+            const manifest = (await readAssetJson(response)) as Partial<KTX2Manifest>;
+            if (manifest.version === 1 && manifest.textures && typeof manifest.textures === "object") {
+              return { baseUrl, manifest: manifest as KTX2Manifest };
+            }
+          } catch {
+            // KTX2 sidecars are optional. Try the next configured search path.
           }
-          const manifest = (await readAssetJson(response)) as Partial<KTX2Manifest>;
-          if (manifest.version === 1 && manifest.textures && typeof manifest.textures === "object") {
-            return { baseUrl, manifest: manifest as KTX2Manifest };
-          }
-        } catch {
-          // KTX2 sidecars are optional. Try the next configured search path.
         }
-      }
-      return null;
-    })();
+        return null;
+      })(),
+      controller.signal,
+      2500,
+      "KTX2 manifest",
+    )
+      .catch(() => null)
+      .finally(() => clearTimeout(timer));
 
     return this.ktx2ManifestPromise;
   }
 
   private tryLoadKTX2Sidecar(strippedPath: string): Promise<Texture | null> {
-    const key = `sidecar:${strippedPath.toLowerCase()}`;
+    const revision = PK3Index.getInstance().getStats().lastUpdated?.getTime() ?? 0;
+    const key = `sidecar:${revision}:${strippedPath.toLowerCase()}`;
     const pending = this.pendingTextures.get(key);
     if (pending) return pending;
-    const loading = this.loadKTX2Sidecar(strippedPath, this.generation).finally(() => {
-      if (this.pendingTextures.get(key) === loading) this.pendingTextures.delete(key);
-    });
+    const controller = new AbortController();
+    this.sidecarControllers.add(controller);
+    const timer = setTimeout(() => controller.abort(new Error("Optional KTX2 preparation timed out")), 10000);
+    const loading = waitForAsync(
+      this.loadKTX2Sidecar(strippedPath, this.generation, controller.signal),
+      controller.signal,
+      10000,
+      "KTX2 sidecar",
+    )
+      .catch(() => null)
+      .finally(() => {
+        clearTimeout(timer);
+        this.sidecarControllers.delete(controller);
+        if (this.pendingTextures.get(key) === loading) this.pendingTextures.delete(key);
+      });
     this.pendingTextures.set(key, loading);
     return loading;
   }
 
-  private async loadKTX2Sidecar(strippedPath: string, generation: number): Promise<Texture | null> {
+  private async loadKTX2Sidecar(
+    strippedPath: string,
+    generation: number,
+    signal: AbortSignal,
+  ): Promise<Texture | null> {
     if (!this.scene || !this.isKTX2Enabled()) {
       return null;
     }
 
     const canonicalPath = strippedPath.toLowerCase().replace(/\\/g, "/");
     if (!PK3Loader.getInstance().canUseTextureSidecar(canonicalPath)) return null;
-    const cacheKey = `ktx2:${canonicalPath}`;
+    const cacheKey = `ktx2:${PK3Index.getInstance().getStats().lastUpdated?.getTime() ?? 0}:${canonicalPath}`;
     const cached = this.textureCache.get(cacheKey);
     if (cached && (cached.isReady() || (cached as unknown as { _texture: unknown })._texture !== null)) {
       return cached;
     }
-    if (this.failedKTX2Sidecars.has(canonicalPath)) {
-      return null;
-    }
-
     const located = await this.getKTX2Manifest();
+    signal.throwIfAborted();
+    if (this.failedKTX2Sidecars.has(canonicalPath)) return null;
     const entry = located?.manifest.textures[canonicalPath];
     if (!located || !entry) {
       return null;
@@ -281,6 +331,7 @@ export class PK3TextureLoader {
     const url = `${located.baseUrl}ktx2cache/${normalizedRelativeFile}`;
     try {
       await ensureKTX2Decoder();
+      signal.throwIfAborted();
       if (generation !== this.generation || this.scene?.isDisposed) return null;
       registerKTX2SidecarLoader();
       const scene = this.scene!;
@@ -291,12 +342,15 @@ export class PK3TextureLoader {
           if (settled) return;
           settled = true;
           clearTimeout(timer);
+          signal.removeEventListener("abort", aborted);
           scene.onDisposeObservable.remove(disposed);
           if (!value) candidate?.dispose();
           resolve(value);
         };
         const timer = setTimeout(() => finish(null), 10000);
+        const aborted = () => finish(null);
         const disposed = scene.onDisposeObservable.addOnce(() => finish(null));
+        signal.addEventListener("abort", aborted, { once: true });
         try {
           candidate = new Texture(url, scene, {
             noMipmap: false,
@@ -355,7 +409,7 @@ export class PK3TextureLoader {
     const pending = this.pendingTextures.get(key);
     if (pending) return pending;
     const generation = this.generation;
-    const loading = this.loadTextureInternal(path, picmip, key, generation).finally(() => {
+    const loading = this.loadTextureInternal(path, picmip, key, generation, this.scopeSignal).finally(() => {
       if (this.pendingTextures.get(key) === loading) this.pendingTextures.delete(key);
     });
     this.pendingTextures.set(key, loading);
@@ -367,6 +421,7 @@ export class PK3TextureLoader {
     picmip: number,
     cacheKey: string,
     generation: number,
+    signal?: AbortSignal,
   ): Promise<Texture | null> {
     if (!this.engine || !this.scene) {
       console.error("[PK3TextureLoader] Not initialized");
@@ -390,9 +445,10 @@ export class PK3TextureLoader {
 
     const pk3 = PK3Loader.getInstance();
     const owner = PK3Index.getInstance().findFile(path);
-    if (owner) await pk3.ensurePK3(owner);
+    signal?.throwIfAborted();
+    if (owner) await waitForAsync(pk3.ensurePK3(owner), signal, 15 * 60000, `texture package ${owner}`);
     if (generation !== this.generation || this.scene.isDisposed) return null;
-    let data = await pk3.getFile(path);
+    let data = await waitForAsync(pk3.getFile(path), signal, 30000, `texture entry ${path}`);
     if (generation !== this.generation || this.scene.isDisposed) return null;
     if (owner && !data) throw new Error(`Texture missing from indexed package ${owner}: ${path}`);
 
@@ -408,7 +464,7 @@ export class PK3TextureLoader {
       ];
       for (const url of candidateUrls) {
         try {
-          const response = await fetchAsset(url);
+          const response = await fetchAsset(url, { signal });
           if (!response.ok) continue;
           // Vite dev server returns 200 OK with HTML for non-existent files (SPA
           // fallback), so reject HTML to avoid treating a page as texture data.
@@ -417,6 +473,7 @@ export class PK3TextureLoader {
           data = await readAssetBuffer(response);
           break;
         } catch {
+          signal?.throwIfAborted();
           // try the next candidate
         }
       }
@@ -592,7 +649,16 @@ export class PK3TextureLoader {
     const mimeType = mimeTypes[ext] || "application/octet-stream";
     const blob = new Blob([data], { type: mimeType });
     if (picmip > 0) {
-      const bitmap = await createImageBitmap(blob, { premultiplyAlpha: "none", colorSpaceConversion: "none" });
+      let active = true;
+      const decoded = createImageBitmap(blob, { premultiplyAlpha: "none", colorSpaceConversion: "none" }).then(
+        (bitmap) => {
+          if (!active) bitmap.close();
+          return bitmap;
+        },
+      );
+      const bitmap = await waitForAsync(decoded, this.scopeSignal, 10000, `image ${path}`).finally(() => {
+        active = false;
+      });
       try {
         const canvas = document.createElement("canvas");
         canvas.width = bitmap.width;
@@ -991,6 +1057,9 @@ export class PK3TextureLoader {
    * Clear texture cache
    */
   public clearCache(): void {
+    this.scopeSignal = undefined;
+    for (const controller of this.sidecarControllers) controller.abort(new Error("Texture scope cleared"));
+    this.sidecarControllers.clear();
     this.generation++;
     this.pendingTextures.clear();
     for (const texture of this.textureCache.values()) {

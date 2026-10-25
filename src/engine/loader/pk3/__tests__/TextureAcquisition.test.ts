@@ -28,11 +28,49 @@ beforeEach(() => {
   vi.spyOn(Cvar, "getBool").mockReturnValue(false);
 });
 afterEach(() => {
+  vi.useRealTimers();
   loader.clearCache();
   scene.dispose();
   engine.dispose();
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
+});
+
+it("falls back from a stalled optional manifest once without repeating its delay for every texture", async () => {
+  vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+  vi.mocked(Cvar.get).mockReturnValue(undefined);
+  vi.mocked(Cvar.getBool).mockReturnValue(true);
+  vi.mocked(PK3Index.getInstance().findFile).mockImplementation((path) =>
+    path.endsWith(".tga") ? "review.pk3" : null,
+  );
+  vi.spyOn(pk3, "getFile").mockResolvedValue(image());
+  const fetch = vi.fn(() => new Promise<Response>(() => {}));
+  vi.stubGlobal("fetch", fetch);
+  const pending = loader.resolveAndLoadTexture("textures/review-stalled");
+  await vi.advanceTimersByTimeAsync(2600);
+  expect(await pending).not.toBeNull();
+  expect(await loader.resolveAndLoadTexture("textures/review-other")).not.toBeNull();
+  expect(fetch).toHaveBeenCalledOnce();
+});
+
+it("detaches a cancelled map from shared texture acquisition without creating a late texture", async () => {
+  const controller = new AbortController();
+  loader.init(engine, scene, controller.signal);
+  let finish!: (data: ArrayBuffer) => void;
+  vi.spyOn(pk3, "getFile").mockImplementation(
+    () =>
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+  );
+  const pending = loader.loadTexture("textures/review.tga");
+  const rejected = expect(pending).rejects.toThrow("cancelled");
+  await vi.waitFor(() => expect(finish).toBeTypeOf("function"));
+  controller.abort(new Error("cancelled"));
+  await rejected;
+  finish(image());
+  await Promise.resolve();
+  expect(loader.getCacheInfo().count).toBe(0);
 });
 
 it("acquires an indexed but unmounted texture owner without loose HTTP", async () => {

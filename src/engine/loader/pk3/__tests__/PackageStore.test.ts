@@ -4,6 +4,7 @@ import { afterEach, expect, it, vi } from "vitest";
 import { PackageStore } from "../PackageStore";
 
 afterEach(() => {
+  vi.useRealTimers();
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
 });
@@ -27,6 +28,35 @@ function disk() {
   vi.stubGlobal("caches", { open: async () => cache });
   return { cache, entries };
 }
+
+it("persists a burst of three packages behind a slow write for new-page reuse", async () => {
+  const { cache, entries } = disk();
+  const { bytes, hash } = await archive();
+  let release!: () => void;
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const put = cache.put.getMockImplementation()!;
+  cache.put.mockImplementationOnce(async (key, response) => {
+    await gate;
+    await put(key, response);
+  });
+  const fetch = vi.fn(async () => new Response(bytes));
+  vi.stubGlobal("fetch", fetch);
+  const store = new PackageStore();
+  for (const name of ["one", "two", "three"]) store.register(`data/${name}.pk3`, hash);
+  try {
+    await Promise.all(["one", "two", "three"].map((name) => store.acquire(`data/${name}.pk3`, `${name}.pk3`)));
+    expect(fetch).toHaveBeenCalledTimes(3);
+  } finally {
+    release();
+  }
+  await vi.waitFor(() => expect(entries.size).toBe(3));
+  const nextPage = new PackageStore();
+  nextPage.register("data/three.pk3", hash);
+  await nextPage.acquire("data/three.pk3", "three.pk3");
+  expect(fetch).toHaveBeenCalledTimes(3);
+});
 
 it("joins an active background transfer without a second HTTP body and reuses parsed memory", async () => {
   const { bytes, hash } = await archive();
@@ -209,6 +239,7 @@ it("falls back to network when optional storage never opens", async () => {
 });
 
 it("returns validated downloads while a disk write stalls and allows the next write to proceed", async () => {
+  vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
   const { cache } = disk();
   const { bytes, hash } = await archive();
   let release!: () => void;
@@ -228,6 +259,7 @@ it("returns validated downloads while a disk write stalls and allows the next wr
   await store.acquire("data/first.pk3", "first.pk3");
   await store.acquire("data/next.pk3", "next.pk3");
   expect(store.pendingCount).toBe(0);
-  await vi.waitFor(() => expect(cache.put).toHaveBeenCalledTimes(2), { timeout: 2000 });
+  await vi.advanceTimersByTimeAsync(5100);
+  expect(cache.put).toHaveBeenCalledTimes(2);
   release();
 });

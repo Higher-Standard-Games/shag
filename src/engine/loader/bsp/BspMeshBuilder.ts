@@ -1095,14 +1095,14 @@ export class BspMeshBuilder {
     _bsp: BspFile, // Reserved for future use
     scene: Scene,
     progressCallback?: (loaded: number, total: number, name: string) => void,
-    options?: { deluxe?: boolean; pbr?: boolean },
+    options?: { deluxe?: boolean; pbr?: boolean; signal?: AbortSignal },
   ): Promise<number> {
     const { PK3TextureLoader } = await import("../pk3/PK3TextureLoader");
     const texLoader = PK3TextureLoader.getInstance();
     const engine = scene.getEngine();
 
     // Initialize texture loader if needed
-    texLoader.init(engine, scene);
+    texLoader.init(engine, scene, options?.signal);
 
     if (!result.textureGroups || result.textureGroups.length === 0) {
       devLog("[BspMeshBuilder] No texture groups to load");
@@ -1288,6 +1288,7 @@ export class BspMeshBuilder {
       });
     });
     for (const group of textureJobs) {
+      options?.signal?.throwIfAborted();
       const texName = group.textureName;
       if (!texName || texName.toLowerCase().includes("common/")) continue;
 

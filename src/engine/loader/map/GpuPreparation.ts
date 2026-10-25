@@ -1,6 +1,7 @@
 import type { Material } from "@babylonjs/core/Materials/material";
 import type { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh";
 import type { Scene } from "@babylonjs/core/scene";
+import { waitForAsync } from "../../core/AsyncWait";
 
 /** Readiness observation owned by one load, without Babylon's uncancellable polling promises. */
 export function waitForGpuCondition(
@@ -9,27 +10,53 @@ export function waitForGpuCondition(
   stage: string,
   signal?: AbortSignal,
   timeoutMs = 10000,
+  visibleOnly = true,
 ): Promise<void> {
   return new Promise((resolve, reject) => {
     let poll: ReturnType<typeof setTimeout> | undefined;
     let deadline: ReturnType<typeof setTimeout> | undefined;
     let settled = false;
+    let remaining = timeoutMs;
+    let activeSince: number | undefined;
+    let frozen = false;
+    const doc =
+      typeof document !== "undefined" && typeof document.addEventListener === "function" ? document : undefined;
+    const lostObservable = scene.getEngine().onContextLostObservable;
     const finish = (error?: unknown) => {
       if (settled) return;
       settled = true;
       clearTimeout(poll);
       clearTimeout(deadline);
       signal?.removeEventListener("abort", aborted);
+      doc?.removeEventListener("visibilitychange", visibility);
+      doc?.removeEventListener("freeze", visibility);
+      doc?.removeEventListener("resume", visibility);
       scene.onDisposeObservable.remove(disposed);
+      lostObservable?.remove(lost);
       if (error !== undefined) reject(error);
       else resolve();
     };
     const aborted = () => finish(signal?.reason ?? new Error(`Cancelled: ${stage}`));
     const disposed = scene.onDisposeObservable.addOnce(() => finish(new Error(`Scene disposed: ${stage}`)));
+    const lost = lostObservable?.add(() => finish(new Error(`Rendering context/device lost: ${stage}. Please retry.`)));
+    const visibility = (event?: Event) => {
+      if (event?.type === "freeze") frozen = true;
+      if (event?.type === "resume") frozen = false;
+      clearTimeout(poll);
+      clearTimeout(deadline);
+      if (activeSince !== undefined) remaining -= performance.now() - activeSince;
+      activeSince = undefined;
+      check();
+    };
     const check = () => {
       try {
         if (signal?.aborted) return aborted();
         if (scene.isDisposed) return finish(new Error(`Scene disposed: ${stage}`));
+        if (visibleOnly && (doc?.hidden || frozen)) return;
+        if (activeSince === undefined) {
+          activeSince = performance.now();
+          deadline = setTimeout(() => finish(new Error(`GPU preparation timed out: ${stage}`)), Math.max(0, remaining));
+        }
         if (ready()) return finish();
         poll = setTimeout(check, 16);
       } catch (error) {
@@ -37,7 +64,9 @@ export function waitForGpuCondition(
       }
     };
     signal?.addEventListener("abort", aborted, { once: true });
-    deadline = setTimeout(() => finish(new Error(`GPU preparation timed out: ${stage}`)), timeoutMs);
+    doc?.addEventListener("visibilitychange", visibility);
+    doc?.addEventListener("freeze", visibility);
+    doc?.addEventListener("resume", visibility);
     check();
   });
 }
@@ -80,19 +109,18 @@ export async function waitForPreparation<T>(
   signal?: AbortSignal,
   timeoutMs = 30000,
 ): Promise<T> {
-  let result: { value: T } | { error: unknown } | undefined;
-  const observed = work.then(
-    (value) => {
-      result = { value };
-    },
-    (error: unknown) => {
-      result = { error };
-    },
-  );
-  await waitForGpuCondition(scene, () => result !== undefined, stage, signal, timeoutMs);
-  await observed;
-  if (!result || "error" in result) throw result?.error ?? new Error(`Preparation failed: ${stage}`);
-  return result.value;
+  const controller = new AbortController();
+  const aborted = () => controller.abort(signal?.reason);
+  signal?.addEventListener("abort", aborted, { once: true });
+  const disposed = scene.onDisposeObservable.addOnce(() => controller.abort(new Error(`Scene disposed: ${stage}`)));
+  if (signal?.aborted) aborted();
+  if (scene.isDisposed) controller.abort(new Error(`Scene disposed: ${stage}`));
+  try {
+    return await waitForAsync(work, controller.signal, timeoutMs, stage);
+  } finally {
+    signal?.removeEventListener("abort", aborted);
+    scene.onDisposeObservable.remove(disposed);
+  }
 }
 
 /** Match Babylon's out-of-frame readiness checks while retaining our own cancellable lifetime. */

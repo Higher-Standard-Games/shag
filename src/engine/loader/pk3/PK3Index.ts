@@ -68,6 +68,8 @@ export class PK3Index {
   private index: PK3IndexData | null = null;
   private searchPaths: string[] = ["data/"];
   private packageScope: PK3PackageScope | null = null;
+  private ensuring: Promise<boolean> | null = null;
+  private publishedAdvertised = false;
 
   setPackageScope(scope: PK3PackageScope | null): void {
     this.packageScope = scope;
@@ -738,7 +740,12 @@ export class PK3Index {
         if (!manifestResponse.ok) return null;
         const manifest: unknown = await readAssetJson(manifestResponse);
         if (!hasPublishedIndex(manifest)) return null;
-        const response = await fetchAsset(`${basePath}pk3_index.json`, { cache: "no-cache" });
+        this.publishedAdvertised = true;
+        if (manifest.indexFile !== undefined && !/^pk3_index\.[a-f0-9]{64}\.json$/.test(manifest.indexFile))
+          return null;
+        const response = await fetchAsset(`${basePath}${manifest.indexFile ?? "pk3_index.json"}`, {
+          cache: "no-cache",
+        });
         if (!response.ok) return null;
         const snapshot = parsePublishedIndex(await readAssetText(response), manifest, basePath);
         if (!snapshot) {
@@ -755,9 +762,18 @@ export class PK3Index {
   }
 
   /** Load published metadata, or validate/rebuild the legacy cache. True when lookups changed. */
-  async ensureIndex(progressCallback?: (msg: string) => void): Promise<boolean> {
+  ensureIndex(progressCallback?: (msg: string) => void): Promise<boolean> {
+    this.ensuring ??= this.performEnsureIndex(progressCallback).finally(() => {
+      this.ensuring = null;
+    });
+    return this.ensuring;
+  }
+
+  private async performEnsureIndex(progressCallback?: (msg: string) => void): Promise<boolean> {
     progressCallback?.("Loading published PK3 index...");
-    const published = await this.loadPublishedIndex();
+    this.publishedAdvertised = false;
+    let published = await this.loadPublishedIndex();
+    if (!published && this.publishedAdvertised) published = await this.loadPublishedIndex();
     if (published) {
       const replaced =
         !this.hasIndex() ||
@@ -769,6 +785,14 @@ export class PK3Index {
       const stats = this.getStats();
       progressCallback?.(`Index ready: ${stats.fileCount} files, ${stats.shaderCount} shaders, ${stats.mapCount} maps`);
       return replaced;
+    }
+    if (this.publishedAdvertised) {
+      if (this.index && this.hasIndex()) {
+        PackageStore.shared.registerSnapshot(this.index.packages);
+        progressCallback?.("Using the last coherent PK3 index; published update is not ready.");
+        return false;
+      }
+      throw new Error("Published asset metadata is incomplete. Please retry after the update finishes.");
     }
     // 1. If no cached index, build fresh
     if (!this.hasIndex()) {

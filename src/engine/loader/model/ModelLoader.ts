@@ -18,11 +18,13 @@ import { BspManager } from "../bsp/BspManager";
 import { PK3Loader } from "../pk3/PK3Loader";
 import { MD3Loader } from "./MD3Loader";
 import { resolveModelAsset } from "./ModelAsset";
+import { disposeModelResources } from "./ModelSourceCache";
 
 /**
  * Options for loading a 3D model
  */
 export interface ModelLoadOptions {
+  signal?: AbortSignal;
   /** Position in world space (Babylon coords: X, Y, Z where Y is up) */
   position: Vector3;
   /** Y-axis rotation in degrees */
@@ -164,6 +166,11 @@ export class ModelLoader {
       console.error("ModelLoader not initialized or scene disposed");
       return null;
     }
+    const scene = this.scene;
+    const owned = () => {
+      options.signal?.throwIfAborted();
+      if (scene.isDisposed || this.scene !== scene) throw new Error("Model scene superseded");
+    };
 
     const {
       position,
@@ -194,12 +201,11 @@ export class ModelLoader {
         const pk3 = PK3Loader.getInstance();
         const md3 = MD3Loader.getInstance();
 
-        // Ensure loaders are initialized
-        if (this.scene) md3.init(this.scene);
-
         // Try to get file from PK3
         const buffer = await pk3.getFile(modelPath);
+        owned();
         if (buffer) {
+          md3.init(scene);
           const model = md3.parseMD3(buffer);
           // Create meshes
           const md3Result = md3.createMeshes(model, fileName.replace(".md3", ""));
@@ -241,13 +247,21 @@ export class ModelLoader {
           }
         } else {
           console.warn(`MD3 file not found in PK3: ${modelPath}`);
+          return null;
           // Could fall back to SceneLoader if it was a real file... but mostly it's PK3.
         }
       }
 
       // Load the model (GLB/GLTF/OBJ) — all meshes (no meshNames filter)
       const asset = await resolveModelAsset(fullPath);
-      const result = await ImportMeshAsync(asset.source, this.scene, asset.options);
+      owned();
+      const result = await ImportMeshAsync(asset.source, scene, asset.options);
+      try {
+        owned();
+      } catch (error) {
+        disposeModelResources([...result.meshes, ...result.transformNodes], result);
+        throw error;
+      }
 
       if (!result.meshes || result.meshes.length === 0) {
         console.error(`No meshes found in model: ${modelPath}`);
@@ -255,7 +269,7 @@ export class ModelLoader {
       }
 
       // Create root transform node
-      const root = new TransformNode(`model_${fileName}_${Date.now()}`, this.scene);
+      const root = new TransformNode(`model_${fileName}_${Date.now()}`, scene);
 
       // Set transform on root
       root.position.copyFrom(position);

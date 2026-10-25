@@ -21,7 +21,7 @@ import { EntityType } from "../../../shared/entities/EntityType";
 import { devLog } from "../../core/DevLog";
 import { type EntityData, EntityHandlerRegistry } from "../../core/EntityHandlerRegistry";
 import { EventBus } from "../../core/EventBus";
-import { LOADING_EVENTS, type LoadingProgressEvent } from "../../core/LoadingEvents";
+import { createLoadingOperationId, LOADING_EVENTS, type LoadingProgressEvent } from "../../core/LoadingEvents";
 import { extractEmissiveSurfaces } from "../../lighting/MapEmissiveSurfaces";
 import { trackFrozenWorldMaterials } from "../../rendering/FrozenWorldMaterials";
 import RenderVars from "../../rendering/RenderVars";
@@ -103,6 +103,12 @@ export function lightmapIntensityFor(isFBSP: boolean, scale: number | undefined,
 }
 
 export type ProgressCallback = (progress: MapLoadProgress) => void;
+export interface MapLoadOptions {
+  backgroundOnly?: boolean;
+  signal?: AbortSignal;
+  operationId?: string;
+  finalizeScene?: (result: MapLoadResult) => Promise<void>;
+}
 
 /** How long a load waits for the scene to report ready before going on without it. */
 const SCENE_READY_TIMEOUT_MS = 15000;
@@ -185,13 +191,17 @@ export class MapLoader {
     mapName: string,
     scene: Scene,
     onProgress?: ProgressCallback,
-    opts?: { backgroundOnly?: boolean },
+    opts?: MapLoadOptions,
   ): Promise<MapLoadResult> {
     this.requestedLoad?.abort(new Error("Map load superseded"));
     const controller = new AbortController();
+    const aborted = () => controller.abort(opts?.signal?.reason);
+    opts?.signal?.addEventListener("abort", aborted, { once: true });
+    if (opts?.signal?.aborted) aborted();
     this.requestedLoad = controller;
     const operation = this.loadTail.then(async () => {
       if (controller.signal.aborted) {
+        opts?.signal?.removeEventListener("abort", aborted);
         if (this.requestedLoad === controller) this.requestedLoad = null;
         return { success: false, mapName, mapType: "bsp" as const, error: "Map load superseded" };
       }
@@ -201,6 +211,7 @@ export class MapLoader {
         return await this.performLoadMap(mapName, scene, controller.signal, onProgress, opts);
       } finally {
         scene.onDisposeObservable.remove(observer);
+        opts?.signal?.removeEventListener("abort", aborted);
         if (this.requestedLoad === controller) this.requestedLoad = null;
       }
     });
@@ -216,13 +227,15 @@ export class MapLoader {
     scene: Scene,
     signal: AbortSignal,
     onProgress?: ProgressCallback,
-    opts?: { backgroundOnly?: boolean },
+    opts?: MapLoadOptions,
   ): Promise<MapLoadResult> {
     const startTime = Date.now();
+    const operationId = opts?.operationId ?? createLoadingOperationId();
 
     // Emit loading:start event
     EventBus.emit(LOADING_EVENTS.START, {
       type: "map",
+      operationId,
       id: mapName,
       meta: { displayName: mapName },
     });
@@ -235,6 +248,7 @@ export class MapLoader {
       // Emit loading:progress event
       const progressEvent: LoadingProgressEvent = {
         type: "map",
+        operationId,
         phase,
         detail,
         percent,
@@ -255,10 +269,22 @@ export class MapLoader {
       if (bspPk3) {
         const result = await this.loadBspMap(mapName, bspPk3, scene, progress, signal, opts?.backgroundOnly);
         signal.throwIfAborted();
+        if (result.success && opts?.finalizeScene) {
+          await opts.finalizeScene(result);
+          signal.throwIfAborted();
+          await waitForGpuCondition(
+            scene,
+            () => sceneGpuReady(scene),
+            "final client scene",
+            signal,
+            SCENE_READY_TIMEOUT_MS,
+          );
+        }
 
         // Emit loading:complete event
         EventBus.emit(LOADING_EVENTS.COMPLETE, {
           type: "map",
+          operationId,
           success: result.success,
           error: result.error,
           duration: Date.now() - startTime,
@@ -274,6 +300,7 @@ export class MapLoader {
       // Emit loading:complete event (failure)
       EventBus.emit(LOADING_EVENTS.COMPLETE, {
         type: "map",
+        operationId,
         success: false,
         error,
         duration: Date.now() - startTime,
@@ -300,6 +327,7 @@ export class MapLoader {
       // Emit loading:complete event (failure)
       EventBus.emit(LOADING_EVENTS.COMPLETE, {
         type: "map",
+        operationId,
         success: false,
         error,
         duration: Date.now() - startTime,
@@ -461,6 +489,7 @@ export class MapLoader {
     await BspMeshBuilder.applyTextures(meshResult, bsp, scene, undefined, {
       deluxe: deluxeEnabled,
       pbr: bspPbrEnabled,
+      signal,
     });
 
     // Phase 7: Apply skybox
@@ -599,7 +628,7 @@ export class MapLoader {
         await cm.init(bsp, scene, "q3");
         devLog(`[MapLoader] Collision initialized with ${cm.getBackendType()} backend`);
       } catch (e) {
-        console.warn("[MapLoader] Failed to initialize collision:", e);
+        throw new Error(`Could not initialize required map collision: ${String(e)}`);
       }
 
       // Phase 10: Preload pickup assets (weapons/ammo models)
@@ -607,12 +636,18 @@ export class MapLoader {
       try {
         const { AssetPreloader } = await import("../AssetPreloader");
         const preloader = AssetPreloader.getInstance();
-        const preloadCount = await preloader.preloadFromBsp(bsp, scene, (p) => {
-          progress("Assets", `Preloading ${p.modelPath} (${p.current + 1}/${p.total})`);
-        });
+        const preloadCount = await preloader.preloadFromBsp(
+          bsp,
+          scene,
+          (p) => {
+            progress("Assets", `Preloading ${p.modelPath} (${p.current + 1}/${p.total})`);
+          },
+          signal,
+        );
         devLog(`[MapLoader] Preloaded ${preloadCount} pickup models`);
       } catch (e) {
-        console.warn("[MapLoader] Failed to preload assets:", e);
+        signal.throwIfAborted();
+        throw e;
       }
 
       // Store BSP and meshResult in BspManager for PVS system
@@ -727,12 +762,11 @@ export class MapLoader {
     }
 
     // ── Tab visibility recovery ──────────────────────────────────────────
-    // If the tab was backgrounded at any point during loading, texture
-    // uploads and shader compilations may have silently failed. Force a
-    // full revalidation now that loading is complete.
+    // Visibility suspends GPU scheduling. Verify resources on resume without
+    // invalidating healthy material layouts merely because the tab was hidden.
     if (this.wasBackgroundedDuringLoad) {
-      console.warn("[MapLoader] Tab was backgrounded during load — revalidating textures and shaders...");
-      progress("Recovery", "Revalidating textures (tab was backgrounded)");
+      devLog("[MapLoader] Resuming rendering checks after hidden-tab suspension");
+      progress("Recovery", "Checking rendering after returning to the tab");
 
       // If tab is still hidden, wait for it to become visible first
       if (document.hidden) {
@@ -742,8 +776,13 @@ export class MapLoader {
       }
 
       try {
-        const { revalidateMaterials } = await import("../../weapon/EffectPreloader");
-        await revalidateMaterials(scene, signal);
+        await waitForGpuCondition(
+          scene,
+          () => sceneGpuReady(scene),
+          "resuming map rendering",
+          signal,
+          SCENE_READY_TIMEOUT_MS,
+        );
         devLog("[MapLoader] Post-background revalidation complete");
       } catch (e) {
         signal.throwIfAborted();
@@ -761,7 +800,14 @@ export class MapLoader {
       registerBspEntityHandlers();
       getGameMapEntities()?.registerHandlers();
       setCurrentBspForHandlers(bsp);
-      await this.processBspEntities(bsp, scene);
+      await this.processBspEntities(bsp, scene, signal);
+      await waitForGpuCondition(
+        scene,
+        () => sceneGpuReady(scene),
+        "final map entities",
+        signal,
+        SCENE_READY_TIMEOUT_MS,
+      );
 
       // Start PVS after material setup and entity spawning have established the
       // world's intended visibility. The live camera may arrive on a later frame.
@@ -1108,7 +1154,7 @@ export class MapLoader {
    * Process BSP entities through EntityHandlerRegistry
    * This bridges BSP entities to the same handler system used by .map files
    */
-  private async processBspEntities(bsp: BspFile, scene: Scene): Promise<void> {
+  private async processBspEntities(bsp: BspFile, scene: Scene, signal?: AbortSignal): Promise<void> {
     // Convert BSP entities to EntityData format
     const entityDataList: EntityData[] = bsp.entities.map((e) => ({
       classname: e.classname,
@@ -1122,10 +1168,12 @@ export class MapLoader {
     let handledCount = 0;
     const unhandled = new Map<string, number>();
     for (const entity of entityDataList) {
+      signal?.throwIfAborted();
       const handler = EntityHandlerRegistry.getHandler(entity.classname);
       if (handler) {
         try {
           const result = await handler(entity, scene);
+          signal?.throwIfAborted();
           if (result.handled) {
             // Movers are separate inline models, but still belong to this map.
             // Parenting makes unload dispose their meshes and render observers.
@@ -1135,6 +1183,7 @@ export class MapLoader {
             handledCount++;
           }
         } catch (e) {
+          signal?.throwIfAborted();
           console.warn(`[MapLoader] Entity handler failed for '${entity.classname}':`, e);
         }
       } else if (!NEEDS_NO_CLIENT_HANDLER.has(entity.classname) && !entity.classname.startsWith("info_")) {

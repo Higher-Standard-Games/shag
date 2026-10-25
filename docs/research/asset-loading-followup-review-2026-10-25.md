@@ -8,7 +8,8 @@ Baseline: engine `29fe2cb1`, FPS `bee7c92`, branch
 `v1.0.0-alpha.5-tuning`. Those commits preserve the validated implementation.
 Concurrent WebP packaging/texture-resolution edits remain outside this review's
 commits. Recommendations here do not claim those edits' size or speed benefits.
-This pass changes research documentation only; findings below remain unfixed.
+This review changed research documentation only. Implementation follow-up:
+[repairs and validation](asset-loading-followup-fixes-2026-10-25.md).
 
 ## Assessment
 

@@ -17,19 +17,20 @@ interface Job {
   reject: (error: unknown) => void;
   started: boolean;
 }
+type PackageIdentity = Pick<Job, "key" | "url" | "filename" | "hash">;
 const CACHE_NAME = "shag-packages-v1";
 const DISK_BUDGET = 512 * 1024 * 1024;
 const MEMORY_BUDGET = 128 * 1024 * 1024;
 const STORAGE_TIMEOUT_MS = 1000;
 
 /** CacheStorage is optional and its promises cannot be cancelled by the browser API. */
-async function storageOperation<T>(work: Promise<T>): Promise<T> {
+async function storageOperation<T>(work: Promise<T>, timeoutMs = STORAGE_TIMEOUT_MS): Promise<T> {
   let timer: ReturnType<typeof setTimeout> | undefined;
   try {
     return await Promise.race([
       work,
       new Promise<never>((_, reject) => {
-        timer = setTimeout(() => reject(new Error("Package storage timed out")), STORAGE_TIMEOUT_MS);
+        timer = setTimeout(() => reject(new Error("Package storage timed out")), timeoutMs);
       }),
     ]);
   } finally {
@@ -42,7 +43,11 @@ export class PackageStore {
   static readonly shared = new PackageStore();
   private hashes = new Map<string, string>();
   private jobs = new Map<string, Job>();
-  private memory = new Map<string, { zip: JSZip; size: number }>();
+  private memory = new Map<string, { zip: JSZip; size: number; bytes: ArrayBuffer; persisted: boolean }>();
+  private diskQueue = new Map<string, { cache: Cache; job: PackageIdentity }>();
+  private writing = false;
+  private storageUnavailableUntil = 0;
+  private cacheOpening: Promise<Cache | null> | null = null;
   private running = 0;
   private backgroundRunning = 0;
   private foregroundScopes = 0;
@@ -86,6 +91,13 @@ export class PackageStore {
       if (cached) {
         this.memory.delete(key);
         this.memory.set(key, cached);
+        if (!cached.persisted)
+          background(
+            this.cache().then((cache) => {
+              if (cache) this.queuePersistence(cache, { key, hash, url, filename });
+            }),
+            "PackageStore persistence repair",
+          );
         devLog(`[PackageStore] memory: ${filename}`);
         return Promise.resolve(cached.zip);
       }
@@ -111,7 +123,6 @@ export class PackageStore {
   }
   private refreshId = 0;
   private cacheWrites: Promise<void> = Promise.resolve();
-  private pendingWrites = 0;
 
   setPaused(paused: boolean): void {
     this.paused = paused;
@@ -183,14 +194,19 @@ export class PackageStore {
   }
 
   private async cache(): Promise<Cache | null> {
-    try {
-      return typeof caches === "undefined" ? null : await storageOperation(caches.open(CACHE_NAME));
-    } catch {
-      return null;
-    }
+    if (typeof caches === "undefined" || Date.now() < this.storageUnavailableUntil) return null;
+    this.cacheOpening ??= storageOperation(caches.open(CACHE_NAME))
+      .catch(() => {
+        this.storageUnavailableUntil = Date.now() + 30000;
+        return null;
+      })
+      .finally(() => {
+        this.cacheOpening = null;
+      });
+    return this.cacheOpening;
   }
 
-  private cacheUrl(job: Job): string {
+  private cacheUrl(job: PackageIdentity): string {
     const url = this.absolute(job.url);
     url.search = `shag-content=${job.hash}`;
     url.hash = "";
@@ -206,10 +222,11 @@ export class PackageStore {
     return JSZip.loadAsync(bytes);
   }
 
-  private remember(job: Job, zip: JSZip, size: number): void {
+  private remember(job: Job, zip: JSZip, bytes: ArrayBuffer, persisted = false): void {
+    const size = bytes.byteLength;
     if (!job.hash || size > MEMORY_BUDGET) return;
     this.memory.delete(job.key);
-    this.memory.set(job.key, { zip, size });
+    this.memory.set(job.key, { zip, size, bytes, persisted });
     let total = [...this.memory.values()].reduce((sum, item) => sum + item.size, 0);
     for (const [key, item] of this.memory) {
       if (total <= MEMORY_BUDGET) break;
@@ -218,14 +235,41 @@ export class PackageStore {
     }
   }
 
-  private async persist(cache: Cache, job: Job, bytes: ArrayBuffer): Promise<void> {
+  /** Queue only identities; compressed bodies remain owned by the bounded memory cache. */
+  private queuePersistence(cache: Cache, job: PackageIdentity): void {
+    if (!this.memory.has(job.key) || this.memory.get(job.key)?.persisted) return;
+    const { key, url, filename, hash } = job;
+    this.diskQueue.set(key, { cache, job: { key, url, filename, hash } });
+    if (this.writing) return;
+    this.writing = true;
+    this.cacheWrites = (async () => {
+      try {
+        while (this.diskQueue.size) {
+          const [key, item] = this.diskQueue.entries().next().value!;
+          this.diskQueue.delete(key);
+          const entry = this.memory.get(key);
+          if (!entry || Date.now() < this.storageUnavailableUntil) {
+            devLog(`[PackageStore] disk deferred/unavailable: ${item.job.filename}`);
+            continue;
+          }
+          entry.persisted = await this.persist(item.cache, item.job, entry.bytes);
+          devLog(`[PackageStore] ${entry.persisted ? "persisted" : "disk unavailable"}: ${item.job.filename}`);
+        }
+      } finally {
+        this.writing = false;
+      }
+    })();
+    background(this.cacheWrites, "PackageStore persistence");
+  }
+
+  private async persist(cache: Cache, job: PackageIdentity, bytes: ArrayBuffer): Promise<boolean> {
     try {
-      if (bytes.byteLength > DISK_BUDGET) return;
+      if (bytes.byteLength > DISK_BUDGET) return false;
       const url = this.cacheUrl(job);
-      await storageOperation(cache.delete(url));
       let total = bytes.byteLength;
       const entries = await storageOperation(cache.keys());
       for (let i = entries.length - 1; i >= 0; i--) {
+        if (entries[i].url === url) continue;
         const response = await storageOperation(cache.match(entries[i]));
         const size = Number(response?.headers.get("content-length") ?? DISK_BUDGET);
         if (total + size > DISK_BUDGET) await storageOperation(cache.delete(entries[i]));
@@ -233,9 +277,12 @@ export class PackageStore {
       }
       await storageOperation(
         cache.put(url, new Response(bytes, { headers: { "content-length": String(bytes.byteLength) } })),
+        5000,
       );
+      return true;
     } catch {
       /* Storage denial/quota must never prevent playing. */
+      return false;
     }
   }
 
@@ -247,11 +294,12 @@ export class PackageStore {
         if (response) {
           const bytes = await storageOperation(response.arrayBuffer());
           const zip = await this.validate(bytes, job.hash);
-          this.remember(job, zip, bytes.byteLength);
+          this.remember(job, zip, bytes, true);
           devLog(`[PackageStore] disk: ${job.filename}`);
           return zip;
         }
       } catch {
+        this.storageUnavailableUntil = Date.now() + 30000;
         background(
           storageOperation(cache.delete(this.cacheUrl(job))).catch(() => false),
           "PackageStore cache repair",
@@ -283,14 +331,8 @@ export class PackageStore {
           const bytes = await readAssetBuffer(response, undefined, undefined, (loaded) => progress.update(loaded));
           progress.phase = "Preparing";
           const zip = await this.validate(bytes, job.hash);
-          this.remember(job, zip, bytes.byteLength);
-          if (cache && this.pendingWrites < 2) {
-            this.pendingWrites++;
-            this.cacheWrites = this.cacheWrites
-              .then(() => this.persist(cache, job, bytes))
-              .finally(() => this.pendingWrites--);
-            // Validated bytes are usable now. Persistence owns its bounded queue separately.
-          }
+          this.remember(job, zip, bytes);
+          if (cache) this.queuePersistence(cache, job);
           devLog(`[PackageStore] network (${source}): ${job.filename}, ${bytes.byteLength} bytes`);
           return zip;
         } catch (error) {

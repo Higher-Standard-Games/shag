@@ -62,6 +62,18 @@ cancellation detaches its waits; late held-weapon imports cannot replace the
 cancelled view. Required projectile-model failures are reported as preparation
 failures. Simultaneous reads of the same mounted ZIP entry share extraction,
 while pickup and held-view instances retain their separate scene ownership.
+Pickup imports have their own scene/generation ownership and bounded waits too.
+Clearing the map invalidates pending sources and disposes late results. Live
+matches and demo startup prepare player bodies and the same held/projectile
+media before their final presentation check. Required preparation failure
+reports an error rather than exposing an incomplete scene.
+
+Loading-screen holds are operation-owned leases. Releasing or cancelling an
+older match/demo cannot release a newer operation's hold. GPU readiness waits
+count visible active time, suspend while hidden/frozen and remain cancellable.
+Actual rendering context/device loss fails preparation with a retry message.
+Optional audio preparation has a deadline and can continue without pending
+sounds; a live join starts it concurrently with world loading.
 
 The map loading screen temporarily silences sound effects, including ambient
 loops and announcer channels, through the end of its fade. Music continues.

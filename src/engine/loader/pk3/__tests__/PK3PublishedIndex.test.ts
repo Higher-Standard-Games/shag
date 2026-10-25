@@ -77,6 +77,15 @@ function serve(parts: Map<string, string | Uint8Array>) {
   const requests: Array<{ url: string; method: string; cache?: RequestCache }> = [];
   vi.stubGlobal("fetch", async (url: string, options: RequestInit = {}) => {
     requests.push({ url, method: options.method ?? "GET", cache: options.cache });
+    for (const [path, value] of [...parts]) {
+      if (!path.endsWith("pk3_manifest.json") || typeof value !== "string") continue;
+      const manifest = JSON.parse(value);
+      if (manifest.indexFile) {
+        const prefix = path.slice(0, -"pk3_manifest.json".length);
+        const text = parts.get(prefix + "pk3_index.json");
+        if (text !== undefined) parts.set(prefix + manifest.indexFile, text);
+      }
+    }
     const body = parts.get(url);
     if (body === undefined) return new Response("missing", { status: 404 });
     if (options.method === "HEAD")
@@ -89,11 +98,28 @@ function serve(parts: Map<string, string | Uint8Array>) {
 }
 
 describe("published PK3 metadata", () => {
+  it("coalesces concurrent metadata demand and preserves the coherent snapshot on a deploy mismatch", async () => {
+    const data = await fixture();
+    expect(await readFile(join(data.dir, data.manifest.indexFile), "utf8")).toBe(data.text);
+    const parts = new Map<string, string | Uint8Array>([
+      ["/data/pk3_manifest.json", JSON.stringify(data.manifest)],
+      ["/data/pk3_index.json", data.text],
+    ]);
+    const requests = serve(parts);
+    const index = PK3Index.getInstance();
+    index.setSearchPaths(["/data/"]);
+    await Promise.all([index.ensureIndex(), index.ensureIndex(), index.ensureIndex()]);
+    expect(requests).toHaveLength(2);
+    parts.set("/data/pk3_index.json", "incomplete deploy");
+    expect(await index.ensureIndex()).toBe(false);
+    expect(index.findMap("arena")).toBe("z_override.pk3");
+    expect(requests.every((request) => request.method === "GET" && request.url.endsWith(".json"))).toBe(true);
+  });
   it("loads metadata over real HTTP, then lazily downloads only the selected map package", async () => {
     const data = await fixture();
     const bodies = new Map<string, string | Uint8Array>([
       ["/data/pk3_manifest.json", JSON.stringify(data.manifest)],
-      ["/data/pk3_index.json", data.text],
+      [`/data/${data.manifest.indexFile}`, data.text],
     ]);
     for (const filename of data.manifest.files)
       bodies.set(`/data/${filename}`, Uint8Array.from(await readFile(join(data.dir, filename))));
@@ -113,13 +139,13 @@ describe("published PK3 metadata", () => {
       const index = PK3Index.getInstance();
       index.setSearchPaths([`http://127.0.0.1:${address.port}/data/`]);
       await index.ensureIndex();
-      expect(requests).toEqual(["/data/pk3_manifest.json", "/data/pk3_index.json"]);
+      expect(requests).toEqual(["/data/pk3_manifest.json", `/data/${data.manifest.indexFile}`]);
       const owner = index.findMap("arena")!;
       loader.unloadAll();
       await loader.loadPK3FromUrl(index.getPK3Path(owner)!);
       expect(new TextDecoder().decode((await loader.getFile("maps/arena.bsp"))!)).toBe("override");
       expect(loader.getPackageInfo().map((entry) => entry.filename)).toEqual(["z_override.pk3"]);
-      expect(requests).toEqual(["/data/pk3_manifest.json", "/data/pk3_index.json", "/data/z_override.pk3"]);
+      expect(requests).toEqual(["/data/pk3_manifest.json", `/data/${data.manifest.indexFile}`, "/data/z_override.pk3"]);
     } finally {
       loader.unloadAll();
       server.closeAllConnections();
@@ -188,7 +214,7 @@ describe("published PK3 metadata", () => {
     expect(parsePublishedIndex(`${data.text} `, data.manifest, "/data/")).toBeNull();
   });
 
-  it("falls back to runtime scanning for a stale snapshot or an old files-only manifest", async () => {
+  it("retries published mismatch without archive scanning and retains legacy files-only scanning", async () => {
     const data = await fixture();
     for (const manifest of [data.manifest, { files: data.manifest.files }]) {
       const parts = new Map<string, string | Uint8Array>([
@@ -201,9 +227,14 @@ describe("published PK3 metadata", () => {
       const index = PK3Index.getInstance();
       index.clear();
       index.setSearchPaths(["/data/"]);
-      await index.ensureIndex();
-      expect(index.findMap("arena")).toBe("z_override.pk3");
-      expect(requests.filter((request) => request.url.endsWith(".pk3") && request.method === "GET")).toHaveLength(2);
+      if ("indexHash" in manifest) {
+        await expect(index.ensureIndex()).rejects.toThrow("metadata is incomplete");
+        expect(requests.filter((request) => request.url.endsWith(".pk3"))).toHaveLength(0);
+      } else {
+        await index.ensureIndex();
+        expect(index.findMap("arena")).toBe("z_override.pk3");
+        expect(requests.filter((request) => request.url.endsWith(".pk3") && request.method === "GET")).toHaveLength(2);
+      }
     }
   });
 
