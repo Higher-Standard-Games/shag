@@ -21,6 +21,7 @@ import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { Scene } from "@babylonjs/core/scene";
 import "@babylonjs/loaders/glTF";
 
+import { resolveModelAsset } from "../../loader/model/ModelAsset";
 import { UIStyles } from "../UIStyles";
 import logoCanvasCSSRaw from "./styles/LogoCanvas.css?raw";
 
@@ -197,7 +198,8 @@ export class LogoCanvas {
     // ── Load the model ──
     const modelPath = this.options.modelPath ?? "/data/washoi_opt.glb";
     try {
-      const result = await ImportMeshAsync(modelPath, this.scene);
+      const asset = await resolveModelAsset(modelPath);
+      const result = await ImportMeshAsync(asset.source, this.scene, asset.options);
 
       if (result.meshes.length > 0) {
         const root = result.meshes[0];

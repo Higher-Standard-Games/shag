@@ -2,7 +2,7 @@ import JSZip from "jszip";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { PK3Index } from "../../pk3/PK3Index";
 import { PK3Loader } from "../../pk3/PK3Loader";
-import { readIndexedModelAsset, resolveModelAsset } from "../ModelAsset";
+import { isIndexedModelDirectory, readIndexedModelAsset, resolveModelAsset } from "../ModelAsset";
 
 const asset = "models/weapons/glauncher/glauncher.glb";
 const cfg = "models/weapons/glauncher/glauncher.cfg";
@@ -77,5 +77,15 @@ it("keeps unindexed custom URLs and non-GLB imports on their original loader pat
     source: "model.obj",
     options: { rootUrl: "/data/custom/" },
   });
+  expect(fetchMock).not.toHaveBeenCalled();
+});
+
+it("recognizes packaged directories without confusing custom origins or similarly named paths", async () => {
+  await bank("z_weapons.pk3", [1]);
+  expect(isIndexedModelDirectory("/data/models/weapons/glauncher/")).toBe(true);
+  expect(isIndexedModelDirectory("models/weapons/glauncher")).toBe(true);
+  expect(isIndexedModelDirectory("/data/models/weapons/glaunch/")).toBe(false);
+  expect(isIndexedModelDirectory("https://custom.invalid/data/models/weapons/glauncher/")).toBe(false);
+  expect(isIndexedModelDirectory("/custom/")).toBe(false);
   expect(fetchMock).not.toHaveBeenCalled();
 });

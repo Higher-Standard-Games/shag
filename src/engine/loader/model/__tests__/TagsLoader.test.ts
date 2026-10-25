@@ -1,8 +1,8 @@
 import { afterEach, expect, it, vi } from "vitest";
-import { readIndexedModelAsset } from "../ModelAsset";
+import { isIndexedModelDirectory, readIndexedModelAsset } from "../ModelAsset";
 import { loadTags } from "../TagsLoader";
 
-vi.mock("../ModelAsset", () => ({ readIndexedModelAsset: vi.fn() }));
+vi.mock("../ModelAsset", () => ({ readIndexedModelAsset: vi.fn(), isIndexedModelDirectory: vi.fn() }));
 afterEach(() => {
   vi.resetAllMocks();
   vi.unstubAllGlobals();
@@ -29,4 +29,15 @@ it("treats absent optional tags as no attachment override", async () => {
   vi.mocked(readIndexedModelAsset).mockResolvedValue(null);
   vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response("", { status: 404 })));
   expect(await loadTags("/custom/")).toEqual([]);
+});
+
+it("does not repeatedly request absent loose sidecars for packaged launcher models", async () => {
+  vi.mocked(readIndexedModelAsset).mockResolvedValue(null);
+  vi.mocked(isIndexedModelDirectory).mockReturnValue(true);
+  const fetchMock = vi.fn();
+  vi.stubGlobal("fetch", fetchMock);
+  expect(await Promise.all(Array.from({ length: 20 }, () => loadTags("/data/models/weapons/glauncher/")))).toEqual(
+    Array.from({ length: 20 }, () => []),
+  );
+  expect(fetchMock).not.toHaveBeenCalled();
 });

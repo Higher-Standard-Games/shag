@@ -18,7 +18,7 @@
 
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { devLog } from "../../core/DevLog";
-import { readIndexedModelAsset } from "./ModelAsset";
+import { isIndexedModelDirectory, readIndexedModelAsset } from "./ModelAsset";
 
 export interface TagDef {
   /** Bone name in the skeleton (empty string = model root) */
@@ -67,7 +67,7 @@ export function parseTags(content: string): TagDef[] {
 }
 
 /**
- * Read indexed attachment tags, falling back to a custom/loose URL.
+ * Read indexed attachment tags, falling back only for custom/loose models.
  * Returns empty array if file doesn't exist (no error).
  */
 export async function loadTags(dirPath: string): Promise<TagDef[]> {
@@ -75,6 +75,7 @@ export async function loadTags(dirPath: string): Promise<TagDef[]> {
   try {
     const bytes = await readIndexedModelAsset(url);
     if (bytes) return parseTags(new TextDecoder().decode(bytes));
+    if (isIndexedModelDirectory(dirPath)) return [];
     const response = await fetch(url);
     if (!response.ok) return [];
     const content = await response.text();

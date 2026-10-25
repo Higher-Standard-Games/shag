@@ -63,11 +63,13 @@ Saved sound levels and enabled settings are preserved; muted one-shots are
 dropped rather than played when loading finishes.
 
 Weapon GLBs and their configs live inside `public/data/washoi_weapons.pk3`, alongside
-the original IQM/MD3 models and textures. First-person weapons, pickups, dropped
-weapons and remote weapons resolve indexed GLBs to embedded bytes; the ordinary
+the original IQM/MD3 models and textures. First-person weapons, loadout previews,
+pickups, dropped weapons and remote weapons resolve indexed GLBs to embedded bytes; the ordinary
 PK3 loader handles lazy downloads and mirrors. Unindexed custom URLs retain
 normal file loading. Ammo counters read their packaged `.cfg` sidecars too.
-Attachment rules read packaged `tags.txt` before trying a loose/custom URL.
+Attachment rules read packaged `tags.txt`. Missing optional tags in an indexed
+model directory use the GLB sockets or existing fallback without a loose HTTP
+probe. Unindexed custom models may supply `tags.txt` beside the model URL.
 Plasma's `tag_barrel2` rule is required to place its two barrels correctly.
 
 Firefox WebGL shares read-only native PBR materials between remote held weapons

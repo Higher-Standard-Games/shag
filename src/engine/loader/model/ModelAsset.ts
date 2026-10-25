@@ -1,6 +1,17 @@
 import { PK3Index } from "../pk3/PK3Index";
 import { PK3Loader } from "../pk3/PK3Loader";
 
+/** Indexed model directories do not require loose optional attachment sidecars. */
+export function isIndexedModelDirectory(path: string): boolean {
+  if (/^(?:https?:|blob:|data:)/i.test(path)) return false;
+  const directory = path
+    .replace(/\\/g, "/")
+    .replace(/^\/?data\//i, "")
+    .replace(/^\/+/, "");
+  if (!directory) return false;
+  return PK3Index.getInstance().findByPattern(`${directory.endsWith("/") ? directory : `${directory}/`}*`).length > 0;
+}
+
 /** Read an indexed model or sidecar, respecting replacement package ownership. */
 export async function readIndexedModelAsset(path: string): Promise<ArrayBuffer | null> {
   if (/^(?:https?:|blob:|data:)/i.test(path)) return null;
