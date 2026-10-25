@@ -1,0 +1,620 @@
+{
+  "typescript": "5.9.3",
+  "method": "Project-local declared and TypeScript-emitted import/reexport/literal dynamic-import graph; JSON targets counted as leaves. Counts include each entry. External-package internals, computed imports and import.meta.glob are not expanded. Not a bundle-size or runtime-execution measurement.",
+  "entries": [
+    {
+      "entry": "src/engine/loader/pk3/PackageStore.ts",
+      "sourceSha256": "c9391f0150ed58fb2e19b8d07b1bd751d8a503cd696e86cbc4ce20eb127e97ff",
+      "declaredLocalVertices": 9,
+      "emittedLocalVertices": 9,
+      "emittedBabylonSpecifiers": 0,
+      "shortestEmittedBabylonPath": null
+    },
+    {
+      "entry": "src/engine/loader/pk3/PK3Index.ts",
+      "sourceSha256": "3ca69299ab7bb07b2786badb97235465f5f6a241bcab8b49de348aaf68ff02f2",
+      "declaredLocalVertices": 14,
+      "emittedLocalVertices": 13,
+      "emittedBabylonSpecifiers": 0,
+      "shortestEmittedBabylonPath": null
+    },
+    {
+      "entry": "src/engine/loader/pk3/PK3Loader.ts",
+      "sourceSha256": "457dfa8cb43e6f295cb96ede23b089cb394b09acde6e82d52510f56e75a7c385",
+      "declaredLocalVertices": 11,
+      "emittedLocalVertices": 10,
+      "emittedBabylonSpecifiers": 0,
+      "shortestEmittedBabylonPath": null
+    },
+    {
+      "entry": "src/engine/loader/bsp/BspLoader.ts",
+      "sourceSha256": "1492b6f9a2a496e5381c0d82b67c7fec2a26abec6d9cf044be29e2e246395864",
+      "declaredLocalVertices": 5,
+      "emittedLocalVertices": 5,
+      "emittedBabylonSpecifiers": 0,
+      "shortestEmittedBabylonPath": null
+    },
+    {
+      "entry": "src/engine/loader/shader/Q3ShaderParser.ts",
+      "sourceSha256": "efe4b25e081b67788500d2aa3c5085193ce29964ea2d80ca0bd127ffc3cc6186",
+      "declaredLocalVertices": 2,
+      "emittedLocalVertices": 2,
+      "emittedBabylonSpecifiers": 0,
+      "shortestEmittedBabylonPath": null
+    },
+    {
+      "entry": "src/engine/loader/shader/Q3ShaderRegistry.ts",
+      "sourceSha256": "37bb04c12f04801d54aa0af4dc1b86cac1b3f2f62d3c02c5168b75140497ac88",
+      "declaredLocalVertices": 15,
+      "emittedLocalVertices": 14,
+      "emittedBabylonSpecifiers": 0,
+      "shortestEmittedBabylonPath": null
+    },
+    {
+      "entry": "src/engine/loader/bsp/mesh/faceBuilders.ts",
+      "sourceSha256": "3ba6396c363fcabe3dccdac97f3362072343c2304d110bea4bc62dd742ace668",
+      "declaredLocalVertices": 22,
+      "emittedLocalVertices": 3,
+      "emittedBabylonSpecifiers": 1,
+      "shortestEmittedBabylonPath": [
+        "src/engine/loader/bsp/mesh/faceBuilders.ts",
+        "src/engine/loader/bsp/mesh/vertices.ts",
+        "src/engine/loader/bsp/mesh/coordinates.ts",
+        "@babylonjs/core/Maths/math.vector"
+      ]
+    },
+    {
+      "entry": "src/engine/loader/bsp/mesh/coordinates.ts",
+      "sourceSha256": "31224839b4e80b3a3ef96cdaa04a9cf3d2a09e7e8d8fd2a37746390dfb8bddf1",
+      "declaredLocalVertices": 1,
+      "emittedLocalVertices": 1,
+      "emittedBabylonSpecifiers": 1,
+      "shortestEmittedBabylonPath": [
+        "src/engine/loader/bsp/mesh/coordinates.ts",
+        "@babylonjs/core/Maths/math.vector"
+      ]
+    },
+    {
+      "entry": "src/engine/loader/bsp/mesh/types.ts",
+      "sourceSha256": "e09dd7f6ef0feca9d150a9b0d5909dbf4e6c054f7eae40a331a44f29aa1d6e8b",
+      "declaredLocalVertices": 19,
+      "emittedLocalVertices": 1,
+      "emittedBabylonSpecifiers": 0,
+      "shortestEmittedBabylonPath": null
+    },
+    {
+      "entry": "src/engine/loader/bsp/mesh/pvs.ts",
+      "sourceSha256": "2d1c695b26c0c93401e35eb2aed83ebe586be62e7023636d112b65bf92d2e677",
+      "declaredLocalVertices": 6,
+      "emittedLocalVertices": 1,
+      "emittedBabylonSpecifiers": 0,
+      "shortestEmittedBabylonPath": null
+    },
+    {
+      "entry": "src/engine/loader/bsp/mesh/spatialBatching.ts",
+      "sourceSha256": "b941a4c7c504346e60aba94b96639b191658c28bbc71318d2b660f9561f67c34",
+      "declaredLocalVertices": 6,
+      "emittedLocalVertices": 1,
+      "emittedBabylonSpecifiers": 0,
+      "shortestEmittedBabylonPath": null
+    },
+    {
+      "entry": "src/engine/loader/bsp/mesh/tangents.ts",
+      "sourceSha256": "b41e0e71068cd88a8fba9c11547c27b0d1435b10fe1658611c1b487bb80a43cf",
+      "declaredLocalVertices": 1,
+      "emittedLocalVertices": 1,
+      "emittedBabylonSpecifiers": 0,
+      "shortestEmittedBabylonPath": null
+    },
+    {
+      "entry": "src/engine/loader/map/MapLoadWait.ts",
+      "sourceSha256": "ce2ec4fe7414f82727048c5557d64f7f5dd6162ae59fb5ce56830ce776f63415",
+      "declaredLocalVertices": 1,
+      "emittedLocalVertices": 1,
+      "emittedBabylonSpecifiers": 0,
+      "shortestEmittedBabylonPath": null
+    },
+    {
+      "entry": "src/engine/loader/map/GpuPreparation.ts",
+      "sourceSha256": "16383e3834cc1981dcabdec43f3cbeca2330126595012c8a2163ab3c8d242490",
+      "declaredLocalVertices": 2,
+      "emittedLocalVertices": 2,
+      "emittedBabylonSpecifiers": 0,
+      "shortestEmittedBabylonPath": null
+    },
+    {
+      "entry": "src/engine/loader/model/ModelAsset.ts",
+      "sourceSha256": "ae23181dd443bf1ceaa83cb8aafa89766b50bb9cba4e8953d245d9fa9924ca48",
+      "declaredLocalVertices": 16,
+      "emittedLocalVertices": 15,
+      "emittedBabylonSpecifiers": 0,
+      "shortestEmittedBabylonPath": null
+    },
+    {
+      "entry": "src/engine/loader/model/TagsLoader.ts",
+      "sourceSha256": "76949e298d704e0dbbb03124c3d3cf9ee484d5c89ac50ccc99671dd05f73eb72",
+      "declaredLocalVertices": 17,
+      "emittedLocalVertices": 16,
+      "emittedBabylonSpecifiers": 1,
+      "shortestEmittedBabylonPath": [
+        "src/engine/loader/model/TagsLoader.ts",
+        "@babylonjs/core/Maths/math.vector"
+      ]
+    },
+    {
+      "entry": "src/engine/loader/model/ModelInstanceCache.ts",
+      "sourceSha256": "14f549032724cedc9dac545fb101a16e54aa4bdee1d713cf6eb6805e3858d289",
+      "declaredLocalVertices": 155,
+      "emittedLocalVertices": 9,
+      "emittedBabylonSpecifiers": 11,
+      "shortestEmittedBabylonPath": [
+        "src/engine/loader/model/ModelInstanceCache.ts",
+        "@babylonjs/core/assetContainer"
+      ]
+    },
+    {
+      "entry": "src/engine/loader/texture/TextureReduction.ts",
+      "sourceSha256": "14f546b4465e0f28ce7dffafce4da226f54b03816701df9a2cfbf1f6e82b5bfc",
+      "declaredLocalVertices": 1,
+      "emittedLocalVertices": 1,
+      "emittedBabylonSpecifiers": 0,
+      "shortestEmittedBabylonPath": null
+    },
+    {
+      "entry": "src/engine/loader/texture/TgaDecoder.ts",
+      "sourceSha256": "2ee74a763654bf3d5ec1be6738ba14c8e6c19c520683d4c9e001a65384d3bdc4",
+      "declaredLocalVertices": 1,
+      "emittedLocalVertices": 1,
+      "emittedBabylonSpecifiers": 0,
+      "shortestEmittedBabylonPath": null
+    },
+    {
+      "entry": "src/engine/loader/texture/KTX1Loader.ts",
+      "sourceSha256": "85f286c5618bce1e9a168f3dcc7d0c1b7cd69b7bcfe5dcbca5bf05a089678bc5",
+      "declaredLocalVertices": 6,
+      "emittedLocalVertices": 6,
+      "emittedBabylonSpecifiers": 1,
+      "shortestEmittedBabylonPath": [
+        "src/engine/loader/texture/KTX1Loader.ts",
+        "@babylonjs/core/Engines/constants"
+      ]
+    },
+    {
+      "entry": "src/engine/runtime/BrowserRuntime.ts",
+      "sourceSha256": "0673dce8915ac06796e37aa4c6f92169b84c288f65a124ebd72c0257be85ca86",
+      "declaredLocalVertices": 212,
+      "emittedLocalVertices": 208,
+      "emittedBabylonSpecifiers": 120,
+      "shortestEmittedBabylonPath": [
+        "src/engine/runtime/BrowserRuntime.ts",
+        "@babylonjs/core/Maths/math.color"
+      ]
+    },
+    {
+      "entry": "src/engine/core/EngineServices.ts",
+      "sourceSha256": "2a80870d6b3835c33c3991cc0ec76dc27bb8f78d2891326b4e2267d92ec4da44",
+      "declaredLocalVertices": 218,
+      "emittedLocalVertices": 173,
+      "emittedBabylonSpecifiers": 87,
+      "shortestEmittedBabylonPath": [
+        "src/engine/core/EngineServices.ts",
+        "src/engine/AudioManager.ts",
+        "@babylonjs/core/Maths/math.vector"
+      ]
+    },
+    {
+      "entry": "src/engine/core/index.ts",
+      "sourceSha256": "1262567ba2d66e7ced046bac3f1cc1b467a425c41ea8254026822838e31dc1ed",
+      "declaredLocalVertices": 226,
+      "emittedLocalVertices": 183,
+      "emittedBabylonSpecifiers": 87,
+      "shortestEmittedBabylonPath": [
+        "src/engine/core/index.ts",
+        "src/engine/core/WorldIndicatorSystem.ts",
+        "@babylonjs/core/Maths/math.vector"
+      ]
+    },
+    {
+      "entry": "src/engine/loader/index.ts",
+      "sourceSha256": "e165c06fc3918aeb6933334174e99e2de6ff593720d09c0c68dfc82f312cd729",
+      "declaredLocalVertices": 207,
+      "emittedLocalVertices": 203,
+      "emittedBabylonSpecifiers": 109,
+      "shortestEmittedBabylonPath": [
+        "src/engine/loader/index.ts",
+        "src/engine/loader/bsp/index.ts",
+        "src/engine/loader/bsp/BspManager.ts",
+        "@babylonjs/core/Maths/math.vector"
+      ]
+    },
+    {
+      "entry": "src/engine/loader/map/MapLoader.ts",
+      "sourceSha256": "940e01c3b41d22148da430b00cd4c7cf80e8d1f7bb84129ecd9eb8c8960f4100",
+      "declaredLocalVertices": 194,
+      "emittedLocalVertices": 190,
+      "emittedBabylonSpecifiers": 98,
+      "shortestEmittedBabylonPath": [
+        "src/engine/loader/map/MapLoader.ts",
+        "@babylonjs/core/Maths/math.vector"
+      ]
+    },
+    {
+      "entry": "src/engine/loader/bsp/BspMeshBuilder.ts",
+      "sourceSha256": "0c75eca1c039439612214a44ea8db3d5a63620db46d2f4a72913ee4de32a2933",
+      "declaredLocalVertices": 155,
+      "emittedLocalVertices": 149,
+      "emittedBabylonSpecifiers": 83,
+      "shortestEmittedBabylonPath": [
+        "src/engine/loader/bsp/BspMeshBuilder.ts",
+        "@babylonjs/core/Buffers/buffer"
+      ]
+    },
+    {
+      "entry": "src/engine/camera/FirstPersonPose.ts",
+      "sourceSha256": "07275d40e567cda6d6a85eb532f580d7a6b1a2f4a92ab8413e60187e03919033",
+      "declaredLocalVertices": 4,
+      "emittedLocalVertices": 2,
+      "emittedBabylonSpecifiers": 1,
+      "shortestEmittedBabylonPath": [
+        "src/engine/camera/FirstPersonPose.ts",
+        "src/engine/viewport/applicators/FPSApplicator.ts",
+        "@babylonjs/core/Maths/math.vector"
+      ]
+    },
+    {
+      "entry": "src/engine/viewport/FirstPersonEffects.ts",
+      "sourceSha256": "43389a54f8c4e0b6bf0f3b87f704e7839202cdfce9678a7ea2e636fc7e9a096b",
+      "declaredLocalVertices": 15,
+      "emittedLocalVertices": 14,
+      "emittedBabylonSpecifiers": 1,
+      "shortestEmittedBabylonPath": [
+        "src/engine/viewport/FirstPersonEffects.ts",
+        "src/engine/viewport/effects/IdleBreathingEffect.ts",
+        "@babylonjs/core/Maths/math.vector"
+      ]
+    },
+    {
+      "entry": "src/engine/weapon/voltaic/VoltaicBeamGeometry.ts",
+      "sourceSha256": "54a284a2f9b483e65940ba8a499246bf2fb7835a30680b0755bf7878fe255bab",
+      "declaredLocalVertices": 2,
+      "emittedLocalVertices": 2,
+      "emittedBabylonSpecifiers": 0,
+      "shortestEmittedBabylonPath": null
+    },
+    {
+      "entry": "src/engine/weapon/voltaic/VoltaicProfiles.ts",
+      "sourceSha256": "7c94d43c8d4cc96a6d959f1ebd9964d7c9de8f047aab75edeec41469d8c9ce5c",
+      "declaredLocalVertices": 1,
+      "emittedLocalVertices": 1,
+      "emittedBabylonSpecifiers": 0,
+      "shortestEmittedBabylonPath": null
+    },
+    {
+      "entry": "src/engine/weapon/rail/RailBeamGeometry.ts",
+      "sourceSha256": "9cf62b220efc20e88975aa753699f758ebcfe38f6e4940a84e503ce120421086",
+      "declaredLocalVertices": 3,
+      "emittedLocalVertices": 3,
+      "emittedBabylonSpecifiers": 0,
+      "shortestEmittedBabylonPath": null
+    },
+    {
+      "entry": "src/engine/weapon/WeaponBob.ts",
+      "sourceSha256": "8a439611cc5eeed8c0801bd2f66cebf956a561bfcd495e81a925a8e3de19b553",
+      "declaredLocalVertices": 5,
+      "emittedLocalVertices": 5,
+      "emittedBabylonSpecifiers": 0,
+      "shortestEmittedBabylonPath": null
+    },
+    {
+      "entry": "src/games/fps/client/RemotePlayerLogic.ts",
+      "sourceSha256": "3c11f5813c9bad592a887ab228f86e4e8e84658c5d649c23fad563d2f0c0367d",
+      "declaredLocalVertices": 56,
+      "emittedLocalVertices": 2,
+      "emittedBabylonSpecifiers": 0,
+      "shortestEmittedBabylonPath": null
+    },
+    {
+      "entry": "src/games/fps/client/DemoAnimationTimeline.ts",
+      "sourceSha256": "65af9219e9ee707edd05628ef8feb0c8a0724c94c0ab671840422ce2fbd02f70",
+      "declaredLocalVertices": 1,
+      "emittedLocalVertices": 1,
+      "emittedBabylonSpecifiers": 0,
+      "shortestEmittedBabylonPath": null
+    },
+    {
+      "entry": "src/games/fps/client/GameEvents.ts",
+      "sourceSha256": "89b73f1e6e46ebdcc34262a9d6971f04a8dbfa28e60f48f63cb2950902aa0538",
+      "declaredLocalVertices": 493,
+      "emittedLocalVertices": 456,
+      "emittedBabylonSpecifiers": 112,
+      "shortestEmittedBabylonPath": [
+        "src/games/fps/client/GameEvents.ts",
+        "@babylonjs/core/Lights/pointLight"
+      ]
+    },
+    {
+      "entry": "src/games/fps/client/SnapshotStateStore.ts",
+      "sourceSha256": "2e91eedace6c3fa42e3220f9a8ae1977e07ffe84924e867605d4dc60c6f4a04c",
+      "declaredLocalVertices": 50,
+      "emittedLocalVertices": 32,
+      "emittedBabylonSpecifiers": 3,
+      "shortestEmittedBabylonPath": [
+        "src/games/fps/client/SnapshotStateStore.ts",
+        "src/games/fps/client/MatchStateManager.ts",
+        "src/engine/physics/CollisionManager.ts",
+        "src/engine/physics/BabylonPhysicsBackend.ts",
+        "@babylonjs/core/Culling/ray"
+      ]
+    },
+    {
+      "entry": "src/games/fps/client/ServerProjectiles.ts",
+      "sourceSha256": "53e92d971d4766dea142c844015fb1209a89c4f900fd1eea75be6410f87c7301",
+      "declaredLocalVertices": 202,
+      "emittedLocalVertices": 151,
+      "emittedBabylonSpecifiers": 83,
+      "shortestEmittedBabylonPath": [
+        "src/games/fps/client/ServerProjectiles.ts",
+        "@babylonjs/core/Maths/math.vector"
+      ]
+    },
+    {
+      "entry": "src/games/fps/Game.ts",
+      "sourceSha256": "a577b2257238aaeffd29099c87a6166f19c0cee44d9e09b1bef53b04eda8a61a",
+      "declaredLocalVertices": 493,
+      "emittedLocalVertices": 456,
+      "emittedBabylonSpecifiers": 112,
+      "shortestEmittedBabylonPath": [
+        "src/games/fps/Game.ts",
+        "@babylonjs/core/Engines/engineStore"
+      ]
+    },
+    {
+      "entry": "src/games/fps/client/main.ts",
+      "sourceSha256": "edbd669a555e6be2914426e06e416e6bc544b6172290514ab5df5520c148e635",
+      "declaredLocalVertices": 650,
+      "emittedLocalVertices": 615,
+      "emittedBabylonSpecifiers": 146,
+      "shortestEmittedBabylonPath": [
+        "src/games/fps/client/main.ts",
+        "@babylonjs/core/Cameras/freeCamera"
+      ]
+    },
+    {
+      "entry": "src/games/fps/client/TimedemoService.ts",
+      "sourceSha256": "daca3d30b399a41bfd976af952d08e2bfac6ca731ed68baf904b6cd35d0e3fa5",
+      "declaredLocalVertices": 498,
+      "emittedLocalVertices": 462,
+      "emittedBabylonSpecifiers": 125,
+      "shortestEmittedBabylonPath": [
+        "src/games/fps/client/TimedemoService.ts",
+        "@babylonjs/core/Engines/engine"
+      ]
+    },
+    {
+      "entry": "src/engine/console/commands/index.ts",
+      "sourceSha256": "e6814f5d77a9112e2a6b513cfcd48149df015235e45c1935feb0cdc82061d9d6",
+      "declaredLocalVertices": 37,
+      "emittedLocalVertices": 36,
+      "emittedBabylonSpecifiers": 3,
+      "shortestEmittedBabylonPath": [
+        "src/engine/console/commands/index.ts",
+        "src/engine/debug/DebugConsole.ts",
+        "src/engine/ui/LoadingScreen.ts",
+        "src/engine/AudioManager.ts",
+        "@babylonjs/core/Maths/math.vector"
+      ]
+    },
+    {
+      "entry": "src/games/fps/client/registerServices.ts",
+      "sourceSha256": "ac03342620fcbb02d2d700d14e3361af27e5e4b866ecb0693b756b7e181c350b",
+      "declaredLocalVertices": 527,
+      "emittedLocalVertices": 486,
+      "emittedBabylonSpecifiers": 124,
+      "shortestEmittedBabylonPath": [
+        "src/games/fps/client/registerServices.ts",
+        "src/games/fps/index.ts",
+        "src/games/fps/Game.ts",
+        "@babylonjs/core/Engines/engineStore"
+      ]
+    },
+    {
+      "entry": "src/engine/loader/bsp/LightGridSampling.ts",
+      "sourceSha256": "5efc8cb47157ffd8ad85809a088a1eea8fd7b8fd00b56b8091679347a117b74f",
+      "declaredLocalVertices": 6,
+      "emittedLocalVertices": 1,
+      "emittedBabylonSpecifiers": 0,
+      "shortestEmittedBabylonPath": null
+    },
+    {
+      "entry": "src/engine/loader/bsp/BspLightingProfile.ts",
+      "sourceSha256": "bff4ee7540b347b8c6f466fc608cf3256917e017d87f8077dc011318e3804c0b",
+      "declaredLocalVertices": 6,
+      "emittedLocalVertices": 1,
+      "emittedBabylonSpecifiers": 0,
+      "shortestEmittedBabylonPath": null
+    },
+    {
+      "entry": "src/engine/loader/bsp/WorldFog.ts",
+      "sourceSha256": "dccfb94594a9badf3aebdb387886923fd4a2bfe7327f98d94d74c8adedb97cf3",
+      "declaredLocalVertices": 1,
+      "emittedLocalVertices": 1,
+      "emittedBabylonSpecifiers": 0,
+      "shortestEmittedBabylonPath": null
+    },
+    {
+      "entry": "src/engine/loader/bsp/LiquidClassifier.ts",
+      "sourceSha256": "f7293e41c1e42cb2acbc7a5363d48b4b01ed7d97d8483bce9f7f3d0da55b85a4",
+      "declaredLocalVertices": 7,
+      "emittedLocalVertices": 2,
+      "emittedBabylonSpecifiers": 0,
+      "shortestEmittedBabylonPath": null
+    },
+    {
+      "entry": "src/engine/rendering/water/WaterDisturbances.ts",
+      "sourceSha256": "0566a3a8555b483b80bb407c3b7c3503a1b87782aba6e4e937c5cab58196438d",
+      "declaredLocalVertices": 1,
+      "emittedLocalVertices": 1,
+      "emittedBabylonSpecifiers": 0,
+      "shortestEmittedBabylonPath": null
+    },
+    {
+      "entry": "src/engine/rendering/water/WaterNoise.ts",
+      "sourceSha256": "ecb5e1ec02a712a76c4f5432b40164417000be0e229dd37b543e31f055e612ac",
+      "declaredLocalVertices": 1,
+      "emittedLocalVertices": 1,
+      "emittedBabylonSpecifiers": 0,
+      "shortestEmittedBabylonPath": null
+    },
+    {
+      "entry": "src/engine/viewport/ViewportDelta.ts",
+      "sourceSha256": "81392b91eb0ff7a4a883b791e88277e11d57a5a8724a30ca6d3c4d127be253cf",
+      "declaredLocalVertices": 1,
+      "emittedLocalVertices": 1,
+      "emittedBabylonSpecifiers": 1,
+      "shortestEmittedBabylonPath": [
+        "src/engine/viewport/ViewportDelta.ts",
+        "@babylonjs/core/Maths/math.vector"
+      ]
+    },
+    {
+      "entry": "src/engine/viewport/PlayerState.ts",
+      "sourceSha256": "ce6692ff0539adc98a2a2f52c7cbf9192563d0d892be9fc1ed5d3390f1afdada",
+      "declaredLocalVertices": 1,
+      "emittedLocalVertices": 1,
+      "emittedBabylonSpecifiers": 1,
+      "shortestEmittedBabylonPath": [
+        "src/engine/viewport/PlayerState.ts",
+        "@babylonjs/core/Maths/math.vector"
+      ]
+    },
+    {
+      "entry": "src/engine/animation/PlayerAnimationState.ts",
+      "sourceSha256": "51dbe64108f10189678e0895856e5927552e57025aa9c8c371fbe0051180d3ca",
+      "declaredLocalVertices": 1,
+      "emittedLocalVertices": 1,
+      "emittedBabylonSpecifiers": 1,
+      "shortestEmittedBabylonPath": [
+        "src/engine/animation/PlayerAnimationState.ts",
+        "@babylonjs/core/Maths/math.vector"
+      ]
+    },
+    {
+      "entry": "src/engine/camera/FirstPersonMotion.ts",
+      "sourceSha256": "824313ff4f5548ff832c8c3217e6d99941f4fc655305e98bd88af2793c587252",
+      "declaredLocalVertices": 1,
+      "emittedLocalVertices": 1,
+      "emittedBabylonSpecifiers": 0,
+      "shortestEmittedBabylonPath": null
+    },
+    {
+      "entry": "src/engine/camera/controllers/ViewKick.ts",
+      "sourceSha256": "d9d5ab4c058eef48c7eac694167f3607e77a4abaa1a4eed372067a79f619a7a6",
+      "declaredLocalVertices": 1,
+      "emittedLocalVertices": 1,
+      "emittedBabylonSpecifiers": 0,
+      "shortestEmittedBabylonPath": null
+    },
+    {
+      "entry": "src/engine/lighting/MapAreaLightEntities.ts",
+      "sourceSha256": "dce4bd6d37f4ca64fa6c1fc277af4bbda3092a180e742a9311f034520d3b7fa5",
+      "declaredLocalVertices": 7,
+      "emittedLocalVertices": 2,
+      "emittedBabylonSpecifiers": 2,
+      "shortestEmittedBabylonPath": [
+        "src/engine/lighting/MapAreaLightEntities.ts",
+        "@babylonjs/core/Maths/math.color"
+      ]
+    },
+    {
+      "entry": "src/engine/lighting/MapGodRayEntities.ts",
+      "sourceSha256": "56bdff2eaf4d7db395c88b7c2dca826a9c55b2ad27041a6a7a00fb6f3235471d",
+      "declaredLocalVertices": 6,
+      "emittedLocalVertices": 1,
+      "emittedBabylonSpecifiers": 2,
+      "shortestEmittedBabylonPath": [
+        "src/engine/lighting/MapGodRayEntities.ts",
+        "@babylonjs/core/Maths/math.color"
+      ]
+    },
+    {
+      "entry": "src/engine/lighting/MapEmissiveSurfaces.ts",
+      "sourceSha256": "c1d620c78435d37608ff6b28347e2ecf8eb4324e9741468d977167fd9342a4c1",
+      "declaredLocalVertices": 6,
+      "emittedLocalVertices": 1,
+      "emittedBabylonSpecifiers": 1,
+      "shortestEmittedBabylonPath": [
+        "src/engine/lighting/MapEmissiveSurfaces.ts",
+        "@babylonjs/core/Maths/math.vector"
+      ]
+    },
+    {
+      "entry": "src/engine/rendering/AtmosphericFogShader.ts",
+      "sourceSha256": "f08ea5155b8ec5a21389babf47854c56592375b600afa61a4eb65d54703db37a",
+      "declaredLocalVertices": 10,
+      "emittedLocalVertices": 10,
+      "emittedBabylonSpecifiers": 12,
+      "shortestEmittedBabylonPath": [
+        "src/engine/rendering/AtmosphericFogShader.ts",
+        "src/engine/rendering/WorldFogController.ts",
+        "@babylonjs/core/Maths/math.color"
+      ]
+    },
+    {
+      "entry": "src/engine/effects/WindSystem.ts",
+      "sourceSha256": "59137223d66dff0909bdda12e49905f7d64f12bb1020ce644b838b36a930f1fd",
+      "declaredLocalVertices": 5,
+      "emittedLocalVertices": 5,
+      "emittedBabylonSpecifiers": 1,
+      "shortestEmittedBabylonPath": [
+        "src/engine/effects/WindSystem.ts",
+        "@babylonjs/core/Maths/math.vector"
+      ]
+    },
+    {
+      "entry": "src/engine/weapon/WeaponRecoil.ts",
+      "sourceSha256": "9b3f86b643a2b99d02fb51fa10fb909a2e0398272d38d2d81bafda130254d753",
+      "declaredLocalVertices": 1,
+      "emittedLocalVertices": 1,
+      "emittedBabylonSpecifiers": 0,
+      "shortestEmittedBabylonPath": null
+    },
+    {
+      "entry": "src/engine/weapon/WeaponSwitchAnim.ts",
+      "sourceSha256": "8a70c245824ec50774d85266d28102782c62f84f96c32b6a5191ac8b263d4739",
+      "declaredLocalVertices": 2,
+      "emittedLocalVertices": 2,
+      "emittedBabylonSpecifiers": 0,
+      "shortestEmittedBabylonPath": null
+    },
+    {
+      "entry": "src/engine/weapon/AmmoCounterDisplay.ts",
+      "sourceSha256": "ad34b219b96794128543c50e7653c6a5fcdd3ad7acb0afa5c1830a536be31090",
+      "declaredLocalVertices": 4,
+      "emittedLocalVertices": 4,
+      "emittedBabylonSpecifiers": 4,
+      "shortestEmittedBabylonPath": [
+        "src/engine/weapon/AmmoCounterDisplay.ts",
+        "@babylonjs/core/Materials/standardMaterial"
+      ]
+    },
+    {
+      "entry": "src/engine/weapon/rail/RailProfiles.ts",
+      "sourceSha256": "e49077b10458da09f7461551f5ea934184cf0cca695fb3a52f93f49104a15ebd",
+      "declaredLocalVertices": 2,
+      "emittedLocalVertices": 2,
+      "emittedBabylonSpecifiers": 0,
+      "shortestEmittedBabylonPath": null
+    },
+    {
+      "entry": "src/games/fps/client/PlayerModelVisualSettings.ts",
+      "sourceSha256": "425a4c02280182acfab01ae999e60c2dd38ade7439abab69b0379c4ccbf3792a",
+      "declaredLocalVertices": 36,
+      "emittedLocalVertices": 14,
+      "emittedBabylonSpecifiers": 1,
+      "shortestEmittedBabylonPath": [
+        "src/games/fps/client/PlayerModelVisualSettings.ts",
+        "@babylonjs/core/Maths/math.color"
+      ]
+    }
+  ]
+}

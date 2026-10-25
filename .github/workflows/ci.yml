@@ -2,7 +2,7 @@ name: SHAG engine CI
 
 on:
   push:
-    branches: ["main", "*-qa-improvements"]
+    branches: ["main", "staging", "*-qa-improvements"]
   pull_request:
   workflow_dispatch:
 

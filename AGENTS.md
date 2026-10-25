@@ -404,6 +404,13 @@ lobby, and which names its changelog (`v1.0.0-alpha.md`) and tag (`v1.0.0-alpha`
   `v1.0.0-alpha-qa` for a QA/bugfix cycle.
 - Created from `main` in **both** repositories.
 
+### Staging checkpoint
+
+`staging` is the integration and review checkpoint in both repositories. Merge
+feature work into `staging` before any merge to `main`. `main` is the production
+branch and is automatically deployed; a request to commit or push `staging`
+does not authorize promoting it to `main`. Promote only when the owner asks.
+
 ### The living changelog
 
 Each cycle keeps `docs/changelog/v<version>.md` (now `v1.0.0-alpha.md`) with
@@ -415,9 +422,11 @@ files. A cycle's research notes live in `docs/research/`.
 
 ### Merging and releasing
 
-Always fps first: commit and merge in `src/games/fps`, then merge the outer
-branch, re-pin `src/games/fps` at the fps `main` tip and commit that, then push
-outer `main`. Push only when asked. A release keeps `src/engine/version.txt`,
+Always fps first, for both feature-to-`staging` integration and approved
+`staging`-to-`main` promotion: merge in `src/games/fps`, then merge the outer
+branch and re-pin `src/games/fps` at the fps destination branch's tip. Push fps
+before the outer repository, and only when asked. A release keeps
+`src/engine/version.txt`,
 `package.json` and both root version fields in `package-lock.json` at the version
 being released. Finalize its changelog in `chore: release v1.0.0-alpha` and put
 the annotated `v1.0.0-alpha` tag on that commit. Create only the next changelog
