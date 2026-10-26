@@ -5,21 +5,30 @@
  * them. Rendered as depth passes of their own, that drew the map two and a half
  * times a frame. The main pass has already drawn every opaque surface into its
  * depth buffer by the time the transparent ones start, so this copies that
- * buffer there (one WebGL2 blit) and converts it to camera-space Z in the
- * format a `DepthRenderer` with `storeCameraSpaceZ` writes (one full-screen
- * draw), 0 where nothing was drawn.
+ * buffer there and converts it to camera-space Z in the format a
+ * `DepthRenderer` with `storeCameraSpaceZ` writes (one full-screen draw), 0
+ * where nothing was drawn.
+ *
+ * WebGL2 blits the depth renderbuffer into a depth texture first. WebGPU keeps
+ * the main target's depth as a texture already but cannot copy it (Babylon
+ * creates depth textures without copy usage), so the convert draw samples it
+ * directly, in a pass of its own that does not attach it; the main pass then
+ * resumes with its color and depth loaded.
  *
  * It works while the world camera renders into its post-process pipeline's
- * single-sampled target with a float or 24-bit depth buffer, on WebGL2.
- * Elsewhere `supports` is false and the consumers keep their own depth passes.
+ * single-sampled target with a depth-only float or 24-bit depth buffer and a
+ * forward depth range. Elsewhere `supports` is false and the consumers keep
+ * their own depth passes.
  */
 
 import type { Camera } from "@babylonjs/core/Cameras/camera";
 import type { AbstractEngine } from "@babylonjs/core/Engines/abstractEngine";
 import { Constants } from "@babylonjs/core/Engines/constants";
 import type { RenderTargetWrapper } from "@babylonjs/core/Engines/renderTargetWrapper";
+import { ShaderStore } from "@babylonjs/core/Engines/shaderStore";
 import { Effect } from "@babylonjs/core/Materials/effect";
 import { EffectRenderer, EffectWrapper } from "@babylonjs/core/Materials/effectRenderer";
+import { ShaderLanguage } from "@babylonjs/core/Materials/shaderLanguage";
 import type { InternalTexture } from "@babylonjs/core/Materials/Textures/internalTexture";
 import { RenderTargetTexture } from "@babylonjs/core/Materials/Textures/renderTargetTexture";
 import type { RenderingGroup } from "@babylonjs/core/Rendering/renderingGroup";
@@ -48,6 +57,32 @@ void main() {
   gl_FragColor = vec4(z, 0.0, 0.0, 1.0);
 }
 `;
+
+const VERTEX_WGSL = `
+attribute position: vec2f;
+@vertex
+fn main(input: VertexInputs) -> FragmentInputs {
+  vertexOutputs.position = vec4f(vertexInputs.position, 0.0, 1.0);
+}
+`;
+
+// WebGPU depth runs 0..1 from the near plane; nothing drawn reads 1
+const FRAGMENT_WGSL = `
+var depthSampler: texture_depth_2d;
+uniform nearFar: vec2f;
+@fragment
+fn main(input: FragmentInputs) -> FragmentOutputs {
+  let d = textureLoad(depthSampler, vec2i(fragmentInputs.position.xy), 0);
+  let n = uniforms.nearFar.x;
+  let f = uniforms.nearFar.y;
+  // A far plane of 0 is Babylon's infinite projection
+  let z = select(n / max(1.0 - d, 1e-7), n * f / (f - d * (f - n)), f > 0.0);
+  fragmentOutputs.color = vec4f(select(z, 0.0, d >= 1.0), 0.0, 0.0, 1.0);
+}
+`;
+
+/** Depth-only formats the WebGPU convert draw can sample as `texture_depth_2d`. */
+const WEBGPU_FORMATS = new Set<number>([Constants.TEXTUREFORMAT_DEPTH32_FLOAT, Constants.TEXTUREFORMAT_DEPTH24]);
 
 /** Depth formats a blit can copy into a depth texture of the same format. */
 const BLIT_FORMATS: Record<number, number> = {
@@ -105,7 +140,9 @@ export class SceneDepthCapture {
   /** The target `camera`'s main pass draws into, when it is one this can copy from. */
   private mainTarget(camera: Camera): RenderTargetWrapper | null {
     const engine = this.engine;
-    if (engine.webGLVersion !== 2 || !engine._gl || engine.isWebGPU) return null;
+    if (engine.isWebGPU) {
+      if (engine.useReverseDepthBuffer) return null;
+    } else if (engine.webGLVersion !== 2 || !engine._gl) return null;
     // The scene draws into the first post-process's input, as Babylon's post-process manager binds it
     const first = camera._postProcesses?.find((postProcess) => !!postProcess);
     const target = first?.inputTexture ?? null;
@@ -143,8 +180,12 @@ export class SceneDepthCapture {
       : null;
   }
 
-  /** The source's depth attachment format as a Babylon depth format, or 0 if a blit cannot copy it. */
+  /** The source's depth attachment format as a Babylon depth format, or 0 if it cannot be read. */
   private formatOf(target: RenderTargetWrapper): number {
+    if (this.engine.isWebGPU) {
+      const depth = target._depthStencilTexture;
+      return depth && WEBGPU_FORMATS.has(depth.format) ? depth.format : 0;
+    }
     const known = targetFormats.get(target);
     if (known !== undefined) return known;
     const gl = this.engine._gl!;
@@ -184,6 +225,10 @@ export class SceneDepthCapture {
     if (engine.frameId - this.requestedFrame > REQUEST_FRAMES) return;
     const source = this.mainTarget(camera);
     if (!source || engine._currentRenderTarget !== source) return;
+    if (engine.isWebGPU) {
+      this.captureWebGPU(source);
+      return;
+    }
     const alphaMode = engine.getAlphaMode();
     try {
       if (!this.prepare(source)) return;
@@ -213,6 +258,33 @@ export class SceneDepthCapture {
     }
   }
 
+  /**
+   * Rendering into the camera-space Z target ends the main pass, so the
+   * convert draw can sample the main depth texture; binding the main target
+   * again resumes its pass with color and depth loaded.
+   */
+  private captureWebGPU(source: RenderTargetWrapper): void {
+    const engine = this.engine;
+    const alphaMode = engine.getAlphaMode();
+    try {
+      if (!this.prepare(source)) return;
+      const effect = this.effect!;
+      if (!effect.effect.isReady() || !source._depthStencilTexture) return;
+      engine.setAlphaMode(Constants.ALPHA_DISABLE);
+      this.effectRenderer!.render(effect, this.viewZ!);
+      this.capturedFrame = engine.frameId;
+    } finally {
+      engine.setAlphaMode(alphaMode);
+      engine.bindFramebuffer(source);
+    }
+  }
+
+  /** The depth the convert draw reads: the blit copy on WebGL2, the main target's own on WebGPU. */
+  private depthSource(): InternalTexture | null {
+    const target = this.engine.isWebGPU ? this.source : this.depthTarget;
+    return (target?._depthStencilTexture as InternalTexture | null | undefined) ?? null;
+  }
+
   /** Size the copies to `source`, building them on first use and again when it resizes in place. */
   private prepare(source: RenderTargetWrapper): boolean {
     const viewZ = this.viewZ;
@@ -220,7 +292,7 @@ export class SceneDepthCapture {
       this.source === source &&
       viewZ &&
       viewZ.getInternalTexture() &&
-      this.depthTarget?._depthStencilTexture &&
+      (this.engine.isWebGPU || this.depthTarget?._depthStencilTexture) &&
       viewZ.getSize().width === source.width &&
       viewZ.getSize().height === source.height
     )
@@ -228,8 +300,16 @@ export class SceneDepthCapture {
     const format = this.formatOf(source);
     if (!format) return false;
     this.releaseTargets();
-    const engine = this.engine;
     const size = { width: source.width, height: source.height };
+    if (!this.engine.isWebGPU && !this.prepareBlitTarget(size, format)) return false;
+    this.prepareViewZ(size);
+    this.source = source;
+    return true;
+  }
+
+  /** WebGL2: a depth texture of the source's format, attached so the blit can write it. */
+  private prepareBlitTarget(size: { width: number; height: number }, format: number): boolean {
+    const engine = this.engine;
 
     const depthTarget = engine.createRenderTargetTexture(size, {
       generateMipMaps: false,
@@ -252,7 +332,11 @@ export class SceneDepthCapture {
     gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.TEXTURE_2D, depthTexture, 0);
     gl.bindFramebuffer(gl.FRAMEBUFFER, bound);
     this.depthTarget = depthTarget;
+    return true;
+  }
 
+  private prepareViewZ(size: { width: number; height: number }): void {
+    const engine = this.engine;
     const caps = engine.getCaps();
     const type = caps.textureHalfFloatRender ? Constants.TEXTURETYPE_HALF_FLOAT : Constants.TEXTURETYPE_FLOAT;
     this.viewZ = new RenderTargetTexture("scene-depth-viewz", size, this.scene, {
@@ -266,8 +350,14 @@ export class SceneDepthCapture {
     this.viewZ.wrapV = Constants.TEXTURE_CLAMP_ADDRESSMODE;
 
     if (!this.effect) {
-      Effect.ShadersStore.sceneDepthViewZVertexShader = VERTEX;
-      Effect.ShadersStore.sceneDepthViewZFragmentShader = FRAGMENT;
+      const webgpu = engine.isWebGPU;
+      if (webgpu) {
+        ShaderStore.ShadersStoreWGSL.sceneDepthViewZVertexShader = VERTEX_WGSL;
+        ShaderStore.ShadersStoreWGSL.sceneDepthViewZFragmentShader = FRAGMENT_WGSL;
+      } else {
+        Effect.ShadersStore.sceneDepthViewZVertexShader = VERTEX;
+        Effect.ShadersStore.sceneDepthViewZFragmentShader = FRAGMENT;
+      }
       this.effectRenderer = new EffectRenderer(engine);
       this.effect = new EffectWrapper({
         engine,
@@ -277,17 +367,16 @@ export class SceneDepthCapture {
         useShaderStore: true,
         uniformNames: ["nearFar"],
         samplerNames: ["depthSampler"],
+        shaderLanguage: webgpu ? ShaderLanguage.WGSL : ShaderLanguage.GLSL,
       });
       this.effect.onApplyObservable.add(() => {
         const camera = this.camera;
-        const depth = this.depthTarget?._depthStencilTexture as InternalTexture | null | undefined;
+        const depth = this.depthSource();
         if (!camera || !depth) return;
         this.effect!.effect._bindTexture("depthSampler", depth);
         this.effect!.effect.setFloat2("nearFar", camera.minZ, camera.maxZ);
       });
     }
-    this.source = source;
-    return true;
   }
 
   private releaseTargets(): void {

@@ -111,6 +111,10 @@ four frames after each map load; the cause was not found. This is the largest
 single draw-count reduction left on the WebGPU path. It is not in the
 groundwork plan's backend table.
 
+**Resolved the same day:** path 3 below landed. WebGPU now reads the main
+pass's depth; see the [alpha3 note's shipped section](v1.0.0-alpha3-performance.md#webgpu-attempt-not-shipped)
+for the measurement.
+
 ### 7. Smaller documentation issues
 
 - About 320 KB over eleven documents, with the same caveats repeated in each.
