@@ -14,6 +14,7 @@ import type { BaseTexture } from "@babylonjs/core/Materials/Textures/baseTexture
 import type { Color3 } from "@babylonjs/core/Maths/math.color";
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import type { Scene } from "@babylonjs/core/scene";
+import { getSinglePvsCamera, installPvsMeshCandidates } from "../../rendering/PvsMeshCandidates";
 import RenderVars from "../../rendering/RenderVars";
 import { PK3Loader } from "../pk3/PK3Loader";
 import { type BspEntity, type BspFile, type BspLightVol, BspLoader } from "./BspLoader";
@@ -687,6 +688,7 @@ export class BspManager {
     return this.pvsCuller;
   }
   private pvsCleanup: (() => void) | null = null;
+  private pvsCandidateCleanup: (() => void) | null = null;
   private pvsLifetimeCleanup: (() => void) | null = null;
 
   /**
@@ -732,16 +734,16 @@ export class BspManager {
 
     this.pvsCleanup?.();
     this.pvsLifetimeCleanup?.();
+    this.pvsCandidateCleanup?.();
     this.pvsCuller.setEnabled(true);
+    let pvsCamera: ReturnType<typeof getSinglePvsCamera> = null;
     const update = () => {
       if (!this.pvsCuller?.isEnabled()) return;
       // The FPS viewmodel has its own camera on layer 0x10000000. It cannot
       // see the BSP and must not disable culling for the normal [eye, weapon] pair.
       // Multiple world views still need a union; conservatively show all for now.
-      const cameras = (scene.activeCameras?.length ? scene.activeCameras : [scene.activeCamera]).filter(
-        (candidate) => candidate && (candidate.layerMask & ~0x10000000) !== 0,
-      );
-      const camera = cameras.length === 1 ? cameras[0] : null;
+      const camera = getSinglePvsCamera(scene);
+      pvsCamera = camera;
       camera?.getViewMatrix();
       this.pvsCuller.update(camera?.globalPosition ?? null);
     };
@@ -756,6 +758,7 @@ export class BspManager {
       scene.onDisposeObservable.remove(sceneDispose);
       world.onDisposeObservable.remove(worldDispose);
     };
+    this.pvsCandidateCleanup = installPvsMeshCandidates(scene, this.pvsCuller, () => pvsCamera);
     update();
 
     return "PVS culling: ON";
@@ -771,6 +774,9 @@ export class BspManager {
 
     this.pvsCleanup?.();
     this.pvsCleanup = null;
+
+    this.pvsCandidateCleanup?.();
+    this.pvsCandidateCleanup = null;
 
     return "PVS culling: OFF";
   }
@@ -863,6 +869,8 @@ export class BspManager {
   // ============================================================================
 
   private disposePVS(): void {
+    this.pvsCandidateCleanup?.();
+    this.pvsCandidateCleanup = null;
     this.pvsCleanup?.();
     this.pvsCleanup = null;
     this.pvsLifetimeCleanup?.();

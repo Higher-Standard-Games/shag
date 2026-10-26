@@ -216,6 +216,16 @@ World meshes use compiled BSP face/leaf membership. A mesh stays visible if any 
 
 Culling follows the current world camera, including the usual world + weapon camera setup. Until a camera is assigned, and for multiple world views, it conservatively shows all registered surfaces. Disabling restores the visibility recorded when meshes were registered; map cleanup removes PVS observers. `pvs status` reports the last evaluated view without forcing a visibility change.
 
+For that single world view, PVS-owned hidden meshes are also removed from
+Babylon's active-mesh candidates before readiness and transform evaluation.
+The filter preserves source order and keeps meshes with action managers.
+Foreign cameras, multiple world views, custom LOD selectors and unknown PVS
+clusters use the original candidate list. This does not change the existing
+global PVS visibility policy for secondary views. The scene shares one candidate
+provider with weapon-camera filtering; disabling PVS or disposing the map
+releases its filter without removing a weapon-camera filter. Full-scene loading
+readiness checks still include hidden meshes.
+
 Autosprite billboards update before each world camera draws, after frame-level PVS. Hidden/disabled sprites skip vertex work; visible sprites reuse their last uploaded orientation while the eye position is unchanged. Newly visible sprites refresh before selection, and map cleanup removes their callback. This is automatic on map load and needs no extra setting.
 
 For headless inspection, build geometry with `bsp render` before `pvs on`. Enabling updates visibility immediately, but command batches do not run the gameplay render loop. Mesh counts from `NullEngine` do not measure GPU performance. The repository's `docs/research/v0.9.23-rendering-research.md` tracks implementation progress, validation and remaining visual checks.

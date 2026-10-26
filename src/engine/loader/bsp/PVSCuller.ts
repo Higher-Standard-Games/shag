@@ -61,6 +61,17 @@ export class PVSCuller {
     return this.enabled && this.hasPVS;
   }
 
+  /** A conservative candidate query; unknown visibility/ownership stays live. */
+  canSkipCandidate(mesh: AbstractMesh): boolean {
+    return (
+      !mesh.isVisible &&
+      !mesh.actionManager &&
+      this.meshClusters.has(mesh) &&
+      this.isEnabled() &&
+      this.validCluster(this.currentCluster)
+    );
+  }
+
   /** Replaces registration and releases visibility owned by the previous set. */
   registerClusterMeshes(groups: ClusterMeshGroup[]): void {
     this.clearRegistration();
