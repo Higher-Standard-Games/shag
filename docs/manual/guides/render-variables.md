@@ -237,10 +237,11 @@ state, including materials intentionally left mutable for dynamic lighting.
 
 ## Weapon camera candidates
 
-The diagnostic cvar `r_weapon_candidates` filters mesh candidates by the
-first-person weapon camera's layer before readiness, matrix and LOD evaluation.
-It defaults to 1 on Firefox WebGL and 0 on Chromium; WebGPU keeps its ordinary
-evaluation path. The non-persisted cvar accepts 0 (off) or 1 (on). Registered
+The cvar `r_weapon_candidates` filters mesh candidates by the first-person
+weapon camera's layer before readiness, matrix and LOD evaluation, so that
+camera no longer scans the whole scene to draw a handful of weapon meshes. It
+defaults to 1 on every browser and backend; 0 restores Babylon's full scan for
+diagnostics. The cvar is not persisted. Registered
 camera ownership, action-manager meshes and custom LOD selectors are preserved.
 
 ## Adding a variable

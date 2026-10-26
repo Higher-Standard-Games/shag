@@ -382,9 +382,9 @@ corpses. Skipped gameplay events and the existing workload gates still invalidat
 runs. This remains experimental and off by default; neither the crowd experiment
 nor enabling the CVar alone establishes an FPS improvement or visual acceptance.
 
-### Experimental weapon-camera candidates
+### Weapon-camera candidates
 
-`r_weapon_candidates 1` filters the registered first-person weapon camera's
+`r_weapon_candidates` filters the registered first-person weapon camera's
 mesh candidates by its current layer mask before Babylon's readiness, world-matrix
 and LOD work. Other cameras retain their existing provider. Meshes with action
 managers remain candidates for intersection processing, and custom LOD selectors
@@ -392,8 +392,11 @@ use the original provider. Membership is checked every pass, including new meshe
 and changed masks. Live and demo views share one scene provider with separate
 camera ownership; disposal restores the previous provider when still owned.
 
-The setting defaults to **0**, is not persisted, and can be required by an
-immutable fixture for an off/on comparison. Keep pose rate 30, normal outlines 1
+The setting defaults to **1** on every backend, is not persisted, and can be
+set to 0 by an immutable fixture for an off/on comparison. On the `washoi_dm5`
+FFA demo it cuts the weapon camera's evaluation from about 1.0 ms to 0.15 ms a
+frame on WebGL2 and from about 0.55 ms to 0.09 ms on WebGPU, with identical
+pixels and active sets in paused frames (WebGL2, WebGPU and `?ncm=1`). Keep pose rate 30, normal outlines 1
 and outline proxy 0 in both profiles.
 
 For diagnostic attribution, add `--trace-cameras` to `benchmark:profile`.

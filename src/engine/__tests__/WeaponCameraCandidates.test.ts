@@ -10,7 +10,7 @@ import { expect, it } from "vitest";
 import { Cvar } from "../core/Cvar";
 import { installWeaponCameraCandidates } from "../rendering/WeaponCameraCandidates";
 
-it("keeps the cvar policy on WebGL and leaves WebGPU evaluation unchanged", () => {
+it("filters on every backend by default and turns off with the cvar", () => {
   const engine = new NullEngine();
   const scene = new Scene(engine);
   const camera = new FreeCamera("weapon", Vector3.Zero(), scene);
@@ -24,9 +24,10 @@ it("keeps the cvar policy on WebGL and leaves WebGPU evaluation unchanged", () =
   const release = installWeaponCameraCandidates(scene, camera);
   scene.activeCamera = camera;
   try {
+    expect(Cvar.getCvar("r_weapon_candidates")?.defaultValue).toBe(1);
     expect(scene.getActiveMeshCandidates().length).toBe(1);
     Object.defineProperty(engine, "isWebGPU", { value: true, configurable: true });
-    expect(scene.getActiveMeshCandidates().length).toBe(2);
+    expect(scene.getActiveMeshCandidates().length).toBe(1);
     Object.defineProperty(engine, "isWebGPU", { value: false, configurable: true });
     Cvar.set("r_weapon_candidates", 0);
     expect(scene.getActiveMeshCandidates().length).toBe(2);
