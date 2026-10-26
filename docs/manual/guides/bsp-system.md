@@ -236,7 +236,7 @@ and scene membership remain intact. Mesh or scene disposal releases registration
 and the returned function can release it earlier. Gib shards use this policy;
 other disabled scene objects retain their existing handling.
 
-Autosprite billboards update before each world camera draws, after frame-level PVS. Hidden/disabled sprites skip vertex work; visible sprites reuse their last uploaded orientation while the eye position is unchanged. Newly visible sprites refresh before selection, and map cleanup removes their callback. This is automatic on map load and needs no extra setting.
+Autosprite billboards update before each world camera draws, after frame-level PVS. Additive sprites of one texture, whose every shader pass also adds, share one mesh: one draw and one vertex upload for all of them, in any order, since additive blending does not depend on it. The shared mesh carries the union of its sprites' PVS clusters. Sprites that blend by alpha keep a mesh each, drawn in face order. On `washoi_dm5` 76 sprites draw from 42 meshes, on `washoi_dm2` 62 from 4. Hidden/disabled sprites skip vertex work; visible sprites reuse their last uploaded orientation while the eye position is unchanged. Newly visible sprites refresh before selection, and map cleanup removes their callback. This is automatic on map load and needs no extra setting.
 
 For headless inspection, build geometry with `bsp render` before `pvs on`. Enabling updates visibility immediately, but command batches do not run the gameplay render loop. Mesh counts from `NullEngine` do not measure GPU performance. The repository's `docs/research/v0.9.23-rendering-research.md` tracks implementation progress, validation and remaining visual checks.
 

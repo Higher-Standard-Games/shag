@@ -46,9 +46,11 @@ export interface BspMeshBuildResult {
   };
   /** Fog volume meshes */
   fogVolumes?: Mesh[];
-  /** Autosprite meshes that need per-frame billboard updates */
+  /** Autosprites that need per-frame billboard updates; several can share one mesh */
   autospriteMeshes?: {
     mesh: Mesh;
+    /** First vertex of this sprite in `mesh` (0 when the sprite has the mesh to itself) */
+    vertexStart?: number;
     center: [number, number, number];
     halfWidth: number;
     halfHeight: number;

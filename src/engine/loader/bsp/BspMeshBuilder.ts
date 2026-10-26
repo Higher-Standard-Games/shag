@@ -37,6 +37,7 @@ import { bspLightingProfile, scaleBspLighting } from "./BspLightingProfile";
 import type { BspFile } from "./BspLoader";
 import { classifyLiquids, DEFAULT_LIQUID_OVERRIDES, liquidKindFromSurfaceParms } from "./LiquidClassifier";
 import { createAutosprite2Geometry, updateAutosprite2Geometry } from "./mesh/autosprite2";
+import { type AutospriteRecord, autospriteRecord } from "./mesh/autospriteRecords";
 import { cubemapObjectOfFaces } from "./mesh/cubemapObjects";
 import { buildMeshFace, buildPatchFace, buildPolygonFace } from "./mesh/faceBuilders";
 import { createRadialGradientTexture, createSolidColorTexture } from "./mesh/fallbackTextures";
@@ -80,9 +81,13 @@ const NON_DRAWABLE_TEXTURES = [
   "noshader",
 ];
 
+/** A mesh vertex array as Babylon returns it. */
+type VertexArray = NonNullable<ReturnType<Mesh["getVerticesData"]>>;
+
 export class BspMeshBuilder {
   /** Last successful billboard upload; weak keys do not retain disposed maps. */
   private static readonly autospriteCameraPositions = new WeakMap<Mesh, [number, number, number]>();
+  private static readonly autospriteGroups = new WeakMap<AutospriteRecord[], Map<Mesh, AutospriteRecord[]>>();
 
   private bsp: BspFile;
   private scene: Scene;
@@ -687,151 +692,119 @@ export class BspMeshBuilder {
 
     devLog(`[BspMeshBuilder] Created ${childMeshes.length} texture group meshes`);
 
-    // Create individual meshes for autosprite faces with per-frame billboard updates
-    const autospriteMeshData: BspMeshBuildResult["autospriteMeshes"] = [];
-
+    // Autosprite faces billboard toward the camera every frame. Additive
+    // sprites of one texture share a mesh: additive blending does not depend
+    // on draw order, so one draw and one upload serve them all. Sprites that
+    // blend by alpha keep a mesh each, drawn in face order.
+    const autospriteMeshData: NonNullable<BspMeshBuildResult["autospriteMeshes"]> = [];
+    const spriteBatches = new Map<string, number[]>();
+    const additiveTextures = new Map<number, boolean>();
     for (let si = 0; si < autospriteFaces.length; si++) {
       const sprite = autospriteFaces[si];
-      const spriteMeshName = `bsp_sprite_${sprite.textureIndex}_${si}`;
-      const spriteMesh = new Mesh(spriteMeshName, this.scene);
+      let additive = additiveTextures.get(sprite.textureIndex);
+      if (additive === undefined) {
+        // Every pass the textures resolve to must add, or the passes' order matters
+        additive =
+          sprite.shaderProps.alphaMode === "add" &&
+          shaderRegistry
+            .resolveMaterialPasses(sprite.textureName, { deluxe: this.options.deluxe, worldSurface: true })
+            .every((pass) => pass.alphaMode === "add");
+        additiveTextures.set(sprite.textureIndex, additive);
+      }
+      const key = additive
+        ? `${sprite.textureIndex}|${sprite.uv2s.length > 0}|${sprite.colors.length > 0}`
+        : `single|${si}`;
+      const members = spriteBatches.get(key);
+      if (members) members.push(si);
+      else spriteBatches.set(key, [si]);
+    }
 
-      // Calculate sprite dimensions from original geometry
-      // Find bounding box to get width/height
-      let minX = Infinity,
-        maxX = -Infinity;
-      let minY = Infinity,
-        maxY = -Infinity;
-      let minZ = Infinity,
-        maxZ = -Infinity;
-      const numVerts = sprite.positions.length / 3;
-      for (let v = 0; v < numVerts; v++) {
-        const x = sprite.positions[v * 3];
-        const y = sprite.positions[v * 3 + 1];
-        const z = sprite.positions[v * 3 + 2];
-        minX = Math.min(minX, x);
-        maxX = Math.max(maxX, x);
-        minY = Math.min(minY, y);
-        maxY = Math.max(maxY, y);
-        minZ = Math.min(minZ, z);
-        maxZ = Math.max(maxZ, z);
+    const spriteRecords: typeof autospriteMeshData = new Array(autospriteFaces.length);
+    for (const members of spriteBatches.values()) {
+      const firstIndex = members[0];
+      const first = autospriteFaces[firstIndex];
+      const spriteMesh = new Mesh(`bsp_sprite_${first.textureIndex}_${firstIndex}`, this.scene);
+      const positions: number[] = [];
+      const normals: number[] = [];
+      const uvs: number[] = [];
+      const uv2s: number[] = [];
+      const colors: number[] = [];
+      const indices: number[] = [];
+      const memberIndices: number[][] = [];
+      const memberStarts: number[] = [];
+      const clusters = new Set<number>();
+      for (const si of members) {
+        const sprite = autospriteFaces[si];
+        const vertexStart = positions.length / 3;
+        memberStarts.push(vertexStart);
+        for (const value of sprite.positions) positions.push(value);
+        for (const value of sprite.normals) normals.push(value);
+        for (const value of sprite.uvs) uvs.push(value);
+        for (const value of sprite.uv2s) uv2s.push(value);
+        for (const value of sprite.colors) colors.push(value);
+        const own = sprite.indices.map((index) => index + vertexStart);
+        for (const index of own) indices.push(index);
+        memberIndices.push(own);
+        // A face in no cluster is always visible, and so is the batch holding it
+        const faceCluster = faceClusters[sprite.faceIndex];
+        if (faceCluster.length === 0) clusters.add(-1);
+        for (const cluster of faceCluster) clusters.add(cluster);
       }
 
-      // Calculate half-dimensions (sprite is a quad, find largest extent)
-      const extentX = (maxX - minX) / 2;
-      const extentY = (maxY - minY) / 2;
-      const extentZ = (maxZ - minZ) / 2;
-      // For a quad, two dimensions will be large, one will be ~0
-      // halfWidth = horizontal extent, halfHeight = vertical extent
-      const halfWidth = Math.max(extentX, extentZ);
-      const halfHeight = extentY > 0.01 ? extentY : Math.max(extentX, extentZ);
-
-      // Apply original geometry initially
+      // Updatable: the billboard rewrites the positions every frame
       const spriteVertexData = new VertexData();
-      spriteVertexData.positions = [...sprite.positions]; // Copy for modification
-      spriteVertexData.normals = sprite.normals;
-      spriteVertexData.uvs = sprite.uvs;
-      if (sprite.uv2s.length > 0) {
-        spriteVertexData.uvs2 = sprite.uv2s;
-      }
-      if (sprite.colors.length > 0) {
-        spriteVertexData.colors = scaleBspVertexColors(sprite.colors, vertexGain);
-      }
-      spriteVertexData.indices = sprite.indices;
-      spriteVertexData.applyToMesh(spriteMesh, true); // updatable = true
+      spriteVertexData.positions = positions;
+      spriteVertexData.normals = normals;
+      spriteVertexData.uvs = uvs;
+      if (uv2s.length > 0) spriteVertexData.uvs2 = uv2s;
+      if (colors.length > 0) spriteVertexData.colors = scaleBspVertexColors(colors, vertexGain);
+      spriteVertexData.indices = indices;
+      spriteVertexData.applyToMesh(spriteMesh, true);
 
-      // Create material
-      const spriteMaterial = this.createMaterialFromShaderProps(
-        `bsp_sprite_mat_${sprite.textureIndex}_${si}`,
-        sprite.shaderProps,
-        sprite.textureName,
+      spriteMesh.material = this.createMaterialFromShaderProps(
+        `bsp_sprite_mat_${first.textureIndex}_${firstIndex}`,
+        first.shaderProps,
+        first.textureName,
       );
-      spriteMesh.material = spriteMaterial;
 
       // Store metadata for texture loading
       spriteMesh.metadata = {
-        textureName: sprite.textureName,
-        textureIndex: sprite.textureIndex,
+        textureName: first.textureName,
+        textureIndex: first.textureIndex,
         lightmapIndex: -1, // Sprites typically don't use lightmaps
-        bspPvsClusters: faceClusters[sprite.faceIndex],
-        autosprite: sprite.shaderProps.autosprite,
-        autosprite2: sprite.shaderProps.autosprite2,
+        bspPvsClusters: [...clusters],
+        autosprite: first.shaderProps.autosprite,
+        autosprite2: first.shaderProps.autosprite2,
       };
 
       // Transparency handling
-      if (sprite.shaderProps.isTransparent) {
-        if (sprite.shaderProps.alphaMode === "add") {
-          spriteMesh.alphaIndex = 2000 + si; // After regular transparent meshes
+      if (first.shaderProps.isTransparent) {
+        if (first.shaderProps.alphaMode === "add") {
+          spriteMesh.alphaIndex = 2000 + firstIndex; // After regular transparent meshes
         } else {
-          spriteMesh.alphaIndex = 1500 + si;
+          spriteMesh.alphaIndex = 1500 + firstIndex;
         }
       }
 
       spriteMesh.parent = worldMesh;
       childMeshes.push(spriteMesh);
 
-      // Calculate normalized vertex offsets from original positions relative to center
-      // This allows proper interpolation for triangulated sprites (not just 4 corners)
-      const [cx, cy, cz] = sprite.center;
-
-      // Collect all vertex offsets from center
-      const offsets: [number, number, number][] = [];
-      for (let v = 0; v < numVerts; v++) {
-        offsets.push([
-          sprite.positions[v * 3] - cx,
-          sprite.positions[v * 3 + 1] - cy,
-          sprite.positions[v * 3 + 2] - cz,
-        ]);
-      }
-
-      // Find max extent on each axis to determine sprite orientation
-      let maxExtentX = 0,
-        maxExtentY = 0,
-        maxExtentZ = 0;
-      for (const [ox, oy, oz] of offsets) {
-        maxExtentX = Math.max(maxExtentX, Math.abs(ox));
-        maxExtentY = Math.max(maxExtentY, Math.abs(oy));
-        maxExtentZ = Math.max(maxExtentZ, Math.abs(oz));
-      }
-
-      // Calculate normalized offsets for each vertex
-      // Maps each vertex position to a fraction of the quad (-1 to 1 range)
-      const vertexOffsets: [number, number][] = [];
-      for (const [ox, oy, oz] of offsets) {
-        let rightFrac: number, upFrac: number;
-
-        if (maxExtentY < maxExtentX && maxExtentY < maxExtentZ) {
-          // Horizontal sprite (XZ plane) - Y is normal
-          rightFrac = maxExtentX > 0.001 ? ox / maxExtentX : 0;
-          upFrac = maxExtentZ > 0.001 ? oz / maxExtentZ : 0;
-        } else if (maxExtentX < maxExtentY && maxExtentX < maxExtentZ) {
-          // YZ plane - X is normal
-          rightFrac = maxExtentZ > 0.001 ? oz / maxExtentZ : 0;
-          upFrac = maxExtentY > 0.001 ? oy / maxExtentY : 0;
-        } else {
-          // XY plane or default - Z is normal (most common for vertical sprites)
-          rightFrac = maxExtentX > 0.001 ? ox / maxExtentX : 0;
-          upFrac = maxExtentY > 0.001 ? oy / maxExtentY : 0;
-        }
-
-        vertexOffsets.push([rightFrac, upFrac]);
-      }
-
-      // Track for per-frame billboard updates
-      autospriteMeshData.push({
-        mesh: spriteMesh,
-        center: sprite.center,
-        halfWidth,
-        halfHeight,
-        isAutosprite2: sprite.shaderProps.autosprite2,
-        axisGeometry: sprite.shaderProps.autosprite2
-          ? createAutosprite2Geometry(sprite.positions, sprite.indices)
-          : undefined,
-        vertexOffsets,
+      members.forEach((si, member) => {
+        spriteRecords[si] = autospriteRecord(
+          autospriteFaces[si],
+          spriteMesh,
+          memberStarts[member],
+          positions,
+          memberIndices[member],
+        );
       });
     }
+    for (const record of spriteRecords) autospriteMeshData.push(record);
 
     if (autospriteFaces.length > 0) {
-      devLog(`[BspMeshBuilder] Created ${autospriteFaces.length} autosprite meshes (billboarded)`);
+      devLog(
+        `[BspMeshBuilder] Created ${autospriteFaces.length} autosprites (billboarded) in ${spriteBatches.size} meshes`,
+      );
       // Debug: log sprite info with orientation details
       for (let sdi = 0; sdi < autospriteMeshData.length; sdi++) {
         const spriteData = autospriteMeshData[sdi];
@@ -961,8 +934,7 @@ export class BspMeshBuilder {
       return 0;
     let uploads = 0;
 
-    for (const sprite of result.autospriteMeshes) {
-      const { mesh, center, halfWidth, halfHeight, isAutosprite2 } = sprite;
+    for (const [mesh, sprites] of BspMeshBuilder.autospritesByMesh(result.autospriteMeshes)) {
       if (mesh.isDisposed() || !mesh.isVisible || mesh.visibility <= 0 || !mesh.isEnabled()) {
         // Re-entering visibility must upload before the first visible draw.
         BspMeshBuilder.autospriteCameraPositions.delete(mesh);
@@ -977,103 +949,28 @@ export class BspMeshBuilder {
       )
         continue;
 
-      if (isAutosprite2) {
-        const positions = mesh.getVerticesData(VertexBuffer.PositionKind);
-        if (!positions) continue;
-        sprite.axisGeometry ??= createAutosprite2Geometry(positions, mesh.getIndices() ?? []);
-        const normals = mesh.getVerticesData(VertexBuffer.NormalKind);
-        if (!updateAutosprite2Geometry(sprite.axisGeometry, positions, normals, cameraPosition)) continue;
-        mesh.updateVerticesData(VertexBuffer.PositionKind, positions);
-        if (normals) mesh.updateVerticesData(VertexBuffer.NormalKind, normals);
-        mesh.refreshBoundingInfo();
-        BspMeshBuilder.autospriteCameraPositions.set(mesh, [cameraPosition.x, cameraPosition.y, cameraPosition.z]);
-        uploads++;
-        continue;
-      }
-
-      // Calculate direction from sprite center to camera
-      const cx = center[0],
-        cy = center[1],
-        cz = center[2];
-      let dx = cameraPosition.x - cx;
-      let dy = cameraPosition.y - cy;
-      let dz = cameraPosition.z - cz;
-
-      // Normalize direction
-      const dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
-      if (dist < 0.001) continue; // Camera at sprite center, skip
-      dx /= dist;
-      dy /= dist;
-      dz /= dist;
-
-      // Calculate right and up vectors for the sprite quad
-      let rightX: number, rightY: number, rightZ: number;
-      let upX: number, upY: number, upZ: number;
-
-      {
-        // Autosprite: full billboard (face camera on all axes)
-        // Up vector: world up projected onto plane perpendicular to view direction
-        // Right = cross(worldUp, viewDir), then Up = cross(viewDir, right)
-        const worldUpX = 0,
-          worldUpY = 1,
-          worldUpZ = 0;
-
-        // Right = cross(worldUp, forward)
-        rightX = worldUpY * dz - worldUpZ * dy;
-        rightY = worldUpZ * dx - worldUpX * dz;
-        rightZ = worldUpX * dy - worldUpY * dx;
-
-        // Normalize right
-        const rightLen = Math.sqrt(rightX * rightX + rightY * rightY + rightZ * rightZ);
-        if (rightLen < 0.001) {
-          // Looking straight up/down, use default
-          rightX = 1;
-          rightY = 0;
-          rightZ = 0;
-          upX = 0;
-          upY = 0;
-          upZ = -1;
-        } else {
-          rightX /= rightLen;
-          rightY /= rightLen;
-          rightZ /= rightLen;
-
-          // Up = cross(forward, right)
-          upX = dy * rightZ - dz * rightY;
-          upY = dz * rightX - dx * rightZ;
-          upZ = dx * rightY - dy * rightX;
-        }
-      }
-
-      // Reconstruct all vertices using pre-calculated normalized offsets
-      // This handles both simple quads and triangulated sprites correctly
       const positions = mesh.getVerticesData(VertexBuffer.PositionKind);
-      if (!positions || positions.length < 12) continue;
-
-      const numVerts = positions.length / 3;
-      const hw = halfWidth,
-        hh = halfHeight;
-
-      // Use normalized offsets to position each vertex on the billboard
-      for (let v = 0; v < numVerts; v++) {
-        const [rightFrac, upFrac] = sprite.vertexOffsets[v] ?? [0, 0];
-        // Position = center + right * (rightFrac * halfWidth) + up * (upFrac * halfHeight)
-        positions[v * 3] = cx + rightX * (rightFrac * hw) + upX * (upFrac * hh);
-        positions[v * 3 + 1] = cy + rightY * (rightFrac * hw) + upY * (upFrac * hh);
-        positions[v * 3 + 2] = cz + rightZ * (rightFrac * hw) + upZ * (upFrac * hh);
-      }
-
-      // Update mesh vertices
-      mesh.updateVerticesData(VertexBuffer.PositionKind, positions);
+      if (!positions) continue;
       const normals = mesh.getVerticesData(VertexBuffer.NormalKind);
-      if (normals) {
-        for (let v = 0; v < numVerts; v++) {
-          normals[v * 3] = dx;
-          normals[v * 3 + 1] = dy;
-          normals[v * 3 + 2] = dz;
+      let changed = false;
+      let rotatedAxis = false;
+      for (const sprite of sprites) {
+        if (sprite.isAutosprite2) {
+          sprite.axisGeometry ??= createAutosprite2Geometry(positions, mesh.getIndices() ?? []);
+          if (updateAutosprite2Geometry(sprite.axisGeometry, positions, normals, cameraPosition)) {
+            changed = true;
+            rotatedAxis = true;
+          }
+        } else if (BspMeshBuilder.billboardAutosprite(sprite, positions, normals, cameraPosition)) {
+          changed = true;
         }
-        mesh.updateVerticesData(VertexBuffer.NormalKind, normals);
       }
+      if (!changed) continue;
+
+      // One upload for every sprite the mesh draws
+      mesh.updateVerticesData(VertexBuffer.PositionKind, positions);
+      if (normals) mesh.updateVerticesData(VertexBuffer.NormalKind, normals);
+      if (rotatedAxis) mesh.refreshBoundingInfo();
       if (previous) {
         previous[0] = cameraPosition.x;
         previous[1] = cameraPosition.y;
@@ -1084,6 +981,86 @@ export class BspMeshBuilder {
       uploads++;
     }
     return uploads;
+  }
+
+  /** The sprites of each mesh, in build order; computed once per build result. */
+  private static autospritesByMesh(sprites: AutospriteRecord[]): Map<Mesh, AutospriteRecord[]> {
+    let groups = BspMeshBuilder.autospriteGroups.get(sprites);
+    if (!groups) {
+      groups = new Map();
+      for (const sprite of sprites) {
+        const members = groups.get(sprite.mesh);
+        if (members) members.push(sprite);
+        else groups.set(sprite.mesh, [sprite]);
+      }
+      BspMeshBuilder.autospriteGroups.set(sprites, groups);
+    }
+    return groups;
+  }
+
+  /**
+   * Q3 autosprite: turn one sprite's vertices to face the camera on all axes.
+   * Writes into the mesh's position and normal arrays; false when nothing moved.
+   */
+  private static billboardAutosprite(
+    sprite: AutospriteRecord,
+    positions: VertexArray,
+    normals: VertexArray | null,
+    cameraPosition: Vector3,
+  ): boolean {
+    const { center, halfWidth: hw, halfHeight: hh } = sprite;
+    const start = sprite.vertexStart ?? 0;
+    // A sprite with the mesh to itself owns every vertex in it
+    const end = sprite.vertexStart === undefined ? positions.length / 3 : start + sprite.vertexOffsets.length;
+    if (end - start < 4 || end * 3 > positions.length) return false;
+
+    // Direction from sprite center to camera
+    const cx = center[0],
+      cy = center[1],
+      cz = center[2];
+    let dx = cameraPosition.x - cx;
+    let dy = cameraPosition.y - cy;
+    let dz = cameraPosition.z - cz;
+    const dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
+    if (dist < 0.001) return false; // Camera at sprite center
+    dx /= dist;
+    dy /= dist;
+    dz /= dist;
+
+    // Right = cross(worldUp, forward), then Up = cross(forward, right)
+    let rightX = dz;
+    const rightY = 0;
+    let rightZ = -dx;
+    let upX: number, upY: number, upZ: number;
+    const rightLen = Math.sqrt(rightX * rightX + rightZ * rightZ);
+    if (rightLen < 0.001) {
+      // Looking straight up/down, use default
+      rightX = 1;
+      rightZ = 0;
+      upX = 0;
+      upY = 0;
+      upZ = -1;
+    } else {
+      rightX /= rightLen;
+      rightZ /= rightLen;
+      upX = dy * rightZ - dz * rightY;
+      upY = dz * rightX - dx * rightZ;
+      upZ = dx * rightY - dy * rightX;
+    }
+
+    // Position = center + right * (rightFrac * halfWidth) + up * (upFrac * halfHeight)
+    for (let v = start; v < end; v++) {
+      const [rightFrac, upFrac] = sprite.vertexOffsets[v - start] ?? [0, 0];
+      positions[v * 3] = cx + rightX * (rightFrac * hw) + upX * (upFrac * hh);
+      positions[v * 3 + 1] = cy + rightY * (rightFrac * hw) + upY * (upFrac * hh);
+      positions[v * 3 + 2] = cz + rightZ * (rightFrac * hw) + upZ * (upFrac * hh);
+      if (normals) {
+        normals[v * 3] = dx;
+        normals[v * 3 + 1] = dy;
+        normals[v * 3 + 2] = dz;
+      }
+    }
+    return true;
   }
 
   /**

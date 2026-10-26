@@ -149,13 +149,18 @@ function auditAutospriteUploads(result: BspMeshBuildResult, positions: Vector3[]
   );
   const samples = positions.map((position, index) => {
     culler.update(position);
-    const expected = eligible.filter(
-      ({ mesh, center }) =>
-        mesh.isVisible &&
-        mesh.isEnabled() &&
-        mesh.visibility > 0 &&
-        Math.hypot(position.x - center[0], position.y - center[1], position.z - center[2]) >= 0.001,
-    ).length;
+    // One upload per mesh, however many sprites it draws
+    const expected = new Set(
+      eligible
+        .filter(
+          ({ mesh, center }) =>
+            mesh.isVisible &&
+            mesh.isEnabled() &&
+            mesh.visibility > 0 &&
+            Math.hypot(position.x - center[0], position.y - center[1], position.z - center[2]) >= 0.001,
+        )
+        .map(({ mesh }) => mesh),
+    ).size;
     const uploads = BspMeshBuilder.updateAutosprites(result, position);
     const stationaryUploads = BspMeshBuilder.updateAutosprites(result, position);
     // Distinct spawn entities can share an origin; the second is stationary too.
@@ -165,20 +170,22 @@ function auditAutospriteUploads(result: BspMeshBuildResult, positions: Vector3[]
         `Unexpected autosprite uploads at ${position.asArray()}: ${uploads}/${expectedUploads}, stationary ${stationaryUploads}`,
       );
     }
-    return { position: position.asArray(), visibleEligibleSprites: expected, uploads, stationaryUploads };
+    return { position: position.asArray(), visibleSpriteMeshes: expected, uploads, stationaryUploads };
   });
   culler.setEnabled(false);
   const offPosition = positions[0].add(new Vector3(0.125, 0, 0));
   const pvsOffUploads = BspMeshBuilder.updateAutosprites(result, offPosition);
   const pvsOffStationaryUploads = BspMeshBuilder.updateAutosprites(result, offPosition);
-  if (pvsOffUploads !== eligible.length || pvsOffStationaryUploads !== 0) {
-    throw new Error(`PVS off failed to restore billboard updates: ${pvsOffUploads}/${eligible.length}`);
+  const eligibleMeshes = new Set(eligible.map(({ mesh }) => mesh)).size;
+  if (pvsOffUploads !== eligibleMeshes || pvsOffStationaryUploads !== 0) {
+    throw new Error(`PVS off failed to restore billboard updates: ${pvsOffUploads}/${eligibleMeshes}`);
   }
   culler.setEnabled(true);
   culler.update(offPosition);
   return {
     total: sprites.length,
     eligible: eligible.length,
+    meshes: eligibleMeshes,
     averageMovingUploads: samples.reduce((sum, sample) => sum + sample.uploads, 0) / samples.length,
     pvsOffUploads,
     pvsOffStationaryUploads,
