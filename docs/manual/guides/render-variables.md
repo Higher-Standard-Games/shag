@@ -108,6 +108,30 @@ cap and compiles nothing.
 
 ## Console commands
 
+### WebGPU bundle attribution
+
+Start a private probe server, then run the driver from another shell:
+
+```powershell
+node .claude/skills/browser-probe/scripts/private-vite.mjs 3122
+# Second shell:
+node scripts/benchmarks/webgpu-bundles.mjs 3122 default
+```
+
+The driver explicitly selects WebGPU non-compatibility mode in a temporary
+headless browser and records 180 playing and 180 paused frames of the local
+`washoi_dm5_ffa_20261025_170933.shagdemo` recording. It attributes bundle creation
+and reuse by mesh/material/pass, records the actual cache-gate flags and buffer
+identity changes, and checks totals against Babylon's engine counters.
+JSON/screenshots go under `.cache/renderer-groundwork/`. GPU errors, source
+changes, unreconciled counts or enabled liquid queries reject a capture.
+
+The optional `legacy-slots` argument disables the installed engine's private
+owner-keyed UBO path only in that probe page. It is a diagnostic control, not a
+supported game setting or a recreation of an earlier Babylon version. The
+driver leaves saved renderer preferences unchanged. Instrumented counts do not
+establish a frame-time gain or visual parity.
+
 ### Renderer groundwork fixtures
 
 For an isolated real-GPU check, start the private Vite probe server, then run

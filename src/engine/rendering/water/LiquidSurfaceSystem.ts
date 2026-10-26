@@ -168,11 +168,13 @@ export class LiquidSurfaceSystem {
       this.claimed.push({ mesh, kind, key, original: mesh.material });
       this.claimedMeshes.add(mesh);
       mesh.material = material;
-      // Water behind a wall is in the frustum and the PVS all the same. Its
-      // bounds go through an occlusion query, and a hidden surface is not drawn,
-      // so the depth and colour passes it needs are not drawn either. Strict
-      // keeps the last answer while the next is in flight.
-      mesh.occlusionType = AbstractMesh.OCCLUSION_TYPE_STRICT;
+      // Strict queries retain the last answer while the next is in flight.
+      // NCM can replay queries in a pass without a query set; keep water visible
+      // there and let ordinary visibility/frustum tests decide whether it draws.
+      mesh.occlusionType = this.supportsOcclusionQueries()
+        ? AbstractMesh.OCCLUSION_TYPE_STRICT
+        : AbstractMesh.OCCLUSION_TYPE_NONE;
+      if (!this.supportsOcclusionQueries()) mesh.isOccluded = false;
       mesh.occlusionQueryAlgorithmType = AbstractMesh.OCCLUSION_ALGORITHM_TYPE_CONSERVATIVE;
       // A flat pool has flat bounds, and an accurate query never sees a box
       // without thickness
@@ -497,6 +499,11 @@ export class LiquidSurfaceSystem {
     devLog(`[Water] ${line}`);
   }
 
+  private supportsOcclusionQueries(): boolean {
+    const engine = this.scene.getEngine();
+    return !engine.isWebGPU || engine.compatibilityMode !== false;
+  }
+
   /**
    * The view's own pass asks the query; other passes that draw the water reuse
    * its answer. The query draws the surface's bounds, and from inside them no
@@ -505,6 +512,11 @@ export class LiquidSurfaceSystem {
    * There the query is off and the surface is drawn.
    */
   private occlusionFor(mesh: AbstractMesh, camera: Camera): void {
+    if (!this.supportsOcclusionQueries()) {
+      mesh.occlusionType = AbstractMesh.OCCLUSION_TYPE_NONE;
+      mesh.isOccluded = false;
+      return;
+    }
     mesh.occlusionForRenderPassId = camera.renderPassId;
     const { minimumWorld: min, maximumWorld: max } = mesh.getBoundingInfo().boundingBox;
     const eye = camera.globalPosition;

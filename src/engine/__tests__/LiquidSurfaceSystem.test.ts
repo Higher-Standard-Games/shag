@@ -157,6 +157,33 @@ describe("LiquidSurfaceSystem", () => {
     expect(pool.occlusionType).toBe(AbstractMesh.OCCLUSION_TYPE_NONE);
   });
 
+  it.each([true, false])("skips water occlusion only for WebGPU NCM (WebGPU=%s)", (webgpu) => {
+    Object.defineProperty(engine, "isWebGPU", { value: webgpu, configurable: true });
+    Object.defineProperty(engine, "compatibilityMode", { value: false, writable: true, configurable: true });
+    const root = buildWorld(["water"]);
+    const pool = root.getChildMeshes(false)[0];
+    const camera = new FreeCamera("outside", new Vector3(1000, 1000, 1000), scene);
+    scene.activeCamera = camera;
+    RenderVars.getInstance().getVar("r_water_quality")!.value = 1;
+    const system = new LiquidSurfaceSystem(scene);
+    system.claim(root);
+    expect(pool.occlusionType).toBe(webgpu ? AbstractMesh.OCCLUSION_TYPE_NONE : AbstractMesh.OCCLUSION_TYPE_STRICT);
+    pool.isOccluded = true;
+    camera.computeWorldMatrix();
+    scene.onBeforeRenderObservable.notifyObservers(scene);
+    expect(pool.occlusionType).toBe(webgpu ? AbstractMesh.OCCLUSION_TYPE_NONE : AbstractMesh.OCCLUSION_TYPE_STRICT);
+    if (webgpu) expect(pool.isOccluded).toBe(false);
+    // The compatibility path still asks a query after a mode change and a new claim.
+    engine.compatibilityMode = true;
+    system.dispose();
+    const compatible = new LiquidSurfaceSystem(scene);
+    compatible.claim(root);
+    expect(pool.occlusionType).toBe(AbstractMesh.OCCLUSION_TYPE_STRICT);
+    scene.onBeforeRenderObservable.notifyObservers(scene);
+    expect(pool.occlusionType).toBe(AbstractMesh.OCCLUSION_TYPE_STRICT);
+    compatible.dispose();
+  });
+
   it("turns the query off while the view is inside the surface's bounds", () => {
     // wdm17's slime pools are one mesh spanning most of the map; from inside
     // its bounds the query draws nothing and the slime would never show

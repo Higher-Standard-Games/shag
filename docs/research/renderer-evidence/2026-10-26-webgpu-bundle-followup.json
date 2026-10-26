@@ -1,0 +1,1422 @@
+{
+  "topic": "Actual cache-gate attribution and experimental-NCM liquid-query fallback",
+  "packageVerification": {
+    "version": "9.31.2",
+    "integrity": "sha512-fThpzCH9sCB+SbqUzgJ4IVAKMXeShf52omMTH3fRCKZTSPhl74tVfhSpgl2/KiJRMBW3yn3eVjit8+mqtfJX0g==",
+    "files": [
+      {
+        "file": "Engines/webgpuEngine.pure.js",
+        "identical": true
+      },
+      {
+        "file": "Engines/WebGPU/webgpuDrawContext.js",
+        "identical": true
+      },
+      {
+        "file": "Engines/WebGPU/webgpuMaterialContext.js",
+        "identical": true
+      },
+      {
+        "file": "Materials/uniformBuffer.js",
+        "identical": true
+      },
+      {
+        "file": "Materials/drawWrapper.js",
+        "identical": true
+      }
+    ]
+  },
+  "limitations": [
+    "Instrumented counts, not performance results.",
+    "Playing ticks and POVs are not synchronized across sessions.",
+    "Rejected pre-fix control is not passing evidence.",
+    "Water query fallback can submit additional surfaces behind walls.",
+    "Stable source plus dependency hashes; no dependency files modified."
+  ],
+  "records": {
+    "default-initial": {
+      "rawPath": ".cache/renderer-groundwork/webgpu-bundles-default-initial.json",
+      "rawSha256": "f8d9ebfb5fc45fc248afc7b2e64e711a826d59739710f36aa8dcb4fbc47af91c",
+      "accepted": true,
+      "identity": {
+        "head": "445ae85afb2d936e96e4140ea2b20439ec7ef87b",
+        "fpsHead": "0759316308429c2ad36aa1e3bda1b111b22016e7",
+        "diffHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "fpsDiffHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "dependencies": {
+          "Engines/webgpuEngine.pure.js": "cc8b6004cd7cab138c7899f6b79458190f5ed4e1d66cc6d83db093f24d9c0cf5",
+          "Engines/WebGPU/webgpuDrawContext.js": "af624b950873798563d2e74e0a71bc040e8102b38eb0afd20e10217bb0500bf9",
+          "Engines/WebGPU/webgpuMaterialContext.js": "59dd6f6d46fa4a02bc85404a5f8bd3b9fd51b04bb6a9739d1273cfdc8776f426",
+          "Materials/uniformBuffer.js": "512de4d32e09e07b124445e4aac3e34b504c3b4a0c509ff6d88d295e7c82baa1",
+          "Materials/drawWrapper.js": "ecf5bc98dda701b691bc4e2ea0fe4a9a37a5dd82e2c4bd5c18c4a830aed6d297"
+        }
+      },
+      "setup": {
+        "version": 1,
+        "compatibilityMode": false,
+        "ownerSlots": true,
+        "drawSourceHash": "24415c61205b4bda826eba6dc38ab83e822c6035235aaf1c76fd0562d3dce7f3"
+      },
+      "phases": [
+        {
+          "label": "playing",
+          "frames": 180,
+          "draws": 30323,
+          "created": 490,
+          "reused": 29833,
+          "engineCreated": 490,
+          "engineReused": 29833,
+          "metadata": {
+            "mapMeshes": 604,
+            "camera": "fpsCamera"
+          },
+          "reasons": {
+            "drawDirty": 490,
+            "previously-observed-empty": 80,
+            "materialVersionChanged": 88,
+            "context-reset-observed": 114,
+            "first-observed-empty": 38,
+            "materialDirty": 22
+          },
+          "topCreationRows": [
+            {
+              "camera": "fpsCamera",
+              "pass": 5,
+              "target": "render-target",
+              "mesh": "ProxyMesh",
+              "material": "ProxyMaterial",
+              "subMesh": 0,
+              "draws": 180,
+              "created": 180,
+              "reused": 0,
+              "other": 0,
+              "causes": {
+                "drawDirty": 180
+              },
+              "bufferChanges": {
+                "Scene": 180
+              }
+            },
+            {
+              "camera": "weaponCamera",
+              "pass": 5,
+              "target": "render-target",
+              "mesh": "ProxyMesh",
+              "material": "ProxyMaterial",
+              "subMesh": 0,
+              "draws": 180,
+              "created": 180,
+              "reused": 0,
+              "other": 0,
+              "causes": {
+                "drawDirty": 180
+              },
+              "bufferChanges": {
+                "Scene": 180
+              }
+            },
+            {
+              "camera": "fpsCamera",
+              "pass": 1,
+              "target": "render-target",
+              "mesh": "player_5/vanguard_visor",
+              "material": "playerMat_player_5_player_5/vanguard_visor",
+              "subMesh": 0,
+              "draws": 540,
+              "created": 5,
+              "reused": 535,
+              "other": 0,
+              "causes": {
+                "drawDirty": 5,
+                "previously-observed-empty": 1,
+                "materialVersionChanged": 1,
+                "context-reset-observed": 1
+              },
+              "bufferChanges": {
+                "LeftOver": 5,
+                "Mesh": 1,
+                "Light0": 1,
+                "Light1": 1,
+                "Light2": 1,
+                "Light3": 1,
+                "Scene": 1,
+                "Internals": 1
+              }
+            },
+            {
+              "camera": "fpsCamera",
+              "pass": 1,
+              "target": "render-target",
+              "mesh": "player_5/vanguard_Mesh",
+              "material": "playerMat_player_5_player_5/vanguard_Mesh",
+              "subMesh": 0,
+              "draws": 540,
+              "created": 5,
+              "reused": 535,
+              "other": 0,
+              "causes": {
+                "drawDirty": 5,
+                "previously-observed-empty": 1,
+                "materialVersionChanged": 1,
+                "context-reset-observed": 1
+              },
+              "bufferChanges": {
+                "LeftOver": 5,
+                "Mesh": 1,
+                "Light0": 1,
+                "Light1": 1,
+                "Light2": 1,
+                "Light3": 1,
+                "Scene": 1,
+                "Internals": 1
+              }
+            },
+            {
+              "camera": "fpsCamera",
+              "pass": 1,
+              "target": "render-target",
+              "mesh": "tp_burst_1793033206561",
+              "material": "tp_burst_mat_1793033206561",
+              "subMesh": 0,
+              "draws": 42,
+              "created": 4,
+              "reused": 38,
+              "other": 0,
+              "causes": {
+                "first-observed-empty": 2,
+                "drawDirty": 4,
+                "materialDirty": 1,
+                "context-reset-observed": 4,
+                "previously-observed-empty": 2
+              },
+              "bufferChanges": {
+                "Mesh": 4,
+                "Scene": 4,
+                "Internals": 4,
+                "LeftOver": 4
+              }
+            },
+            {
+              "camera": "fpsCamera",
+              "pass": 1,
+              "target": "render-target",
+              "mesh": "tp_burst_1793033206560",
+              "material": "tp_burst_mat_1793033206560",
+              "subMesh": 0,
+              "draws": 42,
+              "created": 4,
+              "reused": 38,
+              "other": 0,
+              "causes": {
+                "first-observed-empty": 2,
+                "drawDirty": 4,
+                "materialDirty": 1,
+                "context-reset-observed": 4,
+                "previously-observed-empty": 2
+              },
+              "bufferChanges": {
+                "Mesh": 4,
+                "Scene": 4,
+                "Internals": 4,
+                "LeftOver": 4
+              }
+            },
+            {
+              "camera": "fpsCamera",
+              "pass": 1,
+              "target": "render-target",
+              "mesh": "player_4/vanguard_visor",
+              "material": "playerMat_player_4_player_4/vanguard_visor",
+              "subMesh": 0,
+              "draws": 48,
+              "created": 4,
+              "reused": 44,
+              "other": 0,
+              "causes": {
+                "first-observed-empty": 3,
+                "drawDirty": 4,
+                "materialVersionChanged": 3,
+                "materialDirty": 2,
+                "context-reset-observed": 1
+              },
+              "bufferChanges": {
+                "Internals": 3,
+                "LeftOver": 4,
+                "Mesh": 1,
+                "Light0": 1,
+                "Light1": 1,
+                "Light2": 1,
+                "Light3": 1,
+                "Scene": 1
+              }
+            },
+            {
+              "camera": "weaponCamera",
+              "pass": 10,
+              "target": "main",
+              "mesh": "node11",
+              "material": "default material",
+              "subMesh": 0,
+              "draws": 246,
+              "created": 3,
+              "reused": 243,
+              "other": 0,
+              "causes": {
+                "drawDirty": 3,
+                "previously-observed-empty": 1,
+                "materialVersionChanged": 1,
+                "context-reset-observed": 1
+              },
+              "bufferChanges": {
+                "LeftOver": 3,
+                "Mesh": 1,
+                "Light0": 1,
+                "Light1": 1,
+                "Light2": 1,
+                "Light3": 1,
+                "Light4": 1,
+                "tileMaskBuffer5": 1,
+                "Light5": 1,
+                "Scene": 1,
+                "Internals": 1
+              }
+            }
+          ]
+        },
+        {
+          "label": "paused",
+          "frames": 180,
+          "draws": 30192,
+          "created": 360,
+          "reused": 29832,
+          "engineCreated": 360,
+          "engineReused": 29832,
+          "metadata": {
+            "mapMeshes": 655,
+            "camera": "fpsCamera"
+          },
+          "reasons": {
+            "drawDirty": 360
+          },
+          "topCreationRows": [
+            {
+              "camera": "fpsCamera",
+              "pass": 5,
+              "target": "render-target",
+              "mesh": "ProxyMesh",
+              "material": "ProxyMaterial",
+              "subMesh": 0,
+              "draws": 180,
+              "created": 180,
+              "reused": 0,
+              "other": 0,
+              "causes": {
+                "drawDirty": 180
+              },
+              "bufferChanges": {
+                "Scene": 180
+              }
+            },
+            {
+              "camera": "weaponCamera",
+              "pass": 5,
+              "target": "render-target",
+              "mesh": "ProxyMesh",
+              "material": "ProxyMaterial",
+              "subMesh": 0,
+              "draws": 180,
+              "created": 180,
+              "reused": 0,
+              "other": 0,
+              "causes": {
+                "drawDirty": 180
+              },
+              "bufferChanges": {
+                "Scene": 180
+              }
+            }
+          ]
+        }
+      ],
+      "beforeProbeDiagnostics": null,
+      "runtimeReport": null,
+      "errors": [],
+      "warnings": [
+        "browser-warning: The powerPreference option is currently ignored when calling requestAdapter() on Windows. See https://crbug.com/369219127 http://127.0.0.1:3122/node_modules/.vite-probe/deps/chunk-G6HADM4L.js?v=084f484f",
+        "warning: [Water] bsp_tex_33: non-flat or disconnected batch; using authored/sky fallback, no local waves",
+        "warning: BJS - [time]: /skins/0: Failed to find common root",
+        "warning: [MapLoader] No client handler for: misc_model ×332, light ×179",
+        "warning: [ProjectileSync] proj_10624 is in snapshot 15994 without its projectile_spawn event; it is not drawn"
+      ],
+      "failedHTTP": []
+    },
+    "legacy-slots-rejected": {
+      "rawPath": ".cache/renderer-groundwork/webgpu-bundles-legacy-slots-rejected.json",
+      "rawSha256": "127c18fa451c3ba81b210ca298cd06858e0764654459897e783fdec7775997dc",
+      "accepted": false,
+      "identity": {
+        "head": "445ae85afb2d936e96e4140ea2b20439ec7ef87b",
+        "fpsHead": "0759316308429c2ad36aa1e3bda1b111b22016e7",
+        "diffHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "fpsDiffHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "dependencies": {
+          "Engines/webgpuEngine.pure.js": "cc8b6004cd7cab138c7899f6b79458190f5ed4e1d66cc6d83db093f24d9c0cf5",
+          "Engines/WebGPU/webgpuDrawContext.js": "af624b950873798563d2e74e0a71bc040e8102b38eb0afd20e10217bb0500bf9",
+          "Engines/WebGPU/webgpuMaterialContext.js": "59dd6f6d46fa4a02bc85404a5f8bd3b9fd51b04bb6a9739d1273cfdc8776f426",
+          "Materials/uniformBuffer.js": "512de4d32e09e07b124445e4aac3e34b504c3b4a0c509ff6d88d295e7c82baa1",
+          "Materials/drawWrapper.js": "ecf5bc98dda701b691bc4e2ea0fe4a9a37a5dd82e2c4bd5c18c4a830aed6d297"
+        }
+      },
+      "setup": {
+        "version": 1,
+        "compatibilityMode": false,
+        "ownerSlots": false,
+        "drawSourceHash": "24415c61205b4bda826eba6dc38ab83e822c6035235aaf1c76fd0562d3dce7f3"
+      },
+      "phases": [
+        {
+          "label": "playing",
+          "frames": 180,
+          "draws": 30765,
+          "created": 984,
+          "reused": 29781,
+          "engineCreated": 984,
+          "engineReused": 29781,
+          "metadata": {
+            "mapMeshes": 605,
+            "camera": "fpsCamera"
+          },
+          "reasons": {
+            "drawDirty": 981,
+            "previously-observed-empty": 84,
+            "materialVersionChanged": 126,
+            "context-reset-observed": 159,
+            "first-observed-empty": 79,
+            "materialDirty": 60
+          },
+          "topCreationRows": [
+            {
+              "camera": "fpsCamera",
+              "pass": 5,
+              "target": "render-target",
+              "mesh": "ProxyMesh",
+              "material": "ProxyMaterial",
+              "subMesh": 0,
+              "draws": 180,
+              "created": 180,
+              "reused": 0,
+              "other": 0,
+              "causes": {
+                "drawDirty": 180
+              },
+              "bufferChanges": {
+                "Scene": 180
+              }
+            },
+            {
+              "camera": "weaponCamera",
+              "pass": 5,
+              "target": "render-target",
+              "mesh": "ProxyMesh",
+              "material": "ProxyMaterial",
+              "subMesh": 0,
+              "draws": 180,
+              "created": 180,
+              "reused": 0,
+              "other": 0,
+              "causes": {
+                "drawDirty": 180
+              },
+              "bufferChanges": {
+                "Scene": 180
+              }
+            },
+            {
+              "camera": "fpsCamera",
+              "pass": 1,
+              "target": "render-target",
+              "mesh": "node9",
+              "material": "models/weapons/machinegun/machinegun",
+              "subMesh": 0,
+              "draws": 246,
+              "created": 12,
+              "reused": 234,
+              "other": 0,
+              "causes": {
+                "drawDirty": 12,
+                "previously-observed-empty": 1,
+                "materialVersionChanged": 2,
+                "context-reset-observed": 2,
+                "first-observed-empty": 1,
+                "materialDirty": 1
+              },
+              "bufferChanges": {
+                "LeftOver": 12,
+                "Mesh": 2,
+                "Light0": 2,
+                "Light1": 2,
+                "Light2": 2,
+                "Light3": 2,
+                "Scene": 2,
+                "Internals": 2
+              }
+            },
+            {
+              "camera": "fpsCamera",
+              "pass": 1,
+              "target": "render-target",
+              "mesh": "wallmark_4",
+              "material": "wallmark_shared_mat",
+              "subMesh": 0,
+              "draws": 116,
+              "created": 12,
+              "reused": 104,
+              "other": 0,
+              "causes": {
+                "first-observed-empty": 1,
+                "drawDirty": 12,
+                "context-reset-observed": 3,
+                "previously-observed-empty": 2
+              },
+              "bufferChanges": {
+                "Mesh": 3,
+                "Scene": 3,
+                "Internals": 3,
+                "LeftOver": 12
+              }
+            },
+            {
+              "camera": "fpsCamera",
+              "pass": 1,
+              "target": "render-target",
+              "mesh": "node9",
+              "material": "models/weapons/lasergun/lasergun",
+              "subMesh": 0,
+              "draws": 157,
+              "created": 9,
+              "reused": 148,
+              "other": 0,
+              "causes": {
+                "first-observed-empty": 1,
+                "drawDirty": 9,
+                "materialVersionChanged": 2,
+                "materialDirty": 1,
+                "context-reset-observed": 2,
+                "previously-observed-empty": 1
+              },
+              "bufferChanges": {
+                "Mesh": 2,
+                "Light0": 2,
+                "Light1": 2,
+                "Light2": 2,
+                "Light3": 2,
+                "Scene": 2,
+                "Internals": 2,
+                "LeftOver": 9
+              }
+            },
+            {
+              "camera": "fpsCamera",
+              "pass": 1,
+              "target": "render-target",
+              "mesh": "bsp_tex_2",
+              "material": "bsp_tex_2_pbr",
+              "subMesh": 0,
+              "draws": 360,
+              "created": 8,
+              "reused": 352,
+              "other": 0,
+              "causes": {
+                "drawDirty": 8
+              },
+              "bufferChanges": {
+                "LeftOver": 8
+              }
+            },
+            {
+              "camera": "fpsCamera",
+              "pass": 1,
+              "target": "render-target",
+              "mesh": "player_5/vanguard_visor",
+              "material": "playerMat_player_5_player_5/vanguard_visor",
+              "subMesh": 0,
+              "draws": 417,
+              "created": 8,
+              "reused": 409,
+              "other": 0,
+              "causes": {
+                "drawDirty": 8,
+                "previously-observed-empty": 1,
+                "materialVersionChanged": 1,
+                "context-reset-observed": 1
+              },
+              "bufferChanges": {
+                "LeftOver": 8,
+                "Mesh": 1,
+                "Light0": 1,
+                "Light1": 1,
+                "Light2": 1,
+                "Light3": 1,
+                "Scene": 1,
+                "Internals": 1
+              }
+            },
+            {
+              "camera": "fpsCamera",
+              "pass": 1,
+              "target": "render-target",
+              "mesh": "node12",
+              "material": "models/weapons/sights/sight_small_2",
+              "subMesh": 0,
+              "draws": 180,
+              "created": 8,
+              "reused": 172,
+              "other": 0,
+              "causes": {
+                "drawDirty": 8,
+                "previously-observed-empty": 1,
+                "materialVersionChanged": 1,
+                "context-reset-observed": 1
+              },
+              "bufferChanges": {
+                "LeftOver": 8,
+                "Mesh": 1,
+                "Light0": 1,
+                "Light1": 1,
+                "Light2": 1,
+                "Light3": 1,
+                "Scene": 1,
+                "Internals": 1
+              }
+            }
+          ]
+        },
+        {
+          "label": "paused",
+          "frames": 180,
+          "draws": 28578,
+          "created": 360,
+          "reused": 28218,
+          "engineCreated": 360,
+          "engineReused": 28218,
+          "metadata": {
+            "mapMeshes": 642,
+            "camera": "fpsCamera"
+          },
+          "reasons": {
+            "drawDirty": 360
+          },
+          "topCreationRows": [
+            {
+              "camera": "fpsCamera",
+              "pass": 5,
+              "target": "render-target",
+              "mesh": "ProxyMesh",
+              "material": "ProxyMaterial",
+              "subMesh": 0,
+              "draws": 180,
+              "created": 180,
+              "reused": 0,
+              "other": 0,
+              "causes": {
+                "drawDirty": 180
+              },
+              "bufferChanges": {
+                "Scene": 180
+              }
+            },
+            {
+              "camera": "weaponCamera",
+              "pass": 5,
+              "target": "render-target",
+              "mesh": "ProxyMesh",
+              "material": "ProxyMaterial",
+              "subMesh": 0,
+              "draws": 180,
+              "created": 180,
+              "reused": 0,
+              "other": 0,
+              "causes": {
+                "drawDirty": 180
+              },
+              "bufferChanges": {
+                "Scene": 180
+              }
+            }
+          ]
+        }
+      ],
+      "beforeProbeDiagnostics": null,
+      "runtimeReport": null,
+      "errors": [
+        "warning: BJS - [18:49:23]: [Frame 820] WebGPU uncaptured error (1): [object GPUValidationError] - The occlusionQuerySet in RenderPassDescriptor is not set. - While encoding [RenderPassEncoder \"[818|4] - PostProcessRTT-imageProcessing - RenderPass\"].BeginOcclusionQuery(",
+        "error: RENDERER_RUNTIME_REPORT {\"scope\":\"webgpu-gameplay-errors\",\"babylonVersion\":\"9.31.2\",\"uniformBufferLimit\":12,\"errors\":[{\"source\":\"device\",\"frame\":820,\"message\":\"The occlusionQuerySet in RenderPassDescriptor is not set.\\n - While encoding [RenderPassEncoder \\\"[8",
+        "browser-warning: The occlusionQuerySet in RenderPassDescriptor is not set.\n - While encoding [RenderPassEncoder \"[818|4] - PostProcessRTT-imageProcessing - RenderPass\"].BeginOcclusionQuery(49).\n - While finishing [Com http://127.0.0.1:3122/?renderer=webgpu&ncm=1",
+        "warning: BJS - [18:49:23]: [Frame 821] WebGPU uncaptured error (2): [object GPUValidationError] - [Invalid CommandBuffer from CommandEncoder \"[818|0] - RenderEncoder\"] is invalid due to a previous error. - While calling [Queue].Submit([[CommandBuffer from CommandEncode",
+        "error: RENDERER_RUNTIME_REPORT {\"scope\":\"webgpu-gameplay-errors\",\"babylonVersion\":\"9.31.2\",\"uniformBufferLimit\":12,\"errors\":[{\"source\":\"device\",\"frame\":821,\"message\":\"[Invalid CommandBuffer from CommandEncoder \\\"[818|0] - RenderEncoder\\\"] is invalid due to a previous",
+        "browser-warning: [Invalid CommandBuffer from CommandEncoder \"[818|0] - RenderEncoder\"] is invalid due to a previous error.\n - While calling [Queue].Submit([[CommandBuffer from CommandEncoder \"[818|0] - UploadEncoder\"] http://127.0.0.1:3122/?renderer=webgpu&ncm=1"
+      ],
+      "warnings": [
+        "browser-warning: The powerPreference option is currently ignored when calling requestAdapter() on Windows. See https://crbug.com/369219127 http://127.0.0.1:3122/node_modules/.vite-probe/deps/chunk-G6HADM4L.js?v=084f484f",
+        "warning: [Water] bsp_tex_33: non-flat or disconnected batch; using authored/sky fallback, no local waves",
+        "warning: BJS - [time]: /skins/0: Failed to find common root",
+        "warning: [MapLoader] No client handler for: misc_model ×332, light ×179",
+        "warning: [ProjectileSync] proj_10624 is in snapshot 16008 without its projectile_spawn event; it is not drawn"
+      ],
+      "failedHTTP": []
+    },
+    "default": {
+      "rawPath": ".cache/renderer-groundwork/webgpu-bundles-default.json",
+      "rawSha256": "32beb152a445dffce90991612aca2e417500982d1c14cb093df08f887b9ec4bf",
+      "accepted": true,
+      "identity": {
+        "head": "9e3d812c8a830112789d1b4a04ebc6cd1c31072a",
+        "fpsHead": "0759316308429c2ad36aa1e3bda1b111b22016e7",
+        "diffHash": "4c4dbab66d32887235f08a7cdd3d3eb6656e9207b20ddd3a4e0bbcf71ee5746f",
+        "fpsDiffHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "dependencies": {
+          "Engines/webgpuEngine.pure.js": "cc8b6004cd7cab138c7899f6b79458190f5ed4e1d66cc6d83db093f24d9c0cf5",
+          "Engines/WebGPU/webgpuDrawContext.js": "af624b950873798563d2e74e0a71bc040e8102b38eb0afd20e10217bb0500bf9",
+          "Engines/WebGPU/webgpuMaterialContext.js": "59dd6f6d46fa4a02bc85404a5f8bd3b9fd51b04bb6a9739d1273cfdc8776f426",
+          "Materials/uniformBuffer.js": "512de4d32e09e07b124445e4aac3e34b504c3b4a0c509ff6d88d295e7c82baa1",
+          "Materials/drawWrapper.js": "ecf5bc98dda701b691bc4e2ea0fe4a9a37a5dd82e2c4bd5c18c4a830aed6d297"
+        }
+      },
+      "setup": {
+        "engineApiVersion": 1,
+        "compatibilityMode": false,
+        "ownerSlots": true,
+        "drawSourceHash": "24415c61205b4bda826eba6dc38ab83e822c6035235aaf1c76fd0562d3dce7f3",
+        "babylonVersion": "9.31.2"
+      },
+      "phases": [
+        {
+          "label": "playing",
+          "frames": 180,
+          "draws": 30519,
+          "created": 722,
+          "reused": 29797,
+          "engineCreated": 722,
+          "engineReused": 29797,
+          "metadata": {
+            "mapMeshes": 612,
+            "camera": "fpsCamera",
+            "firstFrame": 950,
+            "lastFrame": 1129
+          },
+          "reasons": {
+            "drawDirty": 542,
+            "materialVersionChanged": 306,
+            "materialDirty": 208,
+            "previously-observed-empty": 122,
+            "context-reset-observed": 166,
+            "first-observed-empty": 48
+          },
+          "topCreationRows": [
+            {
+              "camera": "fpsCamera",
+              "pass": 4,
+              "target": "render-target",
+              "mesh": "ProxyMesh",
+              "material": "ProxyMaterial",
+              "subMesh": 0,
+              "draws": 180,
+              "created": 180,
+              "reused": 0,
+              "other": 0,
+              "causes": {
+                "drawDirty": 180
+              },
+              "bufferChanges": {
+                "Scene": 180
+              }
+            },
+            {
+              "camera": "fpsCamera",
+              "pass": 1,
+              "target": "render-target",
+              "mesh": "bsp_tex_33",
+              "material": "unified-water-water",
+              "subMesh": 0,
+              "draws": 180,
+              "created": 180,
+              "reused": 0,
+              "other": 0,
+              "causes": {
+                "materialVersionChanged": 180,
+                "materialDirty": 180
+              },
+              "bufferChanges": {}
+            },
+            {
+              "camera": "weaponCamera",
+              "pass": 4,
+              "target": "render-target",
+              "mesh": "ProxyMesh",
+              "material": "ProxyMaterial",
+              "subMesh": 0,
+              "draws": 180,
+              "created": 180,
+              "reused": 0,
+              "other": 0,
+              "causes": {
+                "drawDirty": 180
+              },
+              "bufferChanges": {
+                "Scene": 180
+              }
+            },
+            {
+              "camera": "fpsCamera",
+              "pass": 1,
+              "target": "render-target",
+              "mesh": "player_5/vanguard_visor",
+              "material": "playerMat_player_5_player_5/vanguard_visor",
+              "subMesh": 0,
+              "draws": 540,
+              "created": 6,
+              "reused": 534,
+              "other": 0,
+              "causes": {
+                "drawDirty": 6,
+                "previously-observed-empty": 2,
+                "materialVersionChanged": 2,
+                "context-reset-observed": 2
+              },
+              "bufferChanges": {
+                "LeftOver": 6,
+                "Mesh": 2,
+                "Light0": 2,
+                "Light1": 2,
+                "Light2": 2,
+                "Light3": 2,
+                "Scene": 2,
+                "Internals": 2
+              }
+            },
+            {
+              "camera": "fpsCamera",
+              "pass": 1,
+              "target": "render-target",
+              "mesh": "player_5/vanguard_Mesh",
+              "material": "playerMat_player_5_player_5/vanguard_Mesh",
+              "subMesh": 0,
+              "draws": 540,
+              "created": 6,
+              "reused": 534,
+              "other": 0,
+              "causes": {
+                "drawDirty": 6,
+                "previously-observed-empty": 2,
+                "materialVersionChanged": 2,
+                "context-reset-observed": 2
+              },
+              "bufferChanges": {
+                "LeftOver": 6,
+                "Mesh": 2,
+                "Light0": 2,
+                "Light1": 2,
+                "Light2": 2,
+                "Light3": 2,
+                "Scene": 2,
+                "Internals": 2
+              }
+            },
+            {
+              "camera": "fpsCamera",
+              "pass": 1,
+              "target": "render-target",
+              "mesh": "pp_cross_caps_health_small",
+              "material": "pp_fill_health_small",
+              "subMesh": 0,
+              "draws": 289,
+              "created": 6,
+              "reused": 283,
+              "other": 0,
+              "causes": {
+                "previously-observed-empty": 6,
+                "drawDirty": 6,
+                "context-reset-observed": 6
+              },
+              "bufferChanges": {
+                "Mesh": 6,
+                "Scene": 6,
+                "Internals": 6,
+                "LeftOver": 6
+              }
+            },
+            {
+              "camera": "weaponCamera",
+              "pass": 9,
+              "target": "main",
+              "mesh": "node11",
+              "material": "default material",
+              "subMesh": 0,
+              "draws": 222,
+              "created": 4,
+              "reused": 218,
+              "other": 0,
+              "causes": {
+                "drawDirty": 4,
+                "previously-observed-empty": 2,
+                "materialVersionChanged": 2,
+                "context-reset-observed": 2
+              },
+              "bufferChanges": {
+                "LeftOver": 4,
+                "Mesh": 2,
+                "Light0": 2,
+                "Light1": 2,
+                "Light2": 2,
+                "Light3": 2,
+                "Light4": 2,
+                "tileMaskBuffer5": 2,
+                "Light5": 2,
+                "Scene": 2,
+                "Internals": 2
+              }
+            },
+            {
+              "camera": "fpsCamera",
+              "pass": 1,
+              "target": "render-target",
+              "mesh": "tp_burst_1793033904234",
+              "material": "tp_burst_mat_1793033904234",
+              "subMesh": 0,
+              "draws": 42,
+              "created": 4,
+              "reused": 38,
+              "other": 0,
+              "causes": {
+                "first-observed-empty": 2,
+                "drawDirty": 4,
+                "materialDirty": 1,
+                "context-reset-observed": 4,
+                "previously-observed-empty": 2
+              },
+              "bufferChanges": {
+                "Mesh": 4,
+                "Scene": 4,
+                "Internals": 4,
+                "LeftOver": 4
+              }
+            }
+          ]
+        },
+        {
+          "label": "paused",
+          "frames": 180,
+          "draws": 30600,
+          "created": 540,
+          "reused": 30060,
+          "engineCreated": 540,
+          "engineReused": 30060,
+          "metadata": {
+            "mapMeshes": 670,
+            "camera": "fpsCamera",
+            "firstFrame": 1432,
+            "lastFrame": 1611
+          },
+          "reasons": {
+            "drawDirty": 360,
+            "materialVersionChanged": 180,
+            "materialDirty": 180
+          },
+          "topCreationRows": [
+            {
+              "camera": "fpsCamera",
+              "pass": 4,
+              "target": "render-target",
+              "mesh": "ProxyMesh",
+              "material": "ProxyMaterial",
+              "subMesh": 0,
+              "draws": 180,
+              "created": 180,
+              "reused": 0,
+              "other": 0,
+              "causes": {
+                "drawDirty": 180
+              },
+              "bufferChanges": {
+                "Scene": 180
+              }
+            },
+            {
+              "camera": "fpsCamera",
+              "pass": 1,
+              "target": "render-target",
+              "mesh": "bsp_tex_33",
+              "material": "unified-water-water",
+              "subMesh": 0,
+              "draws": 180,
+              "created": 180,
+              "reused": 0,
+              "other": 0,
+              "causes": {
+                "materialVersionChanged": 180,
+                "materialDirty": 180
+              },
+              "bufferChanges": {}
+            },
+            {
+              "camera": "weaponCamera",
+              "pass": 4,
+              "target": "render-target",
+              "mesh": "ProxyMesh",
+              "material": "ProxyMaterial",
+              "subMesh": 0,
+              "draws": 180,
+              "created": 180,
+              "reused": 0,
+              "other": 0,
+              "causes": {
+                "drawDirty": 180
+              },
+              "bufferChanges": {
+                "Scene": 180
+              }
+            }
+          ]
+        }
+      ],
+      "beforeProbeDiagnostics": {
+        "logs": [
+          "browser-warning: The powerPreference option is currently ignored when calling requestAdapter() on Windows. See https://crbug.com/369219127 http://127.0.0.1:3123/node_modules/.vite-probe/deps/chunk-G6HADM4L.js?v=084f484f",
+          "warning: [Water] bsp_tex_33: non-flat or disconnected batch; using authored/sky fallback, no local waves",
+          "warning: BJS - [18:58:14]: /skins/0: Failed to find common root",
+          "warning: BJS - [18:58:14]: /skins/0: Failed to find common root",
+          "warning: BJS - [18:58:14]: /skins/0: Failed to find common root",
+          "warning: BJS - [18:58:14]: /skins/0: Failed to find common root",
+          "warning: BJS - [18:58:14]: /skins/0: Failed to find common root",
+          "warning: BJS - [18:58:14]: /skins/0: Failed to find common root",
+          "warning: [MapLoader] No client handler for: misc_model ×332, light ×179",
+          "warning: BJS - [18:58:18]: /skins/0: Failed to find common root",
+          "warning: BJS - [18:58:18]: /skins/0: Failed to find common root",
+          "warning: BJS - [18:58:18]: /skins/0: Failed to find common root",
+          "warning: BJS - [18:58:18]: /skins/0: Failed to find common root",
+          "warning: BJS - [18:58:18]: /skins/0: Failed to find common root",
+          "warning: BJS - [18:58:18]: /skins/0: Failed to find common root",
+          "warning: BJS - [18:58:19]: /skins/0: Failed to find common root",
+          "warning: [ProjectileSync] proj_10617 is in snapshot 15944 without its projectile_spawn event; it is not drawn",
+          "warning: BJS - [18:58:20]: /skins/0: Failed to find common root",
+          "warning: BJS - [18:58:20]: /skins/0: Failed to find common root",
+          "warning: BJS - [18:58:20]: /skins/0: Failed to find common root",
+          "warning: BJS - [18:58:22]: /skins/0: Failed to find common root"
+        ],
+        "runtimeReport": null
+      },
+      "runtimeReport": null,
+      "errors": [],
+      "warnings": [
+        "browser-warning: The powerPreference option is currently ignored when calling requestAdapter() on Windows. See https://crbug.com/369219127 http://127.0.0.1:3123/node_modules/.vite-probe/deps/chunk-G6HADM4L.js?v=084f484f",
+        "warning: [Water] bsp_tex_33: non-flat or disconnected batch; using authored/sky fallback, no local waves",
+        "warning: BJS - [time]: /skins/0: Failed to find common root",
+        "warning: [MapLoader] No client handler for: misc_model ×332, light ×179",
+        "warning: [ProjectileSync] proj_10617 is in snapshot 15944 without its projectile_spawn event; it is not drawn"
+      ],
+      "failedHTTP": []
+    },
+    "legacy-slots": {
+      "rawPath": ".cache/renderer-groundwork/webgpu-bundles-legacy-slots.json",
+      "rawSha256": "5256dbe3a414c675e69525ebb439417286ec83d520cb37da11251d8eebd99c22",
+      "accepted": true,
+      "identity": {
+        "head": "9e3d812c8a830112789d1b4a04ebc6cd1c31072a",
+        "fpsHead": "0759316308429c2ad36aa1e3bda1b111b22016e7",
+        "diffHash": "4c4dbab66d32887235f08a7cdd3d3eb6656e9207b20ddd3a4e0bbcf71ee5746f",
+        "fpsDiffHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "dependencies": {
+          "Engines/webgpuEngine.pure.js": "cc8b6004cd7cab138c7899f6b79458190f5ed4e1d66cc6d83db093f24d9c0cf5",
+          "Engines/WebGPU/webgpuDrawContext.js": "af624b950873798563d2e74e0a71bc040e8102b38eb0afd20e10217bb0500bf9",
+          "Engines/WebGPU/webgpuMaterialContext.js": "59dd6f6d46fa4a02bc85404a5f8bd3b9fd51b04bb6a9739d1273cfdc8776f426",
+          "Materials/uniformBuffer.js": "512de4d32e09e07b124445e4aac3e34b504c3b4a0c509ff6d88d295e7c82baa1",
+          "Materials/drawWrapper.js": "ecf5bc98dda701b691bc4e2ea0fe4a9a37a5dd82e2c4bd5c18c4a830aed6d297"
+        }
+      },
+      "setup": {
+        "engineApiVersion": 1,
+        "compatibilityMode": false,
+        "ownerSlots": false,
+        "drawSourceHash": "24415c61205b4bda826eba6dc38ab83e822c6035235aaf1c76fd0562d3dce7f3",
+        "babylonVersion": "9.31.2"
+      },
+      "phases": [
+        {
+          "label": "playing",
+          "frames": 180,
+          "draws": 30612,
+          "created": 1057,
+          "reused": 29555,
+          "engineCreated": 1057,
+          "engineReused": 29555,
+          "metadata": {
+            "mapMeshes": 610,
+            "camera": "fpsCamera",
+            "firstFrame": 915,
+            "liquids": [
+              {
+                "name": "bsp_tex_33",
+                "kind": "water",
+                "occlusionType": 0,
+                "isOccluded": false
+              }
+            ],
+            "lastFrame": 1094
+          },
+          "reasons": {
+            "drawDirty": 877,
+            "materialVersionChanged": 279,
+            "materialDirty": 267,
+            "first-observed-empty": 111,
+            "context-reset-observed": 112,
+            "previously-observed-empty": 17
+          },
+          "topCreationRows": [
+            {
+              "camera": "fpsCamera",
+              "pass": 4,
+              "target": "render-target",
+              "mesh": "ProxyMesh",
+              "material": "ProxyMaterial",
+              "subMesh": 0,
+              "draws": 180,
+              "created": 180,
+              "reused": 0,
+              "other": 0,
+              "causes": {
+                "drawDirty": 180
+              },
+              "bufferChanges": {
+                "Scene": 180
+              }
+            },
+            {
+              "camera": "fpsCamera",
+              "pass": 1,
+              "target": "render-target",
+              "mesh": "bsp_tex_33",
+              "material": "unified-water-water",
+              "subMesh": 0,
+              "draws": 180,
+              "created": 180,
+              "reused": 0,
+              "other": 0,
+              "causes": {
+                "materialVersionChanged": 180,
+                "materialDirty": 180
+              },
+              "bufferChanges": {}
+            },
+            {
+              "camera": "weaponCamera",
+              "pass": 4,
+              "target": "render-target",
+              "mesh": "ProxyMesh",
+              "material": "ProxyMaterial",
+              "subMesh": 0,
+              "draws": 180,
+              "created": 180,
+              "reused": 0,
+              "other": 0,
+              "causes": {
+                "drawDirty": 180
+              },
+              "bufferChanges": {
+                "Scene": 180
+              }
+            },
+            {
+              "camera": "fpsCamera",
+              "pass": 1,
+              "target": "render-target",
+              "mesh": "node9",
+              "material": "models/weapons/machinegun/machinegun",
+              "subMesh": 0,
+              "draws": 286,
+              "created": 11,
+              "reused": 275,
+              "other": 0,
+              "causes": {
+                "first-observed-empty": 2,
+                "drawDirty": 11,
+                "materialVersionChanged": 2,
+                "materialDirty": 2,
+                "context-reset-observed": 2
+              },
+              "bufferChanges": {
+                "Mesh": 2,
+                "Light0": 2,
+                "Light1": 2,
+                "Light2": 2,
+                "Light3": 2,
+                "Scene": 2,
+                "Internals": 2,
+                "LeftOver": 11
+              }
+            },
+            {
+              "camera": "fpsCamera",
+              "pass": 1,
+              "target": "render-target",
+              "mesh": "player_5/vanguard_visor",
+              "material": "playerMat_player_5_player_5/vanguard_visor",
+              "subMesh": 0,
+              "draws": 432,
+              "created": 10,
+              "reused": 422,
+              "other": 0,
+              "causes": {
+                "first-observed-empty": 3,
+                "drawDirty": 10,
+                "materialVersionChanged": 3,
+                "materialDirty": 3,
+                "context-reset-observed": 3
+              },
+              "bufferChanges": {
+                "Internals": 3,
+                "LeftOver": 10,
+                "Mesh": 1,
+                "Light0": 1,
+                "Light1": 1,
+                "Light2": 1,
+                "Light3": 1,
+                "Scene": 1
+              }
+            },
+            {
+              "camera": "fpsCamera",
+              "pass": 1,
+              "target": "render-target",
+              "mesh": "player_5/vanguard_Mesh",
+              "material": "playerMat_player_5_player_5/vanguard_Mesh",
+              "subMesh": 0,
+              "draws": 432,
+              "created": 8,
+              "reused": 424,
+              "other": 0,
+              "causes": {
+                "first-observed-empty": 3,
+                "drawDirty": 8,
+                "materialVersionChanged": 3,
+                "materialDirty": 3,
+                "context-reset-observed": 3
+              },
+              "bufferChanges": {
+                "Internals": 3,
+                "LeftOver": 8,
+                "Mesh": 1,
+                "Light0": 1,
+                "Light1": 1,
+                "Light2": 1,
+                "Light3": 1,
+                "Scene": 1
+              }
+            },
+            {
+              "camera": "fpsCamera",
+              "pass": 1,
+              "target": "render-target",
+              "mesh": "node12",
+              "material": "models/weapons/sights/sight_small_2",
+              "subMesh": 0,
+              "draws": 180,
+              "created": 8,
+              "reused": 172,
+              "other": 0,
+              "causes": {
+                "first-observed-empty": 1,
+                "drawDirty": 8,
+                "materialVersionChanged": 1,
+                "materialDirty": 1,
+                "context-reset-observed": 1
+              },
+              "bufferChanges": {
+                "Mesh": 1,
+                "Light0": 1,
+                "Light1": 1,
+                "Light2": 1,
+                "Light3": 1,
+                "Scene": 1,
+                "Internals": 1,
+                "LeftOver": 8
+              }
+            },
+            {
+              "camera": "fpsCamera",
+              "pass": 1,
+              "target": "render-target",
+              "mesh": "node9",
+              "material": "models/weapons/plasmagun/plasmagun",
+              "subMesh": 0,
+              "draws": 180,
+              "created": 8,
+              "reused": 172,
+              "other": 0,
+              "causes": {
+                "drawDirty": 8
+              },
+              "bufferChanges": {
+                "LeftOver": 8
+              }
+            }
+          ]
+        },
+        {
+          "label": "paused",
+          "frames": 180,
+          "draws": 29052,
+          "created": 543,
+          "reused": 28509,
+          "engineCreated": 543,
+          "engineReused": 28509,
+          "metadata": {
+            "mapMeshes": 641,
+            "camera": "fpsCamera",
+            "firstFrame": 1386,
+            "liquids": [
+              {
+                "name": "bsp_tex_33",
+                "kind": "water",
+                "occlusionType": 0,
+                "isOccluded": false
+              }
+            ],
+            "lastFrame": 1565
+          },
+          "reasons": {
+            "drawDirty": 363,
+            "materialVersionChanged": 180,
+            "materialDirty": 180
+          },
+          "topCreationRows": [
+            {
+              "camera": "fpsCamera",
+              "pass": 4,
+              "target": "render-target",
+              "mesh": "ProxyMesh",
+              "material": "ProxyMaterial",
+              "subMesh": 0,
+              "draws": 180,
+              "created": 180,
+              "reused": 0,
+              "other": 0,
+              "causes": {
+                "drawDirty": 180
+              },
+              "bufferChanges": {
+                "Scene": 180
+              }
+            },
+            {
+              "camera": "fpsCamera",
+              "pass": 1,
+              "target": "render-target",
+              "mesh": "bsp_tex_33",
+              "material": "unified-water-water",
+              "subMesh": 0,
+              "draws": 180,
+              "created": 180,
+              "reused": 0,
+              "other": 0,
+              "causes": {
+                "materialVersionChanged": 180,
+                "materialDirty": 180
+              },
+              "bufferChanges": {}
+            },
+            {
+              "camera": "weaponCamera",
+              "pass": 4,
+              "target": "render-target",
+              "mesh": "ProxyMesh",
+              "material": "ProxyMaterial",
+              "subMesh": 0,
+              "draws": 180,
+              "created": 180,
+              "reused": 0,
+              "other": 0,
+              "causes": {
+                "drawDirty": 180
+              },
+              "bufferChanges": {
+                "Scene": 180
+              }
+            },
+            {
+              "camera": "fpsCamera",
+              "pass": 1,
+              "target": "render-target",
+              "mesh": "pp_ring_0_health_small",
+              "material": "pp_ring_health_small_9_0",
+              "subMesh": 0,
+              "draws": 180,
+              "created": 2,
+              "reused": 178,
+              "other": 0,
+              "causes": {
+                "drawDirty": 2
+              },
+              "bufferChanges": {
+                "LeftOver": 2
+              }
+            },
+            {
+              "camera": "fpsCamera",
+              "pass": 1,
+              "target": "render-target",
+              "mesh": "pp_ring_0_health_small",
+              "material": "pp_ring_health_small_7_0",
+              "subMesh": 0,
+              "draws": 72,
+              "created": 1,
+              "reused": 71,
+              "other": 0,
+              "causes": {
+                "drawDirty": 1
+              },
+              "bufferChanges": {
+                "LeftOver": 1
+              }
+            }
+          ]
+        }
+      ],
+      "beforeProbeDiagnostics": {
+        "logs": [
+          "browser-warning: The powerPreference option is currently ignored when calling requestAdapter() on Windows. See https://crbug.com/369219127 http://127.0.0.1:3123/node_modules/.vite-probe/deps/chunk-G6HADM4L.js?v=084f484f",
+          "warning: [Water] bsp_tex_33: non-flat or disconnected batch; using authored/sky fallback, no local waves",
+          "warning: BJS - [19:00:21]: /skins/0: Failed to find common root",
+          "warning: BJS - [19:00:21]: /skins/0: Failed to find common root",
+          "warning: BJS - [19:00:21]: /skins/0: Failed to find common root",
+          "warning: BJS - [19:00:21]: /skins/0: Failed to find common root",
+          "warning: BJS - [19:00:21]: /skins/0: Failed to find common root",
+          "warning: BJS - [19:00:21]: /skins/0: Failed to find common root",
+          "warning: [MapLoader] No client handler for: misc_model ×332, light ×179",
+          "warning: BJS - [19:00:25]: /skins/0: Failed to find common root",
+          "warning: BJS - [19:00:25]: /skins/0: Failed to find common root",
+          "warning: BJS - [19:00:25]: /skins/0: Failed to find common root",
+          "warning: BJS - [19:00:25]: /skins/0: Failed to find common root",
+          "warning: BJS - [19:00:25]: /skins/0: Failed to find common root",
+          "warning: BJS - [19:00:25]: /skins/0: Failed to find common root",
+          "warning: BJS - [19:00:25]: /skins/0: Failed to find common root",
+          "warning: BJS - [19:00:27]: /skins/0: Failed to find common root",
+          "warning: BJS - [19:00:27]: /skins/0: Failed to find common root",
+          "warning: [ProjectileSync] proj_10624 is in snapshot 15996 without its projectile_spawn event; it is not drawn",
+          "warning: BJS - [19:00:27]: /skins/0: Failed to find common root",
+          "warning: BJS - [19:00:29]: /skins/0: Failed to find common root"
+        ],
+        "runtimeReport": null
+      },
+      "runtimeReport": null,
+      "errors": [],
+      "warnings": [
+        "browser-warning: The powerPreference option is currently ignored when calling requestAdapter() on Windows. See https://crbug.com/369219127 http://127.0.0.1:3123/node_modules/.vite-probe/deps/chunk-G6HADM4L.js?v=084f484f",
+        "warning: [Water] bsp_tex_33: non-flat or disconnected batch; using authored/sky fallback, no local waves",
+        "warning: BJS - [time]: /skins/0: Failed to find common root",
+        "warning: [MapLoader] No client handler for: misc_model ×332, light ×179",
+        "warning: [ProjectileSync] proj_10624 is in snapshot 15996 without its projectile_spawn event; it is not drawn"
+      ],
+      "failedHTTP": []
+    }
+  }
+}
