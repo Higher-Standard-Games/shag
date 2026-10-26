@@ -17,6 +17,7 @@
  */
 
 import type { TeamId } from "../server/gametype";
+import { q3AngleToGameYaw } from "./TriggerTable";
 
 /** BSP spawn entities sit at feet level; player origin is 24 units above. */
 export const PLAYER_ORIGIN_HEIGHT = 24;
@@ -104,6 +105,55 @@ export function extractTeamSpawnPoints(entities: BspEntityLike[]): Map<TeamId, S
     else byTeam.set(team, [position]);
   }
   return byTeam;
+}
+
+/** A spawn point's position and the yaw a player spawned there faces. */
+export interface SpawnFacing {
+  position: SpawnVec3;
+  /** Game yaw in radians, as `q3AngleToGameYaw` returns it. */
+  yaw: number;
+}
+
+/** Q3 yaw in degrees from "angles" ("pitch yaw roll") or "angle"; 0 when absent. */
+function spawnAngleDegrees(properties: Record<string, string> | undefined): number {
+  const angles = properties?.angles?.trim().split(/\s+/).map(Number);
+  if (angles && angles.length >= 2 && Number.isFinite(angles[1])) return angles[1];
+  const angle = Number(properties?.angle);
+  return Number.isFinite(angle) ? angle : 0;
+}
+
+/** Every spawn point with its authored facing, generic and team-tagged alike. */
+export function extractSpawnFacings(entities: BspEntityLike[]): SpawnFacing[] {
+  const out: SpawnFacing[] = [];
+  for (const entity of entities) {
+    if (!SPAWN_CLASSNAMES.includes(entity.classname) && !(entity.classname in TEAM_SPAWN_CLASSNAMES)) continue;
+    const position = parseSpawnOrigin(entity.properties?.origin);
+    if (position) out.push({ position, yaw: q3AngleToGameYaw(spawnAngleDegrees(entity.properties)) });
+  }
+  return out;
+}
+
+/**
+ * Horizontal reach of a spawn's facing. The server moves a player up to 24
+ * units along each axis off the spawn point (collision jitter), about 34
+ * diagonally.
+ */
+export const SPAWN_FACING_RADIUS = 40;
+
+/** The facing of the spawn point nearest `position`, or null when none is within reach. */
+export function spawnFacingNear(facings: readonly SpawnFacing[], position: SpawnVec3): number | null {
+  let best: SpawnFacing | null = null;
+  let bestDistance = SPAWN_FACING_RADIUS * SPAWN_FACING_RADIUS;
+  for (const facing of facings) {
+    const dx = facing.position.x - position.x;
+    const dz = facing.position.z - position.z;
+    const distance = dx * dx + dz * dz;
+    if (distance <= bestDistance && Math.abs(facing.position.y - position.y) <= 32) {
+      best = facing;
+      bestDistance = distance;
+    }
+  }
+  return best ? best.yaw : null;
 }
 
 /** True when this BSP carries usable team spawns for both teams. */

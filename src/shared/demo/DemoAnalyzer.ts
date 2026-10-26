@@ -131,6 +131,8 @@ interface PlayerTracker {
   lastDeathTick: number;
   lastKilledBy: string;
   consecutiveAirFrames: number;
+  /** Origin height the last time this player stood on the ground. */
+  lastGroundedY: number | null;
   currentHealth: number;
   frags: number;
 }
@@ -144,6 +146,8 @@ const LONG_RANGE_THRESHOLD = 1500;
 const CLOSE_RANGE_THRESHOLD = 150;
 /** Rising faster than a plain jump (270) or a wall jump (420) can: a rocket or a pad did that. */
 const ROCKET_JUMP_VEL_Y = 450;
+/** Feet at least this far above the ground make a frag airborne; a hop off a step does not. */
+export const AIRBORNE_MIN_CLEARANCE = 32;
 const HIGH_SPEED_THRESHOLD = 600;
 const LOW_HP_THRESHOLD = 30;
 
@@ -189,7 +193,19 @@ const TAG_MULTIPLIERS: Record<HighlightTag, number> = {
 
 // ── DemoAnalyzer ─────────────────────────────────────────────────────────────
 
+/**
+ * Where the ground is, when the caller has the map. Returns how far the feet of
+ * a player at `origin` are above the ground below them, or null when unknown.
+ */
+export type GroundClearance = (origin: Vec3) => number | null;
+
 export class DemoAnalyzer {
+  /**
+   * @param groundClearance - Measures a killer's height above the ground. Without
+   *   it, height is taken against where the killer last stood.
+   */
+  constructor(private readonly groundClearance?: GroundClearance) {}
+
   /**
    * Analyze a sequence of frames and return scored highlight candidates.
    *
@@ -231,6 +247,7 @@ export class DemoAnalyzer {
           lastDeathTick: -1,
           lastKilledBy: "",
           consecutiveAirFrames: 0,
+          lastGroundedY: null,
           currentHealth: 100,
           frags: 0,
         };
@@ -339,8 +356,12 @@ export class DemoAnalyzer {
         // ── Tag detection ─────────────────────────────────────────────
         const tags: HighlightTag[] = [];
 
-        // Airborne / rocket_jump
-        if (!killerGrounded) {
+        // Airborne / rocket_jump: clear of the ground, not just between steps
+        if (
+          !killerGrounded &&
+          killerPos &&
+          this._clearance(killerPos, getTracker(killerId)) >= AIRBORNE_MIN_CLEARANCE
+        ) {
           if (killerLinearY > ROCKET_JUMP_VEL_Y) {
             tags.push("rocket_jump");
           } else {
@@ -444,13 +465,14 @@ export class DemoAnalyzer {
         if (!velocity) continue;
 
         const t = getTracker(entityId);
+        const position = (entity.getComponent("transform") as TransformComponent | undefined)?.position;
         if (!velocity.grounded) {
           t.consecutiveAirFrames += 1;
         } else {
           t.consecutiveAirFrames = 0;
+          if (position) t.lastGroundedY = position.y;
         }
 
-        const position = (entity.getComponent("transform") as TransformComponent | undefined)?.position;
         if (position) {
           const finished = this._trackMovement(runs, entityId, entity, velocity, position, yaw, tick, tickRate);
           if (finished) moves.push(finished);
@@ -511,6 +533,14 @@ export class DemoAnalyzer {
   }
 
   // ── Private helpers ──────────────────────────────────────────────────────
+
+  /** Feet height above the ground below, or above where the player last stood. */
+  private _clearance(origin: Vec3, tracker: PlayerTracker): number {
+    const measured = this.groundClearance?.(origin);
+    if (measured !== null && measured !== undefined) return measured;
+    // Unknown ground and never seen standing: count it, as before.
+    return tracker.lastGroundedY === null ? Number.POSITIVE_INFINITY : origin.y - tracker.lastGroundedY;
+  }
 
   private _buildPlayerNames(frames: DemoFrame[], header: DemoHeader): Map<string, string> {
     const names = new Map<string, string>();

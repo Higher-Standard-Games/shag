@@ -10,13 +10,17 @@
 
 import { describe, expect, it } from "vitest";
 import {
+  extractSpawnFacings,
   extractSpawnPoints,
   extractTeamSpawnPoints,
   hasTeamSpawns,
   PLAYER_ORIGIN_HEIGHT,
   SPAWN_CLASSNAMES,
+  SPAWN_FACING_RADIUS,
+  spawnFacingNear,
   TEAM_SPAWN_CLASSNAMES,
 } from "../SpawnPointTable";
+import { q3AngleToGameYaw } from "../TriggerTable";
 
 type Ent = { classname: string; properties: Record<string, string> };
 const ent = (classname: string, origin?: string): Ent => ({
@@ -106,5 +110,37 @@ describe("hasTeamSpawns", () => {
     expect(hasTeamSpawns([alpha])).toBe(false);
     expect(hasTeamSpawns([beta])).toBe(false);
     expect(hasTeamSpawns([ent("info_player_deathmatch", "0 0 0")])).toBe(false);
+  });
+});
+
+describe("spawn facings", () => {
+  const facing = (classname: string, origin: string, properties: Record<string, string> = {}) => ({
+    classname,
+    properties: { origin, ...properties },
+  });
+
+  it("reads the authored yaw from angle, or from the yaw of angles", () => {
+    const facings = extractSpawnFacings([
+      facing("info_player_deathmatch", "0 0 0", { angle: "90" }),
+      facing("team_CTF_alphaspawn", "100 0 0", { angles: "0 180 0" }),
+      facing("info_player_start", "200 0 0"),
+      facing("weapon_rocketlauncher", "300 0 0", { angle: "45" }),
+    ]);
+    expect(facings.map((f) => f.yaw)).toEqual([q3AngleToGameYaw(90), q3AngleToGameYaw(180), q3AngleToGameYaw(0)]);
+    // Same positions the server spawns at
+    expect(facings[1].position).toEqual({ x: 100, y: PLAYER_ORIGIN_HEIGHT, z: 0 });
+  });
+
+  it("faces a player placed anywhere the spawn jitter can put them, and nowhere else", () => {
+    const facings = extractSpawnFacings([
+      facing("info_player_deathmatch", "0 0 0", { angle: "90" }),
+      facing("info_player_deathmatch", "512 0 0", { angle: "270" }),
+    ]);
+    const at = (x: number, z: number, y = PLAYER_ORIGIN_HEIGHT) => spawnFacingNear(facings, { x, y, z });
+    // Jitter moves up to 24 units on each axis: 34 diagonally
+    expect(at(24, 24)).toBe(q3AngleToGameYaw(90));
+    expect(at(500, -10)).toBe(q3AngleToGameYaw(270));
+    expect(at(SPAWN_FACING_RADIUS + 1, 0)).toBeNull();
+    expect(at(0, 0, PLAYER_ORIGIN_HEIGHT + 200)).toBeNull();
   });
 });

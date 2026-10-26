@@ -253,6 +253,38 @@ describe("DemoAnalyzer", () => {
       // score = 10 * 1.5 (airborne)
       expect(h.score).toBe(15);
     });
+
+    it("does not count a frag a hop off the ground: the feet must clear 32 units", () => {
+      const header = makeHeader([{ playerId: "k1", name: "K" }]);
+      const victim = { x: 500, y: 0, z: 0 };
+      const standing = makeEntity("player_k1", { grounded: true, posY: 0 });
+      const hop = makeEntity("player_k1", { grounded: false, posY: 8 });
+      const high = makeEntity("player_k1", { grounded: false, posY: 40 });
+
+      // Without a map: against where the killer last stood
+      const low = analyzer.analyze(
+        [makeFrame(100, [], [standing]), makeFrame(110, [deathEvent("player_k1", "player_v1", victim)], [hop])],
+        header,
+        5000,
+      );
+      expect(low.highlights[0].tags).not.toContain("airborne");
+      const clear = analyzer.analyze(
+        [makeFrame(100, [], [standing]), makeFrame(110, [deathEvent("player_k1", "player_v1", victim)], [high])],
+        header,
+        5000,
+      );
+      expect(clear.highlights[0].tags).toContain("airborne");
+
+      // With the map: the measured height wins, even over a ledge dropped from
+      const measured = (height: number) =>
+        new DemoAnalyzer(() => height).analyze(
+          [makeFrame(100, [], [standing]), makeFrame(110, [deathEvent("player_k1", "player_v1", victim)], [hop])],
+          header,
+          5000,
+        ).highlights[0].tags;
+      expect(measured(31)).not.toContain("airborne");
+      expect(measured(32)).toContain("airborne");
+    });
   });
 
   describe("rocket jump frag", () => {
