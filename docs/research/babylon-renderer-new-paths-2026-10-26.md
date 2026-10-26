@@ -202,6 +202,11 @@ plus a membership diff) consumed by the classic provider now.
 
 ### 2. Attribute WebGPU bundle rebuilds
 
+**Done:** see the [bundle attribution results](babylon-classic-webgpu-bundles-2026-10-26.md).
+Rebuilds are now about 3 per frame (98.5% reuse); the only steady source is
+Babylon's clustered-light tile mask alternating per-camera scene buffers. NCM
+shows no clear frame-time gain yet and conflicts with water occlusion queries.
+
 v0.9.27 stopped at "attribute rebuilds per mesh and material". Do that, after
 path 1 or as its measurement. For each frame under `?renderer=webgpu&ncm=1`, record
 which meshes and materials created bundles, then classify by cause: visible-set

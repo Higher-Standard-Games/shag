@@ -79,9 +79,9 @@ Do not make any package a prerequisite merely to fill a progress row.
 | Matrix-free analytic effect draws | WebGL2 + WebGPU | Experiment validated; gameplay adoption deferred until forced-draw statistics and broader pass coverage are resolved |
 | Selective baked skeletal animation | WebGL2 + WebGPU | Later experiment; actor pose, sockets and existing animation LOD are constraints |
 | Draw-list/visibility scheduling | WebGL2 + WebGPU | Bounded primary-view PVS pruning implemented ([results](babylon-classic-pvs-candidates-2026-10-26.md)); a retained list still needs dynamic-membership and cost evidence ([review](babylon-renderer-new-paths-2026-10-26.md)) |
-| Shared main-pass depth for halos and water | WebGPU | Proposed: attribute the post-load sampled/attached depth conflict; interim single union capture |
+| Shared main-pass depth for halos and water | WebGPU | Complete (`445ae85a`): convert pass samples the main depth texture; dm5 median draws 339 → 133–180, no post-load WebGPU errors ([alpha3 note](v1.0.0-alpha3-performance.md#webgpu-attempt-not-shipped)) |
 | Compute/storage-buffer algorithms | WebGPU | Future backend-specific investigation |
-| Cached WebGPU render bundles | WebGPU | Existing non-compatibility-mode experiment; no default change |
+| Cached WebGPU render bundles | WebGPU | Rebuilds attributed ([results](babylon-classic-webgpu-bundles-2026-10-26.md)): ~3 created vs 160–200 reused per frame on dm5, down from v0.9.27's 94/236; no clear frame-time gain in four sessions; water occlusion queries cause WebGPU errors under NCM. Opt-in unchanged |
 
 The owner accepts work-count and correctness evidence without requiring FPS
 comparisons on high-end development hardware. Record concrete work removed,
