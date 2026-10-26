@@ -69,16 +69,20 @@ function errorMessage(error: unknown): string {
  * needs (without it `r_ssr 1` fails to start on WebGPU only; WebGL gets its
  * own multi-render extension through Babylon's imports); and compute shaders
  * plus the registered compute particle platform, which `GPUParticleSystem`
- * selects on WebGPU in place of WebGL2 transform feedback.
+ * selects on WebGPU in place of WebGL2 transform feedback. Disabled stencil
+ * is also given one pipeline key (see WebGPUStencilKey).
  */
 export async function loadWebGPUBackend() {
-  const [{ WebGPUEngine }] = await Promise.all([
+  const [{ WebGPUEngine }, { stabilizeDisabledStencilKeys }] = await Promise.all([
     import("@babylonjs/core/Engines/webgpuEngine"),
+    import("./WebGPUStencilKey"),
     import("@babylonjs/core/Engines/WebGPU/Extensions/engine.dynamicTexture"),
     import("@babylonjs/core/Engines/WebGPU/Extensions/engine.multiRender"),
     import("@babylonjs/core/Engines/WebGPU/Extensions/engine.computeShader"),
     import("@babylonjs/core/Particles/computeShaderParticleSystem"),
   ]);
+  if (!stabilizeDisabledStencilKeys())
+    console.warn("[Renderer] Babylon's WebGPU stencil composer changed shape; pipeline keys left as shipped");
   return WebGPUEngine;
 }
 

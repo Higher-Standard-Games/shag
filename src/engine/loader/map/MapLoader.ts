@@ -780,6 +780,16 @@ export class MapLoader {
         SCENE_READY_TIMEOUT_MS,
       );
 
+      // Before PVS hides most of the world: build WebGPU pipelines for every
+      // surface and entity behind the loading screen, not on first sight in play
+      progress("Finalizing", "Preparing render pipelines");
+      const { warmRenderPipelines } = await import("../../rendering/PipelineWarmup");
+      const warmStart = performance.now();
+      const pipelines = await warmRenderPipelines(scene, signal);
+      if (pipelines) {
+        devLog(`[MapLoader] Built ${pipelines} render pipelines in ${Math.round(performance.now() - warmStart)} ms`);
+      }
+
       // Keep every world surface live through temporary-light preparation,
       // including meshes sharing a material with the representative compiled.
       // Frozen PBR draw caches can otherwise reuse readiness from an old effect

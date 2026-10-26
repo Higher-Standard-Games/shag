@@ -266,7 +266,23 @@ replace arbitrary authored stages or provide an independent demo clock.
 ### Preparation and readiness
 
 World materials are frozen after temporary-light warmup and final entity
-readiness. Geometry matrices and bounds stay frozen during preparation.
+readiness. On WebGPU the loader then draws two frames with frustum clipping
+skipped, before PVS starts, and waits for the GPU queue. WebGPU builds a render
+pipeline the first time a material draws with a new combination of shader,
+vertex layout, states and target formats, and the browser compiles each one
+before the frame ends. Drawing everything once behind the loading screen moves
+that cost out of play: on `washoi_dm5` about 105 pipelines were built in the
+first seconds of play, with frames of up to 2.4 s, and now 6–7 are. The step
+costs 0.8–2.8 s of loading on the tested maps. A hidden tab skips it, and
+meshes disabled at load (pooled effects, weapons not yet held) still build
+theirs when first drawn. WebGL2 links programs when the effect compiles and
+skips the step.
+
+Babylon keys WebGPU pipelines on the stencil read and write masks even while
+stencil is off. A player outline drawn over a transparent material sets the
+write mask to 4 for one draw, and Babylon left it there, so every material
+later needed a second pipeline differing only in a mask nothing reads.
+`WebGPUStencilKey` resets both masks whenever stencil is disabled. Geometry matrices and bounds stay frozen during preparation.
 Explicit preparation keeps frozen materials unfrozen until compilation finishes,
 then restores their frozen state. Readiness uses the same non-instanced flag as
 the rendered world pass, so a pending replacement effect cannot inherit a
