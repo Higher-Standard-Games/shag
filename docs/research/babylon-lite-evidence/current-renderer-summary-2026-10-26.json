@@ -1,0 +1,316 @@
+{
+  "method": "Selected installed-package declaration/implementation token checks and SHA-256 snapshots, plus manually reviewed SHAG owner hashes. No execution, compilation of proposed classes, exhaustive API compatibility claim or performance measurement.",
+  "package": {
+    "name": "@babylonjs/core",
+    "version": "9.31.2",
+    "metadataSha256": "cccb4ae50f2a8de039bb3322d4d03d5a009289b795d16d83288a8701fedf3b76"
+  },
+  "inspectedPackageFiles": [
+    {
+      "file": "Materials/shaderMaterial.pure.d.ts",
+      "sha256": "80deb2a562c2347db6a570b4d0d6bbfa0367f8aba48caf5cebef5ba5fecf0bce",
+      "checkedTokens": [
+        "setFloat(name: string",
+        "setUniformBuffer(name: string"
+      ]
+    },
+    {
+      "file": "Materials/shaderMaterial.pure.js",
+      "sha256": "2496c9a5c2c31d728325e626cd6bcbcb7e4d9b0f347101c8950bbde082be0682",
+      "checkedTokens": [
+        "this._floats[name] = value",
+        "effect.setFloat(name, this._floats[name])"
+      ]
+    },
+    {
+      "file": "Materials/materialPluginBase.pure.d.ts",
+      "sha256": "4212aa587362a4a1bc9d4ed9b6d615742725edf3717c376da537b5c8f36df481",
+      "checkedTokens": [
+        "getCustomCode(",
+        "bindForSubMesh("
+      ]
+    },
+    {
+      "file": "Materials/uniformBuffer.d.ts",
+      "sha256": "19eb5f558b71bec9ebcaf6473a0c5f7f3bcbeb5222725d632d5b85ced2d9a57a",
+      "checkedTokens": [
+        "addUniform(",
+        "updateFloat:",
+        "update(): void"
+      ]
+    },
+    {
+      "file": "Materials/uniformBuffer.js",
+      "sha256": "512de4d32e09e07b124445e4aac3e34b504c3b4a0c509ff6d88d295e7c82baa1",
+      "checkedTokens": [
+        "if (!this._dynamic && !this._needSync)",
+        "this._engine.updateUniformBuffer"
+      ]
+    },
+    {
+      "file": "Engines/WebGL/webGLPipelineContext.js",
+      "sha256": "6e10e02a6c465bc5b0739158c3c6cfd903c5b0cbd4edf7827cfc6ed3a2071c29",
+      "checkedTokens": [
+        "setFloat(uniformName, value)",
+        "cache !== undefined && cache === value"
+      ]
+    },
+    {
+      "file": "Meshes/thinInstanceMesh.types.d.ts",
+      "sha256": "5239ec23c4ba5185fda2d52c1ff68a3bdefd94cd41e59c5ab542a59e2c1456d2",
+      "checkedTokens": [
+        "thinInstancePartialBufferUpdate(",
+        "thinInstanceSetBuffer("
+      ]
+    },
+    {
+      "file": "Meshes/thinInstanceMesh.pure.js",
+      "sha256": "647dd837c6d2c607afa7a95d2b2fc3b738bfe03bc5f4579c4ca1e070545a2205",
+      "checkedTokens": [
+        "Object.defineProperty(Mesh.prototype, \"thinInstanceCount\"",
+        "typeof dataOrLength === \"number\""
+      ]
+    },
+    {
+      "file": "Buffers/buffer.pure.d.ts",
+      "sha256": "657e5b63d4ebe743f5f829d6e3aeca7a7808cd8a3ca8960cb01c67b2e7e27a70",
+      "checkedTokens": [
+        "updateDirectly(data: DataArray",
+        "interface IVertexBufferOptions"
+      ]
+    },
+    {
+      "file": "Meshes/mesh.pure.js",
+      "sha256": "e9ddcb55af0e64211628fcb3938c50271cc672836737618e1ec023e208400bc1",
+      "checkedTokens": [
+        "get forcedInstanceCount()",
+        "this.forcedInstanceCount || instancesCount"
+      ]
+    },
+    {
+      "file": "BakedVertexAnimation/bakedVertexAnimationManager.d.ts",
+      "sha256": "87566f816448b3ef46c8bb7486a106dcfbf0bf27ed1cf3a7f0ab0b870b119cad",
+      "checkedTokens": [
+        "setAnimationParameters(",
+        "time: number"
+      ]
+    },
+    {
+      "file": "BakedVertexAnimation/bakedVertexAnimationManager.js",
+      "sha256": "c64673796755dc258d53c8740ee10d434d80ad3a2e51e90462f11c67be35a639",
+      "checkedTokens": [
+        "effect.setFloat(\"bakedVertexAnimationTime\", this.time)"
+      ]
+    },
+    {
+      "file": "BakedVertexAnimation/vertexAnimationBaker.d.ts",
+      "sha256": "a4af398edcec36818773b6964b380f93bc45e2bb315e62147633143544e03955",
+      "checkedTokens": [
+        "bakeVertexDataSync(",
+        "textureFromBakedVertexData("
+      ]
+    },
+    {
+      "file": "BakedVertexAnimation/vertexAnimationBaker.js",
+      "sha256": "df88a287ebe423a27166ed922020b664d7f8e4e185dcdd6036367baa88bb4def",
+      "checkedTokens": [
+        "const floatsPerFrame = (bones + 1) * 16",
+        "this._scene.render()"
+      ]
+    },
+    {
+      "file": "Shaders/ShadersInclude/bakedVertexAnimation.js",
+      "sha256": "5c27146fcc6e8426af179c87e634db41977d99877c65e9b695a6a4caa56e7a9d",
+      "checkedTokens": [
+        "VATStartFrame",
+        "VATInfluence"
+      ]
+    },
+    {
+      "file": "Materials/materialHelper.functions.js",
+      "sha256": "b7ae2d99bd444fbd807995aeefa8e35986dd58bdeab770a678312c030c7712fd",
+      "checkedTokens": [
+        "bakedVertexAnimationSettingsInstanced"
+      ]
+    },
+    {
+      "file": "Materials/Textures/rawTexture2DArray.d.ts",
+      "sha256": "fe1e94c9178063a3e49504de50810a98d50ccbda7efcc4afbea54358d4c694f4",
+      "checkedTokens": [
+        "class RawTexture2DArray"
+      ]
+    },
+    {
+      "file": "Materials/Textures/renderTargetTexture.pure.d.ts",
+      "sha256": "e083ddd1f709e74f37c8cbb66766b2116aa2b09dbe6b577867b1f1a385691a5f",
+      "checkedTokens": [
+        "getCustomRenderList",
+        "get renderList()"
+      ]
+    },
+    {
+      "file": "FrameGraph/frameGraph.d.ts",
+      "sha256": "27e061bc3918bbc6df48339b0a2e231d738b8f2971010b1fa0f86e963215685f",
+      "checkedTokens": [
+        "constructor(scene: Scene",
+        "textureManager: FrameGraphTextureManager"
+      ]
+    },
+    {
+      "file": "FrameGraph/Tasks/Rendering/objectRendererTask.d.ts",
+      "sha256": "19f65f185e07bf8f740cd913c88126969d6bed60f4683a6da792f9957fa826a3",
+      "checkedTokens": [
+        "objectList: FrameGraphObjectList",
+        "depthTexture?: FrameGraphTextureHandle"
+      ]
+    },
+    {
+      "file": "Compute/computeShader.pure.js",
+      "sha256": "7c03aa49ded8c50d3bbd18837a630d784c06f2f5d582113a02293bfc6ad6b506",
+      "checkedTokens": [
+        "this._engine.getCaps().supportComputeShaders"
+      ]
+    },
+    {
+      "file": "Culling/Helper/boundingInfoHelper.js",
+      "sha256": "9428fc7a0a7ade21cc14d9b0765bbcd1034bf14ab2546562a834a847a5d833f5",
+      "checkedTokens": [
+        "supportComputeShaders",
+        "supportTransformFeedbacks"
+      ]
+    },
+    {
+      "file": "Particles/gpuParticleSystem.pure.js",
+      "sha256": "39ae14e2d22b36573ed4b995879f6800026448169597f399cfb39ed269c317dc",
+      "checkedTokens": [
+        "caps.supportTransformFeedbacks || caps.supportComputeShaders"
+      ]
+    },
+    {
+      "file": "Engines/engineCapabilities.d.ts",
+      "sha256": "840e7f4d63b152a418ce11d6c0548d4c9ff3b41ffa70274c27f851aabcde9089",
+      "checkedTokens": [
+        "canUseGLVertexID",
+        "texture2DArrayMaxLayerCount"
+      ]
+    }
+  ],
+  "shagSources": [
+    {
+      "file": "src/engine/loader/shader/ShaderAnimationSystem.ts",
+      "sha256": "820d82633e2c164014114c806e5cddb8040eadde60c37a69c2d9da62120bfe10"
+    },
+    {
+      "file": "src/engine/loader/shader/Q3ShaderMaterialFactory.ts",
+      "sha256": "86cfb290af1165cbd6e9ee560a442340cd6d06060817d208bbf9c804fb527dbd"
+    },
+    {
+      "file": "src/engine/loader/shader/GlowOverlayShaderMaterial.ts",
+      "sha256": "2e02ec70e5d579882d5fafc97717de470558051377e1524c1c48164a5940ef54"
+    },
+    {
+      "file": "src/engine/loader/shader/Q3NodeMaterialBuilder.ts",
+      "sha256": "8df0776ab33a1f71f32ef9e8ebff2e2ec231b73e963ae6ebc2c9d5b42e15398c"
+    },
+    {
+      "file": "src/engine/loader/shader/Q3StageColorPlugin.ts",
+      "sha256": "cf4cb26ba2bec994a12860a20ab60869c53949b78c99005dd9f7c2f844c8630a"
+    },
+    {
+      "file": "src/engine/loader/shader/Q3DistanceRampPlugin.ts",
+      "sha256": "745165b38e559f19922a60be52e4ce6a6ab3ece7e5be7d6659e19b8d73290537"
+    },
+    {
+      "file": "src/engine/loader/shader/__tests__/TextureTransforms.test.ts",
+      "sha256": "6cb8d10ed7a777a97a1d51ae68323628f9f560909e3616b5d69136f1195df1dc"
+    },
+    {
+      "file": "src/engine/console/commands/ShaderCommand.ts",
+      "sha256": "cc880835ba2939d8b4feef7e028e9ae2857e11653ce62c5c222441f41ca879ee"
+    },
+    {
+      "file": "src/engine/weapon/voltaic/VoltaicEffectRenderer.ts",
+      "sha256": "4f1651857851b86e7dd68330c955600254c1bad7ad523fcbd6ea8874044ff97f"
+    },
+    {
+      "file": "src/engine/weapon/voltaic/VoltaicShaderMaterial.ts",
+      "sha256": "ef7160c17da083698c105420f77859ad8de786f001bfd0a1ab0e6447e3bacaa6"
+    },
+    {
+      "file": "src/engine/weapon/explosion/ExplosionBatchRenderer.ts",
+      "sha256": "386096145405ebddb692332f4fd1b37acd9070ea960af0959ec3dcaae092730e"
+    },
+    {
+      "file": "src/engine/weapon/explosion/ExplosionBatchMaterial.ts",
+      "sha256": "90557d5ab804e6c296b936a26ff9ab1f9eb155e8ec8ce7c04f1c865ad19b0545"
+    },
+    {
+      "file": "src/engine/animation/PlayerModelManager.ts",
+      "sha256": "34a077aa7ca4b65e1d0b1aa32c3c4341368f9f69dbf7c26a1497efefe8045b20"
+    },
+    {
+      "file": "src/engine/rendering/PlayerOutlineProxy.ts",
+      "sha256": "b1298512a8acf34593641d0e17a8ddf14495ef1a595b1cae0eb47afb9882c11d"
+    },
+    {
+      "file": "src/engine/rendering/FrozenWorldMaterials.ts",
+      "sha256": "ab09ffaa4458799288aca819f106ecd269d1d0c9a1fad4dda12eaaad5310b47e"
+    },
+    {
+      "file": "src/engine/rendering/WeaponCameraCandidates.ts",
+      "sha256": "2c2466ed6b48ebc89f8f42e9478d94620f2678b987e23541e0720ba38915d22d"
+    },
+    {
+      "file": "src/engine/rendering/SceneDepthCapture.ts",
+      "sha256": "fd039243c59a571d3533eedc41d50b6a51b51aa7a159e55c517f159ea2eecf9d"
+    },
+    {
+      "file": "src/engine/rendering/water/WaterProbeCache.ts",
+      "sha256": "44944edff153212e07b8b8ea4e05a739a6a7dda9f4c06a537aef59f5bbfba027"
+    },
+    {
+      "file": "src/engine/rendering/RenderingEngineFactory.ts",
+      "sha256": "172cff7ed026bfa4ded4ce7e857d7826017cebc1863d3ce8b3ce82ceb0eb5729"
+    },
+    {
+      "file": "src/engine/rendering/RendererPerformanceCapture.ts",
+      "sha256": "0b94aa34f6f5411975164931402dae203be5c8a940344e7d4260337749e33851"
+    },
+    {
+      "file": "src/engine/loader/bsp/mesh/spatialBatching.ts",
+      "sha256": "b941a4c7c504346e60aba94b96639b191658c28bbc71318d2b660f9561f67c34"
+    },
+    {
+      "file": "src/engine/loader/bsp/BspMeshBuilder.ts",
+      "sha256": "0c75eca1c039439612214a44ea8db3d5a63620db46d2f4a72913ee4de32a2933"
+    },
+    {
+      "file": "src/engine/loader/model/MD3Loader.ts",
+      "sha256": "7c90ecfdda19cd0a7c6bafc254e7308ba8c163788194536b51d9d9bc491c6114"
+    },
+    {
+      "file": "src/engine/loader/shader/Q3ShaderTypes.ts",
+      "sha256": "53907c5a989e694e006c5a67758a08ffa5383a3bf1561bf68ea6ff9511ce5062"
+    },
+    {
+      "file": "src/engine/core/GameTimer.ts",
+      "sha256": "12c263f27c7144b4deb4ae15f3a29814ade03cb0b9925e7474d0337ea9ea739a"
+    },
+    {
+      "file": "src/engine/loader/map/MapLoader.ts",
+      "sha256": "940e01c3b41d22148da430b00cd4c7cf80e8d1f7bb84129ecd9eb8c8960f4100"
+    },
+    {
+      "file": "src/engine/console/commands/PerfCommand.ts",
+      "sha256": "b056563f723a1d193d9f9f265af7421e61950fb979b6f24213aa287463072d9b"
+    },
+    {
+      "file": "src/engine/weapon/__tests__/VoltaicEffectRenderer.test.ts",
+      "sha256": "9e4105976b85576a2cb81b5ec06df1524c18268e597c50e1bbf197fa100fb537"
+    },
+    {
+      "file": "src/engine/__tests__/ExplosionBatch.test.ts",
+      "sha256": "f445fca233c17d287d3611df1bdd57e97a52c37d08186a1185c268dde3cd7477"
+    }
+  ]
+}

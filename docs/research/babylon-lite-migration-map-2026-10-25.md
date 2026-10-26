@@ -9,6 +9,20 @@ Follow-up: [actual code boundaries and small groundwork candidates](babylon-lite
 including reproducible import evidence and concrete wrapper-preserving extraction
 plans. Its source findings refine the broader reuse/adapt labels below.
 
+The [October 26 groundwork catalog](babylon-lite-groundwork-catalog-2026-10-26.md)
+extends this map with 15 work packages and concrete data/time/lifetime contracts.
+Use its planning checklist before creating the proposed files here. It separates
+small pure calculations from browser host work, device-specific policy and
+resource wrappers that should remain backend-owned.
+
+The [published API audit](babylon-lite-api-coverage-2026-10-26.md) and
+[pseudocode/file-change sketch](babylon-lite-integration-sketch-2026-10-26.md)
+add concrete call-level constraints. Use their distinction between published
+1.36.0 and the later master checkout before implementing this proposed tree.
+In particular, `removeTask` and `createCustomPostProcessTask` are not published
+root exports at that version. Existing feature names and file proposals here
+do not imply an available one-to-one Lite class.
+
 ## Agreed scope
 
 Preserve SHAG's working WebGL and Babylon WebGPU implementations. Keep their
@@ -408,6 +422,14 @@ pipeline/layout test; neither was run here. Preserve current seeding, dirty-rang
 uploads and slot recycling. Replacing a batch with one draw per spark/beam would
 undermine the performance objective.
 
+The published-package follow-up identifies another concrete option:
+`createRenderShader` accepts explicit GPU vertex-buffer layouts and raw render
+draws can bind vertex-capable storage allocations. An instance-step payload
+layout could avoid the high-level ShaderMaterial attribute restriction. This
+needs its own task/depth/camera/culling integration proof; it is not evidence
+that arbitrary thin-instance streams work through compat. Shipped compat
+silently ignores stream kinds other than matrix and color.
+
 ### 3. Camera, pass and resource ownership
 
 Lite has explicit ordered tasks and per-pass cameras, but our two-camera held
@@ -438,6 +460,13 @@ already provide a complete renderer-neutral game interface.
 including pause, seek and watched-target changes. Establish a narrow
 presentation adapter from that case before changing the game composition. Do
 not promise full gameplay integration as a constructor-only change.
+
+The published clone implementation shares/refcounts skeleton-related mesh
+state rather than establishing independently retargeted actor instances.
+Compat AssetContainer does not expose SHAG's instantiateModelsToScene contract.
+The actor factory and safe independent rig lifetime therefore remain explicit
+planning questions. Native loaded bones, blending and seek functions exist,
+but the actual two-actor combination still needs proof.
 
 ### 5. Optional rendering features still need honest support boundaries
 
@@ -476,6 +505,17 @@ consumers should declare the camera, projection convention, dimensions, format,
 sample count and lifetime of the product they consume.
 
 ## Could this substantially improve performance?
+
+The [native redesign study](babylon-lite-native-performance-2026-10-26.md)
+expands this section into concrete instance/effect/animation/material/pass
+experiments against published 1.36.0 implementation behavior. Read its count-only
+upload preconditions, visibility invalidation and VAT memory/parity gates before
+choosing a supposedly faster representation.
+
+The [current-renderer comparison](babylon-classic-optimization-opportunities-2026-10-26.md)
+also identifies which opportunities can be implemented in Babylon WebGL2 or
+the existing Babylon WebGPU backend. The presence of an idea in this migration
+plan does not mean Lite is necessary to implement it.
 
 **Plausibly, especially when render CPU work limits the frame. It is not yet
 measured in SHAG.** Lite's structure gives opportunities to avoid work, but
@@ -525,6 +565,10 @@ water/shadows/outlines is not a speed comparison against the full renderer.
 1. **Before any runtime work:** agree that this is a separate post-1.0 research
    application; pin versions and representative cases. No production aliases or
    engine defaults change.
+   Complete the relevant extraction design records first: current callers and
+   compatibility API, spaces/units/color/matrix layout, ownership, clock/events,
+   cancellation and behavior fixtures. Choose only the groundwork needed by
+   those cases; the complete catalog is not a mandatory refactoring project.
 2. **Before calling it a promising renderer:** show indexed DM2 and difficult
    material cases with explicit missing-feature counts, measured frame/load costs
    and stable repeated cleanup.

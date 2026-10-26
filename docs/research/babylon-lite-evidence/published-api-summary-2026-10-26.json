@@ -1,0 +1,6176 @@
+{
+  "method": "Syntactic named Babylon import inventory across src/*.ts (recursive), split by scope, compared only with exported names in pinned published compat declarations. Type-only flags are syntactic. No runtime reachability, instance-method resolution, signature equivalence or working-implementation claim. Literal dynamic imports and side-effect modules recorded separately; computed imports, external internals, .tsx and scripts/ are not covered.",
+  "typescript": "5.9.3",
+  "packages": {
+    "lite": {
+      "name": "@babylonjs/lite",
+      "version": "1.36.0",
+      "gitHead": "5241e29f5a88ff23534a11d3114ac8ea983c5961",
+      "tarball": "https://registry.npmjs.org/@babylonjs/lite/-/lite-1.36.0.tgz",
+      "integrity": "sha512-GrXseQnLetxCVvAGfDAE0KJtpcHsll38W5uabWI/yeu2/0QbD7KuHtLzR3f2QNHqv8+FthAcXA78rJrXfqfxJw==",
+      "tarballSha256": "524841ab50343abb3b9826b281cee94634bae3aa9f0e3852cf697b9d2abc7e4c",
+      "declarationSha256": "9018d22f2c3d38da9ba59544d3531b07a4626f4929679a56c68328e88c67e1a8",
+      "declarationExportNames": 1927
+    },
+    "compat": {
+      "name": "@babylonjs/lite-compat",
+      "version": "1.36.0-preview",
+      "gitHead": "5241e29f5a88ff23534a11d3114ac8ea983c5961",
+      "tarball": "https://registry.npmjs.org/@babylonjs/lite-compat/-/lite-compat-1.36.0-preview.tgz",
+      "integrity": "sha512-pKGKrEkh11AudPYPE9ZocqCqH5S4rnVUhJ6PU3jwUXqpXUOEs0rwDxpxevPMyYaaCjGP107S38PSSf+33zv0Iw==",
+      "tarballSha256": "5dc10bdce1daf1820b6efd133007ed8fe660aaf7a4f0e3cfc020ca76a7db552e",
+      "declarationSha256": "0443eb186f8914c40de9606b87b966d7bd2f7134d3f9e160fc7ee114fb8b1cd2",
+      "declarationExportNames": 527
+    }
+  },
+  "counts": {
+    "scannedTsFiles": 1810,
+    "babylonImporterFiles": 459,
+    "namedSymbols": 160,
+    "missingCompatExportNames": 61,
+    "sideEffectOrNamespaceSites": 79,
+    "literalDynamicSites": 75
+  },
+  "missingCompatExportNames": [
+    "_GetCompatibleTextureLoader",
+    "_KTXTextureLoader",
+    "_ProcessShaderCode",
+    "AddBlock",
+    "AreaLightTextureTools",
+    "AutoReleaseWorkerPool",
+    "CreateCylinderVertexData",
+    "CreateIcoSphereVertexData",
+    "DataBuffer",
+    "EffectRenderer",
+    "EngineInstrumentation",
+    "EngineStore",
+    "fogFragmentDeclaration",
+    "fogFragmentDeclarationWGSL",
+    "FragmentOutputBlock",
+    "FresnelParameters",
+    "geometryPixelShaderWGSL",
+    "GetClass",
+    "GetEnvironmentBRDFTexture",
+    "HavokPhysicsWithBindings",
+    "IDecodedData",
+    "IKTX2DecoderOptions",
+    "ImportAnimationsAsync",
+    "initializeWebWorker",
+    "InputBlock",
+    "InternalTexture",
+    "InternalTextureSource",
+    "IParticleSystem",
+    "IPhysicsEngine",
+    "KhronosTextureContainer2",
+    "LerpBlock",
+    "MaterialDefines",
+    "MSCTranscoder",
+    "MultiplyBlock",
+    "NodeMaterialConnectionPoint",
+    "NodeMaterialSystemValues",
+    "Observer",
+    "PBRBaseMaterial",
+    "PhysicsViewer",
+    "Ragdoll",
+    "RawCubeTexture",
+    "registerGLTFExtension",
+    "RegisterMaterialPlugin",
+    "registerTextureLoader",
+    "RenderingGroup",
+    "RenderTargetWrapper",
+    "SceneInstrumentation",
+    "ShaderStore",
+    "SphericalPolynomial",
+    "SSRRenderingPipeline",
+    "SubMesh",
+    "TextureBlock",
+    "TrailMesh",
+    "TransformBlock",
+    "VectorMergerBlock",
+    "VertexOutputBlock",
+    "VolumetricLightScatteringPostProcess",
+    "WebGPUPipelineContext",
+    "WebGPUShaderProcessingContext",
+    "WebGPUShaderProcessorWGSL",
+    "workerFunction"
+  ],
+  "nativeProbes": [
+    {
+      "name": "createEngine",
+      "declared": true,
+      "runtimeExport": true
+    },
+    {
+      "name": "createSceneContext",
+      "declared": true,
+      "runtimeExport": true
+    },
+    {
+      "name": "createFreeCamera",
+      "declared": true,
+      "runtimeExport": true
+    },
+    {
+      "name": "createMeshFromData",
+      "declared": true,
+      "runtimeExport": true
+    },
+    {
+      "name": "addToScene",
+      "declared": true,
+      "runtimeExport": true
+    },
+    {
+      "name": "registerScene",
+      "declared": true,
+      "runtimeExport": true
+    },
+    {
+      "name": "renderFrame",
+      "declared": true,
+      "runtimeExport": true
+    },
+    {
+      "name": "startEngine",
+      "declared": true,
+      "runtimeExport": true
+    },
+    {
+      "name": "onBeforeRender",
+      "declared": true,
+      "runtimeExport": true
+    },
+    {
+      "name": "onEngineGpuError",
+      "declared": true,
+      "runtimeExport": true
+    },
+    {
+      "name": "onEngineDeviceLost",
+      "declared": true,
+      "runtimeExport": true
+    },
+    {
+      "name": "enableSurfaceResizeObserver",
+      "declared": true,
+      "runtimeExport": true
+    },
+    {
+      "name": "disposeScene",
+      "declared": true,
+      "runtimeExport": true
+    },
+    {
+      "name": "disposeEngine",
+      "declared": true,
+      "runtimeExport": true
+    },
+    {
+      "name": "waitForGpuIdle",
+      "declared": true,
+      "runtimeExport": true
+    },
+    {
+      "name": "getEngineLimits",
+      "declared": true,
+      "runtimeExport": true
+    },
+    {
+      "name": "createRenderTask",
+      "declared": true,
+      "runtimeExport": true
+    },
+    {
+      "name": "createRenderTarget",
+      "declared": true,
+      "runtimeExport": true
+    },
+    {
+      "name": "addMeshToTask",
+      "declared": true,
+      "runtimeExport": true
+    },
+    {
+      "name": "getFrameGraph",
+      "declared": true,
+      "runtimeExport": true
+    },
+    {
+      "name": "addTask",
+      "declared": true,
+      "runtimeExport": true
+    },
+    {
+      "name": "removeTask",
+      "declared": false,
+      "runtimeExport": false
+    },
+    {
+      "name": "setMeshVisible",
+      "declared": true,
+      "runtimeExport": true
+    },
+    {
+      "name": "markMeshRenderableDirty",
+      "declared": true,
+      "runtimeExport": true
+    },
+    {
+      "name": "createShaderMaterial",
+      "declared": true,
+      "runtimeExport": true
+    },
+    {
+      "name": "MaterialPlugin",
+      "declared": true,
+      "runtimeExport": false
+    },
+    {
+      "name": "PluginSamplerDecl",
+      "declared": true,
+      "runtimeExport": false
+    },
+    {
+      "name": "ShaderSamplerDecl",
+      "declared": true,
+      "runtimeExport": false
+    },
+    {
+      "name": "createTexture2DArrayFromPixels",
+      "declared": true,
+      "runtimeExport": true
+    },
+    {
+      "name": "createTexture2DArrayFromKtx2",
+      "declared": true,
+      "runtimeExport": true
+    },
+    {
+      "name": "loadTexture2D",
+      "declared": true,
+      "runtimeExport": true
+    },
+    {
+      "name": "loadCubeTexture",
+      "declared": true,
+      "runtimeExport": true
+    },
+    {
+      "name": "setKtx2DecoderUrl",
+      "declared": true,
+      "runtimeExport": true
+    },
+    {
+      "name": "createTexture2DFromPixels",
+      "declared": true,
+      "runtimeExport": true
+    },
+    {
+      "name": "enablePbrLightmap",
+      "declared": true,
+      "runtimeExport": true
+    },
+    {
+      "name": "setPbrLightmap",
+      "declared": true,
+      "runtimeExport": true
+    },
+    {
+      "name": "enablePbrLocalCubemap",
+      "declared": true,
+      "runtimeExport": true
+    },
+    {
+      "name": "enableMaterialUvTransform",
+      "declared": true,
+      "runtimeExport": true
+    },
+    {
+      "name": "setTextureTransform",
+      "declared": true,
+      "runtimeExport": true
+    },
+    {
+      "name": "setThinInstances",
+      "declared": true,
+      "runtimeExport": true
+    },
+    {
+      "name": "setThinInstanceColors",
+      "declared": true,
+      "runtimeExport": true
+    },
+    {
+      "name": "setThinInstanceDrawCount",
+      "declared": true,
+      "runtimeExport": true
+    },
+    {
+      "name": "createStorageBuffer",
+      "declared": true,
+      "runtimeExport": true
+    },
+    {
+      "name": "updateStorageBufferRange",
+      "declared": true,
+      "runtimeExport": true
+    },
+    {
+      "name": "createRenderShader",
+      "declared": true,
+      "runtimeExport": true
+    },
+    {
+      "name": "createRenderDrawTask",
+      "declared": true,
+      "runtimeExport": true
+    },
+    {
+      "name": "createRenderDraw",
+      "declared": true,
+      "runtimeExport": true
+    },
+    {
+      "name": "createRenderBindingSet",
+      "declared": true,
+      "runtimeExport": true
+    },
+    {
+      "name": "setRenderDrawCount",
+      "declared": true,
+      "runtimeExport": true
+    },
+    {
+      "name": "RenderShaderOptions",
+      "declared": true,
+      "runtimeExport": false
+    },
+    {
+      "name": "computeTextureViewBinding",
+      "declared": true,
+      "runtimeExport": true
+    },
+    {
+      "name": "createCustomPostProcessTask",
+      "declared": false,
+      "runtimeExport": false
+    },
+    {
+      "name": "createUniformEffectWrapper",
+      "declared": true,
+      "runtimeExport": true
+    },
+    {
+      "name": "createEffectRenderTask",
+      "declared": true,
+      "runtimeExport": true
+    },
+    {
+      "name": "createGeometryRendererTask",
+      "declared": true,
+      "runtimeExport": true
+    },
+    {
+      "name": "withSampledDepthTexture",
+      "declared": true,
+      "runtimeExport": true
+    },
+    {
+      "name": "loadGltf",
+      "declared": true,
+      "runtimeExport": true
+    },
+    {
+      "name": "cloneTransformNode",
+      "declared": true,
+      "runtimeExport": true
+    },
+    {
+      "name": "enableBoneControl",
+      "declared": true,
+      "runtimeExport": true
+    },
+    {
+      "name": "goToFrame",
+      "declared": true,
+      "runtimeExport": true
+    },
+    {
+      "name": "setAnimationWeight",
+      "declared": true,
+      "runtimeExport": true
+    },
+    {
+      "name": "setAnimationAdditive",
+      "declared": true,
+      "runtimeExport": true
+    },
+    {
+      "name": "setBoneWorldPoseDeferred",
+      "declared": true,
+      "runtimeExport": true
+    },
+    {
+      "name": "setThinInstanceCount",
+      "declared": true,
+      "runtimeExport": true
+    },
+    {
+      "name": "setThinInstanceMatrix",
+      "declared": true,
+      "runtimeExport": true
+    },
+    {
+      "name": "enableThinInstanceDynamicDrawCount",
+      "declared": true,
+      "runtimeExport": true
+    },
+    {
+      "name": "enableThinInstanceGpuCulling",
+      "declared": true,
+      "runtimeExport": true
+    },
+    {
+      "name": "setThinInstanceLodPartner",
+      "declared": true,
+      "runtimeExport": true
+    },
+    {
+      "name": "createHierarchyInstancePool",
+      "declared": true,
+      "runtimeExport": true
+    },
+    {
+      "name": "setHierarchyInstanceMatrix",
+      "declared": true,
+      "runtimeExport": true
+    },
+    {
+      "name": "prepareVat",
+      "declared": true,
+      "runtimeExport": true
+    },
+    {
+      "name": "prepareVatMany",
+      "declared": true,
+      "runtimeExport": true
+    },
+    {
+      "name": "createVatBakeResult",
+      "declared": true,
+      "runtimeExport": true
+    },
+    {
+      "name": "createVatBakeResults",
+      "declared": true,
+      "runtimeExport": true
+    },
+    {
+      "name": "attachVat",
+      "declared": true,
+      "runtimeExport": true
+    },
+    {
+      "name": "setVatInstanceStorage",
+      "declared": true,
+      "runtimeExport": true
+    },
+    {
+      "name": "setVatTime",
+      "declared": true,
+      "runtimeExport": true
+    },
+    {
+      "name": "createComputeTask",
+      "declared": true,
+      "runtimeExport": true
+    },
+    {
+      "name": "setRenderDrawIndirect",
+      "declared": true,
+      "runtimeExport": true
+    },
+    {
+      "name": "setRenderTaskGpuTimingEnabled",
+      "declared": true,
+      "runtimeExport": true
+    },
+    {
+      "name": "getRenderTaskGpuTimings",
+      "declared": true,
+      "runtimeExport": true
+    },
+    {
+      "name": "measureRenderTaskOverdrawCost",
+      "declared": true,
+      "runtimeExport": true
+    },
+    {
+      "name": "createAudioEngineAsync",
+      "declared": true,
+      "runtimeExport": true
+    },
+    {
+      "name": "PhysicsCharacterController",
+      "declared": true,
+      "runtimeExport": true
+    }
+  ],
+  "inspectedImplementationHashes": {
+    "native": [
+      {
+        "file": "lib/engine/engine.js",
+        "sha256": "844cc77c0b78d8a8ee5d88724ed212a111c9463301464f40fdf98a8fb4b2f169"
+      },
+      {
+        "file": "lib/engine/engine-gpu-events.js",
+        "sha256": "570bd31f24065fde70533159857a73a657652f9e012d5e06488e410313baa5e7"
+      },
+      {
+        "file": "lib/scene/transform-node.js",
+        "sha256": "0a380e7bad1e1f2c6841f4f760797f29a37c59eba91a78426d337923e0a77ebf"
+      },
+      {
+        "file": "lib/frame-graph/frame-graph.js",
+        "sha256": "a5743a897841213120d09cfc32502c6d5a841c8bca92c3c26e65e59d1a0b6ffe"
+      },
+      {
+        "file": "lib/frame-graph/render-task.js",
+        "sha256": "dd8ec2624004484821109877e614c20ccf0a516463908b640919e2c1a6705b0e"
+      },
+      {
+        "file": "lib/material/shader/shader-material.js",
+        "sha256": "38513a83c2ba5d90972835e0a19ab0ab282f8e2cf4dfa4114acb1f4cf4a68fd1"
+      },
+      {
+        "file": "lib/material/shader/shader-pipeline.js",
+        "sha256": "d082cbf7664e93b7f172ece1acecea9f8adfde0a3b62e3c7d63f1b80479411c5"
+      },
+      {
+        "file": "lib/animation/animation-group.js",
+        "sha256": "fa2c566b20b3c4c35eeffd72df3a9d5a9fe4e5e11635810cd72c6da1ab32bf65"
+      },
+      {
+        "file": "lib/material/enable-material-uv-transform.js",
+        "sha256": "f27b9890e11686ec6494ed35b463d2d59733fd6697ac3392b18dd76553fdd4c1"
+      },
+      {
+        "file": "lib/texture/texture-metadata.js",
+        "sha256": "267e8208944295e5ff83fbd3b61b8e27d42d3edccb7e24c81b20f9795415d4d2"
+      },
+      {
+        "file": "lib/mesh/thin-instance.js",
+        "sha256": "23aaeee5a1ca553267e6b2b7d273cbfe3b2e525d54e5c5d9cfc8a06f44f12153"
+      },
+      {
+        "file": "lib/mesh/thin-instance-gpu.js",
+        "sha256": "87e6de001c050148f417bf2a38ab58668e13f35b47a46e728987efedea2e578e"
+      },
+      {
+        "file": "lib/mesh/hierarchy-instance-pool.js",
+        "sha256": "d5f5ab33c24a41153b6f369a13733f8870f70a3ea7deed640529f1c8f524be52"
+      },
+      {
+        "file": "lib/scene/visibility.js",
+        "sha256": "de658ec94e26ceabe950ccafb6579dac6105349dbe9dae981813adb0f852c2e7"
+      },
+      {
+        "file": "lib/frame-graph/render-task-base.js",
+        "sha256": "dc9f2e00f3052d10f9b0dfdc3f196ed35d49def337357d26682de49efcb2e80e"
+      },
+      {
+        "file": "lib/frame-graph/render-task-transaction.js",
+        "sha256": "e088d2cfa133ec4a883e68cb6dd110f3e3ce994eb6fbdfc92560e0f474d4cd92"
+      },
+      {
+        "file": "lib/vat/vat-baker.js",
+        "sha256": "22418d1e7adf15497ad9579d742e5c8d9482a7eb2528cf033c631adce3e5f361"
+      },
+      {
+        "file": "lib/engine/gpu-task-timing.js",
+        "sha256": "cfd22d4884538f2913d47483edfbaba2e8467440304d7a81e80f808b68b3c238"
+      }
+    ],
+    "compatSourceMapContents": [
+      {
+        "source": "src/bones/skeleton.ts",
+        "map": "index.js.map",
+        "sha256": "998759c63d404729206069eb71d5ef80b08a44864d4b77fa4e462727116775ec"
+      },
+      {
+        "source": "src/loading/scene-loader.ts",
+        "map": "index.js.map",
+        "sha256": "2e37773f986bccd1c1749548cf906c71c9c37902c1d90f0949ca35c42fff87ce"
+      },
+      {
+        "source": "src/materials/material-plugin.ts",
+        "map": "index.js.map",
+        "sha256": "1774c6fdb59d49016eadbceae132bc96fd5f5775d2f224344687255b5324a0c6"
+      },
+      {
+        "source": "src/meshes/meshes.ts",
+        "map": "meshes-zeNif9yt.js.map",
+        "sha256": "57b0062ffe0f797151e817bda26a17302a72ce5c5dfc7ef5dbfe4b2e575256b2"
+      },
+      {
+        "source": "src/scene/scene.ts",
+        "map": "index.js.map",
+        "sha256": "8ba95da75abb5969dd67c540bb018665b7df79c963b55dc92bd1990113e532cf"
+      },
+      {
+        "source": "src/textures/raw-texture-2d-array.ts",
+        "map": "index.js.map",
+        "sha256": "106dd728a79ea1100a61711c3ef2dc753f4ff2cce49417e1c776adafe5d7b89d"
+      },
+      {
+        "source": "src/textures/textures.ts",
+        "map": "index.js.map",
+        "sha256": "70d47876de95a6b7d9590cbd3496833bc84f20eaead0436962ae66faa386add5"
+      },
+      {
+        "source": "src/unsupported/unsupported-apis.ts",
+        "map": "index.js.map",
+        "sha256": "97f7df743a7db90977d6b43541890245491d2f4a9068189aa5ee3d8b3566f6f4"
+      }
+    ]
+  },
+  "symbols": [
+    {
+      "name": "_GetCompatibleTextureLoader",
+      "compatExportDeclared": false,
+      "sites": 1,
+      "syntacticValueSites": 1,
+      "scopes": [
+        "tests"
+      ],
+      "examples": [
+        {
+          "file": "src/engine/loader/texture/__tests__/KTX2SidecarLoader.test.ts",
+          "scope": "tests",
+          "module": "@babylonjs/core/Materials/Textures/Loaders/textureLoaderManager",
+          "line": 5,
+          "typeOnly": false
+        }
+      ]
+    },
+    {
+      "name": "_KTXTextureLoader",
+      "compatExportDeclared": false,
+      "sites": 2,
+      "syntacticValueSites": 2,
+      "scopes": [
+        "engine-and-other",
+        "tests"
+      ],
+      "examples": [
+        {
+          "file": "src/engine/loader/texture/KTX2SidecarLoader.ts",
+          "scope": "engine-and-other",
+          "module": "@babylonjs/core/Materials/Textures/Loaders/ktxTextureLoader",
+          "line": 3,
+          "typeOnly": false
+        },
+        {
+          "file": "src/engine/loader/texture/__tests__/KTX2SidecarLoader.test.ts",
+          "scope": "tests",
+          "module": "@babylonjs/core/Materials/Textures/Loaders/ktxTextureLoader",
+          "line": 4,
+          "typeOnly": false
+        }
+      ]
+    },
+    {
+      "name": "_ProcessShaderCode",
+      "compatExportDeclared": false,
+      "sites": 1,
+      "syntacticValueSites": 1,
+      "scopes": [
+        "tests"
+      ],
+      "examples": [
+        {
+          "file": "src/engine/__tests__/ClusteredLightingQA.test.ts",
+          "scope": "tests",
+          "module": "@babylonjs/core/Materials/effect.functions",
+          "line": 8,
+          "typeOnly": false
+        }
+      ]
+    },
+    {
+      "name": "AbstractEngine",
+      "compatExportDeclared": true,
+      "sites": 27,
+      "syntacticValueSites": 0,
+      "scopes": [
+        "editor",
+        "engine-and-other",
+        "fps",
+        "tests",
+        "tools"
+      ],
+      "examples": [
+        {
+          "file": "src/engine/__tests__/RendererDiagnostics.test.ts",
+          "scope": "tests",
+          "module": "@babylonjs/core/Engines/abstractEngine",
+          "line": 1,
+          "typeOnly": true
+        },
+        {
+          "file": "src/engine/__tests__/RendererRuntimeDiagnostics.test.ts",
+          "scope": "tests",
+          "module": "@babylonjs/core/Engines/abstractEngine",
+          "line": 1,
+          "typeOnly": true
+        }
+      ]
+    },
+    {
+      "name": "AbstractMesh",
+      "compatExportDeclared": true,
+      "sites": 46,
+      "syntacticValueSites": 4,
+      "scopes": [
+        "engine-and-other",
+        "fps",
+        "tests",
+        "tools"
+      ],
+      "examples": [
+        {
+          "file": "src/cli/audit-pvs.ts",
+          "scope": "tools",
+          "module": "@babylonjs/core/Meshes/abstractMesh",
+          "line": 8,
+          "typeOnly": true
+        },
+        {
+          "file": "src/engine/__tests__/LiquidSurfaceSystem.test.ts",
+          "scope": "tests",
+          "module": "@babylonjs/core/Meshes/abstractMesh",
+          "line": 18,
+          "typeOnly": false
+        }
+      ]
+    },
+    {
+      "name": "ActionManager",
+      "compatExportDeclared": true,
+      "sites": 1,
+      "syntacticValueSites": 1,
+      "scopes": [
+        "tests"
+      ],
+      "examples": [
+        {
+          "file": "src/engine/__tests__/WeaponCameraCandidates.test.ts",
+          "scope": "tests",
+          "module": "@babylonjs/core/Actions/actionManager",
+          "line": 1,
+          "typeOnly": false
+        }
+      ]
+    },
+    {
+      "name": "AddBlock",
+      "compatExportDeclared": false,
+      "sites": 1,
+      "syntacticValueSites": 1,
+      "scopes": [
+        "engine-and-other"
+      ],
+      "examples": [
+        {
+          "file": "src/engine/loader/shader/Q3NodeMaterialBuilder.ts",
+          "scope": "engine-and-other",
+          "module": "@babylonjs/core/Materials/Node/Blocks/addBlock",
+          "line": 8,
+          "typeOnly": false
+        }
+      ]
+    },
+    {
+      "name": "Animation",
+      "compatExportDeclared": true,
+      "sites": 10,
+      "syntacticValueSites": 8,
+      "scopes": [
+        "engine-and-other",
+        "tests",
+        "tools"
+      ],
+      "examples": [
+        {
+          "file": "src/engine/__tests__/CrowdBenchmark.test.ts",
+          "scope": "tests",
+          "module": "@babylonjs/core/Animations/animation",
+          "line": 1,
+          "typeOnly": false
+        },
+        {
+          "file": "src/engine/__tests__/ModelInstanceCache.test.ts",
+          "scope": "tests",
+          "module": "@babylonjs/core/Animations/animation",
+          "line": 1,
+          "typeOnly": false
+        }
+      ]
+    },
+    {
+      "name": "AnimationGroup",
+      "compatExportDeclared": true,
+      "sites": 16,
+      "syntacticValueSites": 11,
+      "scopes": [
+        "engine-and-other",
+        "tests",
+        "tools"
+      ],
+      "examples": [
+        {
+          "file": "src/engine/__tests__/CrowdBenchmark.test.ts",
+          "scope": "tests",
+          "module": "@babylonjs/core/Animations/animationGroup",
+          "line": 2,
+          "typeOnly": false
+        },
+        {
+          "file": "src/engine/__tests__/ModelInstanceCache.test.ts",
+          "scope": "tests",
+          "module": "@babylonjs/core/Animations/animationGroup",
+          "line": 2,
+          "typeOnly": false
+        }
+      ]
+    },
+    {
+      "name": "ArcRotateCamera",
+      "compatExportDeclared": true,
+      "sites": 9,
+      "syntacticValueSites": 8,
+      "scopes": [
+        "editor",
+        "engine-and-other",
+        "fps",
+        "tests"
+      ],
+      "examples": [
+        {
+          "file": "src/engine/EngineScene.ts",
+          "scope": "engine-and-other",
+          "module": "@babylonjs/core/Cameras/arcRotateCamera",
+          "line": 22,
+          "typeOnly": false
+        },
+        {
+          "file": "src/engine/camera/CameraSystem.ts",
+          "scope": "engine-and-other",
+          "module": "@babylonjs/core/Cameras/arcRotateCamera",
+          "line": 8,
+          "typeOnly": false
+        }
+      ]
+    },
+    {
+      "name": "AreaLightTextureTools",
+      "compatExportDeclared": false,
+      "sites": 1,
+      "syntacticValueSites": 1,
+      "scopes": [
+        "engine-and-other"
+      ],
+      "examples": [
+        {
+          "file": "src/engine/lighting/AreaLightPanel.ts",
+          "scope": "engine-and-other",
+          "module": "@babylonjs/core/Misc/areaLightsTextureTools",
+          "line": 31,
+          "typeOnly": false
+        }
+      ]
+    },
+    {
+      "name": "AssetContainer",
+      "compatExportDeclared": true,
+      "sites": 8,
+      "syntacticValueSites": 4,
+      "scopes": [
+        "engine-and-other",
+        "tests"
+      ],
+      "examples": [
+        {
+          "file": "src/engine/__tests__/CrowdBenchmark.test.ts",
+          "scope": "tests",
+          "module": "@babylonjs/core/assetContainer",
+          "line": 3,
+          "typeOnly": false
+        },
+        {
+          "file": "src/engine/__tests__/PlayerModelCloning.test.ts",
+          "scope": "tests",
+          "module": "@babylonjs/core/assetContainer",
+          "line": 3,
+          "typeOnly": false
+        }
+      ]
+    },
+    {
+      "name": "AudioBus",
+      "compatExportDeclared": true,
+      "sites": 1,
+      "syntacticValueSites": 0,
+      "scopes": [
+        "engine-and-other"
+      ],
+      "examples": [
+        {
+          "file": "src/engine/audio/AudioV2Sfx.ts",
+          "scope": "engine-and-other",
+          "module": "@babylonjs/core/AudioV2/abstractAudio/audioBus",
+          "line": 1,
+          "typeOnly": true
+        }
+      ]
+    },
+    {
+      "name": "AudioEngineV2",
+      "compatExportDeclared": true,
+      "sites": 1,
+      "syntacticValueSites": 0,
+      "scopes": [
+        "engine-and-other"
+      ],
+      "examples": [
+        {
+          "file": "src/engine/audio/AudioV2Sfx.ts",
+          "scope": "engine-and-other",
+          "module": "@babylonjs/core/AudioV2/abstractAudio/audioEngineV2",
+          "line": 2,
+          "typeOnly": true
+        }
+      ]
+    },
+    {
+      "name": "AutoReleaseWorkerPool",
+      "compatExportDeclared": false,
+      "sites": 3,
+      "syntacticValueSites": 3,
+      "scopes": [
+        "engine-and-other",
+        "tests"
+      ],
+      "examples": [
+        {
+          "file": "src/engine/loader/texture/KTX2DecoderRuntime.ts",
+          "scope": "engine-and-other",
+          "module": "@babylonjs/core/Misc/workerPool.js",
+          "line": 4,
+          "typeOnly": false
+        },
+        {
+          "file": "src/engine/loader/texture/__tests__/KTX2DecoderRuntime.test.ts",
+          "scope": "tests",
+          "module": "@babylonjs/core/Misc/workerPool.js",
+          "line": 10,
+          "typeOnly": false
+        }
+      ]
+    },
+    {
+      "name": "BaseTexture",
+      "compatExportDeclared": true,
+      "sites": 19,
+      "syntacticValueSites": 1,
+      "scopes": [
+        "engine-and-other",
+        "tools"
+      ],
+      "examples": [
+        {
+          "file": "src/engine/console/commands/InspectCommand.ts",
+          "scope": "tools",
+          "module": "@babylonjs/core/Materials/Textures/baseTexture",
+          "line": 8,
+          "typeOnly": true
+        },
+        {
+          "file": "src/engine/effects/SSREffect.ts",
+          "scope": "engine-and-other",
+          "module": "@babylonjs/core/Materials/Textures/baseTexture",
+          "line": 17,
+          "typeOnly": true
+        }
+      ]
+    },
+    {
+      "name": "Bone",
+      "compatExportDeclared": true,
+      "sites": 11,
+      "syntacticValueSites": 9,
+      "scopes": [
+        "engine-and-other",
+        "fps",
+        "tests"
+      ],
+      "examples": [
+        {
+          "file": "src/engine/__tests__/CrowdBenchmark.test.ts",
+          "scope": "tests",
+          "module": "@babylonjs/core/Bones/bone",
+          "line": 4,
+          "typeOnly": false
+        },
+        {
+          "file": "src/engine/__tests__/ModelInstanceCache.test.ts",
+          "scope": "tests",
+          "module": "@babylonjs/core/Bones/bone",
+          "line": 4,
+          "typeOnly": false
+        }
+      ]
+    },
+    {
+      "name": "BoundingBox",
+      "compatExportDeclared": true,
+      "sites": 1,
+      "syntacticValueSites": 1,
+      "scopes": [
+        "engine-and-other"
+      ],
+      "examples": [
+        {
+          "file": "src/engine/rendering/SkyVisibility.ts",
+          "scope": "engine-and-other",
+          "module": "@babylonjs/core/Culling/boundingBox",
+          "line": 10,
+          "typeOnly": false
+        }
+      ]
+    },
+    {
+      "name": "BoundingInfo",
+      "compatExportDeclared": true,
+      "sites": 1,
+      "syntacticValueSites": 1,
+      "scopes": [
+        "engine-and-other"
+      ],
+      "examples": [
+        {
+          "file": "src/engine/animation/PlayerModelManager.ts",
+          "scope": "engine-and-other",
+          "module": "@babylonjs/core/Culling/boundingInfo",
+          "line": 18,
+          "typeOnly": false
+        }
+      ]
+    },
+    {
+      "name": "Camera",
+      "compatExportDeclared": true,
+      "sites": 40,
+      "syntacticValueSites": 1,
+      "scopes": [
+        "engine-and-other",
+        "fps",
+        "tools"
+      ],
+      "examples": [
+        {
+          "file": "src/engine/camera/CameraSystem.ts",
+          "scope": "engine-and-other",
+          "module": "@babylonjs/core/Cameras/camera",
+          "line": 9,
+          "typeOnly": false
+        },
+        {
+          "file": "src/engine/camera/controllers/FollowController.ts",
+          "scope": "engine-and-other",
+          "module": "@babylonjs/core/Cameras/camera",
+          "line": 9,
+          "typeOnly": true
+        }
+      ]
+    },
+    {
+      "name": "ClusteredLightContainer",
+      "compatExportDeclared": true,
+      "sites": 5,
+      "syntacticValueSites": 5,
+      "scopes": [
+        "engine-and-other",
+        "tests"
+      ],
+      "examples": [
+        {
+          "file": "src/engine/MapRenderer.ts",
+          "scope": "engine-and-other",
+          "module": "@babylonjs/core/Lights/Clustered/clusteredLightContainer",
+          "line": 1,
+          "typeOnly": false
+        },
+        {
+          "file": "src/engine/__tests__/ClusteredLightingQA.test.ts",
+          "scope": "tests",
+          "module": "@babylonjs/core/Lights/Clustered/clusteredLightContainer",
+          "line": 6,
+          "typeOnly": false
+        }
+      ]
+    },
+    {
+      "name": "Color3",
+      "compatExportDeclared": true,
+      "sites": 100,
+      "syntacticValueSites": 90,
+      "scopes": [
+        "editor",
+        "engine-and-other",
+        "fps",
+        "tests",
+        "tools"
+      ],
+      "examples": [
+        {
+          "file": "src/engine/MapRenderer.ts",
+          "scope": "engine-and-other",
+          "module": "@babylonjs/core/Maths/math.color",
+          "line": 6,
+          "typeOnly": false
+        },
+        {
+          "file": "src/engine/__tests__/BladePresentation.test.ts",
+          "scope": "tests",
+          "module": "@babylonjs/core/Maths/math.color",
+          "line": 6,
+          "typeOnly": false
+        }
+      ]
+    },
+    {
+      "name": "Color4",
+      "compatExportDeclared": true,
+      "sites": 19,
+      "syntacticValueSites": 19,
+      "scopes": [
+        "editor",
+        "engine-and-other",
+        "fps",
+        "tools"
+      ],
+      "examples": [
+        {
+          "file": "src/engine/EngineScene.ts",
+          "scope": "engine-and-other",
+          "module": "@babylonjs/core/Maths/math.color",
+          "line": 24,
+          "typeOnly": false
+        },
+        {
+          "file": "src/engine/console/commands/SceneCommand.ts",
+          "scope": "tools",
+          "module": "@babylonjs/core/Maths/math.color",
+          "line": 8,
+          "typeOnly": false
+        }
+      ]
+    },
+    {
+      "name": "Constants",
+      "compatExportDeclared": true,
+      "sites": 33,
+      "syntacticValueSites": 33,
+      "scopes": [
+        "editor",
+        "engine-and-other",
+        "tests"
+      ],
+      "examples": [
+        {
+          "file": "src/engine/editor/EditorModelAsset.ts",
+          "scope": "editor",
+          "module": "@babylonjs/core/Engines/constants",
+          "line": 9,
+          "typeOnly": false
+        },
+        {
+          "file": "src/engine/editor/PreviewTextures.ts",
+          "scope": "editor",
+          "module": "@babylonjs/core/Engines/constants",
+          "line": 9,
+          "typeOnly": false
+        }
+      ]
+    },
+    {
+      "name": "CreateAudioEngineAsync",
+      "compatExportDeclared": true,
+      "sites": 1,
+      "syntacticValueSites": 1,
+      "scopes": [
+        "engine-and-other"
+      ],
+      "examples": [
+        {
+          "file": "src/engine/audio/AudioV2Sfx.ts",
+          "scope": "engine-and-other",
+          "module": "@babylonjs/core/AudioV2/webAudio/webAudioEngine",
+          "line": 5,
+          "typeOnly": false
+        }
+      ]
+    },
+    {
+      "name": "CreateBox",
+      "compatExportDeclared": true,
+      "sites": 31,
+      "syntacticValueSites": 31,
+      "scopes": [
+        "engine-and-other",
+        "fps",
+        "tests"
+      ],
+      "examples": [
+        {
+          "file": "src/engine/__tests__/CrowdBenchmark.test.ts",
+          "scope": "tests",
+          "module": "@babylonjs/core/Meshes/Builders/boxBuilder",
+          "line": 10,
+          "typeOnly": false
+        },
+        {
+          "file": "src/engine/__tests__/LiquidSurfaceSystem.test.ts",
+          "scope": "tests",
+          "module": "@babylonjs/core/Meshes/Builders/boxBuilder",
+          "line": 19,
+          "typeOnly": false
+        }
+      ]
+    },
+    {
+      "name": "CreateCylinder",
+      "compatExportDeclared": true,
+      "sites": 1,
+      "syntacticValueSites": 1,
+      "scopes": [
+        "fps"
+      ],
+      "examples": [
+        {
+          "file": "src/games/fps/client/BombRenderer.ts",
+          "scope": "fps",
+          "module": "@babylonjs/core/Meshes/Builders/cylinderBuilder",
+          "line": 19,
+          "typeOnly": false
+        }
+      ]
+    },
+    {
+      "name": "CreateCylinderVertexData",
+      "compatExportDeclared": false,
+      "sites": 1,
+      "syntacticValueSites": 1,
+      "scopes": [
+        "engine-and-other"
+      ],
+      "examples": [
+        {
+          "file": "src/engine/weapon/explosion/ExplosionBatchRenderer.ts",
+          "scope": "engine-and-other",
+          "module": "@babylonjs/core/Meshes/Builders/cylinderBuilder",
+          "line": 4,
+          "typeOnly": false
+        }
+      ]
+    },
+    {
+      "name": "CreateDisc",
+      "compatExportDeclared": true,
+      "sites": 1,
+      "syntacticValueSites": 1,
+      "scopes": [
+        "fps"
+      ],
+      "examples": [
+        {
+          "file": "src/games/fps/liquid/client/LiquidInteractionSystem.ts",
+          "scope": "fps",
+          "module": "@babylonjs/core/Meshes/Builders/discBuilder",
+          "line": 17,
+          "typeOnly": false
+        }
+      ]
+    },
+    {
+      "name": "CreateGround",
+      "compatExportDeclared": true,
+      "sites": 8,
+      "syntacticValueSites": 8,
+      "scopes": [
+        "fps",
+        "tests"
+      ],
+      "examples": [
+        {
+          "file": "src/engine/__tests__/LiquidSurfaceSystem.test.ts",
+          "scope": "tests",
+          "module": "@babylonjs/core/Meshes/Builders/groundBuilder",
+          "line": 20,
+          "typeOnly": false
+        },
+        {
+          "file": "src/engine/__tests__/WaterActorReflection.test.ts",
+          "scope": "tests",
+          "module": "@babylonjs/core/Meshes/Builders/groundBuilder",
+          "line": 6,
+          "typeOnly": false
+        }
+      ]
+    },
+    {
+      "name": "CreateIcoSphereVertexData",
+      "compatExportDeclared": false,
+      "sites": 1,
+      "syntacticValueSites": 1,
+      "scopes": [
+        "engine-and-other"
+      ],
+      "examples": [
+        {
+          "file": "src/engine/weapon/explosion/ExplosionBatchRenderer.ts",
+          "scope": "engine-and-other",
+          "module": "@babylonjs/core/Meshes/Builders/icoSphereBuilder",
+          "line": 5,
+          "typeOnly": false
+        }
+      ]
+    },
+    {
+      "name": "CreatePlane",
+      "compatExportDeclared": true,
+      "sites": 7,
+      "syntacticValueSites": 7,
+      "scopes": [
+        "engine-and-other",
+        "fps",
+        "tests"
+      ],
+      "examples": [
+        {
+          "file": "src/engine/__tests__/SurfaceDiagnostics.test.ts",
+          "scope": "tests",
+          "module": "@babylonjs/core/Meshes/Builders/planeBuilder",
+          "line": 6,
+          "typeOnly": false
+        },
+        {
+          "file": "src/engine/lighting/SunGodRays.ts",
+          "scope": "engine-and-other",
+          "module": "@babylonjs/core/Meshes/Builders/planeBuilder",
+          "line": 39,
+          "typeOnly": false
+        }
+      ]
+    },
+    {
+      "name": "CreateSphere",
+      "compatExportDeclared": true,
+      "sites": 1,
+      "syntacticValueSites": 1,
+      "scopes": [
+        "tests"
+      ],
+      "examples": [
+        {
+          "file": "src/engine/loader/bsp/__tests__/GeneratedCubemap.test.ts",
+          "scope": "tests",
+          "module": "@babylonjs/core/Meshes/Builders/sphereBuilder",
+          "line": 12,
+          "typeOnly": false
+        }
+      ]
+    },
+    {
+      "name": "CreateTorus",
+      "compatExportDeclared": true,
+      "sites": 2,
+      "syntacticValueSites": 2,
+      "scopes": [
+        "fps"
+      ],
+      "examples": [
+        {
+          "file": "src/games/fps/client/BombRenderer.ts",
+          "scope": "fps",
+          "module": "@babylonjs/core/Meshes/Builders/torusBuilder",
+          "line": 20,
+          "typeOnly": false
+        },
+        {
+          "file": "src/games/fps/client/BombSiteMarkers.ts",
+          "scope": "fps",
+          "module": "@babylonjs/core/Meshes/Builders/torusBuilder",
+          "line": 21,
+          "typeOnly": false
+        }
+      ]
+    },
+    {
+      "name": "CubeTexture",
+      "compatExportDeclared": true,
+      "sites": 3,
+      "syntacticValueSites": 2,
+      "scopes": [
+        "engine-and-other",
+        "tests"
+      ],
+      "examples": [
+        {
+          "file": "src/engine/effects/SSREffect.ts",
+          "scope": "engine-and-other",
+          "module": "@babylonjs/core/Materials/Textures/cubeTexture",
+          "line": 18,
+          "typeOnly": true
+        },
+        {
+          "file": "src/engine/effects/__tests__/SSREnvironment.test.ts",
+          "scope": "tests",
+          "module": "@babylonjs/core/Materials/Textures/cubeTexture",
+          "line": 4,
+          "typeOnly": false
+        }
+      ]
+    },
+    {
+      "name": "DataBuffer",
+      "compatExportDeclared": false,
+      "sites": 1,
+      "syntacticValueSites": 1,
+      "scopes": [
+        "tests"
+      ],
+      "examples": [
+        {
+          "file": "src/engine/__tests__/ClusteredLightingQA.test.ts",
+          "scope": "tests",
+          "module": "@babylonjs/core/Buffers/dataBuffer",
+          "line": 1,
+          "typeOnly": false
+        }
+      ]
+    },
+    {
+      "name": "DefaultRenderingPipeline",
+      "compatExportDeclared": true,
+      "sites": 1,
+      "syntacticValueSites": 1,
+      "scopes": [
+        "engine-and-other"
+      ],
+      "examples": [
+        {
+          "file": "src/engine/effects/PostProcessingManager.ts",
+          "scope": "engine-and-other",
+          "module": "@babylonjs/core/PostProcesses/RenderPipeline/Pipelines/defaultRenderingPipeline",
+          "line": 17,
+          "typeOnly": false
+        }
+      ]
+    },
+    {
+      "name": "DepthRenderer",
+      "compatExportDeclared": true,
+      "sites": 3,
+      "syntacticValueSites": 3,
+      "scopes": [
+        "engine-and-other"
+      ],
+      "examples": [
+        {
+          "file": "src/engine/effects/CelOutlinePostProcess.ts",
+          "scope": "engine-and-other",
+          "module": "@babylonjs/core/Rendering/depthRenderer",
+          "line": 24,
+          "typeOnly": false
+        },
+        {
+          "file": "src/engine/loader/shader/Q3SoftParticleDepth.ts",
+          "scope": "engine-and-other",
+          "module": "@babylonjs/core/Rendering/depthRenderer",
+          "line": 8,
+          "typeOnly": false
+        }
+      ]
+    },
+    {
+      "name": "DirectionalLight",
+      "compatExportDeclared": true,
+      "sites": 8,
+      "syntacticValueSites": 6,
+      "scopes": [
+        "editor",
+        "engine-and-other",
+        "tests",
+        "tools"
+      ],
+      "examples": [
+        {
+          "file": "src/engine/__tests__/BladePresentation.test.ts",
+          "scope": "tests",
+          "module": "@babylonjs/core/Lights/directionalLight",
+          "line": 3,
+          "typeOnly": false
+        },
+        {
+          "file": "src/engine/console/commands/SpawnModelCommand.ts",
+          "scope": "tools",
+          "module": "@babylonjs/core/Lights/directionalLight",
+          "line": 8,
+          "typeOnly": true
+        }
+      ]
+    },
+    {
+      "name": "DynamicTexture",
+      "compatExportDeclared": true,
+      "sites": 7,
+      "syntacticValueSites": 7,
+      "scopes": [
+        "engine-and-other",
+        "fps",
+        "tools"
+      ],
+      "examples": [
+        {
+          "file": "src/engine/console/commands/AreaLightCommand.ts",
+          "scope": "tools",
+          "module": "@babylonjs/core/Materials/Textures/dynamicTexture",
+          "line": 13,
+          "typeOnly": false
+        },
+        {
+          "file": "src/engine/lighting/SunGodRays.ts",
+          "scope": "engine-and-other",
+          "module": "@babylonjs/core/Materials/Textures/dynamicTexture",
+          "line": 34,
+          "typeOnly": false
+        }
+      ]
+    },
+    {
+      "name": "Effect",
+      "compatExportDeclared": true,
+      "sites": 22,
+      "syntacticValueSites": 13,
+      "scopes": [
+        "engine-and-other",
+        "tests"
+      ],
+      "examples": [
+        {
+          "file": "src/engine/__tests__/RendererRuntimeDiagnostics.test.ts",
+          "scope": "tests",
+          "module": "@babylonjs/core/Materials/effect",
+          "line": 2,
+          "typeOnly": true
+        },
+        {
+          "file": "src/engine/__tests__/WaterColorSpace.test.ts",
+          "scope": "tests",
+          "module": "@babylonjs/core/Materials/effect",
+          "line": 2,
+          "typeOnly": true
+        }
+      ]
+    },
+    {
+      "name": "EffectRenderer",
+      "compatExportDeclared": false,
+      "sites": 1,
+      "syntacticValueSites": 1,
+      "scopes": [
+        "engine-and-other"
+      ],
+      "examples": [
+        {
+          "file": "src/engine/rendering/SceneDepthCapture.ts",
+          "scope": "engine-and-other",
+          "module": "@babylonjs/core/Materials/effectRenderer",
+          "line": 22,
+          "typeOnly": false
+        }
+      ]
+    },
+    {
+      "name": "EffectWrapper",
+      "compatExportDeclared": true,
+      "sites": 1,
+      "syntacticValueSites": 1,
+      "scopes": [
+        "engine-and-other"
+      ],
+      "examples": [
+        {
+          "file": "src/engine/rendering/SceneDepthCapture.ts",
+          "scope": "engine-and-other",
+          "module": "@babylonjs/core/Materials/effectRenderer",
+          "line": 22,
+          "typeOnly": false
+        }
+      ]
+    },
+    {
+      "name": "Engine",
+      "compatExportDeclared": true,
+      "sites": 12,
+      "syntacticValueSites": 9,
+      "scopes": [
+        "editor",
+        "engine-and-other",
+        "fps",
+        "tools"
+      ],
+      "examples": [
+        {
+          "file": "src/engine/EngineScene.ts",
+          "scope": "engine-and-other",
+          "module": "@babylonjs/core/Engines/engine",
+          "line": 23,
+          "typeOnly": true
+        },
+        {
+          "file": "src/engine/console/commands/SceneCommand.ts",
+          "scope": "tools",
+          "module": "@babylonjs/core/Engines/engine",
+          "line": 6,
+          "typeOnly": false
+        }
+      ]
+    },
+    {
+      "name": "EngineInstrumentation",
+      "compatExportDeclared": false,
+      "sites": 3,
+      "syntacticValueSites": 3,
+      "scopes": [
+        "engine-and-other",
+        "fps"
+      ],
+      "examples": [
+        {
+          "file": "src/engine/rendering/RendererPerformanceCapture.ts",
+          "scope": "engine-and-other",
+          "module": "@babylonjs/core/Instrumentation/engineInstrumentation",
+          "line": 5,
+          "typeOnly": false
+        },
+        {
+          "file": "src/engine/rendering/crowd-benchmark-page.ts",
+          "scope": "engine-and-other",
+          "module": "@babylonjs/core/Instrumentation/engineInstrumentation",
+          "line": 9,
+          "typeOnly": false
+        }
+      ]
+    },
+    {
+      "name": "EngineStore",
+      "compatExportDeclared": false,
+      "sites": 3,
+      "syntacticValueSites": 3,
+      "scopes": [
+        "engine-and-other",
+        "fps"
+      ],
+      "examples": [
+        {
+          "file": "src/engine/audio/AudioV2Sfx.ts",
+          "scope": "engine-and-other",
+          "module": "@babylonjs/core/Engines/engineStore",
+          "line": 6,
+          "typeOnly": false
+        },
+        {
+          "file": "src/games/fps/Game.ts",
+          "scope": "fps",
+          "module": "@babylonjs/core/Engines/engineStore",
+          "line": 9,
+          "typeOnly": false
+        }
+      ]
+    },
+    {
+      "name": "fogFragmentDeclaration",
+      "compatExportDeclared": false,
+      "sites": 2,
+      "syntacticValueSites": 2,
+      "scopes": [
+        "engine-and-other",
+        "tests"
+      ],
+      "examples": [
+        {
+          "file": "src/engine/__tests__/BabylonShaderFixes.test.ts",
+          "scope": "tests",
+          "module": "@babylonjs/core/Shaders/ShadersInclude/fogFragmentDeclaration",
+          "line": 2,
+          "typeOnly": false
+        },
+        {
+          "file": "src/engine/rendering/BabylonShaderFixes.ts",
+          "scope": "engine-and-other",
+          "module": "@babylonjs/core/Shaders/ShadersInclude/fogFragmentDeclaration",
+          "line": 9,
+          "typeOnly": false
+        }
+      ]
+    },
+    {
+      "name": "fogFragmentDeclarationWGSL",
+      "compatExportDeclared": false,
+      "sites": 2,
+      "syntacticValueSites": 2,
+      "scopes": [
+        "engine-and-other",
+        "tests"
+      ],
+      "examples": [
+        {
+          "file": "src/engine/__tests__/BabylonShaderFixes.test.ts",
+          "scope": "tests",
+          "module": "@babylonjs/core/ShadersWGSL/ShadersInclude/fogFragmentDeclaration",
+          "line": 4,
+          "typeOnly": false
+        },
+        {
+          "file": "src/engine/rendering/BabylonShaderFixes.ts",
+          "scope": "engine-and-other",
+          "module": "@babylonjs/core/ShadersWGSL/ShadersInclude/fogFragmentDeclaration",
+          "line": 11,
+          "typeOnly": false
+        }
+      ]
+    },
+    {
+      "name": "FragmentOutputBlock",
+      "compatExportDeclared": false,
+      "sites": 1,
+      "syntacticValueSites": 1,
+      "scopes": [
+        "engine-and-other"
+      ],
+      "examples": [
+        {
+          "file": "src/engine/loader/shader/Q3NodeMaterialBuilder.ts",
+          "scope": "engine-and-other",
+          "module": "@babylonjs/core/Materials/Node/Blocks/Fragment/fragmentOutputBlock",
+          "line": 10,
+          "typeOnly": false
+        }
+      ]
+    },
+    {
+      "name": "FreeCamera",
+      "compatExportDeclared": true,
+      "sites": 82,
+      "syntacticValueSites": 73,
+      "scopes": [
+        "editor",
+        "engine-and-other",
+        "fps",
+        "tests",
+        "tools"
+      ],
+      "examples": [
+        {
+          "file": "src/cli/headless-bsp.ts",
+          "scope": "tools",
+          "module": "@babylonjs/core/Cameras/freeCamera",
+          "line": 16,
+          "typeOnly": false
+        },
+        {
+          "file": "src/engine/__tests__/BillboardSpriteUVs.test.ts",
+          "scope": "tests",
+          "module": "@babylonjs/core/Cameras/freeCamera",
+          "line": 1,
+          "typeOnly": false
+        }
+      ]
+    },
+    {
+      "name": "FresnelParameters",
+      "compatExportDeclared": false,
+      "sites": 1,
+      "syntacticValueSites": 1,
+      "scopes": [
+        "fps"
+      ],
+      "examples": [
+        {
+          "file": "src/games/fps/world/pickups/procedural/ProceduralPickupMaterials.ts",
+          "scope": "fps",
+          "module": "@babylonjs/core/Materials/fresnelParameters",
+          "line": 15,
+          "typeOnly": false
+        }
+      ]
+    },
+    {
+      "name": "Frustum",
+      "compatExportDeclared": true,
+      "sites": 3,
+      "syntacticValueSites": 3,
+      "scopes": [
+        "engine-and-other",
+        "fps"
+      ],
+      "examples": [
+        {
+          "file": "src/engine/rendering/SkyVisibility.ts",
+          "scope": "engine-and-other",
+          "module": "@babylonjs/core/Maths/math.frustum",
+          "line": 11,
+          "typeOnly": false
+        },
+        {
+          "file": "src/engine/rendering/water/WaterActorReflection.ts",
+          "scope": "engine-and-other",
+          "module": "@babylonjs/core/Maths/math.frustum",
+          "line": 8,
+          "typeOnly": false
+        }
+      ]
+    },
+    {
+      "name": "geometryPixelShaderWGSL",
+      "compatExportDeclared": false,
+      "sites": 2,
+      "syntacticValueSites": 2,
+      "scopes": [
+        "engine-and-other",
+        "tests"
+      ],
+      "examples": [
+        {
+          "file": "src/engine/__tests__/BabylonShaderFixes.test.ts",
+          "scope": "tests",
+          "module": "@babylonjs/core/ShadersWGSL/geometry.fragment",
+          "line": 3,
+          "typeOnly": false
+        },
+        {
+          "file": "src/engine/rendering/BabylonShaderFixes.ts",
+          "scope": "engine-and-other",
+          "module": "@babylonjs/core/ShadersWGSL/geometry.fragment",
+          "line": 10,
+          "typeOnly": false
+        }
+      ]
+    },
+    {
+      "name": "GetClass",
+      "compatExportDeclared": false,
+      "sites": 2,
+      "syntacticValueSites": 2,
+      "scopes": [
+        "engine-and-other",
+        "tests"
+      ],
+      "examples": [
+        {
+          "file": "src/engine/effects/RainEffect.ts",
+          "scope": "engine-and-other",
+          "module": "@babylonjs/core/Misc/typeStore",
+          "line": 16,
+          "typeOnly": false
+        },
+        {
+          "file": "src/engine/effects/__tests__/RainEffect.test.ts",
+          "scope": "tests",
+          "module": "@babylonjs/core/Misc/typeStore",
+          "line": 2,
+          "typeOnly": false
+        }
+      ]
+    },
+    {
+      "name": "GetEnvironmentBRDFTexture",
+      "compatExportDeclared": false,
+      "sites": 1,
+      "syntacticValueSites": 1,
+      "scopes": [
+        "tests"
+      ],
+      "examples": [
+        {
+          "file": "src/games/fps/client/__tests__/WeaponViewLoading.test.ts",
+          "scope": "tests",
+          "module": "@babylonjs/core/Misc/brdfTextureTools",
+          "line": 12,
+          "typeOnly": false
+        }
+      ]
+    },
+    {
+      "name": "GlowLayer",
+      "compatExportDeclared": true,
+      "sites": 1,
+      "syntacticValueSites": 1,
+      "scopes": [
+        "engine-and-other"
+      ],
+      "examples": [
+        {
+          "file": "src/engine/effects/GlowEffect.ts",
+          "scope": "engine-and-other",
+          "module": "@babylonjs/core/Layers/glowLayer",
+          "line": 16,
+          "typeOnly": false
+        }
+      ]
+    },
+    {
+      "name": "GPUParticleSystem",
+      "compatExportDeclared": true,
+      "sites": 1,
+      "syntacticValueSites": 1,
+      "scopes": [
+        "engine-and-other"
+      ],
+      "examples": [
+        {
+          "file": "src/engine/effects/RainEffect.ts",
+          "scope": "engine-and-other",
+          "module": "@babylonjs/core/Particles/gpuParticleSystem",
+          "line": 17,
+          "typeOnly": false
+        }
+      ]
+    },
+    {
+      "name": "HavokPhysicsWithBindings",
+      "compatExportDeclared": false,
+      "sites": 1,
+      "syntacticValueSites": 0,
+      "scopes": [
+        "engine-and-other"
+      ],
+      "examples": [
+        {
+          "file": "src/engine/physics/PhysicsSystem.ts",
+          "scope": "engine-and-other",
+          "module": "@babylonjs/havok",
+          "line": 18,
+          "typeOnly": true
+        }
+      ]
+    },
+    {
+      "name": "HavokPlugin",
+      "compatExportDeclared": true,
+      "sites": 2,
+      "syntacticValueSites": 2,
+      "scopes": [
+        "engine-and-other",
+        "fps"
+      ],
+      "examples": [
+        {
+          "file": "src/engine/physics/PhysicsSystem.ts",
+          "scope": "engine-and-other",
+          "module": "@babylonjs/core/Physics/v2/Plugins/havokPlugin",
+          "line": 15,
+          "typeOnly": false
+        },
+        {
+          "file": "src/games/fps/scripts/diagnostics/historical/v0.9.23-pickup-render-probe.ts",
+          "scope": "fps",
+          "module": "@babylonjs/core/Physics/v2/Plugins/havokPlugin",
+          "line": 29,
+          "typeOnly": false
+        }
+      ]
+    },
+    {
+      "name": "HemisphericLight",
+      "compatExportDeclared": true,
+      "sites": 13,
+      "syntacticValueSites": 13,
+      "scopes": [
+        "editor",
+        "engine-and-other",
+        "tests",
+        "tools"
+      ],
+      "examples": [
+        {
+          "file": "src/engine/console/commands/SceneCommand.ts",
+          "scope": "tools",
+          "module": "@babylonjs/core/Lights/hemisphericLight",
+          "line": 7,
+          "typeOnly": false
+        },
+        {
+          "file": "src/engine/editor/EditorSession.ts",
+          "scope": "editor",
+          "module": "@babylonjs/core/Lights/hemisphericLight",
+          "line": 3,
+          "typeOnly": false
+        }
+      ]
+    },
+    {
+      "name": "IDecodedData",
+      "compatExportDeclared": false,
+      "sites": 2,
+      "syntacticValueSites": 0,
+      "scopes": [
+        "engine-and-other",
+        "tests"
+      ],
+      "examples": [
+        {
+          "file": "src/engine/loader/texture/KTX2SidecarLoader.ts",
+          "scope": "engine-and-other",
+          "module": "@babylonjs/core/Materials/Textures/ktx2decoderTypes",
+          "line": 2,
+          "typeOnly": true
+        },
+        {
+          "file": "src/engine/loader/texture/__tests__/KTX2SidecarLoader.test.ts",
+          "scope": "tests",
+          "module": "@babylonjs/core/Materials/Textures/ktx2decoderTypes",
+          "line": 3,
+          "typeOnly": true
+        }
+      ]
+    },
+    {
+      "name": "IKTX2DecoderOptions",
+      "compatExportDeclared": false,
+      "sites": 1,
+      "syntacticValueSites": 0,
+      "scopes": [
+        "engine-and-other"
+      ],
+      "examples": [
+        {
+          "file": "src/engine/loader/texture/KTX2SidecarLoader.ts",
+          "scope": "engine-and-other",
+          "module": "@babylonjs/core/Materials/Textures/ktx2decoderTypes",
+          "line": 2,
+          "typeOnly": true
+        }
+      ]
+    },
+    {
+      "name": "ImportAnimationsAsync",
+      "compatExportDeclared": false,
+      "sites": 2,
+      "syntacticValueSites": 2,
+      "scopes": [
+        "engine-and-other",
+        "tools"
+      ],
+      "examples": [
+        {
+          "file": "src/engine/animation/AnimationLoader.ts",
+          "scope": "engine-and-other",
+          "module": "@babylonjs/core/Loading/sceneLoader",
+          "line": 10,
+          "typeOnly": false
+        },
+        {
+          "file": "src/engine/console/commands/AnimTestCommand.ts",
+          "scope": "tools",
+          "module": "@babylonjs/core/Loading/sceneLoader",
+          "line": 11,
+          "typeOnly": false
+        }
+      ]
+    },
+    {
+      "name": "ImportMeshAsync",
+      "compatExportDeclared": true,
+      "sites": 8,
+      "syntacticValueSites": 8,
+      "scopes": [
+        "editor",
+        "engine-and-other",
+        "fps",
+        "tests",
+        "tools"
+      ],
+      "examples": [
+        {
+          "file": "src/engine/__tests__/SceneRendererPolicy.test.ts",
+          "scope": "tests",
+          "module": "@babylonjs/core/Loading/sceneLoader",
+          "line": 3,
+          "typeOnly": false
+        },
+        {
+          "file": "src/engine/console/commands/AnimTestCommand.ts",
+          "scope": "tools",
+          "module": "@babylonjs/core/Loading/sceneLoader",
+          "line": 11,
+          "typeOnly": false
+        }
+      ]
+    },
+    {
+      "name": "initializeWebWorker",
+      "compatExportDeclared": false,
+      "sites": 1,
+      "syntacticValueSites": 1,
+      "scopes": [
+        "engine-and-other"
+      ],
+      "examples": [
+        {
+          "file": "src/engine/loader/texture/KTX2DecoderRuntime.ts",
+          "scope": "engine-and-other",
+          "module": "@babylonjs/core/Misc/khronosTextureContainer2Worker.js",
+          "line": 3,
+          "typeOnly": false
+        }
+      ]
+    },
+    {
+      "name": "InputBlock",
+      "compatExportDeclared": false,
+      "sites": 1,
+      "syntacticValueSites": 1,
+      "scopes": [
+        "engine-and-other"
+      ],
+      "examples": [
+        {
+          "file": "src/engine/loader/shader/Q3NodeMaterialBuilder.ts",
+          "scope": "engine-and-other",
+          "module": "@babylonjs/core/Materials/Node/Blocks/Input/inputBlock",
+          "line": 11,
+          "typeOnly": false
+        }
+      ]
+    },
+    {
+      "name": "InstancedMesh",
+      "compatExportDeclared": true,
+      "sites": 1,
+      "syntacticValueSites": 0,
+      "scopes": [
+        "engine-and-other"
+      ],
+      "examples": [
+        {
+          "file": "src/engine/rendering/InstancedMeshManager.ts",
+          "scope": "engine-and-other",
+          "module": "@babylonjs/core/Meshes/instancedMesh",
+          "line": 23,
+          "typeOnly": true
+        }
+      ]
+    },
+    {
+      "name": "InternalTexture",
+      "compatExportDeclared": false,
+      "sites": 7,
+      "syntacticValueSites": 3,
+      "scopes": [
+        "engine-and-other",
+        "tests"
+      ],
+      "examples": [
+        {
+          "file": "src/engine/__tests__/EnvironmentLightingQA.test.ts",
+          "scope": "tests",
+          "module": "@babylonjs/core/Materials/Textures/internalTexture",
+          "line": 3,
+          "typeOnly": false
+        },
+        {
+          "file": "src/engine/loader/texture/KTX1Loader.ts",
+          "scope": "engine-and-other",
+          "module": "@babylonjs/core/Materials/Textures/internalTexture",
+          "line": 15,
+          "typeOnly": true
+        }
+      ]
+    },
+    {
+      "name": "InternalTextureSource",
+      "compatExportDeclared": false,
+      "sites": 3,
+      "syntacticValueSites": 3,
+      "scopes": [
+        "tests"
+      ],
+      "examples": [
+        {
+          "file": "src/engine/__tests__/EnvironmentLightingQA.test.ts",
+          "scope": "tests",
+          "module": "@babylonjs/core/Materials/Textures/internalTexture",
+          "line": 3,
+          "typeOnly": false
+        },
+        {
+          "file": "src/engine/loader/texture/__tests__/KTX1Cube.test.ts",
+          "scope": "tests",
+          "module": "@babylonjs/core/Materials/Textures/internalTexture",
+          "line": 2,
+          "typeOnly": false
+        }
+      ]
+    },
+    {
+      "name": "IParticleSystem",
+      "compatExportDeclared": false,
+      "sites": 1,
+      "syntacticValueSites": 0,
+      "scopes": [
+        "engine-and-other"
+      ],
+      "examples": [
+        {
+          "file": "src/engine/rendering/SkyPortal.ts",
+          "scope": "engine-and-other",
+          "module": "@babylonjs/core/Particles/IParticleSystem",
+          "line": 25,
+          "typeOnly": true
+        }
+      ]
+    },
+    {
+      "name": "IPhysicsEngine",
+      "compatExportDeclared": false,
+      "sites": 1,
+      "syntacticValueSites": 0,
+      "scopes": [
+        "fps"
+      ],
+      "examples": [
+        {
+          "file": "src/games/fps/client/RagdollSystem.ts",
+          "scope": "fps",
+          "module": "@babylonjs/core/Physics/IPhysicsEngine",
+          "line": 21,
+          "typeOnly": true
+        }
+      ]
+    },
+    {
+      "name": "KhronosTextureContainer2",
+      "compatExportDeclared": false,
+      "sites": 4,
+      "syntacticValueSites": 4,
+      "scopes": [
+        "engine-and-other",
+        "tests"
+      ],
+      "examples": [
+        {
+          "file": "src/engine/loader/texture/KTX2DecoderRuntime.ts",
+          "scope": "engine-and-other",
+          "module": "@babylonjs/core/Misc/khronosTextureContainer2.js",
+          "line": 2,
+          "typeOnly": false
+        },
+        {
+          "file": "src/engine/loader/texture/KTX2SidecarLoader.ts",
+          "scope": "engine-and-other",
+          "module": "@babylonjs/core/Misc/khronosTextureContainer2",
+          "line": 5,
+          "typeOnly": false
+        }
+      ]
+    },
+    {
+      "name": "Layer",
+      "compatExportDeclared": true,
+      "sites": 1,
+      "syntacticValueSites": 1,
+      "scopes": [
+        "engine-and-other"
+      ],
+      "examples": [
+        {
+          "file": "src/engine/rendering/SkyPortal.ts",
+          "scope": "engine-and-other",
+          "module": "@babylonjs/core/Layers/layer",
+          "line": 20,
+          "typeOnly": false
+        }
+      ]
+    },
+    {
+      "name": "LerpBlock",
+      "compatExportDeclared": false,
+      "sites": 1,
+      "syntacticValueSites": 1,
+      "scopes": [
+        "engine-and-other"
+      ],
+      "examples": [
+        {
+          "file": "src/engine/loader/shader/Q3NodeMaterialBuilder.ts",
+          "scope": "engine-and-other",
+          "module": "@babylonjs/core/Materials/Node/Blocks/lerpBlock",
+          "line": 12,
+          "typeOnly": false
+        }
+      ]
+    },
+    {
+      "name": "Light",
+      "compatExportDeclared": true,
+      "sites": 3,
+      "syntacticValueSites": 0,
+      "scopes": [
+        "engine-and-other",
+        "fps"
+      ],
+      "examples": [
+        {
+          "file": "src/engine/lighting/DynamicLightCluster.ts",
+          "scope": "engine-and-other",
+          "module": "@babylonjs/core/Lights/light",
+          "line": 30,
+          "typeOnly": true
+        },
+        {
+          "file": "src/engine/rendering/FrozenWorldMaterials.ts",
+          "scope": "engine-and-other",
+          "module": "@babylonjs/core/Lights/light",
+          "line": 1,
+          "typeOnly": true
+        }
+      ]
+    },
+    {
+      "name": "LinesMesh",
+      "compatExportDeclared": true,
+      "sites": 2,
+      "syntacticValueSites": 0,
+      "scopes": [
+        "engine-and-other",
+        "fps"
+      ],
+      "examples": [
+        {
+          "file": "src/engine/weapon/ProjectileManager.ts",
+          "scope": "engine-and-other",
+          "module": "@babylonjs/core/Meshes/linesMesh",
+          "line": 17,
+          "typeOnly": true
+        },
+        {
+          "file": "src/games/fps/camera/components/PlayerVisuals.ts",
+          "scope": "fps",
+          "module": "@babylonjs/core/Meshes/linesMesh",
+          "line": 2,
+          "typeOnly": true
+        }
+      ]
+    },
+    {
+      "name": "LoadAssetContainerAsync",
+      "compatExportDeclared": true,
+      "sites": 4,
+      "syntacticValueSites": 4,
+      "scopes": [
+        "engine-and-other",
+        "tests"
+      ],
+      "examples": [
+        {
+          "file": "src/engine/__tests__/PlayerOutlineProxyRuntime.test.ts",
+          "scope": "tests",
+          "module": "@babylonjs/core/Loading/sceneLoader",
+          "line": 7,
+          "typeOnly": false
+        },
+        {
+          "file": "src/engine/animation/PlayerModelManager.ts",
+          "scope": "engine-and-other",
+          "module": "@babylonjs/core/Loading/sceneLoader",
+          "line": 19,
+          "typeOnly": false
+        }
+      ]
+    },
+    {
+      "name": "Logger",
+      "compatExportDeclared": true,
+      "sites": 3,
+      "syntacticValueSites": 3,
+      "scopes": [
+        "fps",
+        "tools"
+      ],
+      "examples": [
+        {
+          "file": "src/cli/debug-pickup-full.ts",
+          "scope": "tools",
+          "module": "@babylonjs/core/Misc/logger",
+          "line": 9,
+          "typeOnly": false
+        },
+        {
+          "file": "src/cli/debug-position-assignment.ts",
+          "scope": "tools",
+          "module": "@babylonjs/core/Misc/logger",
+          "line": 9,
+          "typeOnly": false
+        }
+      ]
+    },
+    {
+      "name": "Material",
+      "compatExportDeclared": true,
+      "sites": 23,
+      "syntacticValueSites": 5,
+      "scopes": [
+        "engine-and-other",
+        "fps",
+        "tests",
+        "tools"
+      ],
+      "examples": [
+        {
+          "file": "src/engine/__tests__/MaterialCloneBatch.test.ts",
+          "scope": "tests",
+          "module": "@babylonjs/core/Materials/material",
+          "line": 4,
+          "typeOnly": false
+        },
+        {
+          "file": "src/engine/animation/PlayerModelManager.ts",
+          "scope": "engine-and-other",
+          "module": "@babylonjs/core/Materials/material",
+          "line": 20,
+          "typeOnly": true
+        }
+      ]
+    },
+    {
+      "name": "MaterialDefines",
+      "compatExportDeclared": false,
+      "sites": 3,
+      "syntacticValueSites": 0,
+      "scopes": [
+        "engine-and-other"
+      ],
+      "examples": [
+        {
+          "file": "src/engine/loader/bsp/BspBakedLightingPlugin.ts",
+          "scope": "engine-and-other",
+          "module": "@babylonjs/core/Materials/materialDefines",
+          "line": 2,
+          "typeOnly": true
+        },
+        {
+          "file": "src/engine/loader/shader/Q3DistanceRampPlugin.ts",
+          "scope": "engine-and-other",
+          "module": "@babylonjs/core/Materials/materialDefines",
+          "line": 2,
+          "typeOnly": true
+        }
+      ]
+    },
+    {
+      "name": "MaterialPluginBase",
+      "compatExportDeclared": true,
+      "sites": 7,
+      "syntacticValueSites": 7,
+      "scopes": [
+        "engine-and-other"
+      ],
+      "examples": [
+        {
+          "file": "src/engine/loader/bsp/BspBakedLightingPlugin.ts",
+          "scope": "engine-and-other",
+          "module": "@babylonjs/core/Materials/materialPluginBase",
+          "line": 3,
+          "typeOnly": false
+        },
+        {
+          "file": "src/engine/loader/bsp/BspVertexLightingPlugin.ts",
+          "scope": "engine-and-other",
+          "module": "@babylonjs/core/Materials/materialPluginBase",
+          "line": 1,
+          "typeOnly": false
+        }
+      ]
+    },
+    {
+      "name": "Matrix",
+      "compatExportDeclared": true,
+      "sites": 22,
+      "syntacticValueSites": 21,
+      "scopes": [
+        "engine-and-other",
+        "fps",
+        "tests"
+      ],
+      "examples": [
+        {
+          "file": "src/engine/__tests__/CrowdBenchmark.test.ts",
+          "scope": "tests",
+          "module": "@babylonjs/core/Maths/math.vector",
+          "line": 9,
+          "typeOnly": false
+        },
+        {
+          "file": "src/engine/__tests__/InstancedMeshManager.test.ts",
+          "scope": "tests",
+          "module": "@babylonjs/core/Maths/math.vector",
+          "line": 8,
+          "typeOnly": false
+        }
+      ]
+    },
+    {
+      "name": "Mesh",
+      "compatExportDeclared": true,
+      "sites": 114,
+      "syntacticValueSites": 78,
+      "scopes": [
+        "editor",
+        "engine-and-other",
+        "fps",
+        "tests",
+        "tools"
+      ],
+      "examples": [
+        {
+          "file": "src/cli/headless-bsp.ts",
+          "scope": "tools",
+          "module": "@babylonjs/core/Meshes/mesh",
+          "line": 19,
+          "typeOnly": true
+        },
+        {
+          "file": "src/engine/__tests__/BladePresentation.test.ts",
+          "scope": "tests",
+          "module": "@babylonjs/core/Meshes/mesh",
+          "line": 8,
+          "typeOnly": false
+        }
+      ]
+    },
+    {
+      "name": "MeshBuilder",
+      "compatExportDeclared": true,
+      "sites": 51,
+      "syntacticValueSites": 51,
+      "scopes": [
+        "editor",
+        "engine-and-other",
+        "fps",
+        "tests",
+        "tools"
+      ],
+      "examples": [
+        {
+          "file": "src/cli/debug-pickup-full.ts",
+          "scope": "tools",
+          "module": "@babylonjs/core/Meshes/meshBuilder",
+          "line": 7,
+          "typeOnly": false
+        },
+        {
+          "file": "src/cli/debug-position-assignment.ts",
+          "scope": "tools",
+          "module": "@babylonjs/core/Meshes/meshBuilder",
+          "line": 7,
+          "typeOnly": false
+        }
+      ]
+    },
+    {
+      "name": "MirrorTexture",
+      "compatExportDeclared": true,
+      "sites": 2,
+      "syntacticValueSites": 2,
+      "scopes": [
+        "engine-and-other"
+      ],
+      "examples": [
+        {
+          "file": "src/engine/rendering/water/WaterActorReflection.ts",
+          "scope": "engine-and-other",
+          "module": "@babylonjs/core/Materials/Textures/mirrorTexture",
+          "line": 6,
+          "typeOnly": false
+        },
+        {
+          "file": "src/engine/rendering/water/WaterReflection.ts",
+          "scope": "engine-and-other",
+          "module": "@babylonjs/core/Materials/Textures/mirrorTexture",
+          "line": 11,
+          "typeOnly": false
+        }
+      ]
+    },
+    {
+      "name": "MSCTranscoder",
+      "compatExportDeclared": false,
+      "sites": 1,
+      "syntacticValueSites": 1,
+      "scopes": [
+        "engine-and-other"
+      ],
+      "examples": [
+        {
+          "file": "src/engine/loader/texture/KTX2DecoderWorker.ts",
+          "scope": "engine-and-other",
+          "module": "@babylonjs/ktx2decoder/Transcoders/mscTranscoder.js",
+          "line": 3,
+          "typeOnly": false
+        }
+      ]
+    },
+    {
+      "name": "MultiMaterial",
+      "compatExportDeclared": true,
+      "sites": 5,
+      "syntacticValueSites": 5,
+      "scopes": [
+        "engine-and-other",
+        "tests"
+      ],
+      "examples": [
+        {
+          "file": "src/engine/__tests__/MaterialCloneBatch.test.ts",
+          "scope": "tests",
+          "module": "@babylonjs/core/Materials/multiMaterial",
+          "line": 5,
+          "typeOnly": false
+        },
+        {
+          "file": "src/engine/__tests__/ModelInstanceCache.test.ts",
+          "scope": "tests",
+          "module": "@babylonjs/core/Materials/multiMaterial",
+          "line": 7,
+          "typeOnly": false
+        }
+      ]
+    },
+    {
+      "name": "MultiplyBlock",
+      "compatExportDeclared": false,
+      "sites": 1,
+      "syntacticValueSites": 1,
+      "scopes": [
+        "engine-and-other"
+      ],
+      "examples": [
+        {
+          "file": "src/engine/loader/shader/Q3NodeMaterialBuilder.ts",
+          "scope": "engine-and-other",
+          "module": "@babylonjs/core/Materials/Node/Blocks/multiplyBlock",
+          "line": 13,
+          "typeOnly": false
+        }
+      ]
+    },
+    {
+      "name": "Node",
+      "compatExportDeclared": true,
+      "sites": 3,
+      "syntacticValueSites": 0,
+      "scopes": [
+        "engine-and-other",
+        "fps"
+      ],
+      "examples": [
+        {
+          "file": "src/engine/loader/model/ModelSourceCache.ts",
+          "scope": "engine-and-other",
+          "module": "@babylonjs/core/node",
+          "line": 19,
+          "typeOnly": true
+        },
+        {
+          "file": "src/engine/world/Pickup.ts",
+          "scope": "engine-and-other",
+          "module": "@babylonjs/core/node",
+          "line": 32,
+          "typeOnly": true
+        }
+      ]
+    },
+    {
+      "name": "NodeMaterial",
+      "compatExportDeclared": true,
+      "sites": 1,
+      "syntacticValueSites": 1,
+      "scopes": [
+        "engine-and-other"
+      ],
+      "examples": [
+        {
+          "file": "src/engine/loader/shader/Q3NodeMaterialBuilder.ts",
+          "scope": "engine-and-other",
+          "module": "@babylonjs/core/Materials/Node/nodeMaterial",
+          "line": 18,
+          "typeOnly": false
+        }
+      ]
+    },
+    {
+      "name": "NodeMaterialConnectionPoint",
+      "compatExportDeclared": false,
+      "sites": 1,
+      "syntacticValueSites": 0,
+      "scopes": [
+        "engine-and-other"
+      ],
+      "examples": [
+        {
+          "file": "src/engine/loader/shader/Q3NodeMaterialBuilder.ts",
+          "scope": "engine-and-other",
+          "module": "@babylonjs/core/Materials/Node/nodeMaterialBlockConnectionPoint",
+          "line": 19,
+          "typeOnly": true
+        }
+      ]
+    },
+    {
+      "name": "NodeMaterialSystemValues",
+      "compatExportDeclared": false,
+      "sites": 1,
+      "syntacticValueSites": 1,
+      "scopes": [
+        "engine-and-other"
+      ],
+      "examples": [
+        {
+          "file": "src/engine/loader/shader/Q3NodeMaterialBuilder.ts",
+          "scope": "engine-and-other",
+          "module": "@babylonjs/core/Materials/Node/Enums/nodeMaterialSystemValues",
+          "line": 17,
+          "typeOnly": false
+        }
+      ]
+    },
+    {
+      "name": "NullEngine",
+      "compatExportDeclared": true,
+      "sites": 153,
+      "syntacticValueSites": 153,
+      "scopes": [
+        "engine-and-other",
+        "fps",
+        "tests",
+        "tools"
+      ],
+      "examples": [
+        {
+          "file": "src/cli/audit-pvs.ts",
+          "scope": "tools",
+          "module": "@babylonjs/core/Engines/nullEngine",
+          "line": 6,
+          "typeOnly": false
+        },
+        {
+          "file": "src/cli/debug-pickup-full.ts",
+          "scope": "tools",
+          "module": "@babylonjs/core/Engines/nullEngine",
+          "line": 5,
+          "typeOnly": false
+        }
+      ]
+    },
+    {
+      "name": "Observable",
+      "compatExportDeclared": true,
+      "sites": 4,
+      "syntacticValueSites": 4,
+      "scopes": [
+        "tests"
+      ],
+      "examples": [
+        {
+          "file": "src/engine/__tests__/AudioV2Sfx.test.ts",
+          "scope": "tests",
+          "module": "@babylonjs/core/Misc/observable",
+          "line": 53,
+          "typeOnly": false
+        },
+        {
+          "file": "src/engine/__tests__/RendererDiagnostics.test.ts",
+          "scope": "tests",
+          "module": "@babylonjs/core/Misc/observable",
+          "line": 3,
+          "typeOnly": false
+        }
+      ]
+    },
+    {
+      "name": "Observer",
+      "compatExportDeclared": false,
+      "sites": 31,
+      "syntacticValueSites": 0,
+      "scopes": [
+        "engine-and-other",
+        "fps",
+        "tests",
+        "tools"
+      ],
+      "examples": [
+        {
+          "file": "src/engine/__tests__/WeaponViewManagerLifecycle.test.ts",
+          "scope": "tests",
+          "module": "@babylonjs/core/Misc/observable",
+          "line": 4,
+          "typeOnly": true
+        },
+        {
+          "file": "src/engine/audio/AudioV2Sfx.ts",
+          "scope": "engine-and-other",
+          "module": "@babylonjs/core/Misc/observable",
+          "line": 8,
+          "typeOnly": true
+        }
+      ]
+    },
+    {
+      "name": "ParticleSystem",
+      "compatExportDeclared": true,
+      "sites": 3,
+      "syntacticValueSites": 3,
+      "scopes": [
+        "engine-and-other"
+      ],
+      "examples": [
+        {
+          "file": "src/engine/effects/DebrisEffect.ts",
+          "scope": "engine-and-other",
+          "module": "@babylonjs/core/Particles/particleSystem",
+          "line": 18,
+          "typeOnly": false
+        },
+        {
+          "file": "src/engine/effects/LocalDebrisEffect.ts",
+          "scope": "engine-and-other",
+          "module": "@babylonjs/core/Particles/particleSystem",
+          "line": 13,
+          "typeOnly": false
+        }
+      ]
+    },
+    {
+      "name": "PBRBaseMaterial",
+      "compatExportDeclared": false,
+      "sites": 1,
+      "syntacticValueSites": 1,
+      "scopes": [
+        "engine-and-other"
+      ],
+      "examples": [
+        {
+          "file": "src/engine/rendering/AtmosphericFogPlugin.ts",
+          "scope": "engine-and-other",
+          "module": "@babylonjs/core/Materials/PBR/pbrBaseMaterial",
+          "line": 26,
+          "typeOnly": false
+        }
+      ]
+    },
+    {
+      "name": "PBRMaterial",
+      "compatExportDeclared": true,
+      "sites": 33,
+      "syntacticValueSites": 28,
+      "scopes": [
+        "engine-and-other",
+        "fps",
+        "tests",
+        "tools"
+      ],
+      "examples": [
+        {
+          "file": "src/engine/__tests__/BladePresentation.test.ts",
+          "scope": "tests",
+          "module": "@babylonjs/core/Materials/PBR/pbrMaterial",
+          "line": 4,
+          "typeOnly": false
+        },
+        {
+          "file": "src/engine/__tests__/EnvironmentLightingQA.test.ts",
+          "scope": "tests",
+          "module": "@babylonjs/core/Materials/PBR/pbrMaterial",
+          "line": 2,
+          "typeOnly": true
+        }
+      ]
+    },
+    {
+      "name": "PhysicsAggregate",
+      "compatExportDeclared": true,
+      "sites": 2,
+      "syntacticValueSites": 2,
+      "scopes": [
+        "engine-and-other",
+        "fps"
+      ],
+      "examples": [
+        {
+          "file": "src/engine/physics/PhysicsSystem.ts",
+          "scope": "engine-and-other",
+          "module": "@babylonjs/core/Physics/v2/physicsAggregate",
+          "line": 16,
+          "typeOnly": false
+        },
+        {
+          "file": "src/games/fps/scripts/diagnostics/historical/v0.9.23-pickup-render-probe.ts",
+          "scope": "fps",
+          "module": "@babylonjs/core/Physics/v2/physicsAggregate",
+          "line": 28,
+          "typeOnly": false
+        }
+      ]
+    },
+    {
+      "name": "PhysicsConstraintType",
+      "compatExportDeclared": true,
+      "sites": 1,
+      "syntacticValueSites": 1,
+      "scopes": [
+        "fps"
+      ],
+      "examples": [
+        {
+          "file": "src/games/fps/client/RagdollSystem.ts",
+          "scope": "fps",
+          "module": "@babylonjs/core/Physics/v2/IPhysicsEnginePlugin",
+          "line": 22,
+          "typeOnly": false
+        }
+      ]
+    },
+    {
+      "name": "PhysicsEngine",
+      "compatExportDeclared": true,
+      "sites": 1,
+      "syntacticValueSites": 0,
+      "scopes": [
+        "fps"
+      ],
+      "examples": [
+        {
+          "file": "src/games/fps/client/RagdollSystem.ts",
+          "scope": "fps",
+          "module": "@babylonjs/core/Physics/v2/physicsEngine",
+          "line": 23,
+          "typeOnly": true
+        }
+      ]
+    },
+    {
+      "name": "PhysicsShapeType",
+      "compatExportDeclared": true,
+      "sites": 5,
+      "syntacticValueSites": 5,
+      "scopes": [
+        "engine-and-other",
+        "fps"
+      ],
+      "examples": [
+        {
+          "file": "src/engine/MapRenderer.ts",
+          "scope": "engine-and-other",
+          "module": "@babylonjs/core/Physics/v2/IPhysicsEnginePlugin",
+          "line": 9,
+          "typeOnly": false
+        },
+        {
+          "file": "src/engine/physics/PhysicsSystem.ts",
+          "scope": "engine-and-other",
+          "module": "@babylonjs/core/Physics/v2/IPhysicsEnginePlugin",
+          "line": 14,
+          "typeOnly": false
+        }
+      ]
+    },
+    {
+      "name": "PhysicsViewer",
+      "compatExportDeclared": false,
+      "sites": 1,
+      "syntacticValueSites": 0,
+      "scopes": [
+        "tools"
+      ],
+      "examples": [
+        {
+          "file": "src/engine/console/commands/PhysicsCommand.ts",
+          "scope": "tools",
+          "module": "@babylonjs/core/Debug/physicsViewer",
+          "line": 5,
+          "typeOnly": true
+        }
+      ]
+    },
+    {
+      "name": "Plane",
+      "compatExportDeclared": true,
+      "sites": 6,
+      "syntacticValueSites": 4,
+      "scopes": [
+        "engine-and-other",
+        "fps"
+      ],
+      "examples": [
+        {
+          "file": "src/engine/loader/bsp/BspFogVolume.ts",
+          "scope": "engine-and-other",
+          "module": "@babylonjs/core/Maths/math.plane",
+          "line": 11,
+          "typeOnly": false
+        },
+        {
+          "file": "src/engine/loader/map/BrushGenerator.ts",
+          "scope": "engine-and-other",
+          "module": "@babylonjs/core/Maths/math.plane",
+          "line": 3,
+          "typeOnly": false
+        }
+      ]
+    },
+    {
+      "name": "PointerEventTypes",
+      "compatExportDeclared": true,
+      "sites": 1,
+      "syntacticValueSites": 1,
+      "scopes": [
+        "engine-and-other"
+      ],
+      "examples": [
+        {
+          "file": "src/engine/camera/controllers/IsometricController.ts",
+          "scope": "engine-and-other",
+          "module": "@babylonjs/core/Events/pointerEvents",
+          "line": 13,
+          "typeOnly": false
+        }
+      ]
+    },
+    {
+      "name": "PointerInfo",
+      "compatExportDeclared": true,
+      "sites": 1,
+      "syntacticValueSites": 0,
+      "scopes": [
+        "engine-and-other"
+      ],
+      "examples": [
+        {
+          "file": "src/engine/camera/controllers/IsometricController.ts",
+          "scope": "engine-and-other",
+          "module": "@babylonjs/core/Events/pointerEvents",
+          "line": 13,
+          "typeOnly": true
+        }
+      ]
+    },
+    {
+      "name": "PointLight",
+      "compatExportDeclared": true,
+      "sites": 31,
+      "syntacticValueSites": 24,
+      "scopes": [
+        "engine-and-other",
+        "fps",
+        "tests"
+      ],
+      "examples": [
+        {
+          "file": "src/engine/MapRenderer.ts",
+          "scope": "engine-and-other",
+          "module": "@babylonjs/core/Lights/pointLight",
+          "line": 4,
+          "typeOnly": false
+        },
+        {
+          "file": "src/engine/__tests__/ClusteredLightingQA.test.ts",
+          "scope": "tests",
+          "module": "@babylonjs/core/Lights/pointLight",
+          "line": 7,
+          "typeOnly": false
+        }
+      ]
+    },
+    {
+      "name": "PostProcess",
+      "compatExportDeclared": true,
+      "sites": 3,
+      "syntacticValueSites": 3,
+      "scopes": [
+        "engine-and-other",
+        "tests"
+      ],
+      "examples": [
+        {
+          "file": "src/engine/effects/CelOutlinePostProcess.ts",
+          "scope": "engine-and-other",
+          "module": "@babylonjs/core/PostProcesses/postProcess",
+          "line": 23,
+          "typeOnly": false
+        },
+        {
+          "file": "src/engine/effects/ColorCorrectionPostProcess.ts",
+          "scope": "engine-and-other",
+          "module": "@babylonjs/core/PostProcesses/postProcess",
+          "line": 25,
+          "typeOnly": false
+        }
+      ]
+    },
+    {
+      "name": "Quaternion",
+      "compatExportDeclared": true,
+      "sites": 12,
+      "syntacticValueSites": 11,
+      "scopes": [
+        "engine-and-other",
+        "fps",
+        "tests"
+      ],
+      "examples": [
+        {
+          "file": "src/engine/__tests__/PelletTracerSlide.test.ts",
+          "scope": "tests",
+          "module": "@babylonjs/core/Maths/math.vector",
+          "line": 4,
+          "typeOnly": true
+        },
+        {
+          "file": "src/engine/__tests__/ProjectileFacing.test.ts",
+          "scope": "tests",
+          "module": "@babylonjs/core/Maths/math.vector",
+          "line": 2,
+          "typeOnly": false
+        }
+      ]
+    },
+    {
+      "name": "Ragdoll",
+      "compatExportDeclared": false,
+      "sites": 1,
+      "syntacticValueSites": 1,
+      "scopes": [
+        "fps"
+      ],
+      "examples": [
+        {
+          "file": "src/games/fps/client/RagdollSystem.ts",
+          "scope": "fps",
+          "module": "@babylonjs/core/Physics/v2/ragdoll",
+          "line": 24,
+          "typeOnly": false
+        }
+      ]
+    },
+    {
+      "name": "RawCubeTexture",
+      "compatExportDeclared": false,
+      "sites": 5,
+      "syntacticValueSites": 4,
+      "scopes": [
+        "engine-and-other"
+      ],
+      "examples": [
+        {
+          "file": "src/engine/loader/texture/SkyboxLoader.ts",
+          "scope": "engine-and-other",
+          "module": "@babylonjs/core/Materials/Textures/rawCubeTexture",
+          "line": 14,
+          "typeOnly": false
+        },
+        {
+          "file": "src/engine/rendering/EnvironmentLightingQA.ts",
+          "scope": "engine-and-other",
+          "module": "@babylonjs/core/Materials/Textures/rawCubeTexture",
+          "line": 5,
+          "typeOnly": false
+        }
+      ]
+    },
+    {
+      "name": "RawTexture",
+      "compatExportDeclared": true,
+      "sites": 28,
+      "syntacticValueSites": 28,
+      "scopes": [
+        "editor",
+        "engine-and-other",
+        "fps",
+        "tests"
+      ],
+      "examples": [
+        {
+          "file": "src/engine/__tests__/BladePresentation.test.ts",
+          "scope": "tests",
+          "module": "@babylonjs/core/Materials/Textures/rawTexture",
+          "line": 5,
+          "typeOnly": false
+        },
+        {
+          "file": "src/engine/__tests__/BspMeshBuilder.test.ts",
+          "scope": "tests",
+          "module": "@babylonjs/core/Materials/Textures/rawTexture",
+          "line": 3,
+          "typeOnly": false
+        }
+      ]
+    },
+    {
+      "name": "RawTexture2DArray",
+      "compatExportDeclared": true,
+      "sites": 1,
+      "syntacticValueSites": 1,
+      "scopes": [
+        "engine-and-other"
+      ],
+      "examples": [
+        {
+          "file": "src/engine/loader/bsp/mesh/lightmaps.ts",
+          "scope": "engine-and-other",
+          "module": "@babylonjs/core/Materials/Textures/rawTexture2DArray",
+          "line": 4,
+          "typeOnly": false
+        }
+      ]
+    },
+    {
+      "name": "Ray",
+      "compatExportDeclared": true,
+      "sites": 15,
+      "syntacticValueSites": 13,
+      "scopes": [
+        "engine-and-other",
+        "fps",
+        "tests"
+      ],
+      "examples": [
+        {
+          "file": "src/engine/__tests__/StaticVisibilityIndex.test.ts",
+          "scope": "tests",
+          "module": "@babylonjs/core/Culling/ray",
+          "line": 1,
+          "typeOnly": false
+        },
+        {
+          "file": "src/engine/editor/__tests__/ConvexPreview.test.ts",
+          "scope": "tests",
+          "module": "@babylonjs/core/Culling/ray",
+          "line": 1,
+          "typeOnly": false
+        }
+      ]
+    },
+    {
+      "name": "RectAreaLight",
+      "compatExportDeclared": true,
+      "sites": 1,
+      "syntacticValueSites": 1,
+      "scopes": [
+        "engine-and-other"
+      ],
+      "examples": [
+        {
+          "file": "src/engine/lighting/AreaLightPanel.ts",
+          "scope": "engine-and-other",
+          "module": "@babylonjs/core/Lights/rectAreaLight",
+          "line": 25,
+          "typeOnly": false
+        }
+      ]
+    },
+    {
+      "name": "ReflectionProbe",
+      "compatExportDeclared": true,
+      "sites": 2,
+      "syntacticValueSites": 2,
+      "scopes": [
+        "engine-and-other"
+      ],
+      "examples": [
+        {
+          "file": "src/engine/rendering/SurfaceCubemaps.ts",
+          "scope": "engine-and-other",
+          "module": "@babylonjs/core/Probes/reflectionProbe",
+          "line": 21,
+          "typeOnly": false
+        },
+        {
+          "file": "src/engine/rendering/water/WaterProbeCache.ts",
+          "scope": "engine-and-other",
+          "module": "@babylonjs/core/Probes/reflectionProbe",
+          "line": 10,
+          "typeOnly": false
+        }
+      ]
+    },
+    {
+      "name": "registerGLTFExtension",
+      "compatExportDeclared": false,
+      "sites": 1,
+      "syntacticValueSites": 1,
+      "scopes": [
+        "engine-and-other"
+      ],
+      "examples": [
+        {
+          "file": "src/engine/rendering/SceneRendererPolicy.ts",
+          "scope": "engine-and-other",
+          "module": "@babylonjs/loaders/glTF/2.0/glTFLoaderExtensionRegistry",
+          "line": 2,
+          "typeOnly": false
+        }
+      ]
+    },
+    {
+      "name": "RegisterMaterialPlugin",
+      "compatExportDeclared": false,
+      "sites": 1,
+      "syntacticValueSites": 1,
+      "scopes": [
+        "engine-and-other"
+      ],
+      "examples": [
+        {
+          "file": "src/engine/rendering/AtmosphericFogPlugin.ts",
+          "scope": "engine-and-other",
+          "module": "@babylonjs/core/Materials/materialPluginManager",
+          "line": 25,
+          "typeOnly": false
+        }
+      ]
+    },
+    {
+      "name": "registerTextureLoader",
+      "compatExportDeclared": false,
+      "sites": 1,
+      "syntacticValueSites": 1,
+      "scopes": [
+        "engine-and-other"
+      ],
+      "examples": [
+        {
+          "file": "src/engine/loader/texture/KTX2SidecarLoader.ts",
+          "scope": "engine-and-other",
+          "module": "@babylonjs/core/Materials/Textures/Loaders/textureLoaderManager",
+          "line": 4,
+          "typeOnly": false
+        }
+      ]
+    },
+    {
+      "name": "RenderingGroup",
+      "compatExportDeclared": false,
+      "sites": 1,
+      "syntacticValueSites": 0,
+      "scopes": [
+        "engine-and-other"
+      ],
+      "examples": [
+        {
+          "file": "src/engine/rendering/SceneDepthCapture.ts",
+          "scope": "engine-and-other",
+          "module": "@babylonjs/core/Rendering/renderingGroup",
+          "line": 25,
+          "typeOnly": true
+        }
+      ]
+    },
+    {
+      "name": "RenderTargetTexture",
+      "compatExportDeclared": true,
+      "sites": 8,
+      "syntacticValueSites": 6,
+      "scopes": [
+        "engine-and-other",
+        "tests"
+      ],
+      "examples": [
+        {
+          "file": "src/engine/__tests__/Q3SoftParticleDepth.test.ts",
+          "scope": "tests",
+          "module": "@babylonjs/core/Materials/Textures/renderTargetTexture",
+          "line": 4,
+          "typeOnly": true
+        },
+        {
+          "file": "src/engine/__tests__/SceneDepthCapture.test.ts",
+          "scope": "tests",
+          "module": "@babylonjs/core/Materials/Textures/renderTargetTexture",
+          "line": 3,
+          "typeOnly": false
+        }
+      ]
+    },
+    {
+      "name": "RenderTargetWrapper",
+      "compatExportDeclared": false,
+      "sites": 1,
+      "syntacticValueSites": 0,
+      "scopes": [
+        "engine-and-other"
+      ],
+      "examples": [
+        {
+          "file": "src/engine/rendering/SceneDepthCapture.ts",
+          "scope": "engine-and-other",
+          "module": "@babylonjs/core/Engines/renderTargetWrapper",
+          "line": 20,
+          "typeOnly": true
+        }
+      ]
+    },
+    {
+      "name": "Scene",
+      "compatExportDeclared": true,
+      "sites": 348,
+      "syntacticValueSites": 159,
+      "scopes": [
+        "editor",
+        "engine-and-other",
+        "fps",
+        "tests",
+        "tools"
+      ],
+      "examples": [
+        {
+          "file": "src/cli/audit-pvs.ts",
+          "scope": "tools",
+          "module": "@babylonjs/core/scene",
+          "line": 9,
+          "typeOnly": false
+        },
+        {
+          "file": "src/cli/debug-pickup-full.ts",
+          "scope": "tools",
+          "module": "@babylonjs/core/scene",
+          "line": 10,
+          "typeOnly": false
+        }
+      ]
+    },
+    {
+      "name": "SceneInstrumentation",
+      "compatExportDeclared": false,
+      "sites": 4,
+      "syntacticValueSites": 4,
+      "scopes": [
+        "engine-and-other",
+        "fps"
+      ],
+      "examples": [
+        {
+          "file": "src/engine/rendering/RendererPerformanceCapture.ts",
+          "scope": "engine-and-other",
+          "module": "@babylonjs/core/Instrumentation/sceneInstrumentation",
+          "line": 6,
+          "typeOnly": false
+        },
+        {
+          "file": "src/engine/rendering/crowd-benchmark-page.ts",
+          "scope": "engine-and-other",
+          "module": "@babylonjs/core/Instrumentation/sceneInstrumentation",
+          "line": 10,
+          "typeOnly": false
+        }
+      ]
+    },
+    {
+      "name": "ShaderLanguage",
+      "compatExportDeclared": true,
+      "sites": 8,
+      "syntacticValueSites": 8,
+      "scopes": [
+        "engine-and-other"
+      ],
+      "examples": [
+        {
+          "file": "src/engine/loader/bsp/BspBakedLightingPlugin.ts",
+          "scope": "engine-and-other",
+          "module": "@babylonjs/core/Materials/shaderLanguage",
+          "line": 5,
+          "typeOnly": false
+        },
+        {
+          "file": "src/engine/loader/bsp/BspVertexLightingPlugin.ts",
+          "scope": "engine-and-other",
+          "module": "@babylonjs/core/Materials/shaderLanguage",
+          "line": 2,
+          "typeOnly": false
+        }
+      ]
+    },
+    {
+      "name": "ShaderMaterial",
+      "compatExportDeclared": true,
+      "sites": 25,
+      "syntacticValueSites": 15,
+      "scopes": [
+        "engine-and-other",
+        "fps",
+        "tests"
+      ],
+      "examples": [
+        {
+          "file": "src/engine/__tests__/LiquidSurfaceSystem.test.ts",
+          "scope": "tests",
+          "module": "@babylonjs/core/Materials/shaderMaterial",
+          "line": 14,
+          "typeOnly": true
+        },
+        {
+          "file": "src/engine/__tests__/WaterActorReflection.test.ts",
+          "scope": "tests",
+          "module": "@babylonjs/core/Materials/shaderMaterial",
+          "line": 3,
+          "typeOnly": false
+        }
+      ]
+    },
+    {
+      "name": "ShaderStore",
+      "compatExportDeclared": false,
+      "sites": 3,
+      "syntacticValueSites": 3,
+      "scopes": [
+        "engine-and-other",
+        "tests"
+      ],
+      "examples": [
+        {
+          "file": "src/engine/__tests__/BabylonShaderFixes.test.ts",
+          "scope": "tests",
+          "module": "@babylonjs/core/Engines/shaderStore",
+          "line": 1,
+          "typeOnly": false
+        },
+        {
+          "file": "src/engine/__tests__/ClusteredLightingQA.test.ts",
+          "scope": "tests",
+          "module": "@babylonjs/core/Engines/shaderStore",
+          "line": 3,
+          "typeOnly": false
+        }
+      ]
+    },
+    {
+      "name": "ShadowGenerator",
+      "compatExportDeclared": true,
+      "sites": 2,
+      "syntacticValueSites": 0,
+      "scopes": [
+        "engine-and-other"
+      ],
+      "examples": [
+        {
+          "file": "src/engine/lighting/SkyLightSystem.ts",
+          "scope": "engine-and-other",
+          "module": "@babylonjs/core/Lights/Shadows/shadowGenerator",
+          "line": 14,
+          "typeOnly": true
+        },
+        {
+          "file": "src/engine/loader/model/ModelLoader.ts",
+          "scope": "engine-and-other",
+          "module": "@babylonjs/core/Lights/Shadows/shadowGenerator",
+          "line": 3,
+          "typeOnly": true
+        }
+      ]
+    },
+    {
+      "name": "Skeleton",
+      "compatExportDeclared": true,
+      "sites": 18,
+      "syntacticValueSites": 10,
+      "scopes": [
+        "engine-and-other",
+        "fps",
+        "tests",
+        "tools"
+      ],
+      "examples": [
+        {
+          "file": "src/engine/__tests__/CrowdBenchmark.test.ts",
+          "scope": "tests",
+          "module": "@babylonjs/core/Bones/skeleton",
+          "line": 5,
+          "typeOnly": false
+        },
+        {
+          "file": "src/engine/__tests__/ModelInstanceCache.test.ts",
+          "scope": "tests",
+          "module": "@babylonjs/core/Bones/skeleton",
+          "line": 5,
+          "typeOnly": false
+        }
+      ]
+    },
+    {
+      "name": "SphericalPolynomial",
+      "compatExportDeclared": false,
+      "sites": 2,
+      "syntacticValueSites": 2,
+      "scopes": [
+        "engine-and-other"
+      ],
+      "examples": [
+        {
+          "file": "src/engine/rendering/EnvironmentLightingQA.ts",
+          "scope": "engine-and-other",
+          "module": "@babylonjs/core/Maths/sphericalPolynomial",
+          "line": 9,
+          "typeOnly": false
+        },
+        {
+          "file": "src/engine/weapon/BladeEnvironment.ts",
+          "scope": "engine-and-other",
+          "module": "@babylonjs/core/Maths/sphericalPolynomial",
+          "line": 4,
+          "typeOnly": false
+        }
+      ]
+    },
+    {
+      "name": "SpotLight",
+      "compatExportDeclared": true,
+      "sites": 1,
+      "syntacticValueSites": 1,
+      "scopes": [
+        "engine-and-other"
+      ],
+      "examples": [
+        {
+          "file": "src/engine/ui/components/LogoCanvas.ts",
+          "scope": "engine-and-other",
+          "module": "@babylonjs/core/Lights/spotLight",
+          "line": 17,
+          "typeOnly": false
+        }
+      ]
+    },
+    {
+      "name": "SSAO2RenderingPipeline",
+      "compatExportDeclared": true,
+      "sites": 1,
+      "syntacticValueSites": 1,
+      "scopes": [
+        "engine-and-other"
+      ],
+      "examples": [
+        {
+          "file": "src/engine/effects/PostProcessingManager.ts",
+          "scope": "engine-and-other",
+          "module": "@babylonjs/core/PostProcesses/RenderPipeline/Pipelines/ssao2RenderingPipeline",
+          "line": 18,
+          "typeOnly": false
+        }
+      ]
+    },
+    {
+      "name": "SSRRenderingPipeline",
+      "compatExportDeclared": false,
+      "sites": 1,
+      "syntacticValueSites": 1,
+      "scopes": [
+        "engine-and-other"
+      ],
+      "examples": [
+        {
+          "file": "src/engine/effects/SSREffect.ts",
+          "scope": "engine-and-other",
+          "module": "@babylonjs/core/PostProcesses/RenderPipeline/Pipelines/ssrRenderingPipeline",
+          "line": 19,
+          "typeOnly": false
+        }
+      ]
+    },
+    {
+      "name": "StandardMaterial",
+      "compatExportDeclared": true,
+      "sites": 107,
+      "syntacticValueSites": 92,
+      "scopes": [
+        "editor",
+        "engine-and-other",
+        "fps",
+        "tests",
+        "tools"
+      ],
+      "examples": [
+        {
+          "file": "src/engine/MapRenderer.ts",
+          "scope": "engine-and-other",
+          "module": "@babylonjs/core/Materials/standardMaterial",
+          "line": 5,
+          "typeOnly": false
+        },
+        {
+          "file": "src/engine/__tests__/BspMeshBuilder.test.ts",
+          "scope": "tests",
+          "module": "@babylonjs/core/Materials/standardMaterial",
+          "line": 2,
+          "typeOnly": false
+        }
+      ]
+    },
+    {
+      "name": "StaticSound",
+      "compatExportDeclared": true,
+      "sites": 1,
+      "syntacticValueSites": 0,
+      "scopes": [
+        "engine-and-other"
+      ],
+      "examples": [
+        {
+          "file": "src/engine/audio/AudioV2Sfx.ts",
+          "scope": "engine-and-other",
+          "module": "@babylonjs/core/AudioV2/abstractAudio/staticSound",
+          "line": 3,
+          "typeOnly": true
+        }
+      ]
+    },
+    {
+      "name": "StaticSoundBuffer",
+      "compatExportDeclared": true,
+      "sites": 1,
+      "syntacticValueSites": 0,
+      "scopes": [
+        "engine-and-other"
+      ],
+      "examples": [
+        {
+          "file": "src/engine/audio/AudioV2Sfx.ts",
+          "scope": "engine-and-other",
+          "module": "@babylonjs/core/AudioV2/abstractAudio/staticSoundBuffer",
+          "line": 4,
+          "typeOnly": true
+        }
+      ]
+    },
+    {
+      "name": "SubMesh",
+      "compatExportDeclared": false,
+      "sites": 1,
+      "syntacticValueSites": 0,
+      "scopes": [
+        "engine-and-other"
+      ],
+      "examples": [
+        {
+          "file": "src/engine/loader/bsp/BspBakedLightingPlugin.ts",
+          "scope": "engine-and-other",
+          "module": "@babylonjs/core/Meshes/subMesh",
+          "line": 10,
+          "typeOnly": true
+        }
+      ]
+    },
+    {
+      "name": "Tags",
+      "compatExportDeclared": true,
+      "sites": 1,
+      "syntacticValueSites": 1,
+      "scopes": [
+        "tools"
+      ],
+      "examples": [
+        {
+          "file": "src/engine/console/commands/BspCommand.ts",
+          "scope": "tools",
+          "module": "@babylonjs/core/Misc/tags",
+          "line": 16,
+          "typeOnly": false
+        }
+      ]
+    },
+    {
+      "name": "TargetCamera",
+      "compatExportDeclared": true,
+      "sites": 3,
+      "syntacticValueSites": 2,
+      "scopes": [
+        "engine-and-other",
+        "fps"
+      ],
+      "examples": [
+        {
+          "file": "src/engine/loader/map/ClientMapLoader.ts",
+          "scope": "engine-and-other",
+          "module": "@babylonjs/core/Cameras/targetCamera",
+          "line": 1,
+          "typeOnly": false
+        },
+        {
+          "file": "src/engine/rendering/SkyPortal.ts",
+          "scope": "engine-and-other",
+          "module": "@babylonjs/core/Cameras/targetCamera",
+          "line": 19,
+          "typeOnly": false
+        }
+      ]
+    },
+    {
+      "name": "Texture",
+      "compatExportDeclared": true,
+      "sites": 50,
+      "syntacticValueSites": 35,
+      "scopes": [
+        "editor",
+        "engine-and-other",
+        "fps",
+        "tests"
+      ],
+      "examples": [
+        {
+          "file": "src/engine/__tests__/LiquidSurfaceSystem.test.ts",
+          "scope": "tests",
+          "module": "@babylonjs/core/Materials/Textures/texture",
+          "line": 16,
+          "typeOnly": false
+        },
+        {
+          "file": "src/engine/__tests__/PlayerModelDisposal.test.ts",
+          "scope": "tests",
+          "module": "@babylonjs/core/Materials/Textures/texture",
+          "line": 13,
+          "typeOnly": false
+        }
+      ]
+    },
+    {
+      "name": "TextureBlock",
+      "compatExportDeclared": false,
+      "sites": 1,
+      "syntacticValueSites": 1,
+      "scopes": [
+        "engine-and-other"
+      ],
+      "examples": [
+        {
+          "file": "src/engine/loader/shader/Q3NodeMaterialBuilder.ts",
+          "scope": "engine-and-other",
+          "module": "@babylonjs/core/Materials/Node/Blocks/Dual/textureBlock",
+          "line": 9,
+          "typeOnly": false
+        }
+      ]
+    },
+    {
+      "name": "Tools",
+      "compatExportDeclared": true,
+      "sites": 2,
+      "syntacticValueSites": 2,
+      "scopes": [
+        "engine-and-other",
+        "tests"
+      ],
+      "examples": [
+        {
+          "file": "src/engine/lighting/AreaLightAssets.ts",
+          "scope": "engine-and-other",
+          "module": "@babylonjs/core/Misc/tools",
+          "line": 19,
+          "typeOnly": false
+        },
+        {
+          "file": "src/engine/lighting/__tests__/AreaLightPanel.test.ts",
+          "scope": "tests",
+          "module": "@babylonjs/core/Misc/tools",
+          "line": 14,
+          "typeOnly": false
+        }
+      ]
+    },
+    {
+      "name": "TrailMesh",
+      "compatExportDeclared": false,
+      "sites": 1,
+      "syntacticValueSites": 1,
+      "scopes": [
+        "fps"
+      ],
+      "examples": [
+        {
+          "file": "src/games/fps/client/RagdollSystem.ts",
+          "scope": "fps",
+          "module": "@babylonjs/core/Meshes/trailMesh",
+          "line": 20,
+          "typeOnly": false
+        }
+      ]
+    },
+    {
+      "name": "TransformBlock",
+      "compatExportDeclared": false,
+      "sites": 1,
+      "syntacticValueSites": 1,
+      "scopes": [
+        "engine-and-other"
+      ],
+      "examples": [
+        {
+          "file": "src/engine/loader/shader/Q3NodeMaterialBuilder.ts",
+          "scope": "engine-and-other",
+          "module": "@babylonjs/core/Materials/Node/Blocks/transformBlock",
+          "line": 14,
+          "typeOnly": false
+        }
+      ]
+    },
+    {
+      "name": "TransformNode",
+      "compatExportDeclared": true,
+      "sites": 69,
+      "syntacticValueSites": 55,
+      "scopes": [
+        "editor",
+        "engine-and-other",
+        "fps",
+        "tests",
+        "tools"
+      ],
+      "examples": [
+        {
+          "file": "src/cli/debug-pickup-full.ts",
+          "scope": "tools",
+          "module": "@babylonjs/core/Meshes/transformNode",
+          "line": 8,
+          "typeOnly": false
+        },
+        {
+          "file": "src/cli/debug-position-assignment.ts",
+          "scope": "tools",
+          "module": "@babylonjs/core/Meshes/transformNode",
+          "line": 8,
+          "typeOnly": false
+        }
+      ]
+    },
+    {
+      "name": "UniformBuffer",
+      "compatExportDeclared": true,
+      "sites": 6,
+      "syntacticValueSites": 0,
+      "scopes": [
+        "engine-and-other"
+      ],
+      "examples": [
+        {
+          "file": "src/engine/loader/bsp/BspBakedLightingPlugin.ts",
+          "scope": "engine-and-other",
+          "module": "@babylonjs/core/Materials/uniformBuffer",
+          "line": 8,
+          "typeOnly": true
+        },
+        {
+          "file": "src/engine/loader/shader/Q3DistanceRampPlugin.ts",
+          "scope": "engine-and-other",
+          "module": "@babylonjs/core/Materials/uniformBuffer",
+          "line": 7,
+          "typeOnly": true
+        }
+      ]
+    },
+    {
+      "name": "Vector2",
+      "compatExportDeclared": true,
+      "sites": 8,
+      "syntacticValueSites": 8,
+      "scopes": [
+        "engine-and-other",
+        "fps"
+      ],
+      "examples": [
+        {
+          "file": "src/engine/rendering/water/LiquidSurfaceSystem.ts",
+          "scope": "engine-and-other",
+          "module": "@babylonjs/core/Maths/math.vector",
+          "line": 29,
+          "typeOnly": false
+        },
+        {
+          "file": "src/engine/rendering/water/UnifiedWaterMaterial.ts",
+          "scope": "engine-and-other",
+          "module": "@babylonjs/core/Maths/math.vector",
+          "line": 28,
+          "typeOnly": false
+        }
+      ]
+    },
+    {
+      "name": "Vector3",
+      "compatExportDeclared": true,
+      "sites": 259,
+      "syntacticValueSites": 239,
+      "scopes": [
+        "editor",
+        "engine-and-other",
+        "fps",
+        "tests",
+        "tools"
+      ],
+      "examples": [
+        {
+          "file": "src/cli/HeadlessBSPCollisionWorld.ts",
+          "scope": "tools",
+          "module": "@babylonjs/core/Maths/math.vector",
+          "line": 10,
+          "typeOnly": false
+        },
+        {
+          "file": "src/cli/audit-pvs.ts",
+          "scope": "tools",
+          "module": "@babylonjs/core/Maths/math.vector",
+          "line": 7,
+          "typeOnly": false
+        }
+      ]
+    },
+    {
+      "name": "Vector4",
+      "compatExportDeclared": true,
+      "sites": 3,
+      "syntacticValueSites": 3,
+      "scopes": [
+        "engine-and-other"
+      ],
+      "examples": [
+        {
+          "file": "src/engine/rendering/water/LiquidSurfaceSystem.ts",
+          "scope": "engine-and-other",
+          "module": "@babylonjs/core/Maths/math.vector",
+          "line": 29,
+          "typeOnly": false
+        },
+        {
+          "file": "src/engine/rendering/water/UnifiedWaterMaterial.ts",
+          "scope": "engine-and-other",
+          "module": "@babylonjs/core/Maths/math.vector",
+          "line": 28,
+          "typeOnly": false
+        }
+      ]
+    },
+    {
+      "name": "VectorMergerBlock",
+      "compatExportDeclared": false,
+      "sites": 1,
+      "syntacticValueSites": 1,
+      "scopes": [
+        "engine-and-other"
+      ],
+      "examples": [
+        {
+          "file": "src/engine/loader/shader/Q3NodeMaterialBuilder.ts",
+          "scope": "engine-and-other",
+          "module": "@babylonjs/core/Materials/Node/Blocks/vectorMergerBlock",
+          "line": 16,
+          "typeOnly": false
+        }
+      ]
+    },
+    {
+      "name": "VertexBuffer",
+      "compatExportDeclared": true,
+      "sites": 18,
+      "syntacticValueSites": 18,
+      "scopes": [
+        "engine-and-other",
+        "tests",
+        "tools"
+      ],
+      "examples": [
+        {
+          "file": "src/cli/audit-pvs.ts",
+          "scope": "tools",
+          "module": "@babylonjs/core/Buffers/buffer",
+          "line": 5,
+          "typeOnly": false
+        },
+        {
+          "file": "src/engine/__tests__/EffectGeometry.test.ts",
+          "scope": "tests",
+          "module": "@babylonjs/core/Buffers/buffer",
+          "line": 1,
+          "typeOnly": false
+        }
+      ]
+    },
+    {
+      "name": "VertexData",
+      "compatExportDeclared": true,
+      "sites": 19,
+      "syntacticValueSites": 19,
+      "scopes": [
+        "editor",
+        "engine-and-other",
+        "fps",
+        "tools"
+      ],
+      "examples": [
+        {
+          "file": "src/engine/console/commands/FreeflyCollisionCommand.ts",
+          "scope": "tools",
+          "module": "@babylonjs/core/Meshes/mesh.vertexData",
+          "line": 9,
+          "typeOnly": false
+        },
+        {
+          "file": "src/engine/editor/ConvexPreview.ts",
+          "scope": "editor",
+          "module": "@babylonjs/core/Meshes/mesh.vertexData",
+          "line": 2,
+          "typeOnly": false
+        }
+      ]
+    },
+    {
+      "name": "VertexOutputBlock",
+      "compatExportDeclared": false,
+      "sites": 1,
+      "syntacticValueSites": 1,
+      "scopes": [
+        "engine-and-other"
+      ],
+      "examples": [
+        {
+          "file": "src/engine/loader/shader/Q3NodeMaterialBuilder.ts",
+          "scope": "engine-and-other",
+          "module": "@babylonjs/core/Materials/Node/Blocks/Vertex/vertexOutputBlock",
+          "line": 15,
+          "typeOnly": false
+        }
+      ]
+    },
+    {
+      "name": "Viewport",
+      "compatExportDeclared": true,
+      "sites": 1,
+      "syntacticValueSites": 1,
+      "scopes": [
+        "editor"
+      ],
+      "examples": [
+        {
+          "file": "src/engine/editor/EditorSession.ts",
+          "scope": "editor",
+          "module": "@babylonjs/core/Maths/math.viewport",
+          "line": 7,
+          "typeOnly": false
+        }
+      ]
+    },
+    {
+      "name": "VolumetricLightScatteringPostProcess",
+      "compatExportDeclared": false,
+      "sites": 1,
+      "syntacticValueSites": 1,
+      "scopes": [
+        "engine-and-other"
+      ],
+      "examples": [
+        {
+          "file": "src/engine/lighting/SunGodRays.ts",
+          "scope": "engine-and-other",
+          "module": "@babylonjs/core/PostProcesses/volumetricLightScatteringPostProcess",
+          "line": 42,
+          "typeOnly": false
+        }
+      ]
+    },
+    {
+      "name": "WebGPUEngine",
+      "compatExportDeclared": true,
+      "sites": 3,
+      "syntacticValueSites": 0,
+      "scopes": [
+        "engine-and-other",
+        "fps"
+      ],
+      "examples": [
+        {
+          "file": "src/engine/rendering/RendererDiagnostics.ts",
+          "scope": "engine-and-other",
+          "module": "@babylonjs/core/Engines/webgpuEngine",
+          "line": 3,
+          "typeOnly": true
+        },
+        {
+          "file": "src/engine/rendering/RendererRuntimeDiagnostics.ts",
+          "scope": "engine-and-other",
+          "module": "@babylonjs/core/Engines/webgpuEngine",
+          "line": 4,
+          "typeOnly": true
+        }
+      ]
+    },
+    {
+      "name": "WebGPUPipelineContext",
+      "compatExportDeclared": false,
+      "sites": 1,
+      "syntacticValueSites": 0,
+      "scopes": [
+        "engine-and-other"
+      ],
+      "examples": [
+        {
+          "file": "src/engine/rendering/RendererRuntimeDiagnostics.ts",
+          "scope": "engine-and-other",
+          "module": "@babylonjs/core/Engines/WebGPU/webgpuPipelineContext",
+          "line": 3,
+          "typeOnly": true
+        }
+      ]
+    },
+    {
+      "name": "WebGPUShaderProcessingContext",
+      "compatExportDeclared": false,
+      "sites": 1,
+      "syntacticValueSites": 1,
+      "scopes": [
+        "tests"
+      ],
+      "examples": [
+        {
+          "file": "src/engine/__tests__/ClusteredLightingQA.test.ts",
+          "scope": "tests",
+          "module": "@babylonjs/core/Engines/WebGPU/webgpuShaderProcessingContext",
+          "line": 4,
+          "typeOnly": false
+        }
+      ]
+    },
+    {
+      "name": "WebGPUShaderProcessorWGSL",
+      "compatExportDeclared": false,
+      "sites": 1,
+      "syntacticValueSites": 1,
+      "scopes": [
+        "tests"
+      ],
+      "examples": [
+        {
+          "file": "src/engine/__tests__/ClusteredLightingQA.test.ts",
+          "scope": "tests",
+          "module": "@babylonjs/core/Engines/WebGPU/webgpuShaderProcessorsWGSL",
+          "line": 5,
+          "typeOnly": false
+        }
+      ]
+    },
+    {
+      "name": "workerFunction",
+      "compatExportDeclared": false,
+      "sites": 1,
+      "syntacticValueSites": 1,
+      "scopes": [
+        "engine-and-other"
+      ],
+      "examples": [
+        {
+          "file": "src/engine/loader/texture/KTX2DecoderWorker.ts",
+          "scope": "engine-and-other",
+          "module": "@babylonjs/core/Misc/khronosTextureContainer2Worker.js",
+          "line": 1,
+          "typeOnly": false
+        }
+      ]
+    }
+  ],
+  "importerSourceHashes": [
+    {
+      "file": "src/cli/HeadlessBSPCollisionWorld.ts",
+      "sha256": "1c3623a0246ba7f9297c3782e3cb4459c02a5f2f14a2015bc3b17240a04e0248"
+    },
+    {
+      "file": "src/cli/audit-pvs.ts",
+      "sha256": "79ca16673e696654602a76620b14fc6d6c9a8623745d332e0af793c466a9595f"
+    },
+    {
+      "file": "src/cli/audit-stuck.ts",
+      "sha256": "4d5a030f3775c397215165f6486e085902276527d54052170f2c2b4d09628bd1"
+    },
+    {
+      "file": "src/cli/debug-pickup-full.ts",
+      "sha256": "472afcec970f4ae42ad6418a7fb0ca3bcbc8ee36bb860094098f060097afe032"
+    },
+    {
+      "file": "src/cli/debug-position-assignment.ts",
+      "sha256": "5ebe0489cc976f13745bfd89cf2b9f6d625a8a4f94f160cf531ba890c0eae796"
+    },
+    {
+      "file": "src/cli/headless-bsp.ts",
+      "sha256": "48ed48513b22f51d66f4f1e891f0f77ef8c3af8f7fa94c2a35f640fd64ab47c7"
+    },
+    {
+      "file": "src/cli/test-lifts.ts",
+      "sha256": "00d46dafbc1e3beb5dca0f42d993378c08ef4870529f644ff1831ab626e02605"
+    },
+    {
+      "file": "src/engine/AudioManager.ts",
+      "sha256": "2dca4129fcdd547e36396340485016fbb340d56aed11827654eed819c28c3c12"
+    },
+    {
+      "file": "src/engine/EngineScene.ts",
+      "sha256": "38432fe43d929d2802a7e26616b3cb7e96906727bc0a79abcefcca02daf14dd1"
+    },
+    {
+      "file": "src/engine/MapRenderer.ts",
+      "sha256": "b12ce8fef5389c0543fd002d9c02e661e46dbdc2748d5f096937ee531f8da504"
+    },
+    {
+      "file": "src/engine/SpawnValidator.ts",
+      "sha256": "73618b4c309f5ebd77bbe77ea13f3068a0803ac93d9c61305a924200d5617eac"
+    },
+    {
+      "file": "src/engine/__tests__/AnimationStateBridge.test.ts",
+      "sha256": "fe535dfe17a27fffcc4c494c5f0a9840bf5561aedb32da00a049a3ad0b5b23d5"
+    },
+    {
+      "file": "src/engine/__tests__/AudioV2Sfx.test.ts",
+      "sha256": "789b65552482aa88761006636cd405a6719d779bec57b4cf085667ee043d5b1f"
+    },
+    {
+      "file": "src/engine/__tests__/BabylonShaderFixes.test.ts",
+      "sha256": "903db26a9b289ba553594d37e44770035aa3c1b8718a6e0f6fb91f9d102d3ed7"
+    },
+    {
+      "file": "src/engine/__tests__/BabylonSideEffectImports.test.ts",
+      "sha256": "eec72bee5b24cdcbda0010019c2e86ef791065a98bd3adb1ae3b259fdd404f9a"
+    },
+    {
+      "file": "src/engine/__tests__/BillboardSpriteUVs.test.ts",
+      "sha256": "cd0d5865ae582a3fa57c423fef7552b23c3effdb306bbc7e6dfc79fc528a6410"
+    },
+    {
+      "file": "src/engine/__tests__/BladePresentation.test.ts",
+      "sha256": "34573261359aec146849934257434ad425b22b7d6d62cef4f633ec3a1e244cbf"
+    },
+    {
+      "file": "src/engine/__tests__/BrushModelCollision.test.ts",
+      "sha256": "96c741daf608394f88a72c7fa9f9b0551d5b31f44a5a038ae8024348ab442991"
+    },
+    {
+      "file": "src/engine/__tests__/BrushModelRendering.test.ts",
+      "sha256": "a04f73a580ef91055d68fa444fd83ac9df4f7ddd8f48fe5ff9fbf8ffcf02b6ae"
+    },
+    {
+      "file": "src/engine/__tests__/BspMeshBuilder.test.ts",
+      "sha256": "18702fe3e24d7385d45cfeff063f4b7319168f0d2db827fe74bdf962fb3302a3"
+    },
+    {
+      "file": "src/engine/__tests__/ClusteredLightingQA.test.ts",
+      "sha256": "6e66a92d1ffbbf56282a0c680cf9c43dcaf05851a2247e266c4be43753d9006e"
+    },
+    {
+      "file": "src/engine/__tests__/CrowdBenchmark.test.ts",
+      "sha256": "d3a2177420052d83c9cda7f6b957b058af430aa63af29376366e827f96983de5"
+    },
+    {
+      "file": "src/engine/__tests__/EffectGeometry.test.ts",
+      "sha256": "8a07270631b00f23f279d2ceb9fa2f6acc294d8dd7216a5d36561934d2865890"
+    },
+    {
+      "file": "src/engine/__tests__/EnvironmentLightingQA.test.ts",
+      "sha256": "fdeb9833f5a41c067bfd6df3501ab737265223e1dcabf7f14b5d3075fe5e5e64"
+    },
+    {
+      "file": "src/engine/__tests__/ExplosionBatch.test.ts",
+      "sha256": "f445fca233c17d287d3611df1bdd57e97a52c37d08186a1185c268dde3cd7477"
+    },
+    {
+      "file": "src/engine/__tests__/InstancedMeshManager.test.ts",
+      "sha256": "1cb42f95536ab4046b7684f5f6c6e278b401427a31fafcf6ca9100ffc42fe918"
+    },
+    {
+      "file": "src/engine/__tests__/KTX1Loader.test.ts",
+      "sha256": "e2c32542c22a6dcf030d5b4039ce3b014005070bc50f1652b42f114b7f57f8ec"
+    },
+    {
+      "file": "src/engine/__tests__/LiftCollision.test.ts",
+      "sha256": "1bdee464a542f543aad0e6d600772b5efe64adae887e02633edad8e0d191b80a"
+    },
+    {
+      "file": "src/engine/__tests__/LiftRendering.test.ts",
+      "sha256": "8b0d73159c895c254b6f0dfc990cd1747d2b269586f794a4f9be7b6a477c7d43"
+    },
+    {
+      "file": "src/engine/__tests__/LiquidContents.test.ts",
+      "sha256": "b569ec6d1dd372255b296c2c0d41d76c220ec2e4e8a015aec49287d352c91ed6"
+    },
+    {
+      "file": "src/engine/__tests__/LiquidSurfaceSystem.test.ts",
+      "sha256": "093e4007f287e4299fd254aa2b4a2f03ba62365f0caa460b97922fa33b62e281"
+    },
+    {
+      "file": "src/engine/__tests__/MaterialCloneBatch.test.ts",
+      "sha256": "cc4238fb4df782e7c1a141e34837401607a001b02572865e4e9f83490294ef48"
+    },
+    {
+      "file": "src/engine/__tests__/ModelInstanceCache.test.ts",
+      "sha256": "e8492dc56902ac2be1a5c085ec9321a56ce394df5e23192c1235d43b4d431d3b"
+    },
+    {
+      "file": "src/engine/__tests__/PVSEntityVisibility.test.ts",
+      "sha256": "33527a90c15ce37eb0aaafd965eff560800f4aa707e29d86040b725bb1c60aeb"
+    },
+    {
+      "file": "src/engine/__tests__/PelletTracerSlide.test.ts",
+      "sha256": "ef2a9354c9acf810c47590860f995e3c979999c9d6bb782abcf934cd73c389b5"
+    },
+    {
+      "file": "src/engine/__tests__/PlayerAnimationState.test.ts",
+      "sha256": "74f74a4280073398fc91cf5ea6923cb6d90b09a4c471e3021232d3c749396e2e"
+    },
+    {
+      "file": "src/engine/__tests__/PlayerModelClipGroups.test.ts",
+      "sha256": "880e36f949881274e97879a738cd6793f9e52b9863a7efc94bb590fcf174447e"
+    },
+    {
+      "file": "src/engine/__tests__/PlayerModelCloning.test.ts",
+      "sha256": "c80b0f4d30a0dfa416261eb5bacc458e93c0b887795706483e2f20e7c87b5111"
+    },
+    {
+      "file": "src/engine/__tests__/PlayerModelDisposal.test.ts",
+      "sha256": "831f8772f5e672fdcca00490e99a6ba9f7c3f6635ca443c2783e65a559eb7ff1"
+    },
+    {
+      "file": "src/engine/__tests__/PlayerModelLoading.test.ts",
+      "sha256": "921420862ffbe8818b25813f97b1202c2d0d68fb1df629e7e548b91f7455b77c"
+    },
+    {
+      "file": "src/engine/__tests__/PlayerModelPoseBounds.test.ts",
+      "sha256": "645e6afa80f703fd73f3594950d91e7a39c4cffcc967bf357e16b92425a1a6a6"
+    },
+    {
+      "file": "src/engine/__tests__/PlayerModelPoseStepping.test.ts",
+      "sha256": "617c9bce5603c318853a1caeefc26977a31c470277a0f66eb0ae67965e553356"
+    },
+    {
+      "file": "src/engine/__tests__/PlayerModelRootMotion.test.ts",
+      "sha256": "3d3749fc3a28815e6371a51de25267244985ab24c5f03b222baaae298774a9cc"
+    },
+    {
+      "file": "src/engine/__tests__/PlayerOutlineProxy.test.ts",
+      "sha256": "0ecff3097cd5c392a0d73d2c20657cb82886387edcd2c2e3c6cd40bb8e2794fc"
+    },
+    {
+      "file": "src/engine/__tests__/PlayerOutlineProxyRuntime.test.ts",
+      "sha256": "6808b349e2792a637ab456653bcf2cbef931ca0153782ee7650a6f759759d079"
+    },
+    {
+      "file": "src/engine/__tests__/ProjectileFacing.test.ts",
+      "sha256": "ebc0f06601216d2f0d083027c846a25ef72d32d85aae4f971c4618fa9bed19bd"
+    },
+    {
+      "file": "src/engine/__tests__/ProjectileTrail.test.ts",
+      "sha256": "4372737a94a1ff0b2d590ede537f883a15ac9a20f91fa3961b53a9b939725d9d"
+    },
+    {
+      "file": "src/engine/__tests__/ProjectileVisibility.test.ts",
+      "sha256": "0780a716bf38036dc9538ca7d8296538364a8cf19368e38eeb0ec5f54fdf312d"
+    },
+    {
+      "file": "src/engine/__tests__/Q3PluginShaderIdentity.test.ts",
+      "sha256": "c4f42350006c26ed24fef90dadceb5ce1c1fa8f0161c5a3cf691b2e68e9ace44"
+    },
+    {
+      "file": "src/engine/__tests__/Q3SoftParticleDepth.test.ts",
+      "sha256": "18b213db65fab7930347a09be1e05d671bfaed399f3b0c32edae7bc0c7fceb60"
+    },
+    {
+      "file": "src/engine/__tests__/RenderVars.test.ts",
+      "sha256": "b18e4a52e071510e5a977e63fdc89ac4d1304896097b44e17b536f5111dcb4d8"
+    },
+    {
+      "file": "src/engine/__tests__/RendererDiagnostics.test.ts",
+      "sha256": "0bdf4ecb6478fc4570e4de44ee194ba7f65a070e159d2ea9e911bd69d763561a"
+    },
+    {
+      "file": "src/engine/__tests__/RendererQA.test.ts",
+      "sha256": "d10b23fccd98834c28dc296e48a3aafab29fabd0ea1c05f6c7dbd19ff4538958"
+    },
+    {
+      "file": "src/engine/__tests__/RendererRuntimeDiagnostics.test.ts",
+      "sha256": "d39cb73da36709ec177e973550feab3d18067330ee756dd06d901851c5fee1ca"
+    },
+    {
+      "file": "src/engine/__tests__/RenderingEngineFactory.test.ts",
+      "sha256": "8c0a94fc881cad10a8ffba4f0c40717e5a3cb272e25c9be28bc74b91db762a8b"
+    },
+    {
+      "file": "src/engine/__tests__/SceneDepthCapture.test.ts",
+      "sha256": "62939b4ca0594965b526f1daf01aebfc7b667ade5e80791f028498a247415d68"
+    },
+    {
+      "file": "src/engine/__tests__/SceneRendererPolicy.test.ts",
+      "sha256": "707eca6df2fe372f3ee6d594a40e65e704a2fbd9e0fd29aec4df92863954c7b7"
+    },
+    {
+      "file": "src/engine/__tests__/SlashTrailInPlace.test.ts",
+      "sha256": "3265c78d64c2889e56df0420cd5bd5e3af0be0ec717de62d03fa980830ac9145"
+    },
+    {
+      "file": "src/engine/__tests__/SpawnValidator.test.ts",
+      "sha256": "0f2b5f6126395c518f56860fb57f83b540975ed61ed81d1a2fcbf113b18ffacf"
+    },
+    {
+      "file": "src/engine/__tests__/SpectatorController.test.ts",
+      "sha256": "b9e8e68579ac56bf02f9cd603362c12db4e0d1c1d4659819090b066508597bac"
+    },
+    {
+      "file": "src/engine/__tests__/StaticVisibilityIndex.test.ts",
+      "sha256": "0085228ac741783e3d95773fb34ca1a55483f5ee2afe06b63ae4071b0159d3fb"
+    },
+    {
+      "file": "src/engine/__tests__/SurfaceDiagnostics.test.ts",
+      "sha256": "d017f8996bf169e44825eee78bbceb9feb1bdb9fe307ad3ba0a75d89ba0fde8a"
+    },
+    {
+      "file": "src/engine/__tests__/SweepCollisionBackend.test.ts",
+      "sha256": "fb74801b417e0d6b419310e3eb9879469fde5b7bf10d8f686aa31fbb3682535a"
+    },
+    {
+      "file": "src/engine/__tests__/WaterActorReflection.test.ts",
+      "sha256": "50d06d7f5c8ab642b076cd57c0b1d9a737870c32f355454781e22413e4cfb968"
+    },
+    {
+      "file": "src/engine/__tests__/WaterColorSpace.test.ts",
+      "sha256": "874fac609d3e88ba07aa1e53cd2ca290ec8c15b358afd6ba514d13858092fefe"
+    },
+    {
+      "file": "src/engine/__tests__/WaterDepth.test.ts",
+      "sha256": "ed8764df49800b74a5c0a62e08bba9d3a526052655ece6d3444d8ceecb3d280f"
+    },
+    {
+      "file": "src/engine/__tests__/WaterProbeCache.test.ts",
+      "sha256": "2471d0a5bef59b2b6e99a3c8bc91b9b7dbd5a9c4caa4b61b73087d5fa89f02fe"
+    },
+    {
+      "file": "src/engine/__tests__/WaterReflection.test.ts",
+      "sha256": "15faddb1aca0a47dd26b2ae53c9686238bcf52c79ed8b853a438e7bcddb1a7dd"
+    },
+    {
+      "file": "src/engine/__tests__/WaterRefraction.test.ts",
+      "sha256": "ce602dab3d3047f36b716e3bdc92fb0f71c80f820d2df1b90256bfd62de76dc3"
+    },
+    {
+      "file": "src/engine/__tests__/WaterSurfaceLighting.test.ts",
+      "sha256": "d5d32bf2267f090555eb31871d1ab873e2bafefa32ae2a6453ec8694b49dc9d9"
+    },
+    {
+      "file": "src/engine/__tests__/WeaponCameraCandidates.test.ts",
+      "sha256": "70113066efb989dd8f623851ab3c6cb883e1a08d3b776dc8613e5c00a44cd88d"
+    },
+    {
+      "file": "src/engine/__tests__/WeaponSlashGeometry.test.ts",
+      "sha256": "b9092867a698c26c6973301eef6a30673c08b22d32e1c2fab19a7dabfb6c9303"
+    },
+    {
+      "file": "src/engine/__tests__/WeaponViewManagerLifecycle.test.ts",
+      "sha256": "79f4971945dad80f93c38427fcd44a39573e43a277bd4758e87c3dbd8e2b4368"
+    },
+    {
+      "file": "src/engine/__tests__/WeaponViewManagerPowerupOutline.test.ts",
+      "sha256": "e76310f7a6f10be3f425c972c2bceb83f79976bbbe0067ba1b9d0724bb2cbbbb"
+    },
+    {
+      "file": "src/engine/__tests__/WeatherQA.test.ts",
+      "sha256": "291b2d77b3598c66a310d2576b852677aa137f3587821ef11351b9654ae3a52c"
+    },
+    {
+      "file": "src/engine/animation/AnimationBlender.ts",
+      "sha256": "93811c607665ff648f753e4843e5064c8e154f98f52fba255f6e629d1fd9b828"
+    },
+    {
+      "file": "src/engine/animation/AnimationLoader.ts",
+      "sha256": "5149f61194f598880c70b53d9a19a6df43756b5ff8b4f796ac57038c35b34907"
+    },
+    {
+      "file": "src/engine/animation/AnimationStateBridge.ts",
+      "sha256": "76aee1270f8bdc8e561ec15c495b6c247608808939b50e15f5da72fb4802bdfd"
+    },
+    {
+      "file": "src/engine/animation/HumanoidRig.ts",
+      "sha256": "aee07c1dca80a7a154624e8c626e51c7634f02dd6b32258f039c548700b6cb3a"
+    },
+    {
+      "file": "src/engine/animation/PlayerAnimationController.ts",
+      "sha256": "f7e3bfc33a3cec1a760693e6680388b053d915c55937701aa9da3296d9af365c"
+    },
+    {
+      "file": "src/engine/animation/PlayerAnimationState.ts",
+      "sha256": "51dbe64108f10189678e0895856e5927552e57025aa9c8c371fbe0051180d3ca"
+    },
+    {
+      "file": "src/engine/animation/PlayerModelManager.ts",
+      "sha256": "34a077aa7ca4b65e1d0b1aa32c3c4341368f9f69dbf7c26a1497efefe8045b20"
+    },
+    {
+      "file": "src/engine/animation/ProceduralLayers.ts",
+      "sha256": "13cc112acf1bf07e57a3decae8c136543a071b84e5cedb9305aafe7bd11a1704"
+    },
+    {
+      "file": "src/engine/audio/AudioV2Sfx.ts",
+      "sha256": "55e9bfbba67d43e4d34def43ca1aac5daf90f8d9173d4091d1c56c6b93e294c9"
+    },
+    {
+      "file": "src/engine/camera/CameraInputHandler.ts",
+      "sha256": "dd75d9dcb240c7d8cfc0502a51ccefb863735bac5fe6bc4c00c0a4d2f3fa36b4"
+    },
+    {
+      "file": "src/engine/camera/CameraSystem.ts",
+      "sha256": "6496c43de8dede39f3faaa86ef5954f9cdbdfa8df3d593154a71cb9f610a6ec9"
+    },
+    {
+      "file": "src/engine/camera/FirstPersonPose.ts",
+      "sha256": "07275d40e567cda6d6a85eb532f580d7a6b1a2f4a92ab8413e60187e03919033"
+    },
+    {
+      "file": "src/engine/camera/__tests__/CameraCaptureFailure.test.ts",
+      "sha256": "01e8762642e6afae5a0f613890ce29a442dacf246af573560f9006aa132125df"
+    },
+    {
+      "file": "src/engine/camera/__tests__/CameraInputHandler.test.ts",
+      "sha256": "ac5a0bf6803a6a87360a1517e986388567981cbd2f37219344aaf97bdcd46fe4"
+    },
+    {
+      "file": "src/engine/camera/__tests__/CameraRoll.test.ts",
+      "sha256": "85c1921307b7b6b0af419d949656fc4c348fea7667224f209bbcaf0344a0a0bb"
+    },
+    {
+      "file": "src/engine/camera/__tests__/FreeflyMovement.test.ts",
+      "sha256": "2c3624bca6e1bd218fc9a4034358903a954dc85f5c17d01940602577d27d5267"
+    },
+    {
+      "file": "src/engine/camera/__tests__/ReusableFreeCamera.test.ts",
+      "sha256": "389ccf516c7f310b55dac019f0e0a1d8b25f2bdf764115a95bf26e03c02c9962"
+    },
+    {
+      "file": "src/engine/camera/controllers/FollowController.ts",
+      "sha256": "ec6a7e798b5708f43ffabf00021c355b1aee856efe1ce6876d35032f64e0c595"
+    },
+    {
+      "file": "src/engine/camera/controllers/FreeflyController.ts",
+      "sha256": "2d2e379bf5f7107c3c53cdd95c937fd91d347abcfe3aa726a150af5cfcf44794"
+    },
+    {
+      "file": "src/engine/camera/controllers/ICameraController.ts",
+      "sha256": "6f3c76e874b583884d27f1725bcf7897141ab33d356b0c3a5c0f0a21d33abfa2"
+    },
+    {
+      "file": "src/engine/camera/controllers/IsometricController.ts",
+      "sha256": "b771906ca3d84c4abe6cdd1f29643f4720babac19c240abf2435ea095070ef23"
+    },
+    {
+      "file": "src/engine/camera/controllers/ReusableFreeCamera.ts",
+      "sha256": "de2dab70e4998a5b359c33d82072502752526ce002d06821912d30c4a6b4b928"
+    },
+    {
+      "file": "src/engine/camera/controllers/SideScrollController.ts",
+      "sha256": "d2e46cf8cdd04a4cdbe862aa84b91cb54e6a94bb9dc0dee644c5099ed8daf0c8"
+    },
+    {
+      "file": "src/engine/camera/controllers/SpectatorController.ts",
+      "sha256": "457e81bb551537cc99ae7a6353b557573919fa52b2c4b2ae922c67d431a6e7e0"
+    },
+    {
+      "file": "src/engine/console/__tests__/DebugPlayerCapability.test.ts",
+      "sha256": "5a1a993533d59b783d222cd6127d67ba85a88d28db6fe72e5e22c2153c075a36"
+    },
+    {
+      "file": "src/engine/console/commands/AnimTestCommand.ts",
+      "sha256": "116c97cd9ea8c6b7b88e7296f72abfc1152b946fafd1c9a1a815a3ffcb92aaf3"
+    },
+    {
+      "file": "src/engine/console/commands/AreaLightCommand.ts",
+      "sha256": "b7d04eebb564cb32288de13f1a6c9de2214493a574adfcb2dce51ddeddde8058"
+    },
+    {
+      "file": "src/engine/console/commands/BspCommand.ts",
+      "sha256": "42c3d1534fe08dfa196d8cabeb75f1703ba1bbc002388fd4cd322c5aebce6f6a"
+    },
+    {
+      "file": "src/engine/console/commands/DebugCommand.ts",
+      "sha256": "0b53872ef9d8954d7e45df5535b5d3defcd11e95afbb2e4291bf8c326921bba0"
+    },
+    {
+      "file": "src/engine/console/commands/DumpSceneCommand.ts",
+      "sha256": "426efdd14ff8032bfdaf29429bb140ba7869bd8fc3f5e9fedd213152cce129c8"
+    },
+    {
+      "file": "src/engine/console/commands/EntityCommand.ts",
+      "sha256": "d2aeb1201a8cde42d50bd2d0d5b9723877e7c66adce11bb6974c2c12c52644c0"
+    },
+    {
+      "file": "src/engine/console/commands/FreeflyCollisionCommand.ts",
+      "sha256": "663325d1a2f417ef64fdcdd2793c44f5d0f697ae902c65bca6d6d67fbbc7ab8f"
+    },
+    {
+      "file": "src/engine/console/commands/GodRaysCommand.ts",
+      "sha256": "21dd5d5ec9205190f64060aaf7caf9a6bdd49224fb5f47a655439167cab36708"
+    },
+    {
+      "file": "src/engine/console/commands/GravityCommand.ts",
+      "sha256": "8dfded0597ec7a0f9c8ca2abc090066787202e9f411b9d16a73451929167679f"
+    },
+    {
+      "file": "src/engine/console/commands/InspectCommand.ts",
+      "sha256": "388a3838c490fb3946eec70e232905c28003fb5dae40383e71c3ee0488cfc6d0"
+    },
+    {
+      "file": "src/engine/console/commands/LightCommand.ts",
+      "sha256": "fb685039f89488ebeff475b8092e9b950fd902c60bce189f73b7eddd15c99989"
+    },
+    {
+      "file": "src/engine/console/commands/PhysicsCommand.ts",
+      "sha256": "6c08409a887a37ac8d7ac54caa9e188a09c18de11a63254d1968f40151a29539"
+    },
+    {
+      "file": "src/engine/console/commands/PositionCommand.ts",
+      "sha256": "fa26f9a6644e939d6476c8c3fe848057de333bd5b011540063a5c3fb1467f480"
+    },
+    {
+      "file": "src/engine/console/commands/SceneCommand.ts",
+      "sha256": "1fdaa84cb209a6939d6e7146a25b54cf6b8138a0014b6e44399322f84ce35dcb"
+    },
+    {
+      "file": "src/engine/console/commands/ScreenshotCommand.ts",
+      "sha256": "b2764d86ffd10de93f300d3e345ba7909371c5e658dcd18159b6ebc25bfe95d0"
+    },
+    {
+      "file": "src/engine/console/commands/ShaderCommand.ts",
+      "sha256": "cc880835ba2939d8b4feef7e028e9ae2857e11653ce62c5c222441f41ca879ee"
+    },
+    {
+      "file": "src/engine/console/commands/ShadowCommand.ts",
+      "sha256": "8bae79dd6c66874292c7830a28a80745d954d7f82576ab881e6de6f8815386d0"
+    },
+    {
+      "file": "src/engine/console/commands/SkyboxCommand.ts",
+      "sha256": "dcce5ebf6de969defc2f1f86b2d1162e11e118079d0120ac34b28a4eef1f7e33"
+    },
+    {
+      "file": "src/engine/console/commands/SpawnModelCommand.ts",
+      "sha256": "0c75b2ce7dd399c7704248b55e7207fac5151e8b09dc1c99e3014fb656d583a9"
+    },
+    {
+      "file": "src/engine/console/commands/StatsCommand.ts",
+      "sha256": "7e63e94d46c2c751ea9a16963a7951e8ce988b70784a0ad77b69239af15ddfa5"
+    },
+    {
+      "file": "src/engine/console/commands/TeleportCommand.ts",
+      "sha256": "55847bc1b64a9074e9335e46536ad138ccabbdc7d59fac28b41ec89f6577efc5"
+    },
+    {
+      "file": "src/engine/console/commands/TextureCommand.ts",
+      "sha256": "a03e55ac7ee2e8aa4207a5641445659f6a2844c755379b62a92d857f346fa7e6"
+    },
+    {
+      "file": "src/engine/console/commands/TimescaleCommand.ts",
+      "sha256": "604dba71b3cf4683e9b1a39a758414a1a4a20cdfa60b106fd12722ebcb4ef462"
+    },
+    {
+      "file": "src/engine/console/commands/WeaponCommand.ts",
+      "sha256": "fb50a4165770b4d24fe538abdc6f080bc5f017ff9c7dc203fc94ea993ed0ddaa"
+    },
+    {
+      "file": "src/engine/core/DebugGlobals.ts",
+      "sha256": "0f40bb250418c86f8dce12c46b184c912000ecab1fef5771640a42365899f8ce"
+    },
+    {
+      "file": "src/engine/core/EntityHandlerRegistry.ts",
+      "sha256": "72c38dae37ef220e155d0a2223f572d1ba2a75513c1ab1fe4dd4a565d6006cf0"
+    },
+    {
+      "file": "src/engine/core/ServiceLocator.ts",
+      "sha256": "91a9f2d7fa1bf83bb153ffc73b9e75c3f3a602cdd6a6b2c4eca90c1edf0d9dbd"
+    },
+    {
+      "file": "src/engine/core/WorldIndicatorSystem.ts",
+      "sha256": "e95c0503c6c699449c2406a64e9c70b8b9eeb1826f04774cc19a5f82c5bccb63"
+    },
+    {
+      "file": "src/engine/editor/BrowserEditorHost.ts",
+      "sha256": "8affc39898584999db57cb91ff9662ddbec50c2c16f6255fa3894f4d32f726d2"
+    },
+    {
+      "file": "src/engine/editor/ConvexPreview.ts",
+      "sha256": "456d83122fd29b1a970fc61682822c09c81701f967d963d79776bd6eae2e3eb0"
+    },
+    {
+      "file": "src/engine/editor/EditorModelAsset.ts",
+      "sha256": "5bac23cd608021f733f947186c4cd33e5cec1caf26c9d40126006576b348fd36"
+    },
+    {
+      "file": "src/engine/editor/EditorSession.ts",
+      "sha256": "ecc898c33da93ef2510d2eceea92c5328a191e36000c1dac80497775c9f8ead0"
+    },
+    {
+      "file": "src/engine/editor/ModelTurntable.ts",
+      "sha256": "709d0da40eebfe8fa0f1686e8487903289299e9ebba096fa7c86ff074968de77"
+    },
+    {
+      "file": "src/engine/editor/PatchPreview.ts",
+      "sha256": "f90e953abb721d00dce2e1f01ff63f23f2c48f19c3abf94caa76840ca05d5fc2"
+    },
+    {
+      "file": "src/engine/editor/PreviewTextures.ts",
+      "sha256": "008d5e8401b1594a2b5571d97f682fb2a520e6097dd092ba8237c9ed40af503e"
+    },
+    {
+      "file": "src/engine/editor/__tests__/BrowserEditorHost.test.ts",
+      "sha256": "835aaab010f8e961bcf28bb2c9d655c69f7afad6426104ae7f19b882fb1397d8"
+    },
+    {
+      "file": "src/engine/editor/__tests__/ConvexPreview.test.ts",
+      "sha256": "40f990a29e6475546e2d4a289e44e6eeb661ef295d76b7c57f1e49ab2b529571"
+    },
+    {
+      "file": "src/engine/editor/__tests__/EditorModelPreview.test.ts",
+      "sha256": "3e8ca5b7ffe71416b868919022b08c438f1a456be4a6d6d0bc11169501fdbd33"
+    },
+    {
+      "file": "src/engine/editor/__tests__/PatchPreview.test.ts",
+      "sha256": "09730ebb2e7156f957044becbf8198d4d1260a22b628ea80d842eeb2ffb6158d"
+    },
+    {
+      "file": "src/engine/editor/__tests__/PreviewTextures.test.ts",
+      "sha256": "bcd1b824c7dc281191c7943431e80aed8f2743c415c90ab51f35ee508cd5e27e"
+    },
+    {
+      "file": "src/engine/effects/CelOutlinePostProcess.ts",
+      "sha256": "bf381d99f2ddef00197ca08edbf96a4fede1a5a5c60020def0fb4834d4573d33"
+    },
+    {
+      "file": "src/engine/effects/ColorCorrectionPostProcess.ts",
+      "sha256": "ed37083128c562d7eb955d782a6d9c191ca14585c9bf1dc01a5bab8a04d180a6"
+    },
+    {
+      "file": "src/engine/effects/DebrisEffect.ts",
+      "sha256": "40455a2828b95fd27cc61c8390c204be3e6830af4eaccefc6fecef7bb598c89e"
+    },
+    {
+      "file": "src/engine/effects/FogEffect.ts",
+      "sha256": "50ca073e2edb380870f49fbd240ec1fc7f9a900e51b4779f8bbc9b85c453d449"
+    },
+    {
+      "file": "src/engine/effects/GlowEffect.ts",
+      "sha256": "979bff916e732bd80468f28ef1c4aa52c1fd9d0010f651d60bfc54a89f97f0bd"
+    },
+    {
+      "file": "src/engine/effects/LocalDebrisEffect.ts",
+      "sha256": "b2077eb5738026645725ae2c8a038f1041191bc2d0127d9bf32b7aae71df8060"
+    },
+    {
+      "file": "src/engine/effects/PostProcessingManager.ts",
+      "sha256": "12099ad1daeac97de8852e19292dc0be151e13fb535ff52fd630c90764a3e8d6"
+    },
+    {
+      "file": "src/engine/effects/RainEffect.ts",
+      "sha256": "848086d4842f1d139c147f2ba45b030f5dda757c6c4ca2007ea8355e3bd22317"
+    },
+    {
+      "file": "src/engine/effects/SSREffect.ts",
+      "sha256": "27d4663ab9e520ab11fc7d81e80dc43408031de60aa3ee70c54c86f7c8bcd09c"
+    },
+    {
+      "file": "src/engine/effects/ThunderEffect.ts",
+      "sha256": "60848c1608a3c1dd9b1bd1c1fa3c0ffc768057b1c9042f7a5adbd5c3bcced26b"
+    },
+    {
+      "file": "src/engine/effects/WindSystem.ts",
+      "sha256": "59137223d66dff0909bdda12e49905f7d64f12bb1020ce644b838b36a930f1fd"
+    },
+    {
+      "file": "src/engine/effects/__tests__/CelOutlinePostProcess.test.ts",
+      "sha256": "069d0392ae6e043f523f5a39707b89d1271168f20519b5d75594caad52314066"
+    },
+    {
+      "file": "src/engine/effects/__tests__/ColorCorrection.test.ts",
+      "sha256": "dc2c9fcf56736b12ec7fcb0dc80b2cb0980c9c5ea33720fc373e3eb5371e0396"
+    },
+    {
+      "file": "src/engine/effects/__tests__/GlowEffect.test.ts",
+      "sha256": "fed20a1424e0b292641a7de52f202c393d778c623d8508a3b18c42739b04d961"
+    },
+    {
+      "file": "src/engine/effects/__tests__/PostProcessingManager.test.ts",
+      "sha256": "fc3efbf01166a5f3f73eaadd961c01cb02dca79465031a861ffd8b217a86e36d"
+    },
+    {
+      "file": "src/engine/effects/__tests__/RainEffect.test.ts",
+      "sha256": "6c1bbc56cdbf6dc9e36986c61080f7cee881d259a676e4353cf4e4bde2c8dbb2"
+    },
+    {
+      "file": "src/engine/effects/__tests__/SSREffect.test.ts",
+      "sha256": "5c11704f2c177b517d3cf54c9509e91bea1cfa7aae393d7d3d178fc3cd53a90a"
+    },
+    {
+      "file": "src/engine/effects/__tests__/SSREnvironment.test.ts",
+      "sha256": "9b640bffb9063e7e1c1f52512251eb2361094417e95f64c9186795d2aabc8de3"
+    },
+    {
+      "file": "src/engine/input/InputSystem.ts",
+      "sha256": "e320f18ca436c82c1f9f901f9efb0d705e43910d6135da429fb313110dc6d2e3"
+    },
+    {
+      "file": "src/engine/lighting/AreaLightAssets.ts",
+      "sha256": "82346247868dadb1070e65a42b3665fa6100f74c6d0b978b26c045a452caf1ed"
+    },
+    {
+      "file": "src/engine/lighting/AreaLightManager.ts",
+      "sha256": "5967b6bd5d417b742019cca1cb60181a709ad916b758f0da6c254c4f08db4355"
+    },
+    {
+      "file": "src/engine/lighting/AreaLightPanel.ts",
+      "sha256": "df95eed36455cfdd3d56c24a4966cea41415d79caefc471f4073ad78a01ed3b1"
+    },
+    {
+      "file": "src/engine/lighting/DynamicLightCluster.ts",
+      "sha256": "48d37724bb035d577f2a92c5983638117eb45df4d427effc2bd979e30c11f44f"
+    },
+    {
+      "file": "src/engine/lighting/DynamicLightSafety.ts",
+      "sha256": "5c8784424ea2e3e76f5af8ea88c0946f46c7e241929665c2f28bfe841782dcf0"
+    },
+    {
+      "file": "src/engine/lighting/GodRaysController.ts",
+      "sha256": "22b507274fe9b3347ad13e80c0327ff0fd6136ac1ff5e5cc916a9bebd44d54b6"
+    },
+    {
+      "file": "src/engine/lighting/MapAreaLightEntities.ts",
+      "sha256": "dce4bd6d37f4ca64fa6c1fc277af4bbda3092a180e742a9311f034520d3b7fa5"
+    },
+    {
+      "file": "src/engine/lighting/MapEmissiveSurfaces.ts",
+      "sha256": "c1d620c78435d37608ff6b28347e2ecf8eb4324e9741468d977167fd9342a4c1"
+    },
+    {
+      "file": "src/engine/lighting/MapGodRayEntities.ts",
+      "sha256": "56bdff2eaf4d7db395c88b7c2dca826a9c55b2ad27041a6a7a00fb6f3235471d"
+    },
+    {
+      "file": "src/engine/lighting/SkyLightSystem.ts",
+      "sha256": "534a3ca9b285127822a373d1436aa7c6a765106befb17d15955a9687fc53c7c6"
+    },
+    {
+      "file": "src/engine/lighting/StreetLampSystem.ts",
+      "sha256": "a34673ec8f4c1fc2f33501217f686b840d689709a88c6614b7664dc7612a5524"
+    },
+    {
+      "file": "src/engine/lighting/SunGodRays.ts",
+      "sha256": "785c513aa8876a1480e39ec6be8ea6813b5890e8d1dc9928e8f33f689ab216bd"
+    },
+    {
+      "file": "src/engine/lighting/__tests__/AreaLightManager.test.ts",
+      "sha256": "f4b354e4af6ad6bb80a60e5d5c4497171231712b5e57b2a2693f8cf125d46152"
+    },
+    {
+      "file": "src/engine/lighting/__tests__/AreaLightPanel.test.ts",
+      "sha256": "eb20c3ca4e5299ee5758bfccd16a40f15dcf3699938ad74fd13f5d32ad702230"
+    },
+    {
+      "file": "src/engine/lighting/__tests__/DynamicLightCluster.test.ts",
+      "sha256": "cb1b6705ee815007ff7e190fc3467024b597105a17acd9cd4866aa019035f69f"
+    },
+    {
+      "file": "src/engine/lighting/__tests__/GodRaysController.test.ts",
+      "sha256": "279deaa9488dd6277e85f0dae906e4b6e8deb3cd836d93ad54b60efb001aeec4"
+    },
+    {
+      "file": "src/engine/lighting/__tests__/SkyLightSystem.test.ts",
+      "sha256": "81e35096e3545d80f6c34493fe640dfaa79119e1e3714f8daa574f447c06a81f"
+    },
+    {
+      "file": "src/engine/lighting/__tests__/SunGodRays.test.ts",
+      "sha256": "361e14b63fb409374605b14ad98ee3946a2fd4045fab43a6290f9acef3ff6f8c"
+    },
+    {
+      "file": "src/engine/lighting/__tests__/WebGPULightLayout.test.ts",
+      "sha256": "832ddc2310f4d7273775d0b3c669017ec7029c0978603704c73240e7a4124f6b"
+    },
+    {
+      "file": "src/engine/loader/AssetPreloader.ts",
+      "sha256": "acca8515d1c83b60df92db372bbd2cd7a2b28203727a526ef1a9c0c64d950c82"
+    },
+    {
+      "file": "src/engine/loader/__tests__/AssetPreloaderClone.test.ts",
+      "sha256": "2a0077eec3fe1055fda394e427632e1544da7d225a0e2cbc6ef8f7c510547cbd"
+    },
+    {
+      "file": "src/engine/loader/__tests__/AssetPreloaderReload.test.ts",
+      "sha256": "61bb1a6b817c73c420c26d2536dd7f6b32240186a1241304f787fe007994c4ee"
+    },
+    {
+      "file": "src/engine/loader/bsp/AmbientEntityHandlers.ts",
+      "sha256": "bf6ab4816f8f4a3527d05073e4be5735939235312e3df5ac8b49c9ce72a129e4"
+    },
+    {
+      "file": "src/engine/loader/bsp/BspBakedLightingPlugin.ts",
+      "sha256": "f237911d744deec11c198d5c2238212c34fdedbd4a364d91d8bfc23f22cbbc2e"
+    },
+    {
+      "file": "src/engine/loader/bsp/BspEntityHandlers.ts",
+      "sha256": "4950d0376d869772dcd6fbc9ad70e7ba079e9fd23c1c96b55520d90319a5ea27"
+    },
+    {
+      "file": "src/engine/loader/bsp/BspFogVolume.ts",
+      "sha256": "2214ea1c7b8477f5615d1bba610754cadceb53664d882c9d930c77d99c5a9f77"
+    },
+    {
+      "file": "src/engine/loader/bsp/BspManager.ts",
+      "sha256": "c115f0e3901cae468598c5c6494bca712331135bb996974bc77b2bb5764638ae"
+    },
+    {
+      "file": "src/engine/loader/bsp/BspMeshBuilder.ts",
+      "sha256": "0c75eca1c039439612214a44ea8db3d5a63620db46d2f4a72913ee4de32a2933"
+    },
+    {
+      "file": "src/engine/loader/bsp/BspTest.ts",
+      "sha256": "1cf3c02670efe3a1fe6b9ea3e78d2acf9be5e41469ba31086f65cfe56d208ffc"
+    },
+    {
+      "file": "src/engine/loader/bsp/BspVertexLightingPlugin.ts",
+      "sha256": "2d3e217285810192e74b3eba7423f15083629c0642a32b7f91884677de6c4ecf"
+    },
+    {
+      "file": "src/engine/loader/bsp/PVSCuller.ts",
+      "sha256": "925d2aa17288b78026a0f5db6fb3774baef454a0101c20f33c9a453e31b5a064"
+    },
+    {
+      "file": "src/engine/loader/bsp/__tests__/BakedVertexLighting.test.ts",
+      "sha256": "7934ef68d41819fa09dbb66e1940f30c0cb580c37030ecbeb52ad7b03eb049c5"
+    },
+    {
+      "file": "src/engine/loader/bsp/__tests__/BrushModelLightmaps.test.ts",
+      "sha256": "948acc71024a04ead32192cf82996187eabcd2b1f22f23315a439d99b98a7237"
+    },
+    {
+      "file": "src/engine/loader/bsp/__tests__/BspAutosprites.test.ts",
+      "sha256": "c274d1b08c6fcd53dd621dadd4115446ea53f69404d24391f41d77f006b42531"
+    },
+    {
+      "file": "src/engine/loader/bsp/__tests__/BspBakedLighting.test.ts",
+      "sha256": "92860b9177a8bd785e0754f2c6480b04bc13ce2b8155b8814505a233f10b2f36"
+    },
+    {
+      "file": "src/engine/loader/bsp/__tests__/BspCollisionData.test.ts",
+      "sha256": "d6569cbb92dd0a6a3dc0e7ac5fbd55fd7ca679d5d30c93354127371d3d8a3320"
+    },
+    {
+      "file": "src/engine/loader/bsp/__tests__/BspMaterialPasses.test.ts",
+      "sha256": "bb4f968f2204a5d74f74be5aecee1d89b313de213da500b65875b460d010c41c"
+    },
+    {
+      "file": "src/engine/loader/bsp/__tests__/BspMeshBuilderFreeze.test.ts",
+      "sha256": "27b58e81eca3ddedfd83f9008f563da93a8c7bfc11aa6eafacd9c1df1aa00b57"
+    },
+    {
+      "file": "src/engine/loader/bsp/__tests__/BspTextureCoordinates.test.ts",
+      "sha256": "6111a8bec44caca11175dec6916ff22dea7c3b78dc9b9ef380c17792e8dc7a2f"
+    },
+    {
+      "file": "src/engine/loader/bsp/__tests__/CullingComposition.test.ts",
+      "sha256": "0e72d76e2adcadeb069eb78c6021748912300a326c39211c0abc23afe3b7e3f6"
+    },
+    {
+      "file": "src/engine/loader/bsp/__tests__/GeneratedCubemap.test.ts",
+      "sha256": "43a8042f21ad42847c1b3eab2b06376640aeac1af8f2a8eab14c9eed48e00e21"
+    },
+    {
+      "file": "src/engine/loader/bsp/__tests__/LayeredLightmaps.test.ts",
+      "sha256": "ba8c0b9a6e9124175dcf872ee19f8641d35fb858c86e8b7666f3ea76ca5ddb3a"
+    },
+    {
+      "file": "src/engine/loader/bsp/__tests__/PVSCuller.test.ts",
+      "sha256": "3d526f5725dbffbb714388624d9ab6cac04393c20eb8874310ce4373264539d7"
+    },
+    {
+      "file": "src/engine/loader/bsp/mesh/__tests__/fallbackTextures.test.ts",
+      "sha256": "c9b8b7ae3f1844c349d810c5c4404d695601bc5ecda503751e3c30fe11d47c99"
+    },
+    {
+      "file": "src/engine/loader/bsp/mesh/brushModelBuilder.ts",
+      "sha256": "4f34a7c91ce8c005a537c20debdf0a9194a5cce4aab2a919493f11d70caa80e9"
+    },
+    {
+      "file": "src/engine/loader/bsp/mesh/coordinates.ts",
+      "sha256": "31224839b4e80b3a3ef96cdaa04a9cf3d2a09e7e8d8fd2a37746390dfb8bddf1"
+    },
+    {
+      "file": "src/engine/loader/bsp/mesh/fallbackTextures.ts",
+      "sha256": "f5931ddc24245f747f27ff2a360e1d92565601478d749f8bdecee4ed9a6fecc9"
+    },
+    {
+      "file": "src/engine/loader/bsp/mesh/lightmaps.ts",
+      "sha256": "74912eec8b5c12f292ce6ac7992485f99afc70a7d3fa6484cd8d6c75684092b4"
+    },
+    {
+      "file": "src/engine/loader/bsp/mesh/pvs.ts",
+      "sha256": "2d1c695b26c0c93401e35eb2aed83ebe586be62e7023636d112b65bf92d2e677"
+    },
+    {
+      "file": "src/engine/loader/bsp/mesh/types.ts",
+      "sha256": "e09dd7f6ef0feca9d150a9b0d5909dbf4e6c054f7eae40a331a44f29aa1d6e8b"
+    },
+    {
+      "file": "src/engine/loader/map/BrushGenerator.ts",
+      "sha256": "a62ee801672e3898fababec21692fd6f4212b4b4251d823cb77c3cdb1eedb248"
+    },
+    {
+      "file": "src/engine/loader/map/ClientMapLoader.ts",
+      "sha256": "e575912c0d168d20b47cd773743b3f2784b663f7e8ba97f83440f01d9bea09f9"
+    },
+    {
+      "file": "src/engine/loader/map/GpuPreparation.ts",
+      "sha256": "16383e3834cc1981dcabdec43f3cbeca2330126595012c8a2163ab3c8d242490"
+    },
+    {
+      "file": "src/engine/loader/map/MapLoader.ts",
+      "sha256": "940e01c3b41d22148da430b00cd4c7cf80e8d1f7bb84129ecd9eb8c8960f4100"
+    },
+    {
+      "file": "src/engine/loader/map/PatchGenerator.ts",
+      "sha256": "aaec12c2923d4d2fbeced0173c356e728af11e9e86898d0c43869541e8c16a17"
+    },
+    {
+      "file": "src/engine/loader/map/__tests__/GpuPreparation.test.ts",
+      "sha256": "50f27d70c13a95792b39d55eb1f02e4d6fb3941767a6cb24a45aa33d787cbfb8"
+    },
+    {
+      "file": "src/engine/loader/map/__tests__/MapLoadLifetime.test.ts",
+      "sha256": "6a8d14336f11f7b33162d664758e3ada370a305a98223d804d9e84ad7f3857da"
+    },
+    {
+      "file": "src/engine/loader/model/MD3Loader.ts",
+      "sha256": "7c90ecfdda19cd0a7c6bafc254e7308ba8c163788194536b51d9d9bc491c6114"
+    },
+    {
+      "file": "src/engine/loader/model/ModelInstanceCache.ts",
+      "sha256": "14f549032724cedc9dac545fb101a16e54aa4bdee1d713cf6eb6805e3858d289"
+    },
+    {
+      "file": "src/engine/loader/model/ModelLoader.ts",
+      "sha256": "e29dd1191bc70f1182d80b88b6567f5775c0f5bed43c6b1a114455100137ec54"
+    },
+    {
+      "file": "src/engine/loader/model/ModelSourceCache.ts",
+      "sha256": "95d89bb23beebac9625545cde3a064605712843a654f28800142958e8953bd39"
+    },
+    {
+      "file": "src/engine/loader/model/PrefabInstance.ts",
+      "sha256": "5dc569c0120b82cae5570f137170f1e5bf7150f0a8122edc7257501879e8c969"
+    },
+    {
+      "file": "src/engine/loader/model/TagsLoader.ts",
+      "sha256": "76949e298d704e0dbbb03124c3d3cf9ee484d5c89ac50ccc99671dd05f73eb72"
+    },
+    {
+      "file": "src/engine/loader/model/__tests__/MD3MaterialReuse.test.ts",
+      "sha256": "ac418c7844a42327d04430c83052ec96628b728771db8044e022b989c9b4b88d"
+    },
+    {
+      "file": "src/engine/loader/model/__tests__/ModelAttachmentPoints.test.ts",
+      "sha256": "1eca5911eed2df181a2a291a443a1cca5ac0eb4a90fed2fa946168f6df8895db"
+    },
+    {
+      "file": "src/engine/loader/model/__tests__/ModelSourceCache.test.ts",
+      "sha256": "a89cfd398ef67be4b09e3f1303cc2911993be88739ae5b48e1b088e8c823c38e"
+    },
+    {
+      "file": "src/engine/loader/pk3/PK3TextureLoader.ts",
+      "sha256": "1038b6173dc3c795730f6a9e6cf0093ad7389d1bc1ea3f390e1a803785b4e1f0"
+    },
+    {
+      "file": "src/engine/loader/pk3/__tests__/TextureAcquisition.test.ts",
+      "sha256": "a4208d7baf37f311f11d889d1dc99d0b6edb06aeb26e412a9550c785b49042b4"
+    },
+    {
+      "file": "src/engine/loader/pk3/__tests__/TextureWebpFirst.test.ts",
+      "sha256": "bce09e8058f0cdc2eecd70739f7e94a40a36fa575310047d675f326f0204052e"
+    },
+    {
+      "file": "src/engine/loader/shader/FilterBlendShaderMaterial.ts",
+      "sha256": "747cd357418ce90b9823fe38031753a95225b0cfe24179e33a648b9ea178568e"
+    },
+    {
+      "file": "src/engine/loader/shader/GlowOverlayShaderMaterial.ts",
+      "sha256": "2e02ec70e5d579882d5fafc97717de470558051377e1524c1c48164a5940ef54"
+    },
+    {
+      "file": "src/engine/loader/shader/Q3Blend.ts",
+      "sha256": "d7be034aec4a2f10c92cd787a914c8235dd0e4530c7952c145c61e5845d265eb"
+    },
+    {
+      "file": "src/engine/loader/shader/Q3DistanceRampPlugin.ts",
+      "sha256": "745165b38e559f19922a60be52e4ce6a6ab3ece7e5be7d6659e19b8d73290537"
+    },
+    {
+      "file": "src/engine/loader/shader/Q3EnvironmentPlugin.ts",
+      "sha256": "ad3d49c820f16645d766f8a39e25cfa559ab13a2487f4a36d8a68210d5cd3458"
+    },
+    {
+      "file": "src/engine/loader/shader/Q3NodeMaterialBuilder.ts",
+      "sha256": "8df0776ab33a1f71f32ef9e8ebff2e2ec231b73e963ae6ebc2c9d5b42e15398c"
+    },
+    {
+      "file": "src/engine/loader/shader/Q3ShaderMaterialFactory.ts",
+      "sha256": "86cfb290af1165cbd6e9ee560a442340cd6d06060817d208bbf9c804fb527dbd"
+    },
+    {
+      "file": "src/engine/loader/shader/Q3SoftParticleDepth.ts",
+      "sha256": "4932a8f91c40d4d10a4a59296d87e96904c659682e3e8b2365e948a987201128"
+    },
+    {
+      "file": "src/engine/loader/shader/Q3SoftParticlePlugin.ts",
+      "sha256": "11e33310de80bdc1d14fe8b602bb47598eea37f31fa783a9604751ed9b7bf584"
+    },
+    {
+      "file": "src/engine/loader/shader/Q3StageColorPlugin.ts",
+      "sha256": "cf4cb26ba2bec994a12860a20ab60869c53949b78c99005dd9f7c2f844c8630a"
+    },
+    {
+      "file": "src/engine/loader/shader/ShaderAnimationSystem.ts",
+      "sha256": "820d82633e2c164014114c806e5cddb8040eadde60c37a69c2d9da62120bfe10"
+    },
+    {
+      "file": "src/engine/loader/shader/__tests__/TextureTransforms.test.ts",
+      "sha256": "6cb8d10ed7a777a97a1d51ae68323628f9f560909e3616b5d69136f1195df1dc"
+    },
+    {
+      "file": "src/engine/loader/texture/KTX1Loader.ts",
+      "sha256": "85f286c5618bce1e9a168f3dcc7d0c1b7cd69b7bcfe5dcbca5bf05a089678bc5"
+    },
+    {
+      "file": "src/engine/loader/texture/KTX2DecoderRuntime.ts",
+      "sha256": "5688908c7836211b458caba68cd79685c23fc8aa3400a895d06165295bdcfa40"
+    },
+    {
+      "file": "src/engine/loader/texture/KTX2DecoderWorker.ts",
+      "sha256": "dc1f9b2b9182523e935b7ea4a789f55806d9ab8ada7394c476da2044f80f3aed"
+    },
+    {
+      "file": "src/engine/loader/texture/KTX2SidecarLoader.ts",
+      "sha256": "3b90d294d4da2a696f9ee960dbf39d4ae4dadedddd4b31986c8a0abf06c1ea1e"
+    },
+    {
+      "file": "src/engine/loader/texture/SkyboxLoader.ts",
+      "sha256": "2e39bee24b68b0686d5e4ff2db9b04dc16a88add2fc1cf154a79d808e231be15"
+    },
+    {
+      "file": "src/engine/loader/texture/TextureLoader.ts",
+      "sha256": "540e9ede83c6f363afe363ecbf64de6a0c2a8256ba7536e52048548e17a59f56"
+    },
+    {
+      "file": "src/engine/loader/texture/TextureManager.ts",
+      "sha256": "26617beb5456f1015ab32f40a8efa33d580f02fed8665c605434d9863add1c34"
+    },
+    {
+      "file": "src/engine/loader/texture/TextureMemoryManager.ts",
+      "sha256": "a3314f3aa11f4bcc27d5e1a26bed8b58cf5e847c30c259cfadb226e219c2a3a5"
+    },
+    {
+      "file": "src/engine/loader/texture/__tests__/KTX1Cube.test.ts",
+      "sha256": "0909238472d747651ff7d8e4fe7da10d6cc95da43a43b4b544c19e24337f1e82"
+    },
+    {
+      "file": "src/engine/loader/texture/__tests__/KTX1Upload.test.ts",
+      "sha256": "4f5679c9b5bce124869bdd756d67dbff08faf710977f937f00f533632d270c05"
+    },
+    {
+      "file": "src/engine/loader/texture/__tests__/KTX2DecoderRuntime.test.ts",
+      "sha256": "1fac571385463a26c06b595bc9ecae685711f06ba68809e27545cf44cb3daea4"
+    },
+    {
+      "file": "src/engine/loader/texture/__tests__/KTX2SidecarLoader.test.ts",
+      "sha256": "9609a40ee92af0519093573bca9ad0aad77a69115c1483dbfb9f62241ee5c6cc"
+    },
+    {
+      "file": "src/engine/movement/CharacterController.ts",
+      "sha256": "03d382d406f4882b804f286c860c131a64301442b053c76c72996e3af0c55300"
+    },
+    {
+      "file": "src/engine/physics/BabylonPhysicsBackend.ts",
+      "sha256": "4cb26ebf6d7d9bd569ff267566a02ef6982bdd1ab7e99da4f906975f3a2de8f7"
+    },
+    {
+      "file": "src/engine/physics/CollisionBackend.ts",
+      "sha256": "ec0f66fbda6892f368495a9c41bbfa35779c0f023a91649fc7cf60e3a392ebd5"
+    },
+    {
+      "file": "src/engine/physics/CollisionManager.ts",
+      "sha256": "83b75687d201309b243cb3c908344b40135718b2bcebc6260b8cfa61b69138ec"
+    },
+    {
+      "file": "src/engine/physics/PatchTessellator.ts",
+      "sha256": "1cb78f47bcb5897642b20baf3fd9b46e80616c35ac8adf13a50f771cd6a3a10d"
+    },
+    {
+      "file": "src/engine/physics/PhysicsSystem.ts",
+      "sha256": "545233069ebfdd44beb1f0d0842d1921252211233664dc284a6232705eb95cae"
+    },
+    {
+      "file": "src/engine/physics/SweepBackendAdapter.ts",
+      "sha256": "e4b5f6ea58133ea63615cd71c796b76b5a1da30d590c585f2e007774ec78c3fb"
+    },
+    {
+      "file": "src/engine/physics/SweepCollisionBackend.ts",
+      "sha256": "0a6dbfe7fdf01168f59457ec4665d33eea14d9ba42744293f0a359055ac0099e"
+    },
+    {
+      "file": "src/engine/procedural/ProceduralTextureGenerator.ts",
+      "sha256": "c96fadc6f9589ea2353bbf07a656e5828bddc745db0440c128f73dfeaccbf089"
+    },
+    {
+      "file": "src/engine/rendering/AtmosphericFogPlugin.ts",
+      "sha256": "b0382899dda3400585895434655981a4ac13c97e28556abd6ca5c6210f75ea73"
+    },
+    {
+      "file": "src/engine/rendering/AtmosphericFogShader.ts",
+      "sha256": "f08ea5155b8ec5a21389babf47854c56592375b600afa61a4eb65d54703db37a"
+    },
+    {
+      "file": "src/engine/rendering/BabylonShaderFixes.ts",
+      "sha256": "651a56d80872954d975402d5ce75f4954ae1b7ec2d95ec5dc61c7ddd4b3f0143"
+    },
+    {
+      "file": "src/engine/rendering/ClusteredLightingQA.ts",
+      "sha256": "ceed9162d9b637e9f61cc00680761e0780218f188f1943b8475f8a7266383a11"
+    },
+    {
+      "file": "src/engine/rendering/CrowdBenchmark.ts",
+      "sha256": "fce0e5058c8ab395c73e8ca6aa4012c7a34f06b64c8a8814357fe5f05b7e376f"
+    },
+    {
+      "file": "src/engine/rendering/EnvironmentLightingQA.ts",
+      "sha256": "d2897d17d8cd9019ef0ad1565697ba671fc697adaf512436c19ff4838e29ef95"
+    },
+    {
+      "file": "src/engine/rendering/FrozenWorldMaterials.ts",
+      "sha256": "ab09ffaa4458799288aca819f106ecd269d1d0c9a1fad4dda12eaaad5310b47e"
+    },
+    {
+      "file": "src/engine/rendering/InstancedMeshManager.ts",
+      "sha256": "3e96d14bfd800f1f8279ecd82d6fdc9d84c97031365e6c28b2f2aaf9b2293a66"
+    },
+    {
+      "file": "src/engine/rendering/MaterialCloneBatch.ts",
+      "sha256": "3ad70bc2a092a953ca8f8ec78b8e26883721c9e7b31a89337227d92b26cff6e8"
+    },
+    {
+      "file": "src/engine/rendering/PlayerOutlineProxy.ts",
+      "sha256": "b1298512a8acf34593641d0e17a8ddf14495ef1a595b1cae0eb47afb9882c11d"
+    },
+    {
+      "file": "src/engine/rendering/PlayerOutlineProxyRuntime.ts",
+      "sha256": "edcf0996de489f8814cbe3eb45a6a4c69a64c1e2f086ffd76bf671a769492ef0"
+    },
+    {
+      "file": "src/engine/rendering/RenderVars.ts",
+      "sha256": "170f563e758d4ad6a83e782cba977b7135a6181af768c295a6f066f0fd2e708c"
+    },
+    {
+      "file": "src/engine/rendering/RendererDiagnostics.ts",
+      "sha256": "e5e04711fca18c90bf953a6cd1c7b3c9710698f6fa0d5a30d49557316f284777"
+    },
+    {
+      "file": "src/engine/rendering/RendererPerformanceCapture.ts",
+      "sha256": "0b94aa34f6f5411975164931402dae203be5c8a940344e7d4260337749e33851"
+    },
+    {
+      "file": "src/engine/rendering/RendererQA.ts",
+      "sha256": "750e3a8ab51bcc1a684150ae90a89982d293b56699ed36e668ea448a6b7b49e3"
+    },
+    {
+      "file": "src/engine/rendering/RendererRuntimeDiagnostics.ts",
+      "sha256": "53b753c7a51e746a86042d41e2255b8ba94f6c3e9e85b9d55f098a23f42a988c"
+    },
+    {
+      "file": "src/engine/rendering/RenderingEngineFactory.ts",
+      "sha256": "172cff7ed026bfa4ded4ce7e857d7826017cebc1863d3ce8b3ce82ceb0eb5729"
+    },
+    {
+      "file": "src/engine/rendering/SceneDepthCapture.ts",
+      "sha256": "fd039243c59a571d3533eedc41d50b6a51b51aa7a159e55c517f159ea2eecf9d"
+    },
+    {
+      "file": "src/engine/rendering/SceneRendererPolicy.ts",
+      "sha256": "9244a37986ee24288ecc1320eb9fe0f7a2e8d34e03eb9f8e8c7bbf1d92fc1a99"
+    },
+    {
+      "file": "src/engine/rendering/ShaderCompileCapture.ts",
+      "sha256": "d0c584767c254e75b956cbf27b23d3e2d79d599332296c430703455d1761c903"
+    },
+    {
+      "file": "src/engine/rendering/SkyPortal.ts",
+      "sha256": "a9e51880b5891f882bfc3e97f9789410d1986ab2a0a1b7e3eea3eb401b7656f9"
+    },
+    {
+      "file": "src/engine/rendering/SkyVisibility.ts",
+      "sha256": "a5cfd184d8e39f6c2f49db133247156a9c9869938966d4e436ef8befaf9b1602"
+    },
+    {
+      "file": "src/engine/rendering/SurfaceCubemaps.ts",
+      "sha256": "63281dd8c73bb47ac47a8ac21087b1731384623d7254e4ffab01e8df39fb0d8c"
+    },
+    {
+      "file": "src/engine/rendering/SurfaceDiagnostics.ts",
+      "sha256": "92c6ffe526bee2ddc761e8d6a01b19b3dc28e0e0d4f80acaa1eea5672e9d3edc"
+    },
+    {
+      "file": "src/engine/rendering/WeaponCameraCandidates.ts",
+      "sha256": "2c2466ed6b48ebc89f8f42e9478d94620f2678b987e23541e0720ba38915d22d"
+    },
+    {
+      "file": "src/engine/rendering/WeatherQA.ts",
+      "sha256": "c30cae1f7f91874efeaf2e1d1e30086e7a9d0935bd2534213bafd565c06a4347"
+    },
+    {
+      "file": "src/engine/rendering/WorldFogController.ts",
+      "sha256": "d7efed4e781e0ea08509d860ba9352ce189c2f4bfb960cc0e418962c23de3998"
+    },
+    {
+      "file": "src/engine/rendering/__tests__/AtmosphericFogShader.test.ts",
+      "sha256": "3233522b2b46dec0341ae7a82236d820977800ec315ba2a1cbf62c1664d90b45"
+    },
+    {
+      "file": "src/engine/rendering/__tests__/FrozenWorldMaterials.test.ts",
+      "sha256": "db9e7a60a6b4cb119d224d0148eed5b5ad8f8c90e2ec43c51484f05623dd0a19"
+    },
+    {
+      "file": "src/engine/rendering/__tests__/ShaderCompileCapture.test.ts",
+      "sha256": "8b523c299dcc5314d1be6a3116f0b93b7396f5a7672b4859d27e9611641cd4d5"
+    },
+    {
+      "file": "src/engine/rendering/__tests__/SkyPortalAndFogPasses.test.ts",
+      "sha256": "de7b9772ec48a8c48876970c3afd1b9179273066c985f8c0d5ec6bd853b5cc88"
+    },
+    {
+      "file": "src/engine/rendering/__tests__/SkyVisibility.test.ts",
+      "sha256": "c005797f06d1d4d876c48573e276d9aaaceb0c7dd57bb08ba29c99eedd12af49"
+    },
+    {
+      "file": "src/engine/rendering/__tests__/WorldFogController.test.ts",
+      "sha256": "20606b61fc18505be91a9463d7af9ec0ad6f0b34d86226140990401ce3ffedfe"
+    },
+    {
+      "file": "src/engine/rendering/crowd-benchmark-page.ts",
+      "sha256": "f19d63af4afd27929db5863542f2f083859c911d75b026aad5faf10d6b734502"
+    },
+    {
+      "file": "src/engine/rendering/water/LiquidSurfaceSystem.ts",
+      "sha256": "d2fe5b83b56ad178663fefe88edacb53994b414cbbacc1b6a27d268ff38340e5"
+    },
+    {
+      "file": "src/engine/rendering/water/StaticVisibilityIndex.ts",
+      "sha256": "9ab7b4a21fc2732c290486a3f333a9cf37e7b3c7da8ceed6aa826461d2bb6e08"
+    },
+    {
+      "file": "src/engine/rendering/water/UnifiedWaterMaterial.ts",
+      "sha256": "c5d7ca26cbf8c1da8ec2f069dae8a488d14992a04f51dd1a10c27efde6df2043"
+    },
+    {
+      "file": "src/engine/rendering/water/WaterActorReflection.ts",
+      "sha256": "3a7e073cb40d57fecf5d843e01b9f998286292b109c41b37c5d04c362d2a5c54"
+    },
+    {
+      "file": "src/engine/rendering/water/WaterDepth.ts",
+      "sha256": "1766837bb8eec53baf8e6f5f0e054285619749c9ceb6b5b4595693255e8ccd72"
+    },
+    {
+      "file": "src/engine/rendering/water/WaterDisturbances.ts",
+      "sha256": "0566a3a8555b483b80bb407c3b7c3503a1b87782aba6e4e937c5cab58196438d"
+    },
+    {
+      "file": "src/engine/rendering/water/WaterProbeCache.ts",
+      "sha256": "44944edff153212e07b8b8ea4e05a739a6a7dda9f4c06a537aef59f5bbfba027"
+    },
+    {
+      "file": "src/engine/rendering/water/WaterReflection.ts",
+      "sha256": "2663cc1df40a0dde635a49fe03ce6c526f1e27faf866e06717dbd053d8233cd7"
+    },
+    {
+      "file": "src/engine/rendering/water/WaterRefraction.ts",
+      "sha256": "6cf4bf0b0fd89870ee0673c387861d0360e7bffac452823026b2b96eac65a00e"
+    },
+    {
+      "file": "src/engine/rendering/water/WaterSurfaceLighting.ts",
+      "sha256": "3bde69a80e9ace187ced762c8fd19c6033e70a22271bc4c487aa4d0443717f94"
+    },
+    {
+      "file": "src/engine/runtime/BrowserRuntime.ts",
+      "sha256": "0673dce8915ac06796e37aa4c6f92169b84c288f65a124ebd72c0257be85ca86"
+    },
+    {
+      "file": "src/engine/sprites/BillboardSprite.ts",
+      "sha256": "0fe362dd0cc3eb4a938001c17bb5f22534ba420d168268b7fed9255af805c58e"
+    },
+    {
+      "file": "src/engine/sprites/SpriteBuilding.ts",
+      "sha256": "791ab759ceeef10e01807cdd8bc1eeb6b3bab1bb7e9d8898d056f4a3e2bfe2e4"
+    },
+    {
+      "file": "src/engine/sprites/SpriteManager.ts",
+      "sha256": "86da3a4b8765670af72fd7aa606692ff7d136db372f12b83af4df5ece0bf3e90"
+    },
+    {
+      "file": "src/engine/sprites/SpriteSheet.ts",
+      "sha256": "9a2a61442eeb7c2fe3376809b8d89d220600b735b5415f62cf77ea530e424460"
+    },
+    {
+      "file": "src/engine/ui/components/LogoCanvas.ts",
+      "sha256": "aa1b257fac068972a2e1d222f98f591fa07f0a5786779412af2772896c5efa09"
+    },
+    {
+      "file": "src/engine/viewport/PlayerState.ts",
+      "sha256": "ce6692ff0539adc98a2a2f52c7cbf9192563d0d892be9fc1ed5d3390f1afdada"
+    },
+    {
+      "file": "src/engine/viewport/ViewportDelta.ts",
+      "sha256": "81392b91eb0ff7a4a883b791e88277e11d57a5a8724a30ca6d3c4d127be253cf"
+    },
+    {
+      "file": "src/engine/viewport/applicators/FPSApplicator.ts",
+      "sha256": "3428143edd32662510b6f90fa7ffbc2b753a5aadefa446e1118615ded83ae18a"
+    },
+    {
+      "file": "src/engine/viewport/applicators/ViewportApplicator.ts",
+      "sha256": "45ab4602e4a4f4bc7b44e42634ebf50c03f0ef21f21cf5fc456f2016be3a0d2b"
+    },
+    {
+      "file": "src/engine/viewport/effects/IdleBreathingEffect.ts",
+      "sha256": "b8955663933ece2c1420423f192c22c85c56c89117a352606ab348ea8be95bd3"
+    },
+    {
+      "file": "src/engine/viewport/effects/LandingImpactEffect.ts",
+      "sha256": "3676d4d7426a17c39dfc22a21bc87a5afe801f85df1f83dfc724ab7cc844f56e"
+    },
+    {
+      "file": "src/engine/viewport/effects/StrafeLeanEffect.ts",
+      "sha256": "b66fbe6874ff48017ef945a0db77d43ea63ec5659fb4d20360c6bb38c86b6631"
+    },
+    {
+      "file": "src/engine/viewport/effects/WalkBobEffect.ts",
+      "sha256": "7f1c93ea8bd569dc2b52f61498867e1cd9f6b317f9497c3c26de6d529c173d63"
+    },
+    {
+      "file": "src/engine/weapon/AmmoCounterDisplay.ts",
+      "sha256": "ad34b219b96794128543c50e7653c6a5fcdd3ad7acb0afa5c1830a536be31090"
+    },
+    {
+      "file": "src/engine/weapon/BladeEnvironment.ts",
+      "sha256": "9f05e2242ed7b1ccfb33d97a2b8c55a47e55224852b0d132561d80292cec40c8"
+    },
+    {
+      "file": "src/engine/weapon/EffectGeometry.ts",
+      "sha256": "c07c10c7877bf9de7c70a8f00be85657c7469ac3b7e7f2182b279030f7ef19e3"
+    },
+    {
+      "file": "src/engine/weapon/EffectPreloader.ts",
+      "sha256": "8c0f055a22c9b7e725640f327873f0ecab4894e0bdc17709e9898a12538e7ce3"
+    },
+    {
+      "file": "src/engine/weapon/ExplosionEffect.ts",
+      "sha256": "8fedd0417c0823864e3886b0587b8990bd509051ccb610a22898f647c57adc31"
+    },
+    {
+      "file": "src/engine/weapon/HitscanEffects.ts",
+      "sha256": "c00ecf99f360dd715d799376ed364c9a02150c76bc1406c6fab1417fcc6202f3"
+    },
+    {
+      "file": "src/engine/weapon/PointLightPool.ts",
+      "sha256": "69e4f811ee9249891dfbf4bff204df2dcd56f890ea5aad994a8b21f4edf02f95"
+    },
+    {
+      "file": "src/engine/weapon/ProjectileManager.ts",
+      "sha256": "b4225a6d9923298e1a02c47bd55e5754cb17f8af929cfa1c0c3098a087693fb2"
+    },
+    {
+      "file": "src/engine/weapon/WeaponBarrels.ts",
+      "sha256": "7c3fb3de3801611c2971c1b76ac422e66af30051e59182fac249336875f71e3c"
+    },
+    {
+      "file": "src/engine/weapon/WeaponCharge.ts",
+      "sha256": "67a496a11d82e11cc00f7c2dbe137f04660763a585fd97b084f8f9fcd9e84416"
+    },
+    {
+      "file": "src/engine/weapon/WeaponDetail.ts",
+      "sha256": "709235392951e488467467073ec8e98f6327c59c7ff5239ec7cfe116504f9103"
+    },
+    {
+      "file": "src/engine/weapon/WeaponLighting.ts",
+      "sha256": "7156cd109f29d8b5f0dd0e5fb6dbb350a13b3581a604c0883637954d2e1227a8"
+    },
+    {
+      "file": "src/engine/weapon/WeaponSlash.ts",
+      "sha256": "ae284e68ea0eb84db77f532868d4f254ace413023b70ee2b5e5aedd4605707be"
+    },
+    {
+      "file": "src/engine/weapon/WeaponViewManager.ts",
+      "sha256": "8fd245bd4530cf2858ff8d2c12c1145f8aa8b7f126a813bc07ba3c68a63883eb"
+    },
+    {
+      "file": "src/engine/weapon/__tests__/EffectPreloader.test.ts",
+      "sha256": "574ea21499618541d63f32b8b92ff42a8fd69fa1e893bab76ab79f866185b80f"
+    },
+    {
+      "file": "src/engine/weapon/__tests__/HitscanClear.test.ts",
+      "sha256": "c1b9a03934728d00f0f56400f7d0b5bc6254883a58c2c1fc103e9dc5559105d9"
+    },
+    {
+      "file": "src/engine/weapon/__tests__/HitscanEffectsVoltaicTruth.test.ts",
+      "sha256": "5d76f2c03803706bca1e508c24502950ea52e702267975942a043408d8337ec4"
+    },
+    {
+      "file": "src/engine/weapon/__tests__/HitscanPresentationClock.test.ts",
+      "sha256": "41c8efdee32e7ff551b9260e24463c39a85be2de9c3eb4c65289f5c9a487a8f3"
+    },
+    {
+      "file": "src/engine/weapon/__tests__/HitscanShotTrace.test.ts",
+      "sha256": "a3f6d6a80bd446c37aee3da2b52c9b835022149b3b0b91c4c359a13961faa232"
+    },
+    {
+      "file": "src/engine/weapon/__tests__/ImpactSparkRenderer.test.ts",
+      "sha256": "b998bf16d74ebf289ae8b08f23bb5e9601a173089b8defb9c5b0e4b9117a1f36"
+    },
+    {
+      "file": "src/engine/weapon/__tests__/MuzzleFlashRenderer.test.ts",
+      "sha256": "8cf40e025046c5856b3b6628bfc10892a61965880159c5dcc712587ae9493856"
+    },
+    {
+      "file": "src/engine/weapon/__tests__/PointLightPool.test.ts",
+      "sha256": "9ff7e7945afc0af664c2fbaa7dd3e1a00977fe9a6fee12460d3bfa8276ef7c92"
+    },
+    {
+      "file": "src/engine/weapon/__tests__/ProjectilePrepare.test.ts",
+      "sha256": "21b51f94e870104e317591ae76b0a191ca148dc643503ddf6b46417c918cd47a"
+    },
+    {
+      "file": "src/engine/weapon/__tests__/RailEffectRenderer.test.ts",
+      "sha256": "429eec0d68b204f32c85013093303f93d2679226478b8d99ad52d1287e0a910d"
+    },
+    {
+      "file": "src/engine/weapon/__tests__/StreakTracerRenderer.test.ts",
+      "sha256": "22b4e12a18168730bba3624af53df1f3572df84893d884e8e31c026517a3e62a"
+    },
+    {
+      "file": "src/engine/weapon/__tests__/VoltaicEffectRenderer.test.ts",
+      "sha256": "9e4105976b85576a2cb81b5ec06df1524c18268e597c50e1bbf197fa100fb537"
+    },
+    {
+      "file": "src/engine/weapon/__tests__/WeaponBarrels.test.ts",
+      "sha256": "ef878272a4d517da762558343d4f7533530ba08c52ac032d54a8abe3b7650142"
+    },
+    {
+      "file": "src/engine/weapon/__tests__/WeaponDetail.test.ts",
+      "sha256": "5b5a470270489cd8cc64789aeca77c8a5cfa31902e67bf8709f5761620e93bf1"
+    },
+    {
+      "file": "src/engine/weapon/explosion/ExplosionBatchMaterial.ts",
+      "sha256": "90557d5ab804e6c296b936a26ff9ab1f9eb155e8ec8ce7c04f1c865ad19b0545"
+    },
+    {
+      "file": "src/engine/weapon/explosion/ExplosionBatchRenderer.ts",
+      "sha256": "386096145405ebddb692332f4fd1b37acd9070ea960af0959ec3dcaae092730e"
+    },
+    {
+      "file": "src/engine/weapon/impact/ImpactSparkMaterial.ts",
+      "sha256": "38409870a1ae916a33cb8be40dd8ec100480bf799a206384649c6dae9cdf3f52"
+    },
+    {
+      "file": "src/engine/weapon/impact/ImpactSparkRenderer.ts",
+      "sha256": "2cb596326cedf52ddceec2de20e08854d95ef1c94754c6a6a31c264c9e130e74"
+    },
+    {
+      "file": "src/engine/weapon/muzzle/MuzzleFlashMaterial.ts",
+      "sha256": "14bd3cab8f98329b355225759e6ca763a29899ccf321ab08540dbe8e179f9d70"
+    },
+    {
+      "file": "src/engine/weapon/muzzle/MuzzleFlashRenderer.ts",
+      "sha256": "72d12353c73a2a8d8cbdaa589207bea2ea6ec6a10ac1a447cc0b28535ec569d9"
+    },
+    {
+      "file": "src/engine/weapon/rail/RailEffectRenderer.ts",
+      "sha256": "b4412cb70faed87070b1688ade0930abf4a673750bcc0c9620088534a7d36692"
+    },
+    {
+      "file": "src/engine/weapon/rail/RailShaderMaterial.ts",
+      "sha256": "77b76a8943c85ac2f739f79c02e446fe33a338a477f0028f05077387daf5f22c"
+    },
+    {
+      "file": "src/engine/weapon/tracer/StreakTracerMaterial.ts",
+      "sha256": "5b59d30d2de1718e6899e60c79ec0362a66e3b06ffade29eee9a53d6dfd70e32"
+    },
+    {
+      "file": "src/engine/weapon/tracer/StreakTracerRenderer.ts",
+      "sha256": "9af625a03e85a2ad2bda4a86cc2308044e572aab3fefe70871ce309694e176d5"
+    },
+    {
+      "file": "src/engine/weapon/voltaic/VoltaicEffectRenderer.ts",
+      "sha256": "4f1651857851b86e7dd68330c955600254c1bad7ad523fcbd6ea8874044ff97f"
+    },
+    {
+      "file": "src/engine/weapon/voltaic/VoltaicProfiles.ts",
+      "sha256": "7c94d43c8d4cc96a6d959f1ebd9964d7c9de8f047aab75edeec41469d8c9ce5c"
+    },
+    {
+      "file": "src/engine/weapon/voltaic/VoltaicShaderMaterial.ts",
+      "sha256": "ef7160c17da083698c105420f77859ad8de786f001bfd0a1ab0e6447e3bacaa6"
+    },
+    {
+      "file": "src/engine/world/ModelRenderAudit.ts",
+      "sha256": "532756d63ee2b010512a40a6333529340531a1a96b631c7648cef6d2eb76b0f4"
+    },
+    {
+      "file": "src/engine/world/Pickup.ts",
+      "sha256": "77d195f4d943e97344d4e102bd4f8bbad119a7809d9737ee93fd991f18cf7432"
+    },
+    {
+      "file": "src/engine/world/PickupVisual.ts",
+      "sha256": "b381b9d9760d986abcfb01e3edd5a29f82cfa046afd6f841eb0634b923db5f48"
+    },
+    {
+      "file": "src/engine/world/__tests__/ModelRenderAudit.test.ts",
+      "sha256": "12498a23391e5e18ea9d897ee2802fb711956c1f6b71dda8c74f6f07bd2fbff5"
+    },
+    {
+      "file": "src/engine/world/__tests__/PickupModelDispose.test.ts",
+      "sha256": "51123d4e5f44513a02387fa8372fbe919453b1eef7484c34af9d6261cd1516b7"
+    },
+    {
+      "file": "src/engine/world/__tests__/PickupModelInView.test.ts",
+      "sha256": "05367293ad32a98cbd32c78f0a69b8a915f425b63b6d78b551511aff93eabc96"
+    },
+    {
+      "file": "src/engine/world/__tests__/PickupPlacement.test.ts",
+      "sha256": "cc96a45a0684b7e630c85bf20a956599745e9cacac5957629e98e2c5bd59df01"
+    },
+    {
+      "file": "src/games/fps/FPSPlayer.ts",
+      "sha256": "de3245f927fa3b74b72ae1c38aa55b4b6cb864a5e011bde71a29137d3a6ab99a"
+    },
+    {
+      "file": "src/games/fps/Game.ts",
+      "sha256": "a577b2257238aaeffd29099c87a6166f19c0cee44d9e09b1bef53b04eda8a61a"
+    },
+    {
+      "file": "src/games/fps/camera/FPSController.ts",
+      "sha256": "ad20667cb9fefd2d9231cd9add2b389c9c06f4d87cc78771e04936fadbd359fb"
+    },
+    {
+      "file": "src/games/fps/camera/components/PlayerVisuals.ts",
+      "sha256": "ddfac89435d524ff8631ac289695ed76589bfc256c8c4f0a6b384d872f1849c2"
+    },
+    {
+      "file": "src/games/fps/cli/benchmark-collision.ts",
+      "sha256": "893a68a4065045dc24433e6f302fcdfe48414445e6033525e7edde551ada2b13"
+    },
+    {
+      "file": "src/games/fps/cli/headless-game.ts",
+      "sha256": "4ec6b5f0adaeaf922018cc3d3935be545412e53ca0a345b3e831aae8c7844d52"
+    },
+    {
+      "file": "src/games/fps/client/AttachedBlade.ts",
+      "sha256": "f0e871d39b0b32d27f205e470f86e574acf7def723b9be655080c8b6dfe07668"
+    },
+    {
+      "file": "src/games/fps/client/BombRenderer.ts",
+      "sha256": "4912962859f7475e0ce6a4ad73e630c0ba2f0e35cc56b552caaf30d50d90b1d4"
+    },
+    {
+      "file": "src/games/fps/client/BombSiteDebris.ts",
+      "sha256": "e5a39dda1fe7dc28146b9b9ce39e1ed0d45be6e113bf2203bf7c3a4558db0312"
+    },
+    {
+      "file": "src/games/fps/client/BombSiteMarkers.ts",
+      "sha256": "038468680bf48b9898852894240ed0b104ccb8a37802686040adb4be19965415"
+    },
+    {
+      "file": "src/games/fps/client/CartoonHitEffect.ts",
+      "sha256": "bde71ff8c2f9bdc39410802a3cba69133aca450f801024e06282dbf3331e35ef"
+    },
+    {
+      "file": "src/games/fps/client/CinematicDemoPlayer.ts",
+      "sha256": "13117d134923845cf7cf0f4262beca610c922119aeece026f7943d84bb1759fc"
+    },
+    {
+      "file": "src/games/fps/client/DamageNumbers.ts",
+      "sha256": "a27b2cba0e07ba16f083d55d2fd8e91e44ec59578df82f1884c32fbc2e32ecf8"
+    },
+    {
+      "file": "src/games/fps/client/DeathCamera.ts",
+      "sha256": "5e4d9aa21406403f7110e7c2955c7cd96ef36a243369743189ca2658b892b2bc"
+    },
+    {
+      "file": "src/games/fps/client/DemoPovState.ts",
+      "sha256": "ef906656a02b382f34a9801af8aaf205b67d232e4547d6bccac2eae8d3bff017"
+    },
+    {
+      "file": "src/games/fps/client/DemoService.ts",
+      "sha256": "2af1a2425f96bbdd4377468a570a95d3cb06756d5e957df27ce6376a6a3554c6"
+    },
+    {
+      "file": "src/games/fps/client/DroppedWeaponRenderer.ts",
+      "sha256": "ddef798f0a295af0e522abb785f3bf0b7940559d1093a8f458e03a7302fdc57e"
+    },
+    {
+      "file": "src/games/fps/client/FPSMovementAudio.ts",
+      "sha256": "325986e47663a146d648ad7c964e9719b1e3874f84837a2d7675ebdefd4ec49e"
+    },
+    {
+      "file": "src/games/fps/client/FPSWeaponPreloader.ts",
+      "sha256": "b235162d9bee5c1513d5ad5a9d4897b2b70119c215648a2623855556c867b048"
+    },
+    {
+      "file": "src/games/fps/client/FollowedViewWeapon.ts",
+      "sha256": "acd7d931fe847d0631d82aabd186bcde4673978b8eff2db67ae6d0822264aa58"
+    },
+    {
+      "file": "src/games/fps/client/FrameEffects.ts",
+      "sha256": "14d3302f4566828a16071ff48c95b2f57659275d8bfa08eda8e159e61ec863af"
+    },
+    {
+      "file": "src/games/fps/client/GameEvents.ts",
+      "sha256": "89b73f1e6e46ebdcc34262a9d6971f04a8dbfa28e60f48f63cb2950902aa0538"
+    },
+    {
+      "file": "src/games/fps/client/GibSystem.ts",
+      "sha256": "d93e43b34702d1217316bd20377e137d0fe52417e334930bd56270bc5d201158"
+    },
+    {
+      "file": "src/games/fps/client/LocalLiquid.ts",
+      "sha256": "272aefc190f79d071d8d851292c8d5e933f79f498b7b36c759d634a455258ddc"
+    },
+    {
+      "file": "src/games/fps/client/PlayerModelVisualSettings.ts",
+      "sha256": "425a4c02280182acfab01ae999e60c2dd38ade7439abab69b0379c4ccbf3792a"
+    },
+    {
+      "file": "src/games/fps/client/PostGameShowcase.ts",
+      "sha256": "0cdf29c9628bc4c63cc0a8eac155d42c5bb76d7fe3ff6ab83ca3c4c3ed4e7921"
+    },
+    {
+      "file": "src/games/fps/client/QuadDamageVisual.ts",
+      "sha256": "fe32764ac9b2b9f3761e260606a339297a4c3731947eca122da2f6e67d246539"
+    },
+    {
+      "file": "src/games/fps/client/RagdollSystem.ts",
+      "sha256": "5a4d4e46d5200959b240485c68459e522e581cf028cd7afdb05f2387c029df42"
+    },
+    {
+      "file": "src/games/fps/client/RemotePlayerRenderer.ts",
+      "sha256": "4fef62ef79db08d7a5c9046990b043ea42f78cfe5fa36b5eff8e92979769420b"
+    },
+    {
+      "file": "src/games/fps/client/ServerProjectiles.ts",
+      "sha256": "53e92d971d4766dea142c844015fb1209a89c4f900fd1eea75be6410f87c7301"
+    },
+    {
+      "file": "src/games/fps/client/SpectateEyeCamera.ts",
+      "sha256": "5707a90bb1601d93ea15122934cd1784f6955aa33b8e37e95dab6c0d1bc7c429"
+    },
+    {
+      "file": "src/games/fps/client/SpectateView.ts",
+      "sha256": "8b2ae6170f5cd8dd98dadf109f14283369da35470c6fd5b4d416ed96f412cf20"
+    },
+    {
+      "file": "src/games/fps/client/TeleportEffect.ts",
+      "sha256": "667784d1221a72e108b18b077347488b821b06883047a1348e0d0e9612c61911"
+    },
+    {
+      "file": "src/games/fps/client/TimedemoService.ts",
+      "sha256": "daca3d30b399a41bfd976af952d08e2bfac6ca731ed68baf904b6cd35d0e3fa5"
+    },
+    {
+      "file": "src/games/fps/client/__tests__/AttachedBlade.test.ts",
+      "sha256": "a1fe202c6532d8fdf6e34bfb2bdc278c51320913554a0118e7857f0d0e0b13fd"
+    },
+    {
+      "file": "src/games/fps/client/__tests__/BombSiteDebris.test.ts",
+      "sha256": "412269fc0e4c1d9180f7f90867c9c32268faa2d0731f3a7fa40552374da51c1b"
+    },
+    {
+      "file": "src/games/fps/client/__tests__/CartoonHitTiming.test.ts",
+      "sha256": "9932b62f051fad3594e5309a1f10e563e174c75f7f514c220ec265c3edabfb38"
+    },
+    {
+      "file": "src/games/fps/client/__tests__/CrosshairAmmo.test.ts",
+      "sha256": "646f5238e834fabff426e215fafc59e838dd835d6684f4452c95f06e59880015"
+    },
+    {
+      "file": "src/games/fps/client/__tests__/DeathCamera.test.ts",
+      "sha256": "0e3e3dca22112b7726d8611305b0a61a9e28a5e0ecf4a2cf2e7babe848b842ad"
+    },
+    {
+      "file": "src/games/fps/client/__tests__/DroppedWeaponLeak.test.ts",
+      "sha256": "d0a29f4ca611eb31deded431e7d426b450613e326e084eaed037e3d7f877dfca"
+    },
+    {
+      "file": "src/games/fps/client/__tests__/DroppedWeaponProximity.test.ts",
+      "sha256": "c8564bb91be2d370afb0af3e585ab11a34441cf743206d944b845a47d31f491d"
+    },
+    {
+      "file": "src/games/fps/client/__tests__/DroppedWeaponVisibility.test.ts",
+      "sha256": "bdc11f9d07f64794506d9165632dd69698bce18780d8f95ee22e6c70dc079917"
+    },
+    {
+      "file": "src/games/fps/client/__tests__/FollowedPerspective.test.ts",
+      "sha256": "443bb357d55aff6a62d3bdf11e902daf2968e5e8bb51a493f9732a9e9b53c387"
+    },
+    {
+      "file": "src/games/fps/client/__tests__/FreeflyBindings.test.ts",
+      "sha256": "1252e049e151d664b259f98c70c3b318573f43a712957ade70e646d07d9c2501"
+    },
+    {
+      "file": "src/games/fps/client/__tests__/FullscreenKeyboardLock.test.ts",
+      "sha256": "e4b17e7e4d8169e232f87e5fca846137d0509a3ec4c88cf3b33f12c10eff8418"
+    },
+    {
+      "file": "src/games/fps/client/__tests__/GibSystemTrace.test.ts",
+      "sha256": "b8da6f662ad8ea2cc7c9bc2b0a583d3c907f961a04d5c7856ca22520547d612e"
+    },
+    {
+      "file": "src/games/fps/client/__tests__/InputFocusRecovery.test.ts",
+      "sha256": "e49f503afca7ff2e78330ed78280a24dcea245e17117aefbf8858b286827995e"
+    },
+    {
+      "file": "src/games/fps/client/__tests__/LocalWaterReflection.test.ts",
+      "sha256": "57bb88512ca247be15704b276e707d2b2637fd7a2c89962920849f45ec62abc2"
+    },
+    {
+      "file": "src/games/fps/client/__tests__/ProjectileManagerModelReload.test.ts",
+      "sha256": "5cecd6ce7a7ab8ba769ccf1fc667f8b125c6549661226c9f1fa4829529899d04"
+    },
+    {
+      "file": "src/games/fps/client/__tests__/RagdollClock.test.ts",
+      "sha256": "40f494cb1f2c2703766095e33498d95a9bfc0e12bebd25b4fa38cb3dfeae7a84"
+    },
+    {
+      "file": "src/games/fps/client/__tests__/RemotePlayerRenderParity.test.ts",
+      "sha256": "5a02ecb5d0a653b6e41b0e330e74c5481145694b640ba859c99efea505fe2254"
+    },
+    {
+      "file": "src/games/fps/client/__tests__/RemotePlayerVisibility.test.ts",
+      "sha256": "12f1244bc612a84d2dc7d0195d2023241721fda9a366836f784099e7ae149026"
+    },
+    {
+      "file": "src/games/fps/client/__tests__/RemoteWeaponLeak.test.ts",
+      "sha256": "84dc4a66ee3a4cddbbb080843e571b9ea3d68fd57a689a4b6516f9d67e29a1b2"
+    },
+    {
+      "file": "src/games/fps/client/__tests__/RenderedPlayersReuse.test.ts",
+      "sha256": "dff565c75a517f793d5a09734ed8642f18a0cdca8f5a8ece81cb00ef71c19b35"
+    },
+    {
+      "file": "src/games/fps/client/__tests__/SpectateEyeCamera.test.ts",
+      "sha256": "c192c2dfed5690f3427a053c2fff23379b6cd3de4526c3dcab8e5b0a6e93180a"
+    },
+    {
+      "file": "src/games/fps/client/__tests__/SpectateRollFallback.test.ts",
+      "sha256": "ed93d6d366c79aae266f69842eeaeef1eb46f283be7e48e22859323eb486faf6"
+    },
+    {
+      "file": "src/games/fps/client/__tests__/TimedemoService.test.ts",
+      "sha256": "38bd3a0d0e1b3016b259b0ca1aaf0a703b6b463f6da7f864dcf3b4bdd3e69a2b"
+    },
+    {
+      "file": "src/games/fps/client/__tests__/WeaponAdsTiming.test.ts",
+      "sha256": "4d0efbe3200a31e30c2f332b2885393d23ccdcf8de4050b9a194ad86e4193c46"
+    },
+    {
+      "file": "src/games/fps/client/__tests__/WeaponPreview.test.ts",
+      "sha256": "4afe8c485582aa9ee853c2ff4ae8a9cf28425db25d7700deb215fb7237407caa"
+    },
+    {
+      "file": "src/games/fps/client/__tests__/WeaponViewLoading.test.ts",
+      "sha256": "5e448ae7994f50b52ab17293c6c9a410b9688bab09914fed6ee133ab4486590c"
+    },
+    {
+      "file": "src/games/fps/client/__tests__/WeaponViewManagerBeamRouting.test.ts",
+      "sha256": "93ba970a93eae2019786ab5a192367afab7fbe82818c59993958c64df1e2b80d"
+    },
+    {
+      "file": "src/games/fps/client/hud/widgets/WeaponPreview.ts",
+      "sha256": "0b9f0a1b3692118a9ce8357076447fd0faa6f984e9b6263dff41aae16a76c1c8"
+    },
+    {
+      "file": "src/games/fps/client/main.ts",
+      "sha256": "edbd669a555e6be2914426e06e416e6bc544b6172290514ab5df5520c148e635"
+    },
+    {
+      "file": "src/games/fps/console/__tests__/CameraCommandRegistration.test.ts",
+      "sha256": "9f08b313ee99516537af4f27d11bc86d774bfb514de463fa640bd475a7fc6098"
+    },
+    {
+      "file": "src/games/fps/console/commands/SpawnPickupCommand.ts",
+      "sha256": "a6c33c4788d168a46aa132fe8c9ae8e8009be3f6d55937222dbf74e6244d8754"
+    },
+    {
+      "file": "src/games/fps/console/commands/WaterCommand.ts",
+      "sha256": "42c80d0f4008abfb2fcb194fb6f5f886e99a61f7ca69aa7a256743d70cb99342"
+    },
+    {
+      "file": "src/games/fps/console/commands/__tests__/WaterCommand.test.ts",
+      "sha256": "e70c59917bea967dec6fba35603b596bd6decc3a9c6467cf63231205443bb35f"
+    },
+    {
+      "file": "src/games/fps/editor/__tests__/EditorSession.test.ts",
+      "sha256": "830d3703aeb0cfe773cabb781668b68943ac1fb121c473743fb9c6db88469f60"
+    },
+    {
+      "file": "src/games/fps/editor/server/__tests__/ConvexCompile.test.ts",
+      "sha256": "dbac9efad05b59c86c50d1285c98600f0ba201ec0bb1942bbbc34a531b0d970f"
+    },
+    {
+      "file": "src/games/fps/editor/server/__tests__/RoundPatchCompile.test.ts",
+      "sha256": "6bed7125e61144f3a6d8abc7bd951c2fc6d9f49b97270963a34e962351ecd741"
+    },
+    {
+      "file": "src/games/fps/liquid/__tests__/LiquidInteractions.test.ts",
+      "sha256": "04516f517dc847591af8d0b3e1a9772c7b8bee598fb6ea42a02b963bc26c3354"
+    },
+    {
+      "file": "src/games/fps/liquid/__tests__/SplashDropletRenderer.test.ts",
+      "sha256": "0169a822e317f1962f9fb8a38b2dcf9dd521c758af9f62e390c1d7dfe0952fb3"
+    },
+    {
+      "file": "src/games/fps/liquid/__tests__/UnderwaterViewRestore.test.ts",
+      "sha256": "64147fa6fa72f1fcddd227ea5761d92a0e35e9e7fc3b27f8e5a43c7184c76e44"
+    },
+    {
+      "file": "src/games/fps/liquid/client/LiquidInteractionSystem.ts",
+      "sha256": "63718300b1170119efa6150e0347f3a5c6ab40742028bf7ee257dad73dc0e67f"
+    },
+    {
+      "file": "src/games/fps/liquid/client/SplashDropletRenderer.ts",
+      "sha256": "79487f5dfb97c6dc0264698a4828a750d250de905d3ead0f5d0c24f6017d32d1"
+    },
+    {
+      "file": "src/games/fps/liquid/client/UnderwaterView.ts",
+      "sha256": "7df037daf478389304cb9a8cb8d1839e1b37feaec128fe414f868a9439cafa06"
+    },
+    {
+      "file": "src/games/fps/scripts/diagnostics/historical/v0.9.23-pickup-render-probe.ts",
+      "sha256": "36e44704b0626da5e6a665427d69f22f0ccd550ea81650023429394ab6fe9393"
+    },
+    {
+      "file": "src/games/fps/scripts/diagnostics/historical/v0.9.29-quality-probe.ts",
+      "sha256": "8a8e344ab5076d85e75a04dfb08537bd5264848449eb2484d63a1c4bda6d7339"
+    },
+    {
+      "file": "src/games/fps/scripts/diagnostics/water-visual-scene.ts",
+      "sha256": "60eb3499d92da9d30dea5de613b29335e71bf49dec226c81e9949f7aa040a914"
+    },
+    {
+      "file": "src/games/fps/server/systems/__tests__/WeaponSystem.test.ts",
+      "sha256": "e832ac9b1310624d21a252a5d5392550e599b0af716eb407495e89770ff3ba4a"
+    },
+    {
+      "file": "src/games/fps/world/EntityManager.ts",
+      "sha256": "fda1b2c30c77ad93ab239b6b3467b4c640c04063641d79cd71fae4282a010fd6"
+    },
+    {
+      "file": "src/games/fps/world/FPSPickup.ts",
+      "sha256": "3ca90d21d531c073737b4ffd3063bbe4f8193302f61846e86387f41274125947"
+    },
+    {
+      "file": "src/games/fps/world/__tests__/EntityManagerPickupLanding.test.ts",
+      "sha256": "ec437dc23f5014a213aa205e691f2bec8165169b00a2e10f862060ec57df109d"
+    },
+    {
+      "file": "src/games/fps/world/pickups/AmmoIconTexture.ts",
+      "sha256": "b72f28d9567bf94b4edd29f42f21ded8e36ee4e6748f75bb2ba4bf8d9664d6ea"
+    },
+    {
+      "file": "src/games/fps/world/pickups/procedural/ProceduralPickupAssetCache.ts",
+      "sha256": "539db29e5fe74251b8c2955fb625d50d9e06b7f214ea778e68185cfce54faae5"
+    },
+    {
+      "file": "src/games/fps/world/pickups/procedural/ProceduralPickupGeometry.ts",
+      "sha256": "f4a555abdfaeacefd4f0eb0bad158818a3c35a1d1804694876f8bdc739b6407e"
+    },
+    {
+      "file": "src/games/fps/world/pickups/procedural/ProceduralPickupMaterials.ts",
+      "sha256": "5da63095ed1bdae20f6a66204ccf7a34cee95b1a89cf4290aa8dc2e89b1e59f8"
+    },
+    {
+      "file": "src/games/fps/world/pickups/procedural/ProceduralPickupTransient.ts",
+      "sha256": "0742fc63bd25b476bd97c2336d83421758c1c89c76613d3629580e5d777ce731"
+    },
+    {
+      "file": "src/games/fps/world/pickups/procedural/ProceduralPickupVisual.ts",
+      "sha256": "97525719d11b1b91b126276b3a3c5ab9840975fba3e72f0b8e5a9ad564f92ac3"
+    },
+    {
+      "file": "src/games/fps/world/pickups/procedural/__tests__/ProceduralPickupVisual.test.ts",
+      "sha256": "d384cd4faba515e9e611e81c34703ac19274ffa0984f7b535c7f740430dbd309"
+    },
+    {
+      "file": "src/main.ts",
+      "sha256": "a9e95ca0d650ae34598ac92431ca88d3d6e11122b708cbd2a5663de1f4e19cbe"
+    },
+    {
+      "file": "src/tools/test-collision-spawn.ts",
+      "sha256": "974379f11d1c6f836fe072ca6f41dc7f1aa14bf4df969490738e8ef338e46643"
+    }
+  ],
+  "nativePerformanceSourceHashes": [
+    {
+      "file": "src/engine/loader/bsp/mesh/spatialBatching.ts",
+      "sha256": "b941a4c7c504346e60aba94b96639b191658c28bbc71318d2b660f9561f67c34"
+    },
+    {
+      "file": "src/engine/rendering/WeaponCameraCandidates.ts",
+      "sha256": "2c2466ed6b48ebc89f8f42e9478d94620f2678b987e23541e0720ba38915d22d"
+    },
+    {
+      "file": "src/engine/weapon/voltaic/VoltaicEffectRenderer.ts",
+      "sha256": "4f1651857851b86e7dd68330c955600254c1bad7ad523fcbd6ea8874044ff97f"
+    },
+    {
+      "file": "src/engine/weapon/explosion/ExplosionBatchRenderer.ts",
+      "sha256": "386096145405ebddb692332f4fd1b37acd9070ea960af0959ec3dcaae092730e"
+    },
+    {
+      "file": "src/engine/animation/PlayerModelManager.ts",
+      "sha256": "34a077aa7ca4b65e1d0b1aa32c3c4341368f9f69dbf7c26a1497efefe8045b20"
+    },
+    {
+      "file": "src/engine/loader/shader/Q3ShaderMaterialFactory.ts",
+      "sha256": "86cfb290af1165cbd6e9ee560a442340cd6d06060817d208bbf9c804fb527dbd"
+    },
+    {
+      "file": "src/engine/loader/shader/ShaderAnimationSystem.ts",
+      "sha256": "820d82633e2c164014114c806e5cddb8040eadde60c37a69c2d9da62120bfe10"
+    },
+    {
+      "file": "src/engine/rendering/FrozenWorldMaterials.ts",
+      "sha256": "ab09ffaa4458799288aca819f106ecd269d1d0c9a1fad4dda12eaaad5310b47e"
+    },
+    {
+      "file": "src/engine/rendering/water/WaterProbeCache.ts",
+      "sha256": "44944edff153212e07b8b8ea4e05a739a6a7dda9f4c06a537aef59f5bbfba027"
+    },
+    {
+      "file": "src/engine/loader/map/MapLoader.ts",
+      "sha256": "940e01c3b41d22148da430b00cd4c7cf80e8d1f7bb84129ecd9eb8c8960f4100"
+    }
+  ]
+}

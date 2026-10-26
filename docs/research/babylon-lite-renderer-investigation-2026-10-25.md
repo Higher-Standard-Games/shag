@@ -13,6 +13,46 @@ The [source-boundary study and ranked groundwork shortlist](babylon-lite-code-bo
 follow actual import paths and lifecycle calls. Read that before choosing which
 existing classes to refactor: several candidates are already reusable unchanged.
 
+Expanded October 26: [groundwork catalog and planning gates](babylon-lite-groundwork-catalog-2026-10-26.md).
+It documents 15 additional/refined extraction packages, including accessibility
+math, shader sampling, MD3/patch data, visibility queries, weapon motion, input
+frame ownership and settings definitions. Every package identifies retained
+classic behavior, proposed data boundaries and acceptance evidence. This is
+planning for future work, not authorization to begin a Lite proof of concept.
+
+Two findings govern that groundwork: absence of emitted Babylon imports does
+not remove scene/lifecycle dependence, and CPU data needs explicit coordinate,
+color, time and ownership semantics before sharing it between implementations.
+For example, the legacy MD3 parsed result already converts tag transforms while
+leaving surface arrays in source space. A plain numeric replacement must preserve
+the current public adapter without introducing double conversions.
+
+The next October 26 pass audits the [published API against actual SHAG usage](babylon-lite-api-coverage-2026-10-26.md)
+and supplies [integration pseudocode and a milestone-by-milestone file-change plan](babylon-lite-integration-sketch-2026-10-26.md).
+The shipped compat layer does not cover all required calls; several native
+routes require purpose-built adapters. Published package contents now have
+separate integrity-checked evidence, so later master APIs are not mistaken for
+installed APIs. The plan remains incomplete at the material, independent-rig,
+pass-ownership and non-abortable-build lifecycle boundaries.
+
+The [native performance redesign study](babylon-lite-native-performance-2026-10-26.md)
+then examines stable pass lists, instance count/upload semantics, specialized
+effect payloads, selective baked animation, time-driven map materials and bounded
+preparation work. It separates existing SHAG optimizations from new hypotheses,
+with source-backed pitfalls, proposed files and measurable acceptance criteria.
+
+The [current Babylon optimization comparison](babylon-classic-optimization-opportunities-2026-10-26.md)
+separates portable improvements from backend facilities. GPU map animation,
+sparse instance uploads, selective baked animation and explicit frame graphs
+already have routes in installed Babylon 9.31.2; compute/render bundles are
+WebGPU facilities available in classic Babylon too. These can be explored
+without implementing Lite or changing renderer defaults.
+
+The [current-renderer groundwork sequence](babylon-classic-to-lite-groundwork-plan-2026-10-26.md)
+turns that comparison into small work packages with source-confirmed entry
+points, shared data boundaries, retained backend adapters, parity/performance
+gates and an explicit record of what a future Lite implementation would reuse.
+
 ## Working conclusion
 
 **Worth prototyping; not a replacement we can make inside the existing engine
@@ -65,6 +105,11 @@ The documentation website did not expose useful text to the research browser;
 the repository's Markdown and TypeScript were inspected directly. The searchable
 feature comparison and even the checked-out comparison table lag some source
 features. An empty cell in that table is not sufficient evidence of absence.
+
+Follow-up: the API audit now inspects the two actual published tarballs at the
+versions above, including native JavaScript and compat source-map contents.
+This closes selected package-versus-master questions, not the requirement to
+pin and revalidate the chosen version when implementation begins.
 
 ## What would actually change?
 

@@ -1,6 +1,7 @@
 # Renderer boundaries in the actual SHAG code
 
-Date: October 25, 2026. Status: investigation and proposed groundwork only.
+Opened: October 25, 2026. Expanded: October 26, 2026.
+Status: investigation and proposed groundwork only.
 Read alongside the [overview](babylon-lite-renderer-investigation-2026-10-25.md)
 and [feature migration map](babylon-lite-migration-map-2026-10-25.md).
 
@@ -9,6 +10,19 @@ It also records the owner's additional request: identify small refactors that
 would make existing calculations usable by Babylon and Lite before a new
 renderer exists. **No runtime separation or groundwork refactor was applied.**
 The working renderers and the 1.0 release path remain unchanged.
+
+The [second-round groundwork catalog](babylon-lite-groundwork-catalog-2026-10-26.md)
+adds 15 proposed work packages with source owners, important callers, data/time
+contracts, wrapper-preserving plans and behavioral acceptance cases. It also
+records which apparent helpers should remain renderer-specific. Read it before
+turning the shortlist here into implementation work.
+
+The [published API audit](babylon-lite-api-coverage-2026-10-26.md) subsequently
+checks exact shipped exports and selected implementations. Its
+[pseudocode/file-change companion](babylon-lite-integration-sketch-2026-10-26.md)
+connects these data boundaries to proposed load/session/material/game owners.
+Treat the sketches as design records with unresolved methods, not runnable
+classes or proof that native Lite is a drop-in replacement.
 
 ## Concrete finding: share data and decisions, retain renderer objects separately
 
@@ -289,6 +303,15 @@ These need dedicated seams and verification, not a broad structural type cast.
 
 ## A maintainable patch sequence
 
+The October 26 catalog refines this sequence: accessibility matrix extraction
+(G1) belongs beside the cheapest helpers; shader sampling/PVS need explicit
+state and per-view contracts; weapon motion and browser input scheduling can
+wait for actor/integrated-client work. MD3 parsing is medium scope because its
+legacy parsed result mixes source-space geometry and converted tag transforms.
+Do not mechanically merge visual and collision patch evaluators. Finish the
+relevant design records before authorizing a prototype; implementing every
+candidate is not a prerequisite for the first static fixture.
+
 This is a proposed sequence for future authorization, not work performed now:
 
 1. **Small foundational extractions:** ammo formatting, tag data, tuple geometry
@@ -395,8 +418,10 @@ Source/import tracing and selected implementation reads only. Added the research
 tracer and an evidence snapshot; no application modules were run by that tracer.
 The earlier overview/feature map remain linked for the wider migration scope.
 The proposed new helper filenames, contracts, selector and renderer folders have
-not been created. No dependency installation, feature branch switch, runtime
-refactor or production operation was performed.
+not been created. The original October 25 pass performed no dependency
+installation, branch switch, runtime refactor or production operation. The
+investigation was subsequently committed to `staging`; the October 26 follow-up
+continues there as documentation/research only.
 
 Assumptions: preserve both existing renderers, stage useful groundwork before
 Lite, keep FPS ownership in its repository, and treat this as future work outside
@@ -414,3 +439,36 @@ Validation completed for this research pass:
   the engine manual, not research-page rendering or the proposed architecture.
 - Research local links, code fences, whitespace and the named existing test-file
   references were checked. No gameplay or GPU tests were run for documentation.
+
+### October 26 follow-up evidence and validation
+
+The [23 additional selected entries](babylon-lite-evidence/groundwork-entries-2026-10-26.json)
+and [separate summary](babylon-lite-evidence/groundwork-summary-2026-10-26.json)
+record the second pass. Five entries have no observed emitted Babylon import,
+but their scene/object/lifecycle behavior still needs separation. They are
+follow-up examples, not a complete inventory of every importer.
+
+The research tracer now accepts `--entries-file` and `--output-dir`; default
+behavior preserves the original 63-entry result. Output is restricted to
+ignored `.cache/` subdirectories. No application module is run by the tracer.
+
+Validation commands for this documentation-only follow-up:
+
+```powershell
+node --check docs/research/babylon-lite-evidence/trace-boundaries.mjs
+node docs/research/babylon-lite-evidence/trace-boundaries.mjs
+node docs/research/babylon-lite-evidence/trace-boundaries.mjs --entries-file docs/research/babylon-lite-evidence/groundwork-entries-2026-10-26.json --output-dir .cache/babylon-lite-research/groundwork-2026-10-26
+npm.cmd run docs:build
+npm.cmd run gate:biome
+```
+
+Both generated summaries matched their tracked snapshots, including all 63 and
+23 source-entry hashes. Tracer syntax and `npm.cmd run docs:build` passed.
+Separate checks passed for all four research documents: 37 local links, 20 named
+existing test references, balanced code fences and trailing whitespace. The
+tracer's rejection of output outside `.cache/` also passed with subprocess
+permissions. `npm.cmd run gate:biome` passed at the existing baseline (0 errors,
+47 warnings) with subprocess permissions; the sandboxed attempt produced no
+Biome summary. These checks matter because the manual build does not render
+research pages. Renderer behavior, proposed new helpers, actual bundle savings
+and performance remain unverified.

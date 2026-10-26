@@ -1,10 +1,18 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
+import { parseArgs } from 'node:util';
 import ts from 'typescript';
 // Research utility. Run from the repository root. It reads source/configuration
 // and emits evidence beneath ignored .cache; no application modules execute.
 const root = process.cwd();
+const { values } = parseArgs({ options: {
+  'entries-file': { type: 'string' },
+  'output-dir': { type: 'string', default: '.cache/babylon-lite-research' },
+} });
+const outputDir = path.resolve(root, values['output-dir']);
+const cacheRoot = path.resolve(root, '.cache');
+if (!outputDir.startsWith(cacheRoot + path.sep)) throw new Error('Research output must stay beneath .cache/');
 const config = ts.readConfigFile('tsconfig.json', ts.sys.readFile);
 if (config.error) throw new Error(ts.flattenDiagnosticMessageText(config.error.messageText, '\n'));
 const parsed = ts.parseJsonConfigFileContent(config.config, ts.sys, root);
@@ -51,7 +59,7 @@ function load(file) {
   runtime.set(file, edges(ts.createSourceFile(file, emitted, ts.ScriptTarget.Latest, true), file, false));
   for (const edge of declared) if (edge.target) load(edge.target);
 }
-const entries = [
+const defaultEntries = [
   'src/engine/loader/pk3/PackageStore.ts', 'src/engine/loader/pk3/PK3Index.ts',
   'src/engine/loader/pk3/PK3Loader.ts', 'src/engine/loader/bsp/BspLoader.ts',
   'src/engine/loader/shader/Q3ShaderParser.ts', 'src/engine/loader/shader/Q3ShaderRegistry.ts',
@@ -85,6 +93,12 @@ const entries = [
   'src/engine/weapon/AmmoCounterDisplay.ts', 'src/engine/weapon/rail/RailProfiles.ts',
   'src/games/fps/client/PlayerModelVisualSettings.ts',
 ];
+const entries = values['entries-file']
+  ? JSON.parse(fs.readFileSync(values['entries-file'], 'utf8'))
+  : defaultEntries;
+if (!Array.isArray(entries) || entries.length === 0 || entries.some(file =>
+  typeof file !== 'string' || !file.startsWith('src/') || file.includes('..') || !file.endsWith('.ts') || !fs.existsSync(file)
+)) throw new Error('Entries must be a nonempty JSON array of existing src/*.ts paths');
 entries.forEach(load);
 function trace(entry, graph) {
   const visited = new Set([entry]);
@@ -107,8 +121,8 @@ function trace(entry, graph) {
   return {localFiles: visited.size, babylonSpecifiers: [...externals].sort(), firstBabylon};
 }
 const report = entries.map(entry => ({entry, declared: trace(entry, source), emitted: trace(entry, runtime)}));
-fs.mkdirSync('.cache/babylon-lite-research', {recursive: true});
-fs.writeFileSync('.cache/babylon-lite-research/boundary-traces.json', JSON.stringify({method: 'TypeScript transpileModule static import/reexport/literal dynamic-import traversal; external package internals and import.meta.glob not traversed', report, source: Object.fromEntries(source), runtime: Object.fromEntries(runtime)}, null, 2));
+fs.mkdirSync(outputDir, {recursive: true});
+fs.writeFileSync(path.join(outputDir, 'boundary-traces.json'), JSON.stringify({method: 'TypeScript transpileModule static import/reexport/literal dynamic-import traversal; external package internals and import.meta.glob not traversed', report, source: Object.fromEntries(source), runtime: Object.fromEntries(runtime)}, null, 2));
 const summary = {
   typescript: ts.version,
   method: 'Project-local declared and TypeScript-emitted import/reexport/literal dynamic-import graph; JSON targets counted as leaves. Counts include each entry. External-package internals, computed imports and import.meta.glob are not expanded. Not a bundle-size or runtime-execution measurement.',
@@ -121,7 +135,7 @@ const summary = {
     shortestEmittedBabylonPath: item.emitted.firstBabylon,
   })),
 };
-fs.writeFileSync('.cache/babylon-lite-research/boundary-summary.json', JSON.stringify(summary, null, 2) + '\n');
+fs.writeFileSync(path.join(outputDir, 'boundary-summary.json'), JSON.stringify(summary, null, 2) + '\n');
 for (const item of report) {
   console.log(JSON.stringify({entry: item.entry, declaredFiles: item.declared.localFiles, runtimeFiles: item.emitted.localFiles, runtimeBjs: item.emitted.babylonSpecifiers.length, example: item.emitted.firstBabylon}));
 }
