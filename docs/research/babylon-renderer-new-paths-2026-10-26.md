@@ -141,6 +141,11 @@ what a future Lite backend would reuse. Nothing here is implemented.
 
 ### 0. Attributed baseline (measurement only)
 
+**Done:** see the [frame-floor results](babylon-classic-frame-floor-2026-10-26.md).
+WebGL2 selection is now 1.6–2.2 ms per frame (alpha3 about 4.7); the opaque
+group (2.2–2.7 ms) is the largest renderer cost, and WebGPU's per-draw setup
+is the CPU gap to WebGL2.
+
 Run the existing profiler on the current branch, both backends, using the two
 fixtures alpha3 and v0.9.27 used (`washoi_dm5` plasma FFA,
 `benchmarks/recipes/wdm5-ffa6.json`; `washoi_dm2` 10-bot FFA):
@@ -245,6 +250,11 @@ depth resources with declared ownership. The bug class here is exactly that
 hazard. Whatever pass is found becomes a concrete rule in that design.
 
 ### 4. Cluster-ordered world index ranges (conditional)
+
+**Estimated:** face-level PVS removes 20% (dm5), 46% (dm2) and 28% (dm11) of
+the world triangles mesh-level PVS keeps; sorted sub-ranges would add draws,
+so an index rewrite per mesh is the route. Still conditional on a GPU-limited
+profile; see the [frame-floor results](babylon-classic-frame-floor-2026-10-26.md#path-4-face-level-pvs-estimate).
 
 At build time, order each world mesh's triangles by cluster, keeping one draw
 per material. On a cluster transition, write the indices of visible clusters
