@@ -53,6 +53,12 @@ turns that comparison into small work packages with source-confirmed entry
 points, shared data boundaries, retained backend adapters, parity/performance
 gates and an explicit record of what a future Lite implementation would reuse.
 
+The [review and new-paths note](babylon-renderer-new-paths-2026-10-26.md)
+checks this set against the measured frame floor (active-mesh selection and
+draw submission). It proposes a PVS-driven retained world draw set for both
+current backends, WebGPU bundle-rebuild attribution and a WebGPU shared depth
+product, each mapped to its Lite equivalent.
+
 ## Working conclusion
 
 **Worth prototyping; not a replacement we can make inside the existing engine
