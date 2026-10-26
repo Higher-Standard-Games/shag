@@ -141,6 +141,23 @@ The driver imports its isolated frontend fixture directly; neither the fixture
 nor analytic candidate is selected by normal gameplay startup. Submitted byte
 counts are not bus-traffic measurements or a whole-game FPS result.
 
+An isolated matrix-free effect experiment requires an explicit reference commit:
+
+```powershell
+node scripts/benchmarks/renderer-groundwork.mjs webgl2 effects 3117 3196debb
+node scripts/benchmarks/renderer-groundwork.mjs webgl2 matrix-free-effects 3117 3196debb
+node scripts/benchmarks/renderer-groundwork.mjs webgpu effects 3117 3196debb
+node scripts/benchmarks/renderer-groundwork.mjs webgpu matrix-free-effects 3117 3196debb
+node scripts/benchmarks/compare-matrix-free.mjs 3196debb
+```
+
+This generates prototype modules under ignored `.cache/`, using exact source
+checks and immutable module URLs. It checks draw counts, matrix-buffer capacity,
+active inputs, empty/reused pools, world transforms, depth and matched images.
+Its rendering pass does not mean gameplay adoption: Babylon's forced-count
+route underreports active indices, so normal gameplay retains its matrix-backed
+renderer. Revision-qualified JSON copies preserve separate comparison records.
+
 ### Render settings
 
 ```text

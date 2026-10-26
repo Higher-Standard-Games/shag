@@ -17,7 +17,7 @@ import { createRenderingEngine, type RenderingBackend } from "../RenderingEngine
 /** Isolated development fixture, imported by scripts/benchmarks/renderer-groundwork.mjs only. */
 export async function runGroundworkFixture(
   backend: RenderingBackend,
-  mode: "effects" | "materials" | "fixed-scale",
+  mode: "effects" | "materials" | "fixed-scale" | "matrix-free-effects",
   reference: string | false = false,
 ) {
   document.body.innerHTML = '<canvas width="256" height="256"></canvas>';
@@ -113,17 +113,24 @@ export async function runGroundworkFixture(
         ),
       };
     }
-    if (mode === "effects") {
+    if (mode === "effects" || mode === "matrix-free-effects") {
+      const matrixFree = mode === "matrix-free-effects";
       camera.position.set(0, 20, -200);
       camera.setTarget(new Vector3(0, 0, 100));
       let time = 1;
-      const referencePath = `/.cache/renderer-groundwork/VoltaicReference-${reference}.ts`;
+      const referencePath = `/.cache/renderer-groundwork/${matrixFree ? "MatrixFreeVoltaic" : "VoltaicReference"}-${reference}.ts`;
       const Renderer = reference
         ? (await import(/* @vite-ignore */ referencePath)).VoltaicEffectRenderer
         : VoltaicEffectRenderer;
       const effect = new Renderer(scene, () => time);
       let bytes = 0,
         writes = 0;
+      let drawCalls = 0;
+      const draw = engine.drawElementsType;
+      engine.drawElementsType = function (fillMode, indexStart, indexCount, instancesCount) {
+        drawCalls++;
+        return draw.call(this, fillMode, indexStart, indexCount, instancesCount);
+      };
       const original = engine.updateDynamicVertexBuffer;
       engine.updateDynamicVertexBuffer = function (buffer, data, byteOffset, byteLength) {
         writes++;
@@ -143,8 +150,36 @@ export async function runGroundworkFixture(
         effect.update(0);
         await scene.whenReadyAsync();
         scene.render();
+        const batches = scene.meshes.filter((mesh) => /voltaic_(world|chain)_/.test(mesh.name));
+        const matrixCpuArrays = new Set<ArrayBufferLike>();
+        const matrixGpuBuffers = new Set<unknown>();
+        let matrixGpuBytes = 0;
+        const layouts = batches.map((mesh) => {
+          const matrix = mesh.getVertexBuffer("world0");
+          const data = matrix?.getData();
+          if (data instanceof Float32Array) matrixCpuArrays.add(data.buffer);
+          const gpu = matrix?.getBuffer();
+          if (gpu && !matrixGpuBuffers.has(gpu)) {
+            matrixGpuBuffers.add(gpu);
+            matrixGpuBytes += gpu.capacity;
+          }
+          const compiled = mesh.subMeshes[0]?.effect;
+          return {
+            name: mesh.name,
+            matrixBuffer: !!matrix,
+            activeAttributes: compiled
+              ?.getAttributesNames()
+              .filter((name) => compiled.getAttributeLocationByName(name) >= 0),
+            alwaysActive: mesh.alwaysSelectAsActiveMesh,
+            finiteBounds: [
+              ...mesh.getBoundingInfo().minimum.asArray(),
+              ...mesh.getBoundingInfo().maximum.asArray(),
+            ].every(Number.isFinite),
+          };
+        });
         bytes = 0;
         writes = 0;
+        drawCalls = 0;
         const started = performance.now();
         for (let i = 0; i < 120; i++) {
           time += 1 / 120;
@@ -167,8 +202,10 @@ export async function runGroundworkFixture(
         const wallMsIncludingReadback = performance.now() - started;
         const submittedBytes = bytes,
           writeCalls = writes;
+        const measuredDrawCalls = drawCalls;
+        const sceneActiveIndices = scene.getActiveIndices();
         let restoration = "not requested";
-        if (!engine.isWebGPU && !reference) {
+        if (!engine.isWebGPU && (!reference || matrixFree)) {
           const extension = canvas.getContext("webgl2")?.getExtension("WEBGL_lose_context");
           if (extension) {
             await new Promise<void>((resolve, reject) => {
@@ -191,6 +228,72 @@ export async function runGroundworkFixture(
             restoration = (await imageHash()) === hash ? "identical pixels" : "pixel mismatch";
           } else restoration = "unsupported";
         }
+        const afterRecoverySignal = imageSignal;
+        effect.clear();
+        effect.update(0);
+        drawCalls = 0;
+        scene.render();
+        const emptyDrawCalls = drawCalls;
+        effect.updateRemote("reused", sample, Vector3.Forward());
+        effect.update(0);
+        drawCalls = 0;
+        scene.render();
+        const reuseDrawCalls = drawCalls;
+        const lifecycle: { label: string; hash: string; draws: number; expectedDraws: number; signal: number }[] = [];
+        const captureCase = async (label: string, expectedDraws: number) => {
+          effect.update(0);
+          await scene.whenReadyAsync();
+          drawCalls = 0;
+          scene.render();
+          const caseHash = await imageHash();
+          lifecycle.push({ label, hash: caseHash, draws: drawCalls, expectedDraws, signal: imageSignal });
+        };
+        effect.fireChainArc(sample, 1);
+        await captureCase("world-and-chain", 4);
+        for (const mesh of batches) {
+          mesh.position.x = 8;
+          mesh.computeWorldMatrix(true);
+        }
+        await captureCase("transformed-batches", 4);
+        for (const mesh of batches) {
+          mesh.position.x = 0;
+          mesh.computeWorldMatrix(true);
+        }
+        effect.updateHero(sample);
+        await captureCase("hero-world-chain", 6);
+        const occluder = CreatePlane("depth-control", { size: 200 }, scene);
+        occluder.position.z = 50;
+        const occluderMaterial = new StandardMaterial("depth-control", scene);
+        occluderMaterial.disableLighting = true;
+        occluderMaterial.diffuseColor.set(0, 0, 0);
+        occluderMaterial.backFaceCulling = false;
+        occluder.material = occluderMaterial;
+        await captureCase("depth-occluder", 7);
+        occluder.dispose();
+        occluderMaterial.dispose();
+        effect.clear();
+        for (let i = 0; i < 32; i++) {
+          const start = new Vector3(i * 4 - 60, 0, 0);
+          effect.updateRemote(
+            `capacity_${i}`,
+            { ...sample, start, end: new Vector3(start.x, 0, 150) },
+            Vector3.Forward(),
+          );
+        }
+        for (let i = 0; i < 24; i++) {
+          const start = new Vector3(i * 4 - 40, 20, 0);
+          effect.fireChainArc({ ...sample, start, end: new Vector3(start.x + 30, 20, 150) }, 1);
+        }
+        await captureCase("full-capacity", 4);
+        const capacityCounts = effect.getDebugCounts();
+        effect.removeRemote("capacity_15");
+        await captureCase("swap-removal", 4);
+        const swapCounts = effect.getDebugCounts();
+        time += 2;
+        effect.update(2);
+        await captureCase("expired-empty", 0);
+        effect.updateRemote("after-expiry", sample, Vector3.Forward());
+        await captureCase("reuse-after-expiry", 2);
         return {
           backend,
           mode,
@@ -200,13 +303,41 @@ export async function runGroundworkFixture(
           wallMsIncludingReadback,
           imageHash: hash,
           restoration,
-          passed: signal > 0 && imageSignal > 0 && restoration !== "pixel mismatch",
+          passed:
+            signal > 0 &&
+            afterRecoverySignal > 0 &&
+            restoration !== "pixel mismatch" &&
+            emptyDrawCalls === 0 &&
+            reuseDrawCalls === 2 &&
+            capacityCounts.remote === 32 &&
+            capacityCounts.chain === 24 &&
+            swapCounts.remote === 31 &&
+            lifecycle.every(
+              (item) => item.draws === item.expectedDraws && (item.expectedDraws === 0 || item.signal > 0),
+            ) &&
+            layouts.every((layout) => layout.finiteBounds && layout.alwaysActive),
           signal,
-          restoredSignal: imageSignal,
+          restoredSignal: afterRecoverySignal,
+          measuredDrawCalls,
+          sceneActiveIndices,
+          statisticsMatchControlledDraws:
+            sceneActiveIndices ===
+            batches
+              .filter((mesh) => mesh.name.startsWith("voltaic_world_"))
+              .reduce((sum, mesh) => sum + mesh.getTotalIndices(), 0),
+          emptyDrawCalls,
+          reuseDrawCalls,
+          matrixGpuBytes,
+          matrixCpuBytes: [...matrixCpuArrays].reduce((sum, array) => sum + array.byteLength, 0),
+          layouts,
+          lifecycle,
+          capacityCounts,
+          swapCounts,
           active: effect.getDebugCounts(),
         };
       } finally {
         engine.updateDynamicVertexBuffer = original;
+        engine.drawElementsType = draw;
         effect.dispose();
       }
     }

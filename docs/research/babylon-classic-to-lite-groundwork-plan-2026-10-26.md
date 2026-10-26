@@ -1,6 +1,6 @@
 # Current-renderer optimization as groundwork for Babylon Lite
 
-Date: October 26, 2026. Status: first cycle and fixed-scale follow-up validated.
+Date: October 26, 2026. Status: first cycle, fixed-scale follow-up and matrix-free experiment validated.
 The working WebGL2 and Babylon WebGPU paths remain the reference implementations.
 
 **Use small current-renderer improvements to establish reusable data, ownership
@@ -52,10 +52,11 @@ GPU parity or a lower upload counter as a measured frame-time win.
 | 3 / P1: pure shader evaluation | Complete | G2 numeric evaluator behind unchanged classic clock/binding | Seven numeric cases plus wrapper phase/disabled-clock and existing texture tests; no per-frame output-object allocation | Reusable authored stage semantics and sampling oracle |
 | 4 / P2: texture-assignment guard | Complete | Skip assignments when the actual bound target already matches | Repeated same-frame updates make zero target setter calls; intervening writer restored; base/emission tests pass | Resource selection separated from texture handles |
 | Follow-up / fixed-scale entries | Complete — both backends | Retain frozen materials and skip UV writes while all actual targets match | Standard/PBR: 600 → 0 assignments over 120 frames, identical images on WebGL2/WebGPU; seven real dm5 registrations stay frozen with zero writes across 60 frames; full gates and regressions pass | Actual ownership checks and constant-vs-live behavior before native adoption |
+| Follow-up / matrix-free effects | Experiment validated; gameplay adoption deferred | Reproducible isolated source adapter and draw/resource/lifecycle comparison | 18 matched images on WebGL2/WebGPU; four matrix columns, 3,584 CPU bytes and 7,168 GPU bytes removed; forced-draw scene statistics undercount, so the normal renderer is retained | Explicit count, bounds, records and lifecycle contracts without inheriting classic thin storage |
 | 5 / P4: GPU single-scroll, then simple RGB wave | Complete — experiment only | Narrow GLSL/WGSL adapter and 60 matched pixel comparisons | Standard/PBR, negative rates/time, later time and frozen candidates pass with at most one channel level difference; gameplay CPU registration retained | One authored plan realized by separate backend sinks |
 | 6 / P5: broader analytic stages or shared clock UBO | Deferred by findings | Expand only where a real workload justifies it | dm5 mostly uses fixed scales, rotation, emissive/frame and mixed stages outside the narrow candidate; no evidence for a broad route/UBO change | Avoid premature native packing/binding assumptions |
 | Review and integration preparation | Complete — feature branch | Result record, manuals/changelog and regression evidence | Typecheck, build, full tests and required server/map checks passed; docs/gate status recorded in results; no merge/deployment | Trusted bounded reference work before any Lite prototype |
-| VAT, matrix-free effects, graph/culling and worker redesign | Deferred | Separate experiment proposal if baseline/results warrant it | No implementation promised by this first cycle | Later investigations retain their own correctness gates |
+| VAT, graph/culling and worker redesign | Deferred | Separate experiment proposal if baseline/results warrant it | No implementation promised by this first cycle | Later investigations retain their own correctness gates |
 
 Default implementation sequence is **P0 → P3 → P1 → P2 → P4**, then reassess.
 P3 is a contained first optimization because the pool, geometry, clocks and
@@ -74,9 +75,10 @@ Do not make any package a prerequisite merely to fill a progress row.
 | Analytic rotation/stretch and additional material families | WebGL2 + WebGPU | Conditional; establish pivots, composition, emission and phase semantics first |
 | Shared animation-time uniform buffer | WebGL2 + WebGPU | Deferred until a sufficiently large eligible workload exists |
 | Shader-selected texture-array frames | WebGL2 + WebGPU | Deferred; dimensions, formats and mip compatibility need an asset plan |
-| Matrix-free analytic effect draws | WebGL2 + WebGPU | Next candidate experiment; preserve bounds, draw counts, warmup and recovery |
+| Matrix-free analytic effect draws | WebGL2 + WebGPU | Experiment validated; gameplay adoption deferred until forced-draw statistics and broader pass coverage are resolved |
 | Selective baked skeletal animation | WebGL2 + WebGPU | Later experiment; actor pose, sockets and existing animation LOD are constraints |
-| Draw-list/visibility scheduling | WebGL2 + WebGPU | Later investigation; retain existing PVS and batching as the baseline |
+| Draw-list/visibility scheduling | WebGL2 + WebGPU | Proposed next after an attributed frame-floor baseline: PVS-driven retained candidates ([review](babylon-renderer-new-paths-2026-10-26.md)); retain existing PVS and batching as the reference |
+| Shared main-pass depth for halos and water | WebGPU | Proposed: attribute the post-load sampled/attached depth conflict; interim single union capture |
 | Compute/storage-buffer algorithms | WebGPU | Future backend-specific investigation |
 | Cached WebGPU render bundles | WebGPU | Existing non-compatibility-mode experiment; no default change |
 
@@ -85,6 +87,13 @@ comparisons on high-end development hardware. Record concrete work removed,
 preserve images/lifetimes and identify remaining costs; do not infer a quantified
 frame-rate gain from counters. After the fixed-scale follow-up, reassess material
 work before choosing the next effect or shader experiment.
+
+The [matrix-free experiment](babylon-classic-matrix-free-effects-2026-10-26.md)
+preserves normal gameplay code and records why its successful image/resource
+comparison is not sufficient for adoption. Next, inventory the workload and
+ownership of additional analytic material families before expanding their GPU
+route; do not force the matrix-free prototype into 1.0 through private storage
+workarounds.
 
 ### First implementation slice
 
@@ -229,7 +238,7 @@ but must not be reported as a performance win.
 | P3: sparse Voltaic uploads | Existing pool/shader uses dirty slot intervals | Stable logical changes separated from GPU packing | Swap/count/reuse tests and actual reduced bytes or calls without worse tails |
 | P4: narrow GPU map animation | Single-scroll, then deterministic wave in current GLSL/WGSL adapters | One authored plan implemented by CPU reference and GPU sinks | Equivalent images, alpha/lightmap/freeze behavior and accepted CPU/GPU cost |
 | P5: measured expansion | Additional analytic operations or shared clock UBO only where worthwhile | Better packing/lifetime experience and broader fixture suite | Same clocks and visuals; bounded compile/resource costs; no prerequisite for Lite |
-| Deferred: matrix-free effects, VAT, graph/culling, workers | Separate higher-risk experiments if profiling supports them | Native design evidence after smaller contracts are proven | Independent resource/actor/camera/loading gates from the previous studies |
+| Matrix-free effects experiment; VAT, graph/culling and workers deferred | Matrix-free comparison is recorded separately; other higher-risk experiments need their own justification | Native design evidence after smaller contracts are proven | Independent resource/actor/camera/loading gates from the previous studies |
 
 After P0, P1/P2 and P3 are separate implementation tracks; neither needs to be
 combined with the other in one patch. P4 depends on the shader semantics and
