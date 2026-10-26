@@ -246,6 +246,13 @@ a texture. This avoids redundant assignments while retaining base/emissive
 separation and restoring a target changed by another stage. Stateful turbulence,
 clock behavior and pass ordering retain their existing semantics.
 
+Entries containing only fixed `tcMod scale` operations skip UV writes and retain
+an already frozen material while every texture transform matches its stage
+state. They remain registered so the existing clock and shared-texture ordering
+are preserved. If another writer changes a transform, the normal update path
+restores it and unfreezes the material. Frames, waves and other tcMods keep
+their animation path; the system does not automatically refreeze materials.
+
 `Q3AnalyticAnimationPlugin` is an isolated comparison adapter for UV1 base-image
 scroll and diffuse sine modulation with identity texture transforms and opaque
 state. The diagnostic driver described in [Render variables](./render-variables.md#renderer-groundwork-fixtures)

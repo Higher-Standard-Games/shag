@@ -120,6 +120,8 @@ node scripts/benchmarks/renderer-groundwork.mjs webgl2 effects
 node scripts/benchmarks/renderer-groundwork.mjs webgpu effects
 node scripts/benchmarks/renderer-groundwork.mjs webgl2 materials
 node scripts/benchmarks/renderer-groundwork.mjs webgpu materials
+node scripts/benchmarks/renderer-groundwork.mjs webgl2 fixed-scale
+node scripts/benchmarks/renderer-groundwork.mjs webgpu fixed-scale
 ```
 
 The effects fixture counts submitted dynamic vertex-buffer bytes/calls and
@@ -128,9 +130,11 @@ logical dirty slot intervals per stream and rebuild full-capacity buffers from
 CPU arrays after restoration. The material fixture compares analytic scroll
 and sine expressions against current Standard/PBR rendering at fixed times,
 including frozen candidate materials. It requires nonempty pixels and checks
-a two-level 8-bit channel tolerance; it is not full gameplay validation.
+a two-level 8-bit channel tolerance; it is not full gameplay validation. The
+fixed-scale fixture counts UV property assignments, checks material freezing,
+repairs an external UV write and verifies unregistration on Standard/PBR.
 
-An optional hexadecimal commit hash after the port in effects mode reads an
+An optional hexadecimal commit hash after the port in effects or fixed-scale mode reads an
 archived reference module without switching branches. Results go under ignored
 `.cache/renderer-groundwork/`. Restart the no-HMR probe server after source edits.
 The driver imports its isolated frontend fixture directly; neither the fixture

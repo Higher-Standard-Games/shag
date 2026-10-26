@@ -25,6 +25,80 @@ afterEach(() => {
 });
 
 describe("texture transform ownership", () => {
+  it.each(["standard", "pbr"] as const)(
+    "retains fixed-scale %s freezing and restores another writer's UVs",
+    (family) => {
+      let now = 1000;
+      vi.spyOn(performance, "now").mockImplementation(() => now);
+      const animation = ShaderAnimationSystem.getInstance();
+      animation.setEnabled(true);
+      animation.setTimeScale(1);
+      animation.init(scene);
+      const material = family === "pbr" ? new PBRMaterial("fixed", scene) : new StandardMaterial("fixed", scene);
+      const texture = new Texture(null, scene);
+      const properties = ["uOffset", "vOffset", "uScale", "vScale", "wAng"] as const;
+      const counts = { writes: 0 };
+      for (const key of properties) {
+        let value = texture[key];
+        Object.defineProperty(texture, key, {
+          configurable: true,
+          get: () => value,
+          set: (next: number) => {
+            counts.writes++;
+            value = next;
+          },
+        });
+      }
+      animation.registerMaterial("fixed", material, texture, [{ type: "scale", sScale: 2, tScale: 3 }]);
+      material.freeze();
+      scene.onBeforeRenderObservable.notifyObservers(scene);
+      expect(material.isFrozen).toBe(false);
+      expect([texture.uScale, texture.vScale]).toEqual([2, 3]);
+      material.freeze();
+      counts.writes = 0;
+      now = 2000;
+      for (let i = 0; i < 120; i++) scene.onBeforeRenderObservable.notifyObservers(scene);
+      expect(material.isFrozen).toBe(true);
+      expect(counts.writes).toBe(0);
+      expect(animation.getTotalTime()).toBe(1);
+      expect(animation.getCount()).toBe(1);
+      texture.vOffset = 1;
+      counts.writes = 0;
+      scene.onBeforeRenderObservable.notifyObservers(scene);
+      expect(texture.vOffset).toBe(0);
+      expect(material.isFrozen).toBe(false);
+      expect(counts.writes).toBe(5);
+      animation.unregisterMaterial("fixed");
+      texture.uScale = 7;
+      scene.onBeforeRenderObservable.notifyObservers(scene);
+      expect(texture.uScale).toBe(7);
+    },
+  );
+
+  it("keeps shared-texture last-writer ordering for fixed scale and scroll stages", () => {
+    let now = 1000;
+    vi.spyOn(performance, "now").mockImplementation(() => now);
+    const animation = ShaderAnimationSystem.getInstance();
+    animation.init(scene);
+    const texture = new Texture(null, scene);
+    const fixed = new StandardMaterial("fixed", scene);
+    animation.registerMaterial("fixed", fixed, texture, [{ type: "scale", sScale: 2, tScale: 3 }]);
+    animation.registerMaterial("scroll", new StandardMaterial("scroll", scene), texture, [
+      { type: "scroll", sSpeed: 1, tSpeed: 0 },
+    ]);
+    now = 2000;
+    scene.onBeforeRenderObservable.notifyObservers(scene);
+    expect(texture.uOffset).toBe(1);
+    animation.unregisterMaterial("fixed");
+    animation.registerMaterial("fixed", fixed, texture, [{ type: "scale", sScale: 2, tScale: 3 }]);
+    fixed.freeze();
+    now = 3000;
+    scene.onBeforeRenderObservable.notifyObservers(scene);
+    expect(texture.uOffset).toBe(0);
+    expect(texture.uScale).toBe(2);
+    expect(fixed.isFrozen).toBe(false);
+  });
+
   it("retains registration-relative scroll and the existing disabled-clock accumulation", () => {
     let now = 1000;
     vi.spyOn(performance, "now").mockImplementation(() => now);

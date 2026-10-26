@@ -267,6 +267,7 @@ export class ShaderAnimationSystem {
   }
 
   private updateEntry(entry: AnimatedMaterialEntry, deltaTime: number): void {
+    if (this.fixedScaleEntryIsCurrent(entry)) return;
     if (entry.material.isFrozen) entry.material.unfreeze();
     for (const stage of entry.stages) {
       if (stage.frames?.textures.length) {
@@ -317,6 +318,31 @@ export class ShaderAnimationSystem {
         entry.material.alpha = Math.max(0, Math.min(1, waveValue));
       }
     }
+  }
+
+  private fixedScaleEntryIsCurrent(entry: AnimatedMaterialEntry): boolean {
+    for (const stage of entry.stages) {
+      if (
+        stage.frames?.textures.length ||
+        stage.rgbGen?.type === "wave" ||
+        stage.alphaGen?.type === "wave" ||
+        stage.tcMods.length === 0
+      )
+        return false;
+      for (const tcMod of stage.tcMods) if (tcMod.type !== "scale") return false;
+      const texture = stage.texture;
+      const state = stage.tcState;
+      // Read the actual target: shared textures and other writers retain their order.
+      if (
+        texture.uOffset !== state.uOffset ||
+        texture.vOffset !== state.vOffset ||
+        texture.uScale !== state.uScale ||
+        texture.vScale !== state.vScale ||
+        texture.wAng !== state.rotation
+      )
+        return false;
+    }
+    return true;
   }
 
   private applyTcMods(stage: AnimatedStage, deltaTime: number): void {

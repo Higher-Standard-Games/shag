@@ -1,6 +1,6 @@
 # Current-renderer optimization as groundwork for Babylon Lite
 
-Date: October 26, 2026. Status: first bounded implementation cycle validated.
+Date: October 26, 2026. Status: first cycle and fixed-scale follow-up validated.
 The working WebGL2 and Babylon WebGPU paths remain the reference implementations.
 
 **Use small current-renderer improvements to establish reusable data, ownership
@@ -35,6 +35,11 @@ Lite dependency, release/version change or production-media conversion is needed
 Status vocabulary: **Complete** requires linked evidence; **Ready** means the
 next work can begin, not that it has passed; **Planned** is unimplemented;
 **Conditional** needs a measured reason; **Deferred** is outside the first cycle.
+Both current backends benefit from the accepted CPU/data work. WebGPU-only
+compute/render-bundle work stays separate; a Lite backend is still future work.
+See the [fixed-scale follow-up](babylon-classic-fixed-scale-results-2026-10-26.md)
+for the next accepted scope, real-map evidence and comparison commands.
+
 Update the matrix in every implementation commit with actual results, changed
 scope, commit/test references and remaining gaps. Never mark headless success as
 GPU parity or a lower upload counter as a measured frame-time win.
@@ -46,6 +51,7 @@ GPU parity or a lower upload counter as a measured frame-time win.
 | 2 / P3: dirty-slot effect uploads | Complete | Existing Voltaic pool uses one bounded interval per stream | 4,608 → 144 submitted bytes/update for one active world slot; identical images on both backends; real WebGL restoration and headless swap/reuse/disposal checks pass | Logical slot changes independent of native packing |
 | 3 / P1: pure shader evaluation | Complete | G2 numeric evaluator behind unchanged classic clock/binding | Seven numeric cases plus wrapper phase/disabled-clock and existing texture tests; no per-frame output-object allocation | Reusable authored stage semantics and sampling oracle |
 | 4 / P2: texture-assignment guard | Complete | Skip assignments when the actual bound target already matches | Repeated same-frame updates make zero target setter calls; intervening writer restored; base/emission tests pass | Resource selection separated from texture handles |
+| Follow-up / fixed-scale entries | Complete — both backends | Retain frozen materials and skip UV writes while all actual targets match | Standard/PBR: 600 → 0 assignments over 120 frames, identical images on WebGL2/WebGPU; seven real dm5 registrations stay frozen with zero writes across 60 frames; full gates and regressions pass | Actual ownership checks and constant-vs-live behavior before native adoption |
 | 5 / P4: GPU single-scroll, then simple RGB wave | Complete — experiment only | Narrow GLSL/WGSL adapter and 60 matched pixel comparisons | Standard/PBR, negative rates/time, later time and frozen candidates pass with at most one channel level difference; gameplay CPU registration retained | One authored plan realized by separate backend sinks |
 | 6 / P5: broader analytic stages or shared clock UBO | Deferred by findings | Expand only where a real workload justifies it | dm5 mostly uses fixed scales, rotation, emissive/frame and mixed stages outside the narrow candidate; no evidence for a broad route/UBO change | Avoid premature native packing/binding assumptions |
 | Review and integration preparation | Complete — feature branch | Result record, manuals/changelog and regression evidence | Typecheck, build, full tests and required server/map checks passed; docs/gate status recorded in results; no merge/deployment | Trusted bounded reference work before any Lite prototype |
@@ -57,6 +63,28 @@ shaders stay intact. P1/P2 need not wait for P3 technically, but separate patche
 make attribution and rollback easier. If P0 shows effect uploads are negligible,
 record that result and narrow or skip P3 rather than force a speculative win.
 Do not make any package a prerequisite merely to fill a progress row.
+
+### Backend coverage and follow-up opportunities
+
+| Optimization | Backend | Decision |
+| --- | --- | --- |
+| Dirty effect slots, numeric evaluator and frame-assignment guard | WebGL2 + WebGPU | Implemented and validated in the first cycle |
+| Unchanged fixed-scale entries | WebGL2 + WebGPU | Narrow follow-up; matched GPU results and shared-wrapper checks recorded |
+| Analytic scroll/sine material expressions | WebGL2 + WebGPU | Experiment validated; normal content keeps its existing registration route |
+| Analytic rotation/stretch and additional material families | WebGL2 + WebGPU | Conditional; establish pivots, composition, emission and phase semantics first |
+| Shared animation-time uniform buffer | WebGL2 + WebGPU | Deferred until a sufficiently large eligible workload exists |
+| Shader-selected texture-array frames | WebGL2 + WebGPU | Deferred; dimensions, formats and mip compatibility need an asset plan |
+| Matrix-free analytic effect draws | WebGL2 + WebGPU | Next candidate experiment; preserve bounds, draw counts, warmup and recovery |
+| Selective baked skeletal animation | WebGL2 + WebGPU | Later experiment; actor pose, sockets and existing animation LOD are constraints |
+| Draw-list/visibility scheduling | WebGL2 + WebGPU | Later investigation; retain existing PVS and batching as the baseline |
+| Compute/storage-buffer algorithms | WebGPU | Future backend-specific investigation |
+| Cached WebGPU render bundles | WebGPU | Existing non-compatibility-mode experiment; no default change |
+
+The owner accepts work-count and correctness evidence without requiring FPS
+comparisons on high-end development hardware. Record concrete work removed,
+preserve images/lifetimes and identify remaining costs; do not infer a quantified
+frame-rate gain from counters. After the fixed-scale follow-up, reassess material
+work before choosing the next effect or shader experiment.
 
 ### First implementation slice
 

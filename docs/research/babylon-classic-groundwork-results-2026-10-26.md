@@ -82,7 +82,7 @@ A real local playback of `washoi_dm5_ffa_20261025_170933.shagdemo` loaded
 `washoi_dm5` on WebGL2 with 618 meshes at the inventory point, 16 registered
 animation entries, and no failed HTTP requests. Its stages included:
 
-- Eight fixed-scale-only BSP registrations (one generated PBR, others Standard).
+- Seven fixed-scale-only BSP registrations (one generated PBR, others Standard).
 - Two emissive frame animations (jump pad and sign).
 - A sine-wave emissive teleporter and a rotating fan.
 - A mixed scale-plus-scroll water stage with authored color.
@@ -99,6 +99,11 @@ candidate, not silently converted into a new timing/freeze policy here.
 The demo logged existing skin-root warnings. This pass did not repair model
 hierarchies, prove live FFA networking, or establish complete gameplay WebGPU
 parity. Shader fixture agreement is not a substitute for those checks.
+
+The [fixed-scale follow-up](babylon-classic-fixed-scale-results-2026-10-26.md)
+corrects the initial inventory tally from eight to seven fixed-scale entries
+and validates a narrow fast path for them. The original JSON contains seven;
+the earlier written tally was an arithmetic error, not a content change.
 
 ## Reproduction
 

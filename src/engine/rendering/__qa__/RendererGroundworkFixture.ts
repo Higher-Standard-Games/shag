@@ -10,14 +10,15 @@ import { CreatePlane } from "@babylonjs/core/Meshes/Builders/planeBuilder";
 import { Scene } from "@babylonjs/core/scene";
 import { Q3AnalyticAnimationPlugin } from "../../loader/shader/Q3AnalyticAnimationPlugin";
 import { evaluateWaveFunc } from "../../loader/shader/Q3StageEvaluation";
+import { ShaderAnimationSystem } from "../../loader/shader/ShaderAnimationSystem";
 import { VoltaicEffectRenderer } from "../../weapon/voltaic/VoltaicEffectRenderer";
 import { createRenderingEngine, type RenderingBackend } from "../RenderingEngineFactory";
 
 /** Isolated development fixture, imported by scripts/benchmarks/renderer-groundwork.mjs only. */
 export async function runGroundworkFixture(
   backend: RenderingBackend,
-  mode: "effects" | "materials",
-  reference = false,
+  mode: "effects" | "materials" | "fixed-scale",
+  reference: string | false = false,
 ) {
   document.body.innerHTML = '<canvas width="256" height="256"></canvas>';
   const canvas = document.querySelector("canvas")!;
@@ -32,11 +33,91 @@ export async function runGroundworkFixture(
   const camera = new FreeCamera("fixture", new Vector3(0, 0, -3), scene);
   camera.setTarget(Vector3.Zero());
   try {
+    if (mode === "fixed-scale") {
+      const referencePath = `/.cache/renderer-groundwork/ShaderAnimationReference-${reference}.ts`;
+      const Animation = reference
+        ? (await import(/* @vite-ignore */ referencePath)).ShaderAnimationSystem
+        : ShaderAnimationSystem;
+      const animation = Animation.getInstance();
+      animation.setEnabled(true);
+      animation.setTimeScale(1);
+      animation.init(scene);
+      new HemisphericLight("light", new Vector3(0, 0, -1), scene);
+      const plane = CreatePlane("surface", { size: 2 }, scene);
+      const comparisons = [];
+      try {
+        for (const family of ["standard", "pbr"] as const) {
+          const material = family === "pbr" ? new PBRMaterial("fixed", scene) : new StandardMaterial("fixed", scene);
+          const data = new Uint8Array([200, 40, 60, 255, 20, 180, 60, 255, 20, 40, 220, 255, 190, 170, 30, 255]);
+          const texture = RawTexture.CreateRGBATexture(data, 2, 2, scene, false, false, Texture.NEAREST_SAMPLINGMODE);
+          if (material instanceof PBRMaterial) {
+            material.albedoTexture = texture;
+            material.metallic = 0;
+            material.roughness = 1;
+          } else material.diffuseTexture = texture;
+          plane.material = material;
+          animation.registerMaterial("fixed", material, texture, [{ type: "scale", sScale: 2, tScale: 3 }]);
+          scene.onBeforeRenderObservable.notifyObservers(scene);
+          await material.forceCompilationAsync(plane);
+          await scene.whenReadyAsync();
+          scene.render();
+          material.freeze();
+          let writes = 0;
+          for (const key of ["uOffset", "vOffset", "uScale", "vScale", "wAng"] as const) {
+            let value = texture[key];
+            Object.defineProperty(texture, key, {
+              configurable: true,
+              get: () => value,
+              set: (next: number) => {
+                writes++;
+                value = next;
+              },
+            });
+          }
+          for (let i = 0; i < 120; i++) scene.render();
+          const stableWrites = writes;
+          const frozen = material.isFrozen;
+          const capture = async () => {
+            const pixels = await engine.readPixels(0, 0, 256, 256);
+            const copy = new Uint8Array(pixels.byteLength);
+            copy.set(new Uint8Array(pixels.buffer, pixels.byteOffset, pixels.byteLength));
+            const signal = copy.reduce((count, value, i) => count + (i % 4 !== 3 && value > 40 ? 1 : 0), 0);
+            const hash = await crypto.subtle.digest("SHA-256", copy);
+            return {
+              signal,
+              hash: Array.from(new Uint8Array(hash), (byte) => byte.toString(16).padStart(2, "0")).join(""),
+            };
+          };
+          const stable = await capture();
+          material.freeze();
+          texture.vOffset = 0.25;
+          scene.render();
+          const repaired = await capture();
+          const restored = texture.vOffset === 0 && !material.isFrozen && repaired.hash === stable.hash;
+          animation.unregisterMaterial("fixed");
+          texture.uScale = 7;
+          scene.onBeforeRenderObservable.notifyObservers(scene);
+          comparisons.push({ family, stableWrites, frozen, ...stable, restored, unregistered: texture.uScale === 7 });
+          material.dispose();
+          texture.dispose();
+        }
+      } finally {
+        animation.dispose();
+      }
+      return {
+        backend,
+        mode,
+        comparisons,
+        passed: comparisons.every(
+          (c) => c.signal > 0 && c.restored && c.unregistered && (reference || (c.frozen && c.stableWrites === 0)),
+        ),
+      };
+    }
     if (mode === "effects") {
       camera.position.set(0, 20, -200);
       camera.setTarget(new Vector3(0, 0, 100));
       let time = 1;
-      const referencePath = "/.cache/renderer-groundwork/VoltaicReference.ts";
+      const referencePath = `/.cache/renderer-groundwork/VoltaicReference-${reference}.ts`;
       const Renderer = reference
         ? (await import(/* @vite-ignore */ referencePath)).VoltaicEffectRenderer
         : VoltaicEffectRenderer;

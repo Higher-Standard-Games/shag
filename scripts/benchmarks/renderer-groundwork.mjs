@@ -11,20 +11,23 @@ const mode = process.argv[3] ?? "effects";
 const port = Number(process.argv[4] ?? 3117);
 const reference = process.argv[5];
 if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error("Port must be an integer from 1 to 65535");
-if (!["webgl2", "webgpu"].includes(backend) || !["effects", "materials"].includes(mode)) {
-  throw new Error("usage: node scripts/benchmarks/renderer-groundwork.mjs [webgl2|webgpu] [effects|materials] [port]");
+if (!["webgl2", "webgpu"].includes(backend) || !["effects", "materials", "fixed-scale"].includes(mode)) {
+  throw new Error("usage: node scripts/benchmarks/renderer-groundwork.mjs [webgl2|webgpu] [effects|materials|fixed-scale] [port] [reference-commit]");
 }
 if (reference) {
-  if (!/^[a-f0-9]{7,40}$/.test(reference) || mode !== "effects") throw new Error("Reference requires effects mode and a commit hash");
-  const source = execFileSync("git", ["-C", root, "show", `${reference}:src/engine/weapon/voltaic/VoltaicEffectRenderer.ts`], { encoding: "utf8" });
+  if (!/^[a-f0-9]{7,40}$/.test(reference) || mode === "materials") throw new Error("Reference requires effects/fixed-scale mode and a commit hash");
+  const sourcePath = mode === "effects" ? "weapon/voltaic/VoltaicEffectRenderer.ts" : "loader/shader/ShaderAnimationSystem.ts";
+  const source = execFileSync("git", ["-C", root, "show", `${reference}:src/engine/${sourcePath}`], { encoding: "utf8" });
   fs.mkdirSync(".cache/renderer-groundwork", { recursive: true });
-  fs.writeFileSync(".cache/renderer-groundwork/VoltaicReference.ts", source.replaceAll('"./', '"/src/engine/weapon/voltaic/'));
+  const localPrefix = mode === "effects" ? "/src/engine/weapon/voltaic/" : "/src/engine/loader/shader/";
+  // The no-HMR server caches modules: each immutable revision needs its own URL.
+  fs.writeFileSync(`.cache/renderer-groundwork/${mode === "effects" ? "VoltaicReference" : "ShaderAnimationReference"}-${reference}.ts`, source.replaceAll('"./', `"${localPrefix}`).replaceAll('"../../', '"/src/engine/'));
 }
 const browser = await openBrowser({ width: 640, height: 480 });
 try {
   await browser.send("Page.navigate", { url: `http://127.0.0.1:${port}/engine.json` });
   await sleep(500);
-  const result = await browser.ev(`import('/src/engine/rendering/__qa__/RendererGroundworkFixture.ts').then(m => m.runGroundworkFixture(${JSON.stringify(backend)}, ${JSON.stringify(mode)}, ${!!reference}))`);
+  const result = await browser.ev(`import('/src/engine/rendering/__qa__/RendererGroundworkFixture.ts').then(m => m.runGroundworkFixture(${JSON.stringify(backend)}, ${JSON.stringify(mode)}, ${JSON.stringify(reference ?? false)}))`);
   const record = { reference: reference ?? null, result, logs: browser.logs, failed: browser.failed };
   fs.mkdirSync(".cache/renderer-groundwork", { recursive: true });
   fs.writeFileSync(`.cache/renderer-groundwork/${mode}-${backend}${reference ? "-reference" : ""}.json`, JSON.stringify(record, null, 2));
