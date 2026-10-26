@@ -55,6 +55,14 @@ To import from the copy, point its import at
 - **One `ev` call lasts at most 60 seconds.** The driver gives up on a CDP call
   after that and returns `undefined`. Keep a measurement window to about 50
   seconds, or split it into several calls.
+- **Every probe must close its Edge.** Each headless Edge holds about 500 MB
+  across its processes, and leftovers add up until the machine runs out of
+  memory. `cdp.mjs` kills the whole process tree on exit and on Ctrl+C, but
+  not when the node process is terminated from outside (a shell `timeout`,
+  the tool's own time limit). Bound a probe from inside instead:
+  `setTimeout(() => process.exit(3), 240_000).unref()`. After a run, check
+  that none are left: `Get-Process msedge` in PowerShell, or
+  `tasklist | grep -c msedge`.
 - **Start the server with an absolute path** when running it in the background
   (`node C:/.../.claude/skills/browser-probe/scripts/private-vite.mjs`): the
   shell's working directory may have drifted into `src/games/fps`.

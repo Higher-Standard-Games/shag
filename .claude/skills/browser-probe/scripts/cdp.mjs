@@ -5,7 +5,7 @@
 //
 // Set EDGE_PATH to use another Chromium browser, QA_FLAGS for extra flags and
 // QA_ALL_LOGS=1 to keep every console message, not only warnings and errors.
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -127,14 +127,35 @@ export async function openBrowser({ width = 1280, height = 720 } = {}) {
       fs.rmSync(profile, { recursive: true, force: true });
     } catch {}
   };
-  process.on("exit", () => {
+  // Killing msedge.exe alone leaves its GPU and renderer processes running on
+  // Windows (about 500 MB each set), so take down the whole tree. A probe killed
+  // by `timeout` or Ctrl+C never reaches its `finally`, hence the signal handlers.
+  let killed = false;
+  const killTree = () => {
+    if (killed) return;
+    killed = true;
     try {
-      edge.kill();
+      if (process.platform === "win32" && edge.pid) {
+        spawnSync("taskkill", ["/PID", String(edge.pid), "/T", "/F"], { stdio: "ignore" });
+      } else {
+        edge.kill("SIGKILL");
+      }
     } catch {}
-  });
+  };
+  process.on("exit", killTree);
+  for (const signal of ["SIGINT", "SIGTERM", "SIGHUP", "SIGBREAK"]) {
+    process.once(signal, () => {
+      killTree();
+      removeProfile();
+      process.exit(130);
+    });
+  }
   const close = async () => {
+    try {
+      await Promise.race([send("Browser.close"), sleep(1000)]);
+    } catch {}
     ws.close();
-    edge.kill();
+    killTree();
     await sleep(500);
     removeProfile();
   };
