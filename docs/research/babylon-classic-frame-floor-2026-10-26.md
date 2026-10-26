@@ -107,15 +107,65 @@ limit; it becomes worth building when a lower-end GPU profile shows vertex or
 depth work in the frame. The same visible-face lists map directly onto Lite
 indirect draws.
 
+## Submesh rendering by material family
+
+A page probe wrapped `Mesh.prototype.render` (one submesh draw, including its
+material binding) and summed `performance.now()` time by camera and family,
+on the same dm5 demo in headless Edge, 10 s windows, settled after load. Timer
+calls add a little to every draw; compare families, not absolute totals.
+
+| Camera / family | WebGL2 ms/frame | draws | µs/draw | WebGPU ms/frame | draws | µs/draw |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| World, map Standard | 1.42 | 77.8 | 18.3 | 1.84 | 60.9 | 30.2 |
+| World, map PBR | 0.67 | 37.6 | 17.7 | 1.01 | 32.0 | 31.5 |
+| World, weapons (PBR) | 0.71 | 15.2 | 46.8 | 0.36 | 7.6 | 47.5 |
+| Weapon camera, weapons (PBR + Standard) | 0.26 | 4.6 | 56 | 0.59 | 10.8 | 55 |
+| World, pickups | 0.31 | 13.7 | 22.9 | 0.22 | 6.4 | 35.1 |
+| World, players (PBR) | 0.25 | 4.5 | 54.2 | 0.20 | 3.0 | 68.3 |
+| All submesh draws | 4.19 | | | 5.04 | | |
+
+Draw counts differ between the runs because the demo is at different points.
+Findings:
+
+- **Map draws are cheap per draw but numerous:** about 115 a frame at 18 µs
+  (WebGL2) and 30 µs (WebGPU). They are half of all submesh time. Fewer map
+  draws or cheaper ones (frozen materials already apply) are the main lever;
+  face-level PVS does not reduce draws.
+- **Weapon and player draws cost 2.5–3× a map draw** (47–68 µs). Weapons are
+  15–18 draws a frame across both cameras. Their materials are shared read-only
+  on WebGL but not frozen, and skinned players update bones. A frozen-material
+  check for weapon parts is a small, measurable candidate.
+- **WebGPU's per-draw overhead is about 1.7× WebGL2's for map materials,**
+  consistent with the `_draw` attribution above.
+
+## WebGPU stalls just after the map reports ready
+
+The first unsettled WebGPU window ran at about 12 fps, with map shader-material
+draws at 535 µs each. `perf shaders 10` started at map-ready shows why:
+
+| Backend | FPS at ready | Compiles in 10 s | FPS after |
+| --- | ---: | ---: | ---: |
+| WebGPU | 18.5 | 9 (6 released) | 65.1 |
+| WebGL2 | 71.1 | 6 (4 released) | 70.5 |
+
+On WebGPU most compiles change the light layout (`+POINTLIGHT1 +DIRLIGHT3
+-DIRLIGHT1 -HEMILIGHT3`, cluster slot changes): gameplay lights appear in a
+different slot order than during warmup, and every affected material builds a
+new pipeline synchronously. WebGL2 compiles overlap with rendering and do not
+drop the frame rate. This also explains the WebGPU timedemo's "playback stalled"
+flag. A fix belongs in light ordering or warmup (warm with the gameplay light
+layout, or keep slot order stable); it is a loading/lighting change and needs
+its own review.
+
 ## What to do next
 
-1. **Opaque group (2.2–2.7 ms WebGL2, 3.4–3.8 ms WebGPU):** attribute it per
-   material family (map Standard/PBR with plugins, players, weapons) to see
-   whether binding, readiness or draw dominates. This is now the largest cost.
-2. **Dynamic candidates (path 5):** count scene candidates that never draw;
-   the selection loop's self time scales with them.
-3. **WebGPU `_draw`:** the CPU gap to WebGL2 sits in per-draw setup. Repeat the
-   NCM comparison on a CPU-limited device before deciding about bundles.
+1. **WebGPU post-load light recompiles:** visible to players as a few seconds
+   of low frame rate after every map load on WebGPU. Most user-visible item.
+2. **Map draw count:** the largest per-frame cost on both backends.
+3. **Weapon part materials:** check freezing; 15–18 draws at about 50 µs.
+4. **Dynamic candidates (path 5):** in progress by another agent.
+5. **WebGPU `_draw`:** repeat the NCM comparison on a CPU-limited device before
+   deciding about bundles.
 
 ## Not established
 
