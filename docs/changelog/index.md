@@ -6,7 +6,8 @@ All notable changes to this project are documented in version-specific files.
 
 | Version | Date | Summary |
 |---------|------|---------|
-| [v1.0.0-alpha.6](./v1.0.0-alpha.6.md) | unreleased | Living changelog for the next alpha cycle |
+| [v1.0.0-alpha.7](./v1.0.0-alpha.7.md) | unreleased | Living changelog for the next alpha cycle |
+| [v1.0.0-alpha.6](./v1.0.0-alpha.6.md) | Oct 26, 2026 | Less renderer work on WebGL2 and WebGPU, reliable projectile model preparation, spawn facing, coloured gibs and bot blade fixes |
 | [v1.0.0-alpha.5](./v1.0.0-alpha.5.md) | Oct 25, 2026 | Reliable asset loading and shader warmup, smaller map and weapon downloads, and demo playback fixes |
 | [v1.0.0-alpha.4](./v1.0.0-alpha.4.md) | Oct 25, 2026 | Shared background downloads, persistent asset caching, slow-loading recovery and preloaded map reflections |
 | [v1.0.0-alpha.3](./v1.0.0-alpha.3.md) | Oct 24, 2026 | Rendering performance, loading and lobby polish, engine/game separation and independent regional deployment |
