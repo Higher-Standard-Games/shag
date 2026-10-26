@@ -90,6 +90,10 @@ an indexed package failure does not trigger loose-file probes. Simultaneous
 requests share entry extraction and texture creation. Unindexed custom textures
 retain the loose-file fallback. Scene cache clearing discards stale texture
 results; independent package transfers remain shared across consumers.
+Projectile model preparation waits for its surface textures and checks the
+texture-cache generation before retaining the model. If a clear interrupts the
+build, it discards the model and retries, up to three builds; repeated clears
+report a preparation failure.
 
 With `developer 1`, package-store diagnostics distinguish memory, disk-cache,
 and HTTP acquisition. HTTP acquisition can itself be served by the browser's

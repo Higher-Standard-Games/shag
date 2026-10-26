@@ -66,6 +66,9 @@ export function clampTrailLength(points: Vector3[], maxLength: number): void {
 /** Fallback ribbon axis for a trail segment parallel to both the view and up. */
 const TRAIL_FORWARD = Vector3.Forward();
 
+/** Builds of a projectile model before giving up when each one straddles a texture cache clear. */
+const MODEL_BUILD_ATTEMPTS = 3;
+
 interface IdleShot {
   node: TransformNode;
   source: MD3LoadResult;
@@ -417,95 +420,110 @@ export class ProjectileManager {
       // (which sets up the texture loader) may have reached yet. Without that, a
       // shot fired while the map loads cached its model untextured.
       const md3Loader = getMD3Loader();
-      PK3TextureLoader.getInstance().init(scene.getEngine(), scene);
-      try {
-        // Through the index, so the owning package is fetched if it is not yet
-        const modelData = (await readIndexedModelAsset(path)) ?? (await pk3.getFile(path));
-        if (!current()) return false;
-        if (!modelData) {
-          console.warn(`[ProjectileManager] Model not found: ${path}`);
-          return false;
-        }
-        // A surface draws as its shader script says (the plasma bolt is additive,
-        // black meaning clear). Before the map has read the scripts, a model built
-        // now fell back to a plain opaque texture and kept it.
-        await Q3ShaderRegistry.getInstance().loadShaders();
-        if (!current()) return false;
-        md3Loader.init(scene);
+      const textures = PK3TextureLoader.getInstance();
+      textures.init(scene.getEngine(), scene);
+      // A map change clears the texture cache. A texture requested before the
+      // clear comes back missing, which left a cached model without its image:
+      // an additive bolt drawing nothing behind its trail. A model built across
+      // a clear is built again.
+      for (let attempt = 1; ; attempt++) {
+        const textureGeneration = textures.cacheGeneration;
+        try {
+          // Through the index, so the owning package is fetched if it is not yet
+          const modelData = (await readIndexedModelAsset(path)) ?? (await pk3.getFile(path));
+          if (!current()) return false;
+          if (!modelData) {
+            console.warn(`[ProjectileManager] Model not found: ${path}`);
+            return false;
+          }
+          // A surface draws as its shader script says (the plasma bolt is additive,
+          // black meaning clear). Before the map has read the scripts, a model built
+          // now fell back to a plain opaque texture and kept it.
+          await Q3ShaderRegistry.getInstance().loadShaders();
+          if (!current()) return false;
+          md3Loader.init(scene);
 
-        const parsed = md3Loader.parseMD3(modelData);
-        const model = md3Loader.createMeshes(parsed, def.id);
-        if (model) {
-          if (defId === "blade_blast" && def.lightColor) {
+          const parsed = md3Loader.parseMD3(modelData);
+          const model = md3Loader.createMeshes(parsed, def.id);
+          if (model) {
             await Promise.all(model.textureLoadPromises ?? []);
             if (!current()) {
               disposeModelResources([model.root]);
               return false;
             }
-            const color = def.lightColor;
-            for (const mesh of model.meshes) {
-              if (mesh.material instanceof StandardMaterial) {
-                const material = mesh.material;
-                // The source glow is orange on black. Its brightness masks the
-                // teal tint; a constant additive emissive term exposes the quad.
-                const mask = material.emissiveTexture ?? material.diffuseTexture;
-                if (mask) {
-                  mask.getAlphaFromRGB = true;
-                  mask.wrapU = mask.wrapV = Texture.CLAMP_ADDRESSMODE;
-                  material.opacityTexture = mask;
+            if (textures.cacheGeneration !== textureGeneration) {
+              disposeModelResources([model.root]);
+              if (attempt < MODEL_BUILD_ATTEMPTS) continue;
+              console.warn(`[ProjectileManager] Textures for ${defId} kept being cleared while loading`);
+              return false;
+            }
+            if (defId === "blade_blast" && def.lightColor) {
+              const color = def.lightColor;
+              for (const mesh of model.meshes) {
+                if (mesh.material instanceof StandardMaterial) {
+                  const material = mesh.material;
+                  // The source glow is orange on black. Its brightness masks the
+                  // teal tint; a constant additive emissive term exposes the quad.
+                  const mask = material.emissiveTexture ?? material.diffuseTexture;
+                  if (mask) {
+                    mask.getAlphaFromRGB = true;
+                    mask.wrapU = mask.wrapV = Texture.CLAMP_ADDRESSMODE;
+                    material.opacityTexture = mask;
+                  }
+                  material.emissiveTexture = null;
+                  material.diffuseTexture = null;
+                  material.useEmissiveAsIllumination = false;
+                  material.emissiveColor.set(color.r, color.g, color.b);
+                  material.diffuseColor.set(0, 0, 0);
+                  material.disableLighting = true;
+                  material.alphaMode = Constants.ALPHA_ADD;
+                  material.transparencyMode = Material.MATERIAL_ALPHABLEND;
+                  material.disableDepthWrite = true;
+                  material.backFaceCulling = false;
                 }
-                material.emissiveTexture = null;
-                material.diffuseTexture = null;
-                material.useEmissiveAsIllumination = false;
-                material.emissiveColor.set(color.r, color.g, color.b);
-                material.diffuseColor.set(0, 0, 0);
-                material.disableLighting = true;
-                material.alphaMode = Constants.ALPHA_ADD;
-                material.transparencyMode = Material.MATERIAL_ALPHABLEND;
-                material.disableDepthWrite = true;
-                material.backFaceCulling = false;
               }
             }
-          }
-          model.root.setEnabled(false);
-          this.modelCache.set(defId, model);
-          devLog(`[ProjectileManager] Cached model: ${defId}`);
+            model.root.setEnabled(false);
+            this.modelCache.set(defId, model);
+            devLog(`[ProjectileManager] Cached model: ${defId}`);
 
-          // A fallback texture is only for meshes the MD3 left without a
-          // material; surfaces that name their own textures already have them.
-          if (model.meshes.some((mesh) => !mesh.material)) {
-            // Try to load texture - first check explicit texturePaths from def
-            let textureUrl: string | null = null;
+            // A fallback texture is only for meshes the MD3 left without a
+            // material; surfaces that name their own textures already have them.
+            if (model.meshes.some((mesh) => !mesh.material)) {
+              // Try to load texture - first check explicit texturePaths from def
+              let textureUrl: string | null = null;
 
-            if (def.texturePaths && def.texturePaths.length > 0) {
-              // Use explicit texture path from definition
-              const explicitPath = def.texturePaths[0];
-              devLog(`[ProjectileManager] Using explicit texture: ${explicitPath}`);
-              if (pk3.hasFile(explicitPath)) {
-                textureUrl = await pk3.getFileAsURL(explicitPath, "image/png");
+              if (def.texturePaths && def.texturePaths.length > 0) {
+                // Use explicit texture path from definition
+                const explicitPath = def.texturePaths[0];
+                devLog(`[ProjectileManager] Using explicit texture: ${explicitPath}`);
+                if (pk3.hasFile(explicitPath)) {
+                  textureUrl = await pk3.getFileAsURL(explicitPath, "image/png");
+                } else {
+                  console.warn(`[ProjectileManager] Explicit texture not found: ${explicitPath}`);
+                }
               } else {
-                console.warn(`[ProjectileManager] Explicit texture not found: ${explicitPath}`);
+                // Auto-detect: try same name with .tga extension
+                const autoTexturePath = path.replace(".md3", ".tga");
+                devLog(`[ProjectileManager] Auto-detecting texture: ${autoTexturePath}`);
+                if (pk3.hasFile(autoTexturePath)) {
+                  textureUrl = await pk3.getFileAsURL(autoTexturePath, "image/png");
+                }
               }
-            } else {
-              // Auto-detect: try same name with .tga extension
-              const autoTexturePath = path.replace(".md3", ".tga");
-              devLog(`[ProjectileManager] Auto-detecting texture: ${autoTexturePath}`);
-              if (pk3.hasFile(autoTexturePath)) {
-                textureUrl = await pk3.getFileAsURL(autoTexturePath, "image/png");
-              }
-            }
 
-            if (textureUrl) {
-              if (!current()) return false;
-              this.modelTextureCache.set(defId, textureUrl);
-              devLog(`[ProjectileManager] Cached model texture: ${defId}`);
-            } else {
-              console.warn(`[ProjectileManager] No texture found for: ${defId}`);
+              if (textureUrl) {
+                if (!current()) return false;
+                this.modelTextureCache.set(defId, textureUrl);
+                devLog(`[ProjectileManager] Cached model texture: ${defId}`);
+              } else {
+                console.warn(`[ProjectileManager] No texture found for: ${defId}`);
+              }
             }
           }
+        } catch (e) {
+          console.error(`[ProjectileManager] Failed to load model: ${path}`, e);
         }
-      } catch (e) {
-        console.error(`[ProjectileManager] Failed to load model: ${path}`, e);
+        break;
       }
     }
 

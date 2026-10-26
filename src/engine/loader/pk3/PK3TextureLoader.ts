@@ -1057,6 +1057,14 @@ export class PK3TextureLoader {
   }
 
   /**
+   * Counts cache clears. A texture requested before a clear can come back null
+   * or disposed, so a caller holding textures across a load compares this.
+   */
+  get cacheGeneration(): number {
+    return this.generation;
+  }
+
+  /**
    * Clear texture cache
    */
   public clearCache(): void {
