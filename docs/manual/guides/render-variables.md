@@ -108,6 +108,37 @@ cap and compiles nothing.
 
 ## Console commands
 
+### Renderer groundwork fixtures
+
+For an isolated real-GPU check, start the private Vite probe server, then run
+the driver from another shell at the assembled root:
+
+```powershell
+node .claude/skills/browser-probe/scripts/private-vite.mjs 3117
+# Second shell:
+node scripts/benchmarks/renderer-groundwork.mjs webgl2 effects
+node scripts/benchmarks/renderer-groundwork.mjs webgpu effects
+node scripts/benchmarks/renderer-groundwork.mjs webgl2 materials
+node scripts/benchmarks/renderer-groundwork.mjs webgpu materials
+```
+
+The effects fixture counts submitted dynamic vertex-buffer bytes/calls and
+exercises WebGL context restoration when supported. Voltaic batches retain
+logical dirty slot intervals per stream and rebuild full-capacity buffers from
+CPU arrays after restoration. The material fixture compares analytic scroll
+and sine expressions against current Standard/PBR rendering at fixed times,
+including frozen candidate materials. It requires nonempty pixels and checks
+a two-level 8-bit channel tolerance; it is not full gameplay validation.
+
+An optional hexadecimal commit hash after the port in effects mode reads an
+archived reference module without switching branches. Results go under ignored
+`.cache/renderer-groundwork/`. Restart the no-HMR probe server after source edits.
+The driver imports its isolated frontend fixture directly; neither the fixture
+nor analytic candidate is selected by normal gameplay startup. Submitted byte
+counts are not bus-traffic measurements or a whole-game FPS result.
+
+### Render settings
+
 ```text
 developer 1
 render list

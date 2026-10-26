@@ -4,7 +4,7 @@ import { Color3 } from "@babylonjs/core/Maths/math.color";
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import type { Mesh } from "@babylonjs/core/Meshes/mesh";
 import { Scene } from "@babylonjs/core/scene";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { buildVoltaicBeamTemplate, buildVoltaicImpactTemplate } from "../voltaic/VoltaicBeamGeometry";
 import { VoltaicEffectRenderer } from "../voltaic/VoltaicEffectRenderer";
 import { makeVoltaicSeed } from "../voltaic/VoltaicProfiles";
@@ -41,6 +41,73 @@ describe("Voltaic fixed topology", () => {
 });
 
 describe("VoltaicEffectRenderer lifecycle", () => {
+  it("releases restoration hooks when the scene is disposed before the controller", () => {
+    const engine = new NullEngine();
+    const scene = new Scene(engine);
+    const renderer = new VoltaicEffectRenderer(scene);
+    scene.dispose();
+    expect(engine.onContextRestoredObservable.hasObservers()).toBe(false);
+    engine.onContextRestoredObservable.notifyObservers(engine);
+    expect(scene.meshes).toHaveLength(0);
+    renderer.dispose();
+    engine.dispose();
+  });
+
+  it("uploads changed logical slots, handles swap-removal and rebuilds full capacity on restoration", () => {
+    const engine = new NullEngine();
+    const scene = new Scene(engine);
+    const before = engine.onContextRestoredObservable.hasObservers();
+    const renderer = new VoltaicEffectRenderer(scene, () => 1);
+    const beam = scene.getMeshByName("voltaic_world_beam") as Mesh;
+    const impact = scene.getMeshByName("voltaic_world_impact") as Mesh;
+    const beamWrites = vi.spyOn(beam, "thinInstancePartialBufferUpdate");
+    const impactWrites = vi.spyOn(impact, "thinInstancePartialBufferUpdate");
+    const sample = {
+      start: Vector3.Zero(),
+      end: new Vector3(0, 0, 100),
+      color: new Color3(0, 1, 1),
+      impactKind: "world" as const,
+    };
+    try {
+      for (const id of ["a", "b", "c"]) renderer.updateRemote(id, sample, Vector3.Forward());
+      renderer.update(0);
+      expect(beamWrites.mock.calls.every(([, count, offset]) => count === 3 && offset === 0)).toBe(true);
+      beamWrites.mockClear();
+      impactWrites.mockClear();
+      renderer.updateRemote("b", sample, Vector3.Forward());
+      renderer.update(0);
+      expect(beamWrites).toHaveBeenCalledTimes(4);
+      expect(impactWrites).toHaveBeenCalledTimes(5);
+      expect(beamWrites.mock.calls.every(([, count, offset]) => count === 1 && offset === 1)).toBe(true);
+      beamWrites.mockClear();
+      impactWrites.mockClear();
+      renderer.removeRemote("b");
+      renderer.update(0);
+      expect(renderer.getDebugRemoteKeys()).toEqual(["a", "c"]);
+      expect(beamWrites.mock.calls.every(([, count, offset]) => count === 1 && offset === 1)).toBe(true);
+      beamWrites.mockClear();
+      impactWrites.mockClear();
+      renderer.removeRemote("c");
+      renderer.update(0);
+      expect(beamWrites).not.toHaveBeenCalled();
+      expect(impactWrites).not.toHaveBeenCalled();
+      engine.onContextRestoredObservable.notifyObservers(engine);
+      expect(beam.getVertexBuffer("iParams")?.getData()).toHaveLength(32 * 4);
+      expect(beam.thinInstanceCount).toBe(1);
+      renderer.clear();
+      renderer.update(0);
+      renderer.updateRemote("reused", sample, Vector3.Forward());
+      renderer.update(0);
+      expect(beamWrites).toHaveBeenCalledWith("iParams", 1, 0);
+    } finally {
+      renderer.dispose();
+      expect(engine.onContextRestoredObservable.hasObservers()).toBe(before);
+      scene.dispose();
+      engine.dispose();
+      vi.restoreAllMocks();
+    }
+  });
+
   it("reuses retained hero and instanced world resources", async () => {
     const engine = new NullEngine();
     const scene = new Scene(engine);

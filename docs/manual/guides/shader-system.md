@@ -233,6 +233,28 @@ This separation keeps existing content loading while selected surface classes re
 
 ## Shader warmup
 
+### Animated stage ownership
+
+`Q3StageEvaluation` evaluates numeric waves and ordered tcMods without Babylon
+objects. `ShaderAnimationSystem` owns registration, the scene clock and the
+texture/material bindings. Existing imports of `evaluateWaveFunc` from
+`ShaderAnimationSystem` remain supported. Random noise can use an injected RNG
+in the numeric evaluator; the normal wrapper retains its existing randomness.
+
+Animated frame selection compares the actual material target before assigning
+a texture. This avoids redundant assignments while retaining base/emissive
+separation and restoring a target changed by another stage. Stateful turbulence,
+clock behavior and pass ordering retain their existing semantics.
+
+`Q3AnalyticAnimationPlugin` is an isolated comparison adapter for UV1 base-image
+scroll and diffuse sine modulation with identity texture transforms and opaque
+state. The diagnostic driver described in [Render variables](./render-variables.md#renderer-groundwork-fixtures)
+compares it with Standard/PBR output on both backends. Gameplay registration
+continues to use the CPU stage wrapper; this adapter does not automatically
+replace arbitrary authored stages or provide an independent demo clock.
+
+### Preparation and readiness
+
 World materials are frozen after temporary-light warmup and final entity
 readiness. Geometry matrices and bounds stay frozen during preparation.
 Explicit preparation keeps frozen materials unfrozen until compilation finishes,

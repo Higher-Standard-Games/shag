@@ -4,6 +4,7 @@ import { Mesh } from "@babylonjs/core/Meshes/mesh";
 import "@babylonjs/core/Meshes/thinInstanceMesh";
 import { VertexData } from "@babylonjs/core/Meshes/mesh.vertexData";
 import type { Scene } from "@babylonjs/core/scene";
+import { DirtySlotRange } from "../../rendering/data/DirtySlotRange";
 import {
   buildVoltaicBeamTemplate,
   buildVoltaicImpactTemplate,
@@ -34,13 +35,7 @@ interface BatchSlot {
   dynamicStart: boolean;
 }
 
-const START_SEED_DIRTY = 1 << 0;
-const END_IMPACT_DIRTY = 1 << 1;
-const COLOR_LIFE_DIRTY = 1 << 2;
-const PARAMS_DIRTY = 1 << 3;
-const NORMAL_DIRTY = 1 << 4;
-const BEAM_ALL_DIRTY = START_SEED_DIRTY | END_IMPACT_DIRTY | COLOR_LIFE_DIRTY | PARAMS_DIRTY;
-const IMPACT_ALL_DIRTY = BEAM_ALL_DIRTY | NORMAL_DIRTY;
+const BATCH_ATTRIBUTES = ["iStartSeed", "iEndImpact", "iColorLife", "iParams", "iNormal"] as const;
 const POSITION_EPSILON_SQUARED = 0.0001;
 
 function quantizeArcCoordinate(value: number): number {
@@ -86,8 +81,10 @@ class VoltaicInstanceBatch {
   private readonly normals: Float32Array;
   private readonly scratchDirection = new Vector3();
   private readonly scratchStart = new Vector3();
-  private beamDirtyMask = 0;
-  private impactDirtyMask = 0;
+  private readonly beamDirty = Array.from({ length: 4 }, () => new DirtySlotRange());
+  private readonly impactDirty = Array.from({ length: 5 }, () => new DirtySlotRange());
+  private readonly restoreObserver;
+  private readonly sceneDisposeObserver;
   private activationCounter = 0;
 
   constructor(name: string, scene: Scene, profile: "world" | "chain", capacity: number) {
@@ -117,6 +114,17 @@ class VoltaicInstanceBatch {
     this.attachBeamBuffers();
     this.attachImpactBuffers();
     this.syncCount();
+    this.restoreObserver = scene.getEngine().onContextRestoredObservable.add(() => {
+      // Partial Babylon buffer writes may discard or shorten their rebuild copy.
+      // Recreate full capacity from our authoritative arrays after restoration.
+      this.attachBeamBuffers();
+      this.attachImpactBuffers();
+      this.syncCount();
+      this.clearDirty();
+    });
+    this.sceneDisposeObserver = scene.onDisposeObservable.addOnce(() => {
+      scene.getEngine().onContextRestoredObservable.remove(this.restoreObserver);
+    });
   }
 
   private attachCommonBuffers(mesh: Mesh): void {
@@ -148,29 +156,32 @@ class VoltaicInstanceBatch {
     this.setRenderCount(this.slots.length);
   }
 
-  private markAllDirty(): void {
-    this.beamDirtyMask |= BEAM_ALL_DIRTY;
-    this.impactDirtyMask |= IMPACT_ALL_DIRTY;
+  private markAllDirty(slot: number): void {
+    for (const dirty of this.beamDirty) dirty.mark(slot);
+    for (const dirty of this.impactDirty) dirty.mark(slot);
   }
 
-  private flushMeshBuffers(mesh: Mesh, mask: number, includeNormal: boolean): void {
-    if (mask & START_SEED_DIRTY) mesh.thinInstanceBufferUpdated("iStartSeed");
-    if (mask & END_IMPACT_DIRTY) mesh.thinInstanceBufferUpdated("iEndImpact");
-    if (mask & COLOR_LIFE_DIRTY) mesh.thinInstanceBufferUpdated("iColorLife");
-    if (mask & PARAMS_DIRTY) mesh.thinInstanceBufferUpdated("iParams");
-    if (includeNormal && mask & NORMAL_DIRTY) mesh.thinInstanceBufferUpdated("iNormal");
+  private clearDirty(): void {
+    for (const dirty of this.beamDirty) dirty.clear();
+    for (const dirty of this.impactDirty) dirty.clear();
+  }
+
+  private flushMeshBuffers(mesh: Mesh, ranges: readonly DirtySlotRange[]): void {
+    for (let i = 0; i < ranges.length; i++) {
+      const range = ranges[i];
+      const end = Math.min(range.end, this.slots.length);
+      if (end > range.first) mesh.thinInstancePartialBufferUpdate(BATCH_ATTRIBUTES[i], end - range.first, range.first);
+    }
   }
 
   flush(): void {
     if (this.slots.length === 0) {
-      this.beamDirtyMask = 0;
-      this.impactDirtyMask = 0;
+      this.clearDirty();
       return;
     }
-    if (this.beamDirtyMask) this.flushMeshBuffers(this.beamMesh, this.beamDirtyMask, false);
-    if (this.impactDirtyMask) this.flushMeshBuffers(this.impactMesh, this.impactDirtyMask, true);
-    this.beamDirtyMask = 0;
-    this.impactDirtyMask = 0;
+    this.flushMeshBuffers(this.beamMesh, this.beamDirty);
+    this.flushMeshBuffers(this.impactMesh, this.impactDirty);
+    this.clearDirty();
   }
 
   private writeVector4(buffer: Float32Array, index: number, x: number, y: number, z: number, w: number): void {
@@ -205,11 +216,11 @@ class VoltaicInstanceBatch {
       this.slots[index] = moved;
       this.slotByKey.set(moved.key, index);
       this.copySlot(lastIndex, index);
+      this.markAllDirty(index);
     }
 
     this.slots.pop();
     this.syncCount();
-    this.markAllDirty();
   }
 
   private findLeastRecentlyTouchedIndex(): number {
@@ -295,11 +306,10 @@ class VoltaicInstanceBatch {
       0,
     );
     this.syncCount();
-    this.markAllDirty();
+    this.markAllDirty(index);
   }
 
   refreshStarts(resolver: VoltaicRemoteStartResolver): void {
-    let changed = false;
     for (let index = 0; index < this.slots.length; index++) {
       const slot = this.slots[index];
       if (!slot.dynamicStart) continue;
@@ -315,11 +325,10 @@ class VoltaicInstanceBatch {
       this.startSeed[offset] = this.scratchStart.x;
       this.startSeed[offset + 1] = this.scratchStart.y;
       this.startSeed[offset + 2] = this.scratchStart.z;
-      changed = true;
+      this.beamDirty[0].mark(index);
     }
     // The impact shader reads only startSeed.w (the seed), which does not change
     // during anchor refreshes. Upload only the beam's start buffer each frame.
-    if (changed) this.beamDirtyMask |= START_SEED_DIRTY;
   }
 
   remove(key: string): void {
@@ -359,12 +368,13 @@ class VoltaicInstanceBatch {
   clear(): void {
     this.slots.length = 0;
     this.slotByKey.clear();
-    this.beamDirtyMask = 0;
-    this.impactDirtyMask = 0;
+    this.clearDirty();
     this.syncCount();
   }
 
   dispose(): void {
+    this.beamMesh.getEngine().onContextRestoredObservable.remove(this.restoreObserver);
+    this.beamMesh.getScene().onDisposeObservable.remove(this.sceneDisposeObserver);
     this.beamMesh.dispose();
     this.impactMesh.dispose();
     this.beamMaterial.dispose();

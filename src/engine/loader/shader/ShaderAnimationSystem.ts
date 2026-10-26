@@ -12,20 +12,15 @@ import type { Color3 } from "@babylonjs/core/Maths/math.color";
 import type { Observer } from "@babylonjs/core/Misc/observable";
 import type { Scene } from "@babylonjs/core/scene";
 import { devLog } from "../../core/DevLog";
-import type { AlphaGen, RgbGen, TcMod, WaveFunc } from "./Q3ShaderTypes";
+import type { AlphaGen, RgbGen, TcMod } from "./Q3ShaderTypes";
+
+import { createTcState, evaluateWaveFunc, stepTcModsInto, type TcState } from "./Q3StageEvaluation";
+
+export { evaluateWaveFunc, type TcState } from "./Q3StageEvaluation";
 
 // ============================================================================
 // Types
 // ============================================================================
-
-/** State for texture coordinate animation */
-export interface TcState {
-  uOffset: number;
-  vOffset: number;
-  rotation: number; // radians
-  uScale: number;
-  vScale: number;
-}
 
 /** Animated stage within a material */
 export interface AnimatedStage {
@@ -44,49 +39,6 @@ export interface AnimatedMaterialEntry {
   id: string;
   material: StandardMaterial | PBRMaterial;
   stages: AnimatedStage[];
-}
-
-// ============================================================================
-// Wave Function Evaluator
-// ============================================================================
-
-/**
- * Evaluate a Q3 wave function at a given time
- * @param wave Wave function parameters
- * @param time Current time in seconds
- * @returns Evaluated value
- */
-export function evaluateWaveFunc(wave: WaveFunc, time: number): number {
-  const phase = wave.phase + time * wave.frequency;
-  let value: number;
-
-  switch (wave.func) {
-    case "sin":
-      value = Math.sin(phase * 2 * Math.PI);
-      break;
-    case "triangle":
-      // Triangle wave: -1 to 1 linearly
-      value = Math.abs((((phase % 1) + 1) % 1) * 4 - 2) - 1;
-      break;
-    case "square":
-      value = phase % 1 < 0.5 ? 1 : -1;
-      break;
-    case "sawtooth":
-      value = (((phase % 1) + 1) % 1) * 2 - 1;
-      break;
-    case "inversesawtooth":
-      value = 1 - (((phase % 1) + 1) % 1) * 2;
-      break;
-    case "noise":
-      // Simplified noise - just random per evaluation
-      // For proper noise, would need seeded random based on time
-      value = Math.random() * 2 - 1;
-      break;
-    default:
-      value = 0;
-  }
-
-  return wave.base + value * wave.amplitude;
 }
 
 // ============================================================================
@@ -188,22 +140,7 @@ export class ShaderAnimationSystem {
       return;
     }
 
-    // Create initial state
-    const tcState: TcState = {
-      uOffset: 0,
-      vOffset: 0,
-      rotation: 0,
-      uScale: 1,
-      vScale: 1,
-    };
-
-    // Apply any static scale from tcMod
-    for (const tcMod of tcMods) {
-      if (tcMod.type === "scale") {
-        tcState.uScale = tcMod.sScale;
-        tcState.vScale = tcMod.tScale;
-      }
-    }
+    const tcState = createTcState(tcMods);
 
     const stage: AnimatedStage = {
       texture,
@@ -337,11 +274,16 @@ export class ShaderAnimationSystem {
         const texture = stage.frames.textures[index];
         const material = entry.material;
         if (stage.colorTarget === "emissive") {
-          if ("diffuseTexture" in material && material.diffuseTexture === stage.texture)
+          if (
+            "diffuseTexture" in material &&
+            material.diffuseTexture === stage.texture &&
+            material.diffuseTexture !== texture
+          )
             material.diffuseTexture = texture;
-          material.emissiveTexture = texture;
-        } else if ("diffuseTexture" in material) material.diffuseTexture = texture;
-        else material.albedoTexture = texture;
+          if (material.emissiveTexture !== texture) material.emissiveTexture = texture;
+        } else if ("diffuseTexture" in material) {
+          if (material.diffuseTexture !== texture) material.diffuseTexture = texture;
+        } else if (material.albedoTexture !== texture) material.albedoTexture = texture;
         stage.texture = texture;
       }
       // Apply tcMods
@@ -383,69 +325,7 @@ export class ShaderAnimationSystem {
     if (stage.tcMods.length === 0) return;
     const state = stage.tcState;
 
-    for (const tcMod of stage.tcMods) {
-      switch (tcMod.type) {
-        case "scroll":
-          state.uOffset += tcMod.sSpeed * deltaTime;
-          state.vOffset += tcMod.tSpeed * deltaTime;
-          // Wrap to prevent float overflow on long sessions
-          state.uOffset = state.uOffset % 1000;
-          state.vOffset = state.vOffset % 1000;
-          break;
-
-        case "scale":
-          // Static - already applied at registration
-          break;
-
-        case "rotate": {
-          const radPerSec = tcMod.degreesPerSecond * (Math.PI / 180);
-          state.rotation += radPerSec * deltaTime;
-          // Wrap rotation
-          state.rotation = state.rotation % (2 * Math.PI);
-          break;
-        }
-
-        case "stretch":
-          if (tcMod.func) {
-            const waveValue = evaluateWaveFunc(tcMod.func, this.totalTime);
-            state.uScale = waveValue;
-            state.vScale = waveValue;
-          }
-          break;
-
-        case "turb": {
-          // Simplified turbulence - oscillate UV offset
-          const turbPhase = this.totalTime * tcMod.frequency + tcMod.phase;
-          const turbU = Math.sin(turbPhase * 2 * Math.PI) * tcMod.amplitude;
-          const turbV = Math.cos(turbPhase * 2 * Math.PI + 0.7) * tcMod.amplitude;
-          // Add to existing offset (turb is additive)
-          state.uOffset += turbU * deltaTime * 10; // Scale for visibility
-          state.vOffset += turbV * deltaTime * 10;
-          break;
-        }
-
-        case "transform": {
-          // 2D affine matrix transform: [u', v'] = [m00 m01; m10 m11] * [u, v] + [t0, t1]
-          // Decompose into scale, rotation, and translation that Babylon supports
-          // Note: This doesn't handle shear correctly, but covers most Q3 shader use cases
-
-          // Extract scale from matrix (length of each row vector)
-          const scaleU = Math.sqrt(tcMod.m00 * tcMod.m00 + tcMod.m01 * tcMod.m01);
-          const scaleV = Math.sqrt(tcMod.m10 * tcMod.m10 + tcMod.m11 * tcMod.m11);
-
-          // Extract rotation from first row (assumes no shear)
-          const rotation = Math.atan2(tcMod.m01, tcMod.m00);
-
-          // Apply: set state (transform is typically static, applied once)
-          state.uScale = scaleU;
-          state.vScale = scaleV;
-          state.rotation = rotation;
-          state.uOffset = tcMod.t0;
-          state.vOffset = tcMod.t1;
-          break;
-        }
-      }
-    }
+    stepTcModsInto(state, stage.tcMods, deltaTime, this.totalTime);
 
     // Apply state to texture
     stage.texture.uOffset = state.uOffset;

@@ -1,6 +1,6 @@
 # Current-renderer optimization as groundwork for Babylon Lite
 
-Date: October 26, 2026. Status: feature-branch plan; implementation not started.
+Date: October 26, 2026. Status: first bounded implementation cycle validated.
 The working WebGL2 and Babylon WebGPU paths remain the reference implementations.
 
 **Use small current-renderer improvements to establish reusable data, ownership
@@ -14,9 +14,10 @@ Read the [capability comparison](babylon-classic-optimization-opportunities-2026
 for installed Babylon 9.31.2 APIs, the [groundwork catalog](babylon-lite-groundwork-catalog-2026-10-26.md)
 for extraction contracts, and the [native redesign study](babylon-lite-native-performance-2026-10-26.md)
 for later Lite-specific adapters. This plan connects them into reviewable work
-packages. The owner has requested committing the research on `staging` and
-creating an optimization feature branch from that checkpoint. This turn prepares
-the branch and plan; runtime implementation and a Lite migration have not begun.
+packages. Research was committed on `staging` at `c63c14b3`, then the owner
+authorized independent implementation through the evidence gates. See the
+[first-cycle results](babylon-classic-groundwork-results-2026-10-26.md) for the
+changes, exact measurements and retained limits. A Lite migration has not begun.
 
 ## Feature branch and progress matrix
 
@@ -40,14 +41,14 @@ GPU parity or a lower upload counter as a measured frame-time win.
 
 | Order / package | Status | Concrete deliverable | Evidence recorded / exit requirement | Future Lite value |
 | --- | --- | --- | --- | --- |
-| Research and API/source planning | Complete | Capability review, actual registration paths, ownership and test plan | Linked studies and source snapshots; documentation checks passed; no runtime performance evidence | Versioned design rationale and identified native blockers |
-| 1 / P0: baseline and fixtures | Ready — next | Repeatable map/camera/event workloads, active stage inventory and scoped cost counters | **Pending:** real WebGL2/WebGPU captures, workload metadata and missing-metric list | Matched comparison workloads and CPU/visual reference |
-| 2 / P3: dirty-slot effect uploads | Planned | Existing Voltaic pool using bounded logical dirty ranges and a classic upload adapter | **Pending:** range/count/swap/reuse checks, real GPU parity and before/after costs | Logical slot changes independent of native packing |
-| 3 / P1: pure shader evaluation | Planned | G2 numeric evaluator behind unchanged classic clock/binding | **Pending:** ordered state/RNG/time parity and no allocation/lifecycle regression | Reusable authored stage semantics and sampling oracle |
-| 4 / P2: texture-assignment guard | Planned | Skip redundant target writes without changing stage ordering | **Pending:** actual-bound-target/multiple-writer/emission cases and measured remaining work | Resource selection separated from texture handles |
-| 5 / P4: GPU single-scroll, then simple RGB wave | Planned | Narrow current GLSL/WGSL adapter; CPU route retained for unsupported stages | **Pending:** candidate inventory, accepted phase semantics, headless/GPU images, warmup/rejoin and matched timing | One authored plan realized by separate backend sinks |
-| 6 / P5: broader analytic stages or shared clock UBO | Conditional | Expand only the subset whose correctness and measured cost justify it | **Pending:** P4 results and a specific additional workload | Proven packing/binding/lifetime conventions |
-| Review and integration preparation | Planned | Final evidence, manuals/changelog and scoped regression results | **Pending:** required gates, real GPU/lifecycle coverage, review and clean matching branches | Trusted reference implementation before any Lite prototype |
+| Research and API/source planning | Complete | Capability review, actual registration paths, ownership and test plan | Historical research snapshots committed at `c63c14b3` | Versioned design rationale and identified native blockers |
+| 1 / P0: baseline and fixtures | Complete — scoped | Matched effect/reference and analytic material fixtures; dm5 demo inventory | Real WebGL2/WebGPU GPU captures; 16 live animation entries inventoried; no whole-game FPS claim | Matched comparison workloads and CPU/visual reference |
+| 2 / P3: dirty-slot effect uploads | Complete | Existing Voltaic pool uses one bounded interval per stream | 4,608 → 144 submitted bytes/update for one active world slot; identical images on both backends; real WebGL restoration and headless swap/reuse/disposal checks pass | Logical slot changes independent of native packing |
+| 3 / P1: pure shader evaluation | Complete | G2 numeric evaluator behind unchanged classic clock/binding | Seven numeric cases plus wrapper phase/disabled-clock and existing texture tests; no per-frame output-object allocation | Reusable authored stage semantics and sampling oracle |
+| 4 / P2: texture-assignment guard | Complete | Skip assignments when the actual bound target already matches | Repeated same-frame updates make zero target setter calls; intervening writer restored; base/emission tests pass | Resource selection separated from texture handles |
+| 5 / P4: GPU single-scroll, then simple RGB wave | Complete — experiment only | Narrow GLSL/WGSL adapter and 60 matched pixel comparisons | Standard/PBR, negative rates/time, later time and frozen candidates pass with at most one channel level difference; gameplay CPU registration retained | One authored plan realized by separate backend sinks |
+| 6 / P5: broader analytic stages or shared clock UBO | Deferred by findings | Expand only where a real workload justifies it | dm5 mostly uses fixed scales, rotation, emissive/frame and mixed stages outside the narrow candidate; no evidence for a broad route/UBO change | Avoid premature native packing/binding assumptions |
+| Review and integration preparation | Complete — feature branch | Result record, manuals/changelog and regression evidence | Typecheck, build, full tests and required server/map checks passed; docs/gate status recorded in results; no merge/deployment | Trusted bounded reference work before any Lite prototype |
 | VAT, matrix-free effects, graph/culling and worker redesign | Deferred | Separate experiment proposal if baseline/results warrant it | No implementation promised by this first cycle | Later investigations retain their own correctness gates |
 
 Default implementation sequence is **P0 → P3 → P1 → P2 → P4**, then reassess.
@@ -185,8 +186,9 @@ surface-clock singleton or a backend interface spanning the entire engine.
 
 ## Work packages and decision gates
 
-Each package should be independently reviewable and revertible. A passing
-package does not automatically authorize the next. Measurements determine
+Each package should be independently reviewable and revertible. The owner
+authorized progressing independently through this sequence; evidence determines
+whether the next optional scope is justified. Measurements determine
 whether an optional optimization expands, remains a diagnostic experiment or
 is removed. Shared groundwork can still be useful without a measurable speedup,
 but must not be reported as a performance win.
@@ -384,11 +386,11 @@ factory, layered materials and non-abortable build ownership are still unresolve
 even after successful classic optimizations. This plan does not declare those
 blockers solved.
 
-The sensible first implementation request would be **P0 plus a small characterized
-slice**, followed by P2 or P3 according to the measured cost. P1 is appropriate
-when it removes a real shader-evaluation coupling without changing behavior;
-P4 follows once the live material subset and baseline are established. No broad
-rendering architecture change is needed to begin.
+The first cycle completed P0/P3/P1/P2 and the bounded P4 experiment. P5 was
+evaluated and deferred, rather than broadening normal material selection without
+an eligible measured workload. No broad rendering architecture change was
+needed. Future proposals should use the results record and name the additional
+real content/cost they address before expanding the route.
 
 ## Validation scope
 

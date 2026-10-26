@@ -25,6 +25,59 @@ afterEach(() => {
 });
 
 describe("texture transform ownership", () => {
+  it("retains registration-relative scroll and the existing disabled-clock accumulation", () => {
+    let now = 1000;
+    vi.spyOn(performance, "now").mockImplementation(() => now);
+    const animation = ShaderAnimationSystem.getInstance();
+    animation.setEnabled(true);
+    animation.setTimeScale(1);
+    animation.init(scene);
+    const first = new Texture(null, scene),
+      second = new Texture(null, scene);
+    const scroll = [{ type: "scroll" as const, sSpeed: 1, tSpeed: 0 }];
+    animation.registerMaterial("first", new StandardMaterial("first", scene), first, scroll);
+    now = 2000;
+    scene.onBeforeRenderObservable.notifyObservers(scene);
+    animation.registerMaterial("second", new StandardMaterial("second", scene), second, scroll);
+    now = 2500;
+    scene.onBeforeRenderObservable.notifyObservers(scene);
+    expect(first.uOffset).toBe(1.5);
+    expect(second.uOffset).toBe(0.5);
+    animation.setEnabled(false);
+    now = 3500;
+    scene.onBeforeRenderObservable.notifyObservers(scene);
+    animation.setEnabled(true);
+    now = 4500;
+    scene.onBeforeRenderObservable.notifyObservers(scene);
+    expect(first.uOffset).toBe(3.5);
+    expect(second.uOffset).toBe(2.5);
+  });
+
+  it("skips unchanged frame assignments but restores an intervening writer's texture", () => {
+    let now = 1000;
+    vi.spyOn(performance, "now").mockImplementation(() => now);
+    const animation = ShaderAnimationSystem.getInstance();
+    animation.init(scene);
+    const material = new StandardMaterial("frames", scene);
+    const frames = [new Texture(null, scene), new Texture(null, scene)];
+    material.diffuseTexture = frames[0];
+    animation.registerMaterial("frames", material, frames[0], [], undefined, undefined, "diffuse", {
+      frequency: 1,
+      textures: frames,
+    });
+    const writes = vi.spyOn(material, "diffuseTexture", "set");
+    for (let i = 0; i < 10; i++) scene.onBeforeRenderObservable.notifyObservers(scene);
+    expect(writes).not.toHaveBeenCalled();
+    material.diffuseTexture = frames[1];
+    writes.mockClear();
+    scene.onBeforeRenderObservable.notifyObservers(scene);
+    expect(material.diffuseTexture).toBe(frames[0]);
+    expect(writes).toHaveBeenCalledTimes(1);
+    now += 1100;
+    scene.onBeforeRenderObservable.notifyObservers(scene);
+    expect(material.diffuseTexture).toBe(frames[1]);
+  });
+
   it("cycles glow frames without replacing the opaque base image", () => {
     let now = 1000;
     vi.spyOn(performance, "now").mockImplementation(() => now);
