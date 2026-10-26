@@ -1,0 +1,536 @@
+{
+  "baseEngine": "d1baa695",
+  "baseFps": "0759316308429c2ad36aa1e3bda1b111b22016e7",
+  "babylon": "9.31.2",
+  "sourceAtEvidenceAssembly": {
+    "src/engine/rendering/PooledMeshCandidates.ts": "fd1bf61b52e4eecc9a3c3154cbc3e339385652bbf7d0258240d967ec1e02537b",
+    "src/engine/rendering/SceneMeshCandidates.ts": "c376eef9a07108ce89d3d89a674faafb6445dfdfab93f03e4db0574acb66e986",
+    "src/engine/rendering/__qa__/PooledCandidatesFixture.ts": "3346d6ae208f2deabc37cc1985563936b481aab4232c717ace88cb01e1c134a5",
+    "src/games/fps/client/GibSystem.ts": "c0d4a611e01da880f8e10b84d5051a9e2a16b1969cc34d2c6f06f4ad8cb618df"
+  },
+  "fixtures": {
+    "webgl2": {
+      "backend": "webgl2",
+      "result": {
+        "backend": "webgl2",
+        "cases": [
+          {
+            "label": "idle-pool",
+            "before": {
+              "hash": "2de6265dedb44d66ab3c30ef08aa18fde4366bb1f3093147f72ca6e1e847ddaa",
+              "signal": 1097,
+              "active": {
+                "eye": [
+                  "pooled-0"
+                ],
+                "weapon": [
+                  "gun"
+                ]
+              },
+              "indices": 72,
+              "readyCalls": 14
+            },
+            "after": {
+              "hash": "2de6265dedb44d66ab3c30ef08aa18fde4366bb1f3093147f72ca6e1e847ddaa",
+              "signal": 1097,
+              "active": {
+                "eye": [
+                  "pooled-0"
+                ],
+                "weapon": [
+                  "gun"
+                ]
+              },
+              "indices": 72,
+              "readyCalls": 0
+            },
+            "passed": true
+          },
+          {
+            "label": "external-enable",
+            "before": {
+              "hash": "5a4beea7fc02fb6f03d6baa9f6126efe1bcb5d320a1283855b6e9bb5792d76db",
+              "signal": 1881,
+              "active": {
+                "eye": [
+                  "pooled-0",
+                  "pooled-1"
+                ],
+                "weapon": [
+                  "gun"
+                ]
+              },
+              "indices": 108,
+              "readyCalls": 14
+            },
+            "after": {
+              "hash": "5a4beea7fc02fb6f03d6baa9f6126efe1bcb5d320a1283855b6e9bb5792d76db",
+              "signal": 1881,
+              "active": {
+                "eye": [
+                  "pooled-0",
+                  "pooled-1"
+                ],
+                "weapon": [
+                  "gun"
+                ]
+              },
+              "indices": 108,
+              "readyCalls": 2
+            },
+            "passed": true
+          },
+          {
+            "label": "action-manager",
+            "before": {
+              "hash": "2de6265dedb44d66ab3c30ef08aa18fde4366bb1f3093147f72ca6e1e847ddaa",
+              "signal": 1097,
+              "active": {
+                "eye": [
+                  "pooled-0"
+                ],
+                "weapon": [
+                  "gun"
+                ]
+              },
+              "indices": 72,
+              "readyCalls": 14
+            },
+            "after": {
+              "hash": "2de6265dedb44d66ab3c30ef08aa18fde4366bb1f3093147f72ca6e1e847ddaa",
+              "signal": 1097,
+              "active": {
+                "eye": [
+                  "pooled-0"
+                ],
+                "weapon": [
+                  "gun"
+                ]
+              },
+              "indices": 72,
+              "readyCalls": 2
+            },
+            "passed": true
+          },
+          {
+            "label": "custom-lod",
+            "before": {
+              "hash": "2de6265dedb44d66ab3c30ef08aa18fde4366bb1f3093147f72ca6e1e847ddaa",
+              "signal": 1097,
+              "active": {
+                "eye": [
+                  "pooled-0"
+                ],
+                "weapon": [
+                  "gun"
+                ]
+              },
+              "indices": 72,
+              "readyCalls": 14
+            },
+            "after": {
+              "hash": "2de6265dedb44d66ab3c30ef08aa18fde4366bb1f3093147f72ca6e1e847ddaa",
+              "signal": 1097,
+              "active": {
+                "eye": [
+                  "pooled-0"
+                ],
+                "weapon": [
+                  "gun"
+                ]
+              },
+              "indices": 72,
+              "readyCalls": 14
+            },
+            "passed": true
+          }
+        ],
+        "passed": true
+      },
+      "logs": [],
+      "failed": []
+    },
+    "webgpu": {
+      "backend": "webgpu",
+      "result": {
+        "backend": "webgpu",
+        "cases": [
+          {
+            "label": "idle-pool",
+            "before": {
+              "hash": "36407a1e861b48235c5857ea4f6ca94b5bff2281fa70b41490425b20163de048",
+              "signal": 1098,
+              "active": {
+                "eye": [
+                  "pooled-0"
+                ],
+                "weapon": [
+                  "gun"
+                ]
+              },
+              "indices": 72,
+              "readyCalls": 14
+            },
+            "after": {
+              "hash": "36407a1e861b48235c5857ea4f6ca94b5bff2281fa70b41490425b20163de048",
+              "signal": 1098,
+              "active": {
+                "eye": [
+                  "pooled-0"
+                ],
+                "weapon": [
+                  "gun"
+                ]
+              },
+              "indices": 72,
+              "readyCalls": 0
+            },
+            "passed": true
+          },
+          {
+            "label": "external-enable",
+            "before": {
+              "hash": "27d8b3c1c34fdbc6eeca8151999a3e78b6cb575626c134c3957eb7115a2008e3",
+              "signal": 1882,
+              "active": {
+                "eye": [
+                  "pooled-0",
+                  "pooled-1"
+                ],
+                "weapon": [
+                  "gun"
+                ]
+              },
+              "indices": 108,
+              "readyCalls": 14
+            },
+            "after": {
+              "hash": "27d8b3c1c34fdbc6eeca8151999a3e78b6cb575626c134c3957eb7115a2008e3",
+              "signal": 1882,
+              "active": {
+                "eye": [
+                  "pooled-0",
+                  "pooled-1"
+                ],
+                "weapon": [
+                  "gun"
+                ]
+              },
+              "indices": 108,
+              "readyCalls": 2
+            },
+            "passed": true
+          },
+          {
+            "label": "action-manager",
+            "before": {
+              "hash": "36407a1e861b48235c5857ea4f6ca94b5bff2281fa70b41490425b20163de048",
+              "signal": 1098,
+              "active": {
+                "eye": [
+                  "pooled-0"
+                ],
+                "weapon": [
+                  "gun"
+                ]
+              },
+              "indices": 72,
+              "readyCalls": 14
+            },
+            "after": {
+              "hash": "36407a1e861b48235c5857ea4f6ca94b5bff2281fa70b41490425b20163de048",
+              "signal": 1098,
+              "active": {
+                "eye": [
+                  "pooled-0"
+                ],
+                "weapon": [
+                  "gun"
+                ]
+              },
+              "indices": 72,
+              "readyCalls": 2
+            },
+            "passed": true
+          },
+          {
+            "label": "custom-lod",
+            "before": {
+              "hash": "36407a1e861b48235c5857ea4f6ca94b5bff2281fa70b41490425b20163de048",
+              "signal": 1098,
+              "active": {
+                "eye": [
+                  "pooled-0"
+                ],
+                "weapon": [
+                  "gun"
+                ]
+              },
+              "indices": 72,
+              "readyCalls": 14
+            },
+            "after": {
+              "hash": "36407a1e861b48235c5857ea4f6ca94b5bff2281fa70b41490425b20163de048",
+              "signal": 1098,
+              "active": {
+                "eye": [
+                  "pooled-0"
+                ],
+                "weapon": [
+                  "gun"
+                ]
+              },
+              "indices": 72,
+              "readyCalls": 14
+            },
+            "passed": true
+          }
+        ],
+        "passed": true
+      },
+      "logs": [
+        "browser-warning: The powerPreference option is currently ignored when calling requestAdapter() on Windows. See https://crbug.com/369219127 http://127.0.0.1:3124/node_modules/.vite-probe/deps/chunk-G6HADM4L.js?v=084f484f"
+      ],
+      "failed": []
+    }
+  },
+  "baselineInventory": {
+    "snapshots": [
+      {
+        "rows": {
+          "world": {
+            "total": 239,
+            "enabled": 239,
+            "disabled": 0,
+            "hidden": 33
+          },
+          "other": {
+            "total": 370,
+            "enabled": 88,
+            "disabled": 282,
+            "hidden": 83
+          },
+          "gibs": {
+            "total": 1,
+            "enabled": 0,
+            "disabled": 1,
+            "hidden": 0
+          },
+          "numbers": {
+            "total": 1,
+            "enabled": 1,
+            "disabled": 0,
+            "hidden": 0
+          }
+        },
+        "cameras": [
+          "fpsCamera",
+          "weaponCamera"
+        ],
+        "meshes": 611
+      },
+      {
+        "rows": {
+          "world": {
+            "total": 239,
+            "enabled": 239,
+            "disabled": 0,
+            "hidden": 48
+          },
+          "other": {
+            "total": 466,
+            "enabled": 117,
+            "disabled": 349,
+            "hidden": 83
+          },
+          "gibs": {
+            "total": 57,
+            "enabled": 56,
+            "disabled": 1,
+            "hidden": 0
+          },
+          "numbers": {
+            "total": 2,
+            "enabled": 0,
+            "disabled": 2,
+            "hidden": 0
+          }
+        },
+        "cameras": [
+          "fpsCamera",
+          "weaponCamera"
+        ],
+        "meshes": 764
+      },
+      {
+        "rows": {
+          "world": {
+            "total": 239,
+            "enabled": 239,
+            "disabled": 0,
+            "hidden": 83
+          },
+          "other": {
+            "total": 491,
+            "enabled": 68,
+            "disabled": 423,
+            "hidden": 86
+          },
+          "gibs": {
+            "total": 141,
+            "enabled": 56,
+            "disabled": 85,
+            "hidden": 0
+          },
+          "numbers": {
+            "total": 2,
+            "enabled": 0,
+            "disabled": 2,
+            "hidden": 0
+          }
+        },
+        "cameras": [
+          "fpsCamera",
+          "weaponCamera"
+        ],
+        "meshes": 873
+      }
+    ],
+    "failedHTTP": [],
+    "warnings": [
+      "warning: [Water] bsp_tex_33: non-flat or disconnected batch; using authored/sky fallback, no local waves",
+      "warning: BJS - [time]: /skins/0: Failed to find common root",
+      "warning: [MapLoader] No client handler for: misc_model ×332, light ×179",
+      "browser-warning: [.WebGL-instance] GL_INVALID_VALUE: glGetProgramiv: Program object expected. http://127.0.0.1:3123/?renderer=webgl2"
+    ]
+  },
+  "liveWebGPU": {
+    "snapshots": [
+      {
+        "rows": {
+          "world": {
+            "total": 239,
+            "enabled": 239,
+            "disabled": 0,
+            "hidden": 33
+          },
+          "other": {
+            "total": 353,
+            "enabled": 83,
+            "disabled": 270,
+            "hidden": 83
+          },
+          "gibs": {
+            "total": 1,
+            "enabled": 0,
+            "disabled": 1,
+            "hidden": 0
+          }
+        },
+        "views": {
+          "fpsCamera": {
+            "total": 560,
+            "idleGibs": 0,
+            "activeGibs": 0
+          },
+          "weaponCamera": {
+            "total": 593,
+            "idleGibs": 0,
+            "activeGibs": 0
+          }
+        },
+        "meshes": 593
+      },
+      {
+        "rows": {
+          "world": {
+            "total": 239,
+            "enabled": 239,
+            "disabled": 0,
+            "hidden": 48
+          },
+          "other": {
+            "total": 438,
+            "enabled": 101,
+            "disabled": 337,
+            "hidden": 83
+          },
+          "gibs": {
+            "total": 57,
+            "enabled": 56,
+            "disabled": 1,
+            "hidden": 0
+          }
+        },
+        "views": {
+          "fpsCamera": {
+            "total": 686,
+            "idleGibs": 0,
+            "activeGibs": 56
+          },
+          "weaponCamera": {
+            "total": 734,
+            "idleGibs": 0,
+            "activeGibs": 56
+          }
+        },
+        "meshes": 734
+      },
+      {
+        "rows": {
+          "world": {
+            "total": 239,
+            "enabled": 239,
+            "disabled": 0,
+            "hidden": 83
+          },
+          "other": {
+            "total": 485,
+            "enabled": 59,
+            "disabled": 426,
+            "hidden": 86
+          },
+          "gibs": {
+            "total": 113,
+            "enabled": 56,
+            "disabled": 57,
+            "hidden": 0
+          },
+          "numbers": {
+            "total": 1,
+            "enabled": 0,
+            "disabled": 1,
+            "hidden": 0
+          }
+        },
+        "views": {
+          "fpsCamera": {
+            "total": 699,
+            "idleGibs": 0,
+            "activeGibs": 56
+          },
+          "weaponCamera": {
+            "total": 782,
+            "idleGibs": 0,
+            "activeGibs": 56
+          }
+        },
+        "meshes": 838
+      }
+    ],
+    "failedHTTP": [],
+    "warnings": [
+      "browser-warning: The powerPreference option is currently ignored when calling requestAdapter() on Windows. See https://crbug.com/369219127 http://127.0.0.1:3124/node_modules/.vite-probe/deps/chunk-G6HADM4L.js?v=084f484f",
+      "warning: [Water] bsp_tex_33: non-flat or disconnected batch; using authored/sky fallback, no local waves",
+      "warning: BJS - [time]: /skins/0: Failed to find common root",
+      "warning: [MapLoader] No client handler for: misc_model ×332, light ×179",
+      "warning: [ProjectileSync] proj_10617 is in snapshot 15946 without its projectile_spawn event; it is not drawn"
+    ]
+  },
+  "limitations": [
+    "Different backends/POVs/timepoints: inventories are not a timing comparison.",
+    "Baseline WebGL inventory has retained program-validation warnings.",
+    "Eight isolated image pairs are not broad full-game parity.",
+    "Shared source scan remains; no retained whole-scene list."
+  ]
+}

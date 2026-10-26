@@ -226,6 +226,16 @@ provider with weapon-camera filtering; disabling PVS or disposing the map
 releases its filter without removing a weapon-camera filter. Full-scene loading
 readiness checks still include hidden meshes.
 
+Pool owners can call `registerPooledMeshCandidate(mesh)` from
+`engine/rendering/PooledMeshCandidates` to exclude that mesh while disabled.
+The registry tracks effective enabled-state changes, including parent changes,
+and composes with PVS/weapon filters through the shared scene provider. Its
+filter is inactive when every registered member is enabled. Source order,
+action-manager meshes and custom-LOD fallbacks are preserved; full-scene readiness
+and scene membership remain intact. Mesh or scene disposal releases registration,
+and the returned function can release it earlier. Gib shards use this policy;
+other disabled scene objects retain their existing handling.
+
 Autosprite billboards update before each world camera draws, after frame-level PVS. Hidden/disabled sprites skip vertex work; visible sprites reuse their last uploaded orientation while the eye position is unchanged. Newly visible sprites refresh before selection, and map cleanup removes their callback. This is automatic on map load and needs no extra setting.
 
 For headless inspection, build geometry with `bsp render` before `pvs on`. Enabling updates visibility immediately, but command batches do not run the gameplay render loop. Mesh counts from `NullEngine` do not measure GPU performance. The repository's `docs/research/v0.9.23-rendering-research.md` tracks implementation progress, validation and remaining visual checks.

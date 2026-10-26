@@ -134,6 +134,19 @@ establish a frame-time gain or visual parity.
 
 ### Renderer groundwork fixtures
 
+Owned-pool candidate filtering has its own isolated comparison. Start the private
+server on 3124, then run these commands from a second shell:
+
+```powershell
+node scripts/benchmarks/pooled-candidates.mjs webgl2 3124
+node scripts/benchmarks/pooled-candidates.mjs webgpu 3124
+```
+
+Each backend compares pixels, active meshes, active indices and idle readiness
+calls for disabled pool members, re-enabled members, action managers and custom
+LOD. Results go under `.cache/renderer-groundwork/pooled-*.json`. This fixture
+uses synthetic meshes and does not establish full-game performance or parity.
+
 For an isolated real-GPU check, start the private Vite probe server, then run
 the driver from another shell at the assembled root:
 
