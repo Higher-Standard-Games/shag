@@ -13,7 +13,7 @@ shaders, including actual player-pack storage estimates and integration blockers
 | Priority | Finding | Evidence | Decision |
 | --- | --- | --- | --- |
 | 1 | Hidden pickup-source GLBs run constant imported animations | Six disabled sources, 150 constant channels; reversible A/B removed their work | First implementation: settle constant source clips and stop them; preserve meaningful/uncertain animation |
-| 2 | Ragdoll world-space bone writes repeatedly rebuild the rig | About 15 full absolute-matrix rebuilds per sync on a 65-bone rig | Prototype a batched visual pose adapter; require real-rig parity before use |
+| 2 | Ragdoll world-space bone writes repeatedly rebuild the rig | About 15 full absolute-matrix rebuilds per sync on a 65-bone rig | Implemented: batched visual pose with real-rig parity and unchanged Havok |
 | 3 | Linked bones can rebuild skin matrices even without pose changes | Installed source plus a headless static-bone reproduction | Measure actual Vanguard uploads between 30 Hz pose writes before designing a gate |
 | 4 | Hidden one-shot animations remain possible | One hidden one-shot observed; the visibility path controls the locomotion group | Lower priority: quantify, then preserve the action clock/expiry when suppressing evaluation |
 | Hold | Disabling ragdoll pre-step removes writes but changes physics | Synthetic same-configuration control matches; modified trajectory differs | Do not ship as a transparent CPU optimization |
@@ -200,11 +200,53 @@ sync, use its public `pauseSync` ownership switch and install/clean up the game
 adapter at the same render stage. Production code should not monkey-patch
 `node_modules` or depend on the probe's private-field introspection.
 
-Before implementation acceptance, compare the real rig against native sync on
-fixed recorded collider poses: every bone matrix, root position, scale/handedness,
-attached weapon, bounds, reflections and outlines. Then test live and demo death,
-pause, slow motion, seek, disposal and repeated maps on both renderers. Keep the
-native path until equivalence is established.
+### Batched visual pose: implementation
+
+[BatchedPoseSync](../../src/games/fps/client/ragdoll/BatchedPoseSync.ts) takes
+the visual transfer over from Babylon's built-in sync through `pauseSync`, on the
+same `onBeforeRenderObservable` stage, right after `ragdoll()`. Each frame it
+reads the collider rotations, walks the rig parent-first (including bones without
+a collider), writes local rotations and the root position, and rebuilds the
+absolute hierarchy once. Havok bodies are untouched.
+
+It declines, leaving Babylon's sync in charge, when the rig has linked transform
+nodes, a pose matrix, a mirrored/nonuniform/sheared mesh or bone transform, a
+duplicate or missing collider bone, or a configured bone whose configured
+ancestor comes after it. A later frame whose mesh scale stops qualifying uses the
+native world-space setters on that frame and returns to batching when the scale
+does. Disposing the ragdoll, the adapter or the mesh hands `pauseSync` back.
+
+Headless tests ([BatchedPoseSync.test.ts](../../src/games/fps/client/ragdoll/__tests__/BatchedPoseSync.test.ts))
+use the real Vanguard rig (65 bones, 15 colliders, extracted to a fixture) on
+NullEngine with Havok:
+
+| Check | Result |
+| --- | --- |
+| 100 random collider poses at three yaws with a rotated root | Absolute matrices within 1e-5, sockets within 0.001, skin palettes within 1e-5 |
+| Hierarchy rebuilds per sync | One |
+| Mirrored, nonuniform or parent-scaled mesh at creation | Declines; `pauseSync` and observers unchanged |
+| Mesh scale changed after creation, then restored | Matches native on every frame |
+| 500-step contacting fall at 125 Hz | Collider positions, rotations and velocities exactly equal to native |
+| Disposal, double disposal, mesh disposal | Observers removed, `pauseSync` released |
+
+Browser check (headless Edge, RTX 4070 SUPER, `washoi_dm5_ffa_20261025_170933`
+demo, WebGL2 and WebGPU):
+
+| Check | WebGL2 | WebGPU |
+| --- | --- | --- |
+| Ragdolls batched / created in 20 s | 7 / 7 | 7 / 7 |
+| Sync per ragdoll per frame, native → batched, same rig and colliders, five rounds of 400 | 36–57 µs → 5–9 µs (two sessions) | 35–49 µs → 5–8 µs |
+| Paused frame aimed at a ragdoll, batched again (noise) | Identical | Identical |
+| Same frame after handing the ragdoll back to native sync | Ragdoll identical; 0.016% of pixels differ, all in the HUD's FPS counter and a fading kill-feed line | Identical |
+
+The native timing includes one `computeAbsoluteMatrices()` after the native
+writes, so both sides end with a prepared hierarchy. In both modes the same two
+of twelve ragdolls fell out of the map (hips from y ≈ 50 to below −7,600), so
+that is the demo's own deaths, not the adapter.
+
+At four ragdolls, the cap, the saving is roughly 0.1–0.2 ms a frame. Live death,
+slow motion, seek and repeated maps were not driven separately; demo playback
+covers death, pause and expiry.
 
 ## 3. Pose stepping and skin-matrix preparation are separate
 
@@ -352,5 +394,5 @@ The selected run uses Vite-resolved Babylon modules consistently.
 The owned browsers and Vite server were closed after capture. Full-game Quick
 Play/spectating, weak-hardware timing, arbitrary custom assets and production
 deployment remain unverified for this implementation. Moving/cubic/event/blending
-custom-source behavior is covered by headless tests. Next in order is real-rig
-parity for batched ragdoll visual synchronization, while retaining Havok behavior.
+custom-source behavior is covered by headless tests. Batched ragdoll visual
+synchronization followed; see [its implementation](#batched-visual-pose-implementation).
