@@ -1,0 +1,820 @@
+{
+  "date": "2026-10-27T19:08:56.047Z",
+  "method": "Isolated real FPSHud and CSS; headless Edge, 1920x1080 CSS px, 60 polls over 3 seconds; instrumented trace, not clean game FPS",
+  "setup": {
+    "widgets": [
+      "vitals",
+      "weaponslots",
+      "ammo",
+      "ammowarning",
+      "powerup",
+      "air",
+      "bomb",
+      "timer",
+      "frags",
+      "roundresult",
+      "frag",
+      "pickup",
+      "death",
+      "phase",
+      "ready",
+      "gametype"
+    ],
+    "fonts": "loaded"
+  },
+  "results": [
+    {
+      "name": "idle",
+      "ticks": 60,
+      "elapsedMs": 3006.899999856949,
+      "totalTickMs": 2.8999993801116943,
+      "maxTickMs": 0.20000004768371582,
+      "mutations": {
+        "childList::fps-timer-text": 2,
+        "attributes:class:fps-timer": 2
+      },
+      "mutationCount": 4,
+      "geometryReads": 0,
+      "animationQueries": 0,
+      "phase": 2,
+      "viewport": {
+        "width": 1920,
+        "height": 1080
+      },
+      "runningAnimations": [],
+      "metrics": {
+        "LayoutCount": 2,
+        "RecalcStyleCount": 2,
+        "LayoutDuration": 0.000431,
+        "RecalcStyleDuration": 0.000038,
+        "ScriptDuration": 0.000297,
+        "TaskDuration": 0.010329000000000001
+      }
+    },
+    {
+      "name": "warmup",
+      "ticks": 60,
+      "elapsedMs": 3003.5999999046326,
+      "totalTickMs": 5.299999237060547,
+      "maxTickMs": 0.20000004768371582,
+      "mutations": {},
+      "mutationCount": 0,
+      "geometryReads": 0,
+      "animationQueries": 0,
+      "phase": 0,
+      "viewport": {
+        "width": 1920,
+        "height": 1080
+      },
+      "runningAnimations": [
+        {
+          "name": "fps-ready-attention",
+          "state": "running"
+        }
+      ],
+      "metrics": {
+        "LayoutCount": 0,
+        "RecalcStyleCount": 2,
+        "LayoutDuration": 0,
+        "RecalcStyleDuration": 0.000098,
+        "ScriptDuration": 0.00029099999999999997,
+        "TaskDuration": 0.013183
+      }
+    },
+    {
+      "name": "spectating",
+      "ticks": 60,
+      "elapsedMs": 2999.5999999046326,
+      "totalTickMs": 4.1000001430511475,
+      "maxTickMs": 0.20000004768371582,
+      "mutations": {
+        "childList::fps-timer-text": 2,
+        "attributes:class:fps-timer": 2
+      },
+      "mutationCount": 4,
+      "geometryReads": 0,
+      "animationQueries": 0,
+      "phase": 2,
+      "viewport": {
+        "width": 1920,
+        "height": 1080
+      },
+      "runningAnimations": [],
+      "metrics": {
+        "LayoutCount": 2,
+        "RecalcStyleCount": 2,
+        "LayoutDuration": 0.00023999999999999976,
+        "RecalcStyleDuration": 0.0000449999999999999,
+        "ScriptDuration": 0.0002689999999999999,
+        "TaskDuration": 0.010939999999999998
+      }
+    },
+    {
+      "name": "hidden",
+      "ticks": 60,
+      "elapsedMs": 3010.2000000476837,
+      "totalTickMs": 0.5999999046325684,
+      "maxTickMs": 0.10000014305114746,
+      "mutations": {},
+      "mutationCount": 0,
+      "geometryReads": 0,
+      "animationQueries": 0,
+      "phase": 2,
+      "viewport": {
+        "width": 1920,
+        "height": 1080
+      },
+      "runningAnimations": [],
+      "metrics": {
+        "LayoutCount": 0,
+        "RecalcStyleCount": 0,
+        "LayoutDuration": 0,
+        "RecalcStyleDuration": 0,
+        "ScriptDuration": 0.00027500000000000007,
+        "TaskDuration": 0.006268999999999997
+      }
+    },
+    {
+      "name": "firing",
+      "ticks": 60,
+      "elapsedMs": 3005,
+      "totalTickMs": 9.800001621246338,
+      "maxTickMs": 0.6000001430511475,
+      "mutations": {
+        "childList::fps-ammo-number": 29,
+        "childList::fps-ammo-reserve": 29,
+        "attributes:style:fps-value-bar-fill": 29,
+        "attributes:class:fps-ammo-counter manga-panel manga-panel--gold fps-flash-loss": 63,
+        "childList::fps-timer-text": 2,
+        "attributes:class:fps-timer": 2,
+        "childList::fps-ammo-warning-label": 2,
+        "attributes:class:fps-ammo-warning fps-ammo-warning--reload": 1,
+        "attributes:style:fps-ammo-warning fps-ammo-warning--reload": 2
+      },
+      "mutationCount": 159,
+      "geometryReads": 3,
+      "animationQueries": 28,
+      "phase": 2,
+      "viewport": {
+        "width": 1920,
+        "height": 1080
+      },
+      "runningAnimations": [
+        {
+          "state": "running"
+        },
+        {
+          "name": "fps-flash-loss",
+          "state": "running"
+        }
+      ],
+      "metrics": {
+        "LayoutCount": 476,
+        "RecalcStyleCount": 507,
+        "LayoutDuration": 0.046683999999999996,
+        "RecalcStyleDuration": 0.036121,
+        "ScriptDuration": 0.00035800000000000003,
+        "TaskDuration": 0.286412
+      }
+    },
+    {
+      "name": "firing-no-width-transition",
+      "ticks": 60,
+      "elapsedMs": 3001.5,
+      "totalTickMs": 11.399999618530273,
+      "maxTickMs": 0.7000000476837158,
+      "mutations": {
+        "childList::fps-ammo-number": 29,
+        "childList::fps-ammo-reserve": 29,
+        "attributes:style:fps-value-bar-fill": 29,
+        "attributes:class:fps-ammo-counter manga-panel manga-panel--gold fps-flash-loss": 63,
+        "childList::fps-timer-text": 2,
+        "attributes:class:fps-timer": 2,
+        "childList::fps-ammo-warning-label": 3,
+        "attributes:style:fps-ammo-warning fps-ammo-warning--reload": 2
+      },
+      "mutationCount": 159,
+      "geometryReads": 3,
+      "animationQueries": 28,
+      "phase": 2,
+      "viewport": {
+        "width": 1920,
+        "height": 1080
+      },
+      "runningAnimations": [
+        {
+          "name": "fps-flash-loss",
+          "state": "running"
+        }
+      ],
+      "metrics": {
+        "LayoutCount": 29,
+        "RecalcStyleCount": 168,
+        "LayoutDuration": 0.004833999999999998,
+        "RecalcStyleDuration": 0.013818999999999998,
+        "ScriptDuration": 0.000322,
+        "TaskDuration": 0.07244800000000001
+      }
+    },
+    {
+      "name": "firing-transform",
+      "ticks": 60,
+      "elapsedMs": 3004.9000000953674,
+      "totalTickMs": 14.100001573562622,
+      "maxTickMs": 0.7000000476837158,
+      "mutations": {
+        "childList::fps-ammo-number": 29,
+        "childList::fps-ammo-reserve": 29,
+        "attributes:style:fps-value-bar-fill": 58,
+        "attributes:class:fps-ammo-counter manga-panel manga-panel--gold fps-flash-loss": 63,
+        "childList::fps-timer-text": 2,
+        "attributes:class:fps-timer": 2,
+        "childList::fps-ammo-warning-label": 3,
+        "attributes:style:fps-ammo-warning fps-ammo-warning--reload": 2
+      },
+      "mutationCount": 188,
+      "geometryReads": 3,
+      "animationQueries": 28,
+      "phase": 2,
+      "viewport": {
+        "width": 1920,
+        "height": 1080
+      },
+      "runningAnimations": [
+        {
+          "state": "running"
+        },
+        {
+          "name": "fps-flash-loss",
+          "state": "running"
+        }
+      ],
+      "metrics": {
+        "LayoutCount": 29,
+        "RecalcStyleCount": 183,
+        "LayoutDuration": 0.004657000000000001,
+        "RecalcStyleDuration": 0.018617999999999996,
+        "ScriptDuration": 0.00046100000000000004,
+        "TaskDuration": 0.09097499999999997
+      }
+    },
+    {
+      "name": "firing",
+      "ticks": 60,
+      "elapsedMs": 2999.899999856949,
+      "totalTickMs": 9.600001096725464,
+      "maxTickMs": 0.5999999046325684,
+      "mutations": {
+        "childList::fps-ammo-number": 29,
+        "childList::fps-ammo-reserve": 29,
+        "attributes:style:fps-value-bar-fill": 29,
+        "attributes:class:fps-ammo-counter manga-panel manga-panel--gold fps-flash-loss": 63,
+        "childList::fps-timer-text": 2,
+        "attributes:class:fps-timer": 2,
+        "childList::fps-ammo-warning-label": 3,
+        "attributes:style:fps-ammo-warning fps-ammo-warning--reload": 2
+      },
+      "mutationCount": 159,
+      "geometryReads": 3,
+      "animationQueries": 28,
+      "phase": 2,
+      "viewport": {
+        "width": 1920,
+        "height": 1080
+      },
+      "runningAnimations": [
+        {
+          "state": "running"
+        },
+        {
+          "name": "fps-flash-loss",
+          "state": "running"
+        }
+      ],
+      "metrics": {
+        "LayoutCount": 475,
+        "RecalcStyleCount": 506,
+        "LayoutDuration": 0.038493,
+        "RecalcStyleDuration": 0.033389,
+        "ScriptDuration": 0.00033299999999999996,
+        "TaskDuration": 0.24345700000000003
+      }
+    },
+    {
+      "name": "damage",
+      "ticks": 60,
+      "elapsedMs": 3005.2000000476837,
+      "totalTickMs": 12.299999713897705,
+      "maxTickMs": 1,
+      "mutations": {
+        "childList::fps-vitals-number": 14,
+        "attributes:style:fps-vitals-block": 14,
+        "attributes:class:fps-vitals-block": 125,
+        "childList::fps-vitals-armor-number": 14,
+        "attributes:style:fps-vitals-armor-fill": 16,
+        "childList::fps-timer-text": 2,
+        "attributes:class:fps-timer": 2
+      },
+      "mutationCount": 187,
+      "geometryReads": 0,
+      "animationQueries": 28,
+      "phase": 2,
+      "viewport": {
+        "width": 1920,
+        "height": 1080
+      },
+      "runningAnimations": [],
+      "metrics": {
+        "LayoutCount": 434,
+        "RecalcStyleCount": 453,
+        "LayoutDuration": 0.026063000000000003,
+        "RecalcStyleDuration": 0.027074000000000015,
+        "ScriptDuration": 0.0006750000000000003,
+        "TaskDuration": 0.20817699999999995
+      }
+    },
+    {
+      "name": "damage-transform",
+      "ticks": 60,
+      "elapsedMs": 3003.4000000953674,
+      "totalTickMs": 16.49999976158142,
+      "maxTickMs": 1.8999998569488525,
+      "mutations": {
+        "childList::fps-vitals-number": 14,
+        "attributes:style:fps-vitals-block": 14,
+        "attributes:class:fps-vitals-block": 125,
+        "childList::fps-vitals-armor-number": 14,
+        "attributes:style:fps-vitals-armor-fill": 32,
+        "childList::fps-timer-text": 2,
+        "attributes:class:fps-timer": 2
+      },
+      "mutationCount": 203,
+      "geometryReads": 0,
+      "animationQueries": 28,
+      "phase": 2,
+      "viewport": {
+        "width": 1920,
+        "height": 1080
+      },
+      "runningAnimations": [],
+      "metrics": {
+        "LayoutCount": 27,
+        "RecalcStyleCount": 213,
+        "LayoutDuration": 0.0031069999999999987,
+        "RecalcStyleDuration": 0.019851000000000008,
+        "ScriptDuration": 0.0007730000000000002,
+        "TaskDuration": 0.095464
+      }
+    },
+    {
+      "name": "critical",
+      "ticks": 60,
+      "elapsedMs": 3000.2999999523163,
+      "totalTickMs": 3.8000004291534424,
+      "maxTickMs": 0.20000004768371582,
+      "mutations": {
+        "childList::fps-timer-text": 2,
+        "attributes:class:fps-timer": 2
+      },
+      "mutationCount": 4,
+      "geometryReads": 0,
+      "animationQueries": 0,
+      "phase": 2,
+      "viewport": {
+        "width": 1920,
+        "height": 1080
+      },
+      "runningAnimations": [
+        {
+          "name": "w-crit-flash",
+          "state": "running"
+        },
+        {
+          "name": "fps-ammo-warning-pulse",
+          "state": "running"
+        },
+        {
+          "name": "fps-pulse-neon",
+          "state": "running"
+        }
+      ],
+      "metrics": {
+        "LayoutCount": 2,
+        "RecalcStyleCount": 495,
+        "LayoutDuration": 0.00040600000000001746,
+        "RecalcStyleDuration": 0.07939300000000002,
+        "ScriptDuration": 0.0004239999999999999,
+        "TaskDuration": 0.250205
+      }
+    },
+    {
+      "name": "critical-no-animation",
+      "ticks": 60,
+      "elapsedMs": 3004.600000143051,
+      "totalTickMs": 4.100000381469727,
+      "maxTickMs": 0.20000004768371582,
+      "mutations": {
+        "childList::fps-timer-text": 2,
+        "attributes:class:fps-timer": 2
+      },
+      "mutationCount": 4,
+      "geometryReads": 0,
+      "animationQueries": 0,
+      "phase": 2,
+      "viewport": {
+        "width": 1920,
+        "height": 1080
+      },
+      "runningAnimations": [],
+      "metrics": {
+        "LayoutCount": 2,
+        "RecalcStyleCount": 2,
+        "LayoutDuration": 0.0002700000000000202,
+        "RecalcStyleDuration": 0.00004500000000001725,
+        "ScriptDuration": 0.0003560000000000004,
+        "TaskDuration": 0.011616999999999988
+      }
+    },
+    {
+      "name": "scoreboard-same",
+      "ticks": 60,
+      "elapsedMs": 3015.4000000953674,
+      "totalTickMs": 5.799999475479126,
+      "maxTickMs": 0.20000004768371582,
+      "mutations": {
+        "childList::fps-timer-text": 2,
+        "attributes:class:fps-timer": 2
+      },
+      "mutationCount": 4,
+      "geometryReads": 0,
+      "animationQueries": 0,
+      "phase": 2,
+      "viewport": {
+        "width": 1920,
+        "height": 1080
+      },
+      "runningAnimations": [],
+      "metrics": {
+        "LayoutCount": 2,
+        "RecalcStyleCount": 2,
+        "LayoutDuration": 0.00033700000000000396,
+        "RecalcStyleDuration": 0.00004399999999998849,
+        "ScriptDuration": 0.0003160000000000003,
+        "TaskDuration": 0.015158000000000005
+      }
+    },
+    {
+      "name": "scoreboard-ping",
+      "ticks": 60,
+      "elapsedMs": 3011.0999999046326,
+      "totalTickMs": 9.800000667572021,
+      "maxTickMs": 0.3000001907348633,
+      "mutations": {
+        "childList::fps-scoreboard-col-ping": 590,
+        "childList::fps-timer-text": 2,
+        "attributes:class:fps-timer": 2
+      },
+      "mutationCount": 594,
+      "geometryReads": 0,
+      "animationQueries": 0,
+      "phase": 2,
+      "viewport": {
+        "width": 1920,
+        "height": 1080
+      },
+      "runningAnimations": [],
+      "metrics": {
+        "LayoutCount": 59,
+        "RecalcStyleCount": 59,
+        "LayoutDuration": 0.010571999999999998,
+        "RecalcStyleDuration": 0.0015459999999999918,
+        "ScriptDuration": 0.00038100000000000026,
+        "TaskDuration": 0.05987100000000001
+      }
+    }
+  ],
+  "correctness": {
+    "ammo": {
+      "machinegun": "50%",
+      "plasmagun": "50%",
+      "expectedPlasmagun": "30%"
+    },
+    "air": {
+      "before": "AIR",
+      "after": "AIR",
+      "classes": "fps-air-meter fps-air-meter--low",
+      "expected": "DROWNING"
+    }
+  },
+  "hashes": {
+    "src/games/fps/client/FPSHud.ts": "a74d7563bdc4638888c6f1231a04d92d40a1a47c220f47b17ffc3cea9c5eb66d",
+    "src/games/fps/client/HUDState.ts": "0502a64466bfb6aa287d0d2b1d54ffdb9db927d9a30858a99165dbe7bd1ba2c0",
+    "src/games/fps/client/hud/restartFlash.ts": "9473dec844007572d99eeaea290730afdca520d53f457e41d49dcc90904d68da",
+    "src/games/fps/client/hud/widgets/AirMeter.ts": "ba6ba81683117e6ec922fba104bcbc808928500a52b6bce8d77c721ca77b262e",
+    "src/games/fps/client/hud/widgets/AmmoCounter.ts": "2600a8d1ddb52932d5aff6ede0da80529386ffb6a3173bf18b240b45aea30485",
+    "src/games/fps/client/hud/widgets/AmmoWarning.ts": "b662586e5a089b0016876afc8a0ae6c3e7f7d27ae880e02b0f9c056d162b302c",
+    "src/games/fps/client/hud/widgets/BombStatus.ts": "8532672d943a1cc2ca9615c366d796634cfcfe4413bc054caa67c97200c9ab98",
+    "src/games/fps/client/hud/widgets/Chat.ts": "88a83a7444054ef0760105eeceacfe2081dc6c1d08f36dfaaaf765cc6f35a10f",
+    "src/games/fps/client/hud/widgets/DamageIndicators.ts": "c61fa3fdd352be089aa0f45548378b522993a84a6a341e4dfba8d6d43f6708bf",
+    "src/games/fps/client/hud/widgets/DeathScreen.ts": "b2e302d7afd40e8f2fcef76305c2883bf21c65bb3189e0011023f4a8fb8cbd86",
+    "src/games/fps/client/hud/widgets/FragCounter.ts": "538481ea9ab32406f143ce947c32f811dff0c3a4f2204bb8f52737ac3eb5b7fc",
+    "src/games/fps/client/hud/widgets/FragMessage.ts": "ecd1530bfc99e409c285f186340ed168ce071ad1ed7ccb6753137b0f8f487d1e",
+    "src/games/fps/client/hud/widgets/GametypeBadge.ts": "c3bdc417f6acf59c74c7f76a860c7905bfd1310c202ef078d436e0ca8705e343",
+    "src/games/fps/client/hud/widgets/LoadoutPicker.ts": "b5c9cc516300fb836c0191536ae8d55ee6875bc990aa0b4233b7a467c6e5d3ad",
+    "src/games/fps/client/hud/widgets/MangaPanelDialog.ts": "459d23b02eb1bcb6bc87f9b52279806f1ff806c0a2152ab78519ecbd88c0532c",
+    "src/games/fps/client/hud/widgets/PauseMenu.ts": "92baaa40b7d05864c9c6f05adfbc5baa3d449a6492064efa23c65cd8768c1da5",
+    "src/games/fps/client/hud/widgets/PhaseMessage.ts": "d68469685a7d9b8c4dc12b94b62c7669d3c724975e5737087eaa606c304a4502",
+    "src/games/fps/client/hud/widgets/PickupToast.ts": "f8cce3052956d5efd39b7f6dc05c154373f94ade2dc057fc3e0d6bc8662aa7d3",
+    "src/games/fps/client/hud/widgets/PowerupTimer.ts": "125f7eab1d8fedca8545dab5f9277bcd2a3e3a644b8ed3b36dcc7be67d9a9d8c",
+    "src/games/fps/client/hud/widgets/ReadyBar.ts": "c52bb3fb28ad5a0adcf993a1c2211983f452762c08eb5c6a50ad80edc2a1128b",
+    "src/games/fps/client/hud/widgets/RoundResult.ts": "e7cb69e76b08ca9d6850ae697f97d427f4bd05284c97fb3b121213ca4ecf7bc5",
+    "src/games/fps/client/hud/widgets/Scoreboard.ts": "2dda942a5568c005a7ff4a91c72722dcdd8c03e69bc6701a7622547f3278678f",
+    "src/games/fps/client/hud/widgets/SettingsOverlay.ts": "8df164b4bc651a58631317be2a6d45bbd477840c9d231a2657b2d8d725c92059",
+    "src/games/fps/client/hud/widgets/Timer.ts": "abb3116073ca0ca4555fbfc7272327ab45de02ae46d8cc4604bb1ee9e110a14c",
+    "src/games/fps/client/hud/widgets/ValueBar.ts": "fc657ca60107e338683d72a1e1bada631ec4720b315727f6fbdde2bd92a17c24",
+    "src/games/fps/client/hud/widgets/VitalsBlock.ts": "cfdfcba4269f9619ff796971240494cf22e196221ceace8287f11b222b6fc510",
+    "src/games/fps/client/hud/widgets/WeaponPreview.ts": "0b9f0a1b3692118a9ce8357076447fd0faa6f984e9b6263dff41aae16a76c1c8",
+    "src/games/fps/client/hud/widgets/WeaponRack.ts": "92a5cff16b492474e25ffd9c67b9f96ac60419b46d616e9d19ef9e5da7d1cb32",
+    "src/games/fps/client/hud/widgets/WeaponSlots.ts": "8abe04c15adc724853142e4bd113a52fec091d0dc6669ccd5f41d7778d52ab65",
+    "src/games/fps/client/hud/styles/WashikiTheme.css": "ca4d3657cede302436d525ab5c35172b2ddfdfdb0bace7b45859a854a833ad90"
+  },
+  "head": "6f1f9b0e2363816c1bec3e13b5f37fc15c1d6952",
+  "fpsHead": "f107c698fa465c677ca77672a2c518c34274f98d",
+  "logs": [],
+  "failed": [],
+  "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/156.0.0.0 Safari/537.36 Edg/156.0.0.0",
+  "traceSummary": [
+    {
+      "name": "idle",
+      "events": {
+        "UpdateLayoutTree": {
+          "count": 2,
+          "ms": 0.041999999999999996
+        },
+        "Layout": {
+          "count": 2,
+          "ms": 0.41200000000000003
+        },
+        "PrePaint": {
+          "count": 2,
+          "ms": 0.078
+        },
+        "Paint": {
+          "count": 4,
+          "ms": 0.112
+        }
+      }
+    },
+    {
+      "name": "warmup",
+      "events": {
+        "UpdateLayoutTree": {
+          "count": 2,
+          "ms": 0.099
+        },
+        "PrePaint": {
+          "count": 1,
+          "ms": 0.065
+        }
+      }
+    },
+    {
+      "name": "spectating",
+      "events": {
+        "UpdateLayoutTree": {
+          "count": 2,
+          "ms": 0.048
+        },
+        "Layout": {
+          "count": 2,
+          "ms": 0.225
+        },
+        "PrePaint": {
+          "count": 2,
+          "ms": 0.10300000000000001
+        },
+        "Paint": {
+          "count": 4,
+          "ms": 0.19899999999999998
+        }
+      }
+    },
+    {
+      "name": "hidden",
+      "events": {}
+    },
+    {
+      "name": "firing",
+      "events": {
+        "UpdateLayoutTree": {
+          "count": 507,
+          "ms": 36.27600000000001
+        },
+        "Layout": {
+          "count": 476,
+          "ms": 43.54900000000002
+        },
+        "PrePaint": {
+          "count": 478,
+          "ms": 27.445999999999984
+        },
+        "Paint": {
+          "count": 955,
+          "ms": 25.877999999999997
+        }
+      }
+    },
+    {
+      "name": "firing-no-width-transition",
+      "events": {
+        "UpdateLayoutTree": {
+          "count": 168,
+          "ms": 13.871000000000002
+        },
+        "Layout": {
+          "count": 29,
+          "ms": 4.6000000000000005
+        },
+        "PrePaint": {
+          "count": 137,
+          "ms": 6.160999999999994
+        },
+        "Paint": {
+          "count": 61,
+          "ms": 2.3939999999999992
+        }
+      }
+    },
+    {
+      "name": "firing-transform",
+      "events": {
+        "UpdateLayoutTree": {
+          "count": 183,
+          "ms": 18.63600000000001
+        },
+        "Layout": {
+          "count": 29,
+          "ms": 4.4430000000000005
+        },
+        "PrePaint": {
+          "count": 151,
+          "ms": 8.929999999999996
+        },
+        "Paint": {
+          "count": 64,
+          "ms": 2.878999999999999
+        }
+      }
+    },
+    {
+      "name": "firing",
+      "events": {
+        "UpdateLayoutTree": {
+          "count": 506,
+          "ms": 33.638
+        },
+        "Layout": {
+          "count": 475,
+          "ms": 35.783000000000015
+        },
+        "PrePaint": {
+          "count": 478,
+          "ms": 23.63400000000001
+        },
+        "Paint": {
+          "count": 953,
+          "ms": 21.79100000000004
+        }
+      }
+    },
+    {
+      "name": "damage",
+      "events": {
+        "UpdateLayoutTree": {
+          "count": 453,
+          "ms": 27.206000000000003
+        },
+        "Layout": {
+          "count": 434,
+          "ms": 24.028000000000013
+        },
+        "PrePaint": {
+          "count": 452,
+          "ms": 18.905
+        },
+        "Paint": {
+          "count": 970,
+          "ms": 28.668000000000024
+        }
+      }
+    },
+    {
+      "name": "damage-transform",
+      "events": {
+        "UpdateLayoutTree": {
+          "count": 213,
+          "ms": 19.915999999999997
+        },
+        "Layout": {
+          "count": 27,
+          "ms": 2.9150000000000014
+        },
+        "PrePaint": {
+          "count": 199,
+          "ms": 10.264000000000001
+        },
+        "Paint": {
+          "count": 169,
+          "ms": 7.751999999999995
+        }
+      }
+    },
+    {
+      "name": "critical",
+      "events": {
+        "UpdateLayoutTree": {
+          "count": 495,
+          "ms": 79.10599999999988
+        },
+        "PrePaint": {
+          "count": 495,
+          "ms": 31.349000000000004
+        },
+        "Layout": {
+          "count": 2,
+          "ms": 0.384
+        },
+        "Paint": {
+          "count": 4,
+          "ms": 0.17699999999999996
+        }
+      }
+    },
+    {
+      "name": "critical-no-animation",
+      "events": {
+        "UpdateLayoutTree": {
+          "count": 2,
+          "ms": 0.05
+        },
+        "Layout": {
+          "count": 2,
+          "ms": 0.252
+        },
+        "PrePaint": {
+          "count": 2,
+          "ms": 0.099
+        },
+        "Paint": {
+          "count": 4,
+          "ms": 0.161
+        }
+      }
+    },
+    {
+      "name": "scoreboard-same",
+      "events": {
+        "UpdateLayoutTree": {
+          "count": 2,
+          "ms": 0.047
+        },
+        "Layout": {
+          "count": 2,
+          "ms": 0.316
+        },
+        "PrePaint": {
+          "count": 2,
+          "ms": 0.12
+        },
+        "Paint": {
+          "count": 4,
+          "ms": 0.213
+        }
+      }
+    },
+    {
+      "name": "scoreboard-ping",
+      "events": {
+        "UpdateLayoutTree": {
+          "count": 59,
+          "ms": 1.6219999999999997
+        },
+        "Layout": {
+          "count": 59,
+          "ms": 10.104000000000003
+        },
+        "PrePaint": {
+          "count": 59,
+          "ms": 3.3559999999999994
+        },
+        "Paint": {
+          "count": 120,
+          "ms": 10.670999999999998
+        }
+      }
+    }
+  ],
+  "sourceHashesMatchPreviousCapture": true,
+  "rawArtifactDirectory": "public/data/benchmarks/results/2026-10-27T19-06-31-334Z-hud-layout",
+  "earlierCaptureCaveat": "Earlier warmup timer and phase event setup were imperfect. Use second capture for comparisons."
+}
