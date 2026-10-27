@@ -273,6 +273,11 @@ submission later without changing the build-time ordering.
 
 ### 5. Candidate registry for dynamic objects
 
+**Measured in alpha.7, not built:** dropping every disabled candidate from the
+main camera saved nothing measurable; the weapon camera's full scan was the real
+cost and is now filtered on every backend. See the
+[alpha.7 results](babylon-classic-alpha7-results-2026-10-27.md#4-candidate-selection).
+
 Path 1 removes the static world from scanning; the rest of the 616 meshes are
 actors, weapons, pickups, gibs and effect pools, many disabled or pooled. Each
 system already knows when its meshes become drawable. A registry where owners

@@ -140,6 +140,10 @@ Findings:
 
 ## WebGPU stalls just after the map reports ready
 
+**Corrected in alpha.7:** the stall is render-pipeline creation, not shader
+compiles; only 3–5 effects compiled after the overlay, against about 105
+pipelines. See the [alpha.7 results](babylon-classic-alpha7-results-2026-10-27.md#1-webgpu-stall-after-map-load).
+
 The first unsettled WebGPU window ran at about 12 fps, with map shader-material
 draws at 535 µs each. `perf shaders 10` started at map-ready shows why:
 
