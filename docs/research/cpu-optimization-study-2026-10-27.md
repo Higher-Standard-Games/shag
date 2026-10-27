@@ -370,6 +370,36 @@ in principle resolve its depth tie differently; no case appeared on either map.
 Step 2 is PBR, about 40–70% of opaque map draws: albedo instead of diffuse,
 the same normal-map path, and Babylon's PBR sub-plugins in the signature.
 
+### Texture arrays, step 2: PBR and gloss maps
+
+Every PBR map surface on dm5 and dm2 carries a normal map and a gloss
+(reflectivity) map, so step 2 adds a gloss array: Babylon's reflectivity (PBR)
+or specular (Standard) sample reads it, and so does the baked-lighting gloss
+term (`BSP_SURFACE_GLOSS_ARRAY`). The signature now takes every setting Babylon
+serializes, image slots aside, which covers PBR without a hand-written list.
+
+| | dm5 WebGL2 | dm5 WebGPU | dm2 both |
+| --- | ---: | ---: | ---: |
+| Surfaces merged / meshes drawing them | 50 / 17 | 60 / 18 | 49 / 11 |
+| Opaque map draws per frame, off → on | 93 → 69.5 | 93 → 63.3 | 66 → 36.6 |
+| `_renderForCamera` ms/frame, off → on (two pairs) | 5.29 → 5.08, 5.46 → 5.23 | ran under outside load | — |
+
+The first build drew every merged PBR surface with its mesh's first image. A
+material plugin's injection points are collected inside Babylon's plugin
+constructor, before the subclass's own fields are assigned: the plugin read its
+`pbr` field there, found it unset and registered the Standard sample rules,
+which never match a PBR shader. The class now comes from the material, which
+the base constructor sets first, every rule is registered unconditionally
+behind its define, and a test asserts the collected points include the class's
+rules (it fails with the old code). The owner found the symptom in play: a
+window texture on a WebGPU pillar.
+
+Map-geometry frames at three demo points per map, merging on against off,
+both backends: every difference within the off-against-off noise; at two
+further dm2 points the demo seek lands differently between runs, and the
+frames show the same surfaces. Four map loads per backend: no errors, arrays
+rebuilt per map, upload capture released.
+
 ## Source audit: useful candidates and existing safeguards
 
 All proposed changes below are conditional on new evidence. Source inspected in

@@ -244,25 +244,28 @@ For headless inspection, build geometry with `bsp render` before `pvs on`. Enabl
 
 Every map texture builds a mesh of its own, and each costs a draw. Once textures
 and lightmaps are on the materials, `BspSurfaceArrays` merges plain opaque
-surfaces that differ only in their base and normal-map images into one mesh: the
-images become layers of 2D texture arrays (`TextureArrays`), and a per-vertex
-layer index tells `BspSurfaceArrayPlugin` which layer each surface samples. The
-plugin replaces Babylon's base sample and perturbs the normal again from the
-normal-map array, so lighting, fog and the other plugins see what the surface's
-own texture would have given them.
+surfaces that differ only in their base, normal-map and gloss images into one
+mesh: the images become layers of 2D texture arrays (`TextureArrays`), and a
+per-vertex layer index tells `BspSurfaceArrayPlugin` which layer each surface
+samples. Standard and PBR surfaces merge with their own kind. The plugin
+replaces Babylon's base sample (diffuse or albedo) and gloss sample (specular
+or reflectivity map), perturbs the normal again from the normal-map array, and
+the baked-lighting gloss term reads the same layer, so lighting, fog and the
+other plugins see what the surface's own texture would have given them.
 
-Surfaces merge only when everything else matches: material settings and
-plugins (baked lighting, fog, detail map), lightmap, fog volume, content and
-surface flags, vertex attributes, and images of one size, format, mip count and
-sampling. Animated, blended, alpha-tested, deformed, liquid, cubemap and
-decal-offset surfaces, Standard materials with gloss, glow or opacity maps, PBR
-surfaces, and textures whose names mark an effect (flare, halo, glow, light,
-sprite) keep their own mesh. WebGPU copies images into arrays on the GPU; WebGL2
-copies uncompressed images through a framebuffer and takes compressed (BC7) ones
-from the mip data captured while the map's textures upload, data released once
-the merge is done. On `washoi_dm5` 19 surfaces (WebGL2) or 23 (WebGPU) draw as 8
-meshes, about 93 opaque map draws a frame becoming 82–85; on `washoi_dm2` 7 or 6
-draw as one.
+Surfaces merge only when everything else matches: every material setting
+Babylon serializes, the plugins (baked lighting, fog, detail map and Babylon's
+PBR sub-plugins), lightmap, fog volume, content and surface flags, vertex
+attributes, and images of one size, format, mip count and sampling. Animated,
+blended, alpha-tested, deformed, liquid, cubemap and decal-offset surfaces,
+materials with glow, opacity or ambient maps, and textures whose names mark an
+effect (flare, halo, glow, light, sprite) keep their own mesh. WebGPU copies
+images into arrays on the GPU; WebGL2 copies uncompressed images through a
+framebuffer and takes compressed (BC7) ones from the mip data captured while
+the map's textures upload, data released once the merge is done. On
+`washoi_dm5` 50 surfaces (WebGL2) or 60 (WebGPU) draw as 17–18 meshes, about 93
+opaque map draws a frame becoming 63–70; on `washoi_dm2` 49 surfaces draw as 11
+meshes, 66 draws becoming 37.
 
 `r_surface_arrays 0` keeps every surface separate on the next map load, for
 diagnostics; it is not persisted.

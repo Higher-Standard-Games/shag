@@ -11,6 +11,7 @@ import type { SubMesh } from "@babylonjs/core/Meshes/subMesh";
 import type { Scene } from "@babylonjs/core/scene";
 import { RenderVars } from "../../rendering/RenderVars";
 import type { BspLightingProfile } from "./BspLightingProfile";
+import { surfaceArraySample } from "./BspSurfaceArrayPlugin";
 
 const STATIC_LIGHTS = new Set(["worldFillLight", "sunLight", "moonLight", "ambientLight", "bsp_ambient"]);
 const plugins = new WeakMap<StandardMaterial | PBRMaterial, BspBakedLightingPlugin>();
@@ -201,7 +202,11 @@ ${variable("bspWorldDir", v3, `normalize((${u}bspWorld * ${wgsl ? "vec4f" : "vec
 ${variable("bspNdotL", wgsl ? "f32" : "float", (this._material as StandardMaterial | PBRMaterial).twoSidedLighting ? "abs(dot(normalW, bspWorldDir))" : "max(dot(normalW, bspWorldDir), 0.0)")}
 bspLight = bspLight * bspNdotL + ${u}bspAmbient.rgb * (1.0 - bspNdotL);
 #if defined(BSP_GLOSS) && defined(${baseDefine})
+#ifdef BSP_SURFACE_GLOSS_ARRAY
+${variable("bspGloss", v3, `${surfaceArraySample("bspGlossArray", `${f}${baseUV} + uvOffset`, wgsl)}.rgb`)}
+#else
 ${variable("bspGloss", v3, `${sample("bspGlossSampler", `${f}${baseUV} + uvOffset`)}.rgb`)}
+#endif
 ${variable("bspHalf", v3, "normalize(bspWorldDir + viewDirectionW)")}
 bspSpec = bspGloss * ${u}bspLighting.y * pow(max(dot(normalW, bspHalf), 0.0), ${u}bspLighting.z);
 #endif

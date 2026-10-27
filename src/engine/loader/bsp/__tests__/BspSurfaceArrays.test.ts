@@ -1,4 +1,5 @@
 import { NullEngine } from "@babylonjs/core/Engines/nullEngine";
+import { PBRMaterial } from "@babylonjs/core/Materials/PBR/pbrMaterial";
 import { ShaderLanguage } from "@babylonjs/core/Materials/shaderLanguage";
 import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
 import { BaseTexture } from "@babylonjs/core/Materials/Textures/baseTexture";
@@ -106,6 +107,27 @@ describe("texture-array surface merging", () => {
     expect(merge().merged).toBe(0);
   });
 
+  it("merges PBR surfaces with their normal and gloss images, never with Standard ones", () => {
+    const pbr = (index: number) => {
+      const mesh = surface(index, `textures/p${index}`);
+      const material = new PBRMaterial(`bsp_pbr_${index}`, scene);
+      for (const slot of ["albedoTexture", "bumpTexture", "reflectivityTexture"] as const) {
+        const texture = new BaseTexture(scene);
+        texture.name = `${slot}_${index}`;
+        material[slot] = texture;
+      }
+      mesh.material = material;
+      return mesh;
+    };
+    pbr(1);
+    pbr(2);
+    surface(3, "textures/s3");
+    surface(4, "textures/s4");
+    expect(merge()).toEqual({ merged: 4, meshes: 2, arrays: 4 });
+    const merged = scene.getMeshByName("bsp_tex_1_array") as Mesh;
+    expect(merged.material).toBeInstanceOf(PBRMaterial);
+    expect(merged.material?.pluginManager?.getPlugin("BspSurfaceArray")).toBeInstanceOf(BspSurfaceArrayPlugin);
+  });
   it("leaves every surface alone with r_surface_arrays 0", () => {
     surface(1, "textures/a");
     surface(2, "textures/b");
@@ -116,27 +138,50 @@ describe("texture-array surface merging", () => {
 });
 
 describe("texture-array material plugin", () => {
-  it.each([ShaderLanguage.GLSL, ShaderLanguage.WGSL])(
-    "replaces the base sample and perturbs the normal from the arrays (%s)",
-    (language) => {
-      const engine = new NullEngine();
-      const scene = new Scene(engine);
-      const material = new StandardMaterial("surface", scene);
-      const plugin = new BspSurfaceArrayPlugin(material, new BaseTexture(scene), new BaseTexture(scene), false);
-      const fragment = plugin.getCustomCode("fragment", language)!;
-      const replacement = Object.entries(fragment).find(([key]) => key.startsWith("!"))!;
-      // The pattern matches Babylon's own sample, semicolon included
-      const babylon =
-        language === ShaderLanguage.WGSL
-          ? "baseColor=TEXRD(diffuseSampler,diffuseSamplerSampler,fragmentInputs.vDiffuseUV+uvOffset);"
-          : "baseColor=TEXRD(diffuseSampler,vDiffuseUV+uvOffset);";
-      expect(new RegExp(replacement[0].slice(1)).test(babylon)).toBe(true);
-      expect(replacement[1]).toContain("bspBaseArray");
-      expect(replacement[1].endsWith(";")).toBe(true);
-      expect(fragment.CUSTOM_FRAGMENT_UPDATE_DIFFUSE).toContain("bspBumpArray");
-      expect(plugin.getCustomCode("vertex", language)!.CUSTOM_VERTEX_MAIN_END).toContain(SURFACE_LAYER_KIND);
-      scene.dispose();
-      engine.dispose();
-    },
-  );
+  const samples = (wgsl: boolean, sampler: string, uv: string) =>
+    wgsl ? `TEXRD(${sampler},${sampler}Sampler,fragmentInputs.${uv}+uvOffset);` : `TEXRD(${sampler},${uv}+uvOffset);`;
+  it.each([
+    [ShaderLanguage.GLSL, false],
+    [ShaderLanguage.WGSL, false],
+    [ShaderLanguage.GLSL, true],
+    [ShaderLanguage.WGSL, true],
+  ])("replaces the base and gloss samples and perturbs the normal from the arrays (%s, PBR %s)", (language, pbr) => {
+    const engine = new NullEngine();
+    const scene = new Scene(engine);
+    const material = pbr ? new PBRMaterial("surface", scene) : new StandardMaterial("surface", scene);
+    const arrays = { base: new BaseTexture(scene), bump: new BaseTexture(scene), gloss: new BaseTexture(scene) };
+    const plugin = new BspSurfaceArrayPlugin(material, arrays);
+    const fragment = plugin.getCustomCode("fragment", language)!;
+    const wgsl = language === ShaderLanguage.WGSL;
+    const rules = Object.entries(fragment).filter(([key]) => key.startsWith("!"));
+    // Each rule matches Babylon's own sample, semicolon included, and keeps it
+    const expected = pbr
+      ? [samples(wgsl, "albedoSampler", "vAlbedoUV"), samples(wgsl, "reflectivitySampler", "vReflectivityUV")]
+      : [samples(wgsl, "diffuseSampler", "vDiffuseUV"), samples(wgsl, "specularSampler", "vSpecularUV")];
+    expect(rules).toHaveLength(2);
+    expected.forEach((babylon, i) => {
+      expect(new RegExp(rules[i][0].slice(1)).test(babylon)).toBe(true);
+      // The array under its define, Babylon's own sample otherwise, statement whole either way
+      expect(rules[i][1]).toContain(i === 0 ? "#ifdef BSP_SURFACE_ARRAY" : "#ifdef BSP_SURFACE_GLOSS_ARRAY");
+      expect(rules[i][1]).toContain(i === 0 ? "bspBaseArray" : "bspGlossArray");
+      expect(rules[i][1]).toContain(`#else
+${babylon}
+#endif`);
+    });
+    expect(fragment[pbr ? "CUSTOM_FRAGMENT_BEFORE_LIGHTS" : "CUSTOM_FRAGMENT_UPDATE_DIFFUSE"]).toContain(
+      "bspBumpArray",
+    );
+    expect(plugin.getCustomCode("vertex", language)!.CUSTOM_VERTEX_MAIN_END).toContain(SURFACE_LAYER_KIND);
+    // Babylon collects the injection points, for the material's own shader
+    // language, while constructing the plugin: the class's own rules must be
+    // among them, or they never run
+    const collected = Object.keys(
+      (material.pluginManager as unknown as { _codeInjectionPoints: Record<string, Record<string, boolean>> })
+        ._codeInjectionPoints.fragment,
+    );
+    const own = plugin.getCustomCode("fragment", material.shaderLanguage)!;
+    expect(collected).toEqual(expect.arrayContaining(Object.keys(own)));
+    scene.dispose();
+    engine.dispose();
+  });
 });

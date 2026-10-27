@@ -1,4 +1,5 @@
 import type { Material } from "@babylonjs/core/Materials/material";
+import { PBRMaterial } from "@babylonjs/core/Materials/PBR/pbrMaterial";
 import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
 import type { BaseTexture } from "@babylonjs/core/Materials/Textures/baseTexture";
 import { Mesh } from "@babylonjs/core/Meshes/mesh";
@@ -6,17 +7,18 @@ import type { Scene } from "@babylonjs/core/scene";
 import { Cvar } from "../../core/Cvar";
 import { createTextureArray, textureArrayShape } from "../../rendering/TextureArrays";
 import { excludeBspFillLights } from "./BspBakedLightingPlugin";
-import { BspSurfaceArrayPlugin, SURFACE_LAYER_KIND } from "./BspSurfaceArrayPlugin";
+import { BspSurfaceArrayPlugin, SURFACE_LAYER_KIND, type SurfaceArrays } from "./BspSurfaceArrayPlugin";
 import type { BspMeshBuildResult } from "./mesh/types";
 
 /**
- * Merges plain opaque map surfaces that differ only in their base and
- * normal-map images into one mesh and one draw, the images becoming layers of
- * texture arrays ({@link BspSurfaceArrayPlugin}).
+ * Merges plain opaque map surfaces that differ only in their base, normal-map
+ * and gloss images into one mesh and one draw, the images becoming layers of
+ * texture arrays ({@link BspSurfaceArrayPlugin}). Standard and PBR surfaces
+ * merge with their own kind.
  *
  * Every map surface is a mesh of its own texture, and each costs a draw. Two
  * surfaces merge only when everything else that decides how they draw, light,
- * collide or are hit is the same: material settings and plugins, lightmap,
+ * collide or are hit is the same: every material setting Babylon serializes, the plugins, lightmap,
  * fog, flags, vertex attributes, and images of one size, format and sampling.
  * A texture whose name marks an effect (flare, halo, glow, sprite...) keeps its
  * mesh, since shot and collision tests judge a mesh by its texture name.
@@ -29,42 +31,68 @@ Cvar.register("r_surface_arrays", 1, {
   description: "Texture-array merging of map surfaces on the next map load (0 for diagnostics)",
 });
 
-const SHARED_PLUGINS = new Set(["AtmosphericFog", "BspBakedLighting", "DetailMap"]);
+/** Plugins a merged material may carry: ours, and Babylon's built-in sub-plugins */
+const SHARED_PLUGINS = new Set([
+  "AtmosphericFog",
+  "BspBakedLighting",
+  "DetailMap",
+  "PBRAnisotropic",
+  "PBRBRDF",
+  "PBRClearCoat",
+  "PBRIridescence",
+  "PBRSheen",
+  "Sheen",
+  "PBRSubSurface",
+]);
 const EFFECT_NAME = /flare|halo|glow|billboard|sprite|particle|effect|light|sfx/;
 
-const MATERIAL_FIELDS = [
-  "alpha",
-  "backFaceCulling",
-  "twoSidedLighting",
-  "disableLighting",
-  "specularPower",
-  "useSpecularOverAlpha",
-  "useReflectionOverAlpha",
-  "useEmissiveAsIllumination",
-  "linkEmissiveWithDiffuse",
-  "useAlphaFromDiffuseTexture",
-  "alphaMode",
-  "transparencyMode",
-  "alphaCutOff",
-  "zOffset",
-  "zOffsetUnits",
-  "disableDepthWrite",
-  "forceDepthWrite",
-  "fogEnabled",
-  "maxSimultaneousLights",
-  "invertNormalMapX",
-  "invertNormalMapY",
-  "useParallax",
-  "useParallaxOcclusion",
-  "parallaxScaleBias",
-  "useLightmapAsShadowmap",
-  "useObjectSpaceNormalMap",
-  "sideOrientation",
-  "wireframe",
-  "pointsCloud",
-  "separateCullingPass",
-  "needDepthPrePass",
-] as const;
+/** A material class's image slots that arrays replace, and the slots that must stay empty. */
+interface Slots {
+  base: string;
+  gloss: string;
+  empty: string[];
+}
+const STANDARD_SLOTS: Slots = {
+  base: "diffuseTexture",
+  gloss: "specularTexture",
+  empty: ["emissiveTexture", "opacityTexture", "ambientTexture", "refractionTexture"],
+};
+const PBR_SLOTS: Slots = {
+  base: "albedoTexture",
+  gloss: "reflectivityTexture",
+  empty: [
+    "emissiveTexture",
+    "opacityTexture",
+    "ambientTexture",
+    "refractionTexture",
+    "metallicTexture",
+    "microSurfaceTexture",
+    "metallicReflectanceTexture",
+    "reflectanceTexture",
+  ],
+};
+const slotsOf = (material: Material | null): Slots | null =>
+  material instanceof PBRMaterial ? PBR_SLOTS : material instanceof StandardMaterial ? STANDARD_SLOTS : null;
+const image = (material: Material, slot: string) =>
+  ((material as unknown as Record<string, BaseTexture | null>)[slot] ?? null) as BaseTexture | null;
+
+/**
+ * Every setting of the material except its identity and its images, as
+ * Babylon serializes it; other images enter by identity.
+ */
+function settings(material: Material): unknown {
+  let data: Record<string, unknown>;
+  try {
+    data = material.serialize() as Record<string, unknown>;
+  } catch {
+    return undefined;
+  }
+  for (const key of ["name", "id", "uniqueId", "tags", "metadata"]) delete data[key];
+  for (const key of Object.keys(data)) {
+    if (/texture$/i.test(key)) data[key] = image(material, key)?.uniqueId ?? null;
+  }
+  return data;
+}
 
 const METADATA_FIELDS = [
   "contentFlags",
@@ -120,29 +148,28 @@ function imageSampling(texture: BaseTexture | null, scene: Scene): unknown {
 function signature(mesh: Mesh): string | null {
   const material = mesh.material;
   const metadata = mesh.metadata ?? {};
-  if (!metadata.surfaceArrayEligible || !(material instanceof StandardMaterial)) return null;
+  const slots = slotsOf(material);
+  if (!metadata.surfaceArrayEligible || !material || !slots) return null;
   if (EFFECT_NAME.test(String(metadata.textureName ?? "").toLowerCase())) return null;
-  if (!material.diffuseTexture || material.specularTexture || material.emissiveTexture) return null;
-  if (material.opacityTexture || material.ambientTexture || material.refractionTexture) return null;
-  if (material.detailMap?.isEnabled) return null;
+  if (!image(material, slots.base) || slots.empty.some((slot) => image(material, slot))) return null;
+  const detail = (material as StandardMaterial | PBRMaterial).detailMap;
+  if (detail?.isEnabled) return null;
   const plugins = material.pluginManager?._plugins ?? [];
   if (plugins.some((plugin) => !SHARED_PLUGINS.has(plugin.name))) return null;
   const scene = mesh.getScene();
-  const base = imageSampling(material.diffuseTexture, scene);
-  const bump = imageSampling(material.bumpTexture, scene);
-  if (base === undefined || bump === undefined) return null;
-  const record = material as unknown as Record<string, unknown>;
+  const base = imageSampling(image(material, slots.base), scene);
+  const bump = imageSampling(image(material, "bumpTexture"), scene);
+  const gloss = imageSampling(image(material, slots.gloss), scene);
+  const rest = settings(material);
+  if (base === undefined || bump === undefined || gloss === undefined || rest === undefined) return null;
   const baked = plugins.find((plugin) => plugin.name === "BspBakedLighting") as unknown as
     | Record<string, unknown>
     | undefined;
   const id = (texture: BaseTexture | null | undefined) => texture?.uniqueId ?? null;
   return JSON.stringify([
-    MATERIAL_FIELDS.map((field) => record[field]),
-    [material.diffuseColor, material.specularColor, material.emissiveColor, material.ambientColor].map((c) =>
-      c.asArray(),
-    ),
-    id(material.lightmapTexture),
-    id(material.reflectionTexture),
+    material.getClassName(),
+    // Images the arrays replace count by sampling alone
+    { ...(rest as Record<string, unknown>), [slots.base]: null, bumpTexture: null, [slots.gloss]: null },
     plugins.map((plugin) => plugin.name).sort(),
     baked
       ? [
@@ -150,13 +177,15 @@ function signature(mesh: Mesh): string | null {
           (baked.profile as { ambient?: number[] })?.ambient,
           id(baked.direction as BaseTexture | null),
           id(baked.layers as BaseTexture | null),
-          id(baked.gloss as BaseTexture | null),
+          // Its gloss is the material's own, which the gloss array replaces
+          baked.gloss === image(material, slots.gloss),
           baked.strength,
           baked.exponent,
         ]
       : null,
     base,
     bump,
+    gloss,
     mesh.getVerticesDataKinds().sort(),
     [mesh.hasVertexAlpha, mesh.alphaIndex, mesh.renderingGroupId, mesh.layerMask, mesh.isPickable],
     [mesh.checkCollisions, mesh.receiveShadows, mesh.infiniteDistance, mesh.parent?.uniqueId],
@@ -196,22 +225,35 @@ export function mergeBspSurfaceArrays(result: BspMeshBuildResult): SurfaceArrayR
   const arrays: BaseTexture[] = [];
   for (const members of groups.values()) {
     if (members.length < 2) continue;
-    const materials = members.map((mesh) => mesh.material as StandardMaterial);
-    const baseImages = materials.map((material) => material.diffuseTexture!);
-    const bumpImages = materials[0].bumpTexture ? materials.map((material) => material.bumpTexture!) : null;
+    const materials = members.map((mesh) => mesh.material as StandardMaterial | PBRMaterial);
+    const slots = slotsOf(materials[0])!;
     const index = arrays.length;
-    const baseArray = createTextureArray(baseImages, scene, `bsp_surface_base_${index}`);
-    const bumpArray = bumpImages ? createTextureArray(bumpImages, scene, `bsp_surface_bump_${index}`) : null;
-    if (!baseArray || (bumpImages && !bumpArray)) {
-      baseArray?.dispose();
-      bumpArray?.dispose();
+    const build = (slot: string, role: string) =>
+      image(materials[0], slot)
+        ? createTextureArray(
+            materials.map((material) => image(material, slot)!),
+            scene,
+            `bsp_surface_${role}_${index}`,
+          )
+        : null;
+    const surface = {
+      base: build(slots.base, "base"),
+      bump: build("bumpTexture", "bump"),
+      gloss: build(slots.gloss, "gloss"),
+    };
+    const missing =
+      !surface.base ||
+      (image(materials[0], "bumpTexture") && !surface.bump) ||
+      (image(materials[0], slots.gloss) && !surface.gloss);
+    const built = [surface.base, surface.bump, surface.gloss].filter((array) => array !== null);
+    if (missing) {
+      for (const array of built) array.dispose();
       continue;
     }
-    arrays.push(baseArray);
-    if (bumpArray) arrays.push(bumpArray);
+    arrays.push(...built);
 
     const mesh = mergeMeshes(members, scene);
-    new BspSurfaceArrayPlugin(materials[0], baseArray, bumpArray, false);
+    new BspSurfaceArrayPlugin(materials[0], surface as SurfaceArrays);
     mesh.material = materials[0];
     for (const member of members) member.dispose(false, false);
     for (const material of materials.slice(1)) disposeMaterial(material);
