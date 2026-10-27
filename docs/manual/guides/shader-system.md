@@ -134,7 +134,9 @@ For BSP `autosprite2`, each authored quad rotates around its own longest edge
 axis. The camera-facing direction is projected perpendicular to that axis;
 the original centre, length and vertex/UV association are retained. This covers
 horizontal and tilted halos as well as vertical cones. A view directly along
-the axis retains the previous orientation, and normals/bounds follow the deform.
+the axis keeps the authored orientation (the CPU billboard, used beside a glow
+layer, keeps the previous one); normals follow the deform, and mesh bounds
+cover every orientation.
 
 `softParticle` fades effects against opaque scene depth, including alpha-tested
 cutouts. It uses Qfusion's softness curve and default scale of 0.02 (full

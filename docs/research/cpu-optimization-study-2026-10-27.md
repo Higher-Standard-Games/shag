@@ -278,6 +278,24 @@ own frame. Two follow-ups came out of it:
   condition instead of a call per value measured 0.066 against 0.061 ms/frame:
   the cost is reading the node values, not the calls.
 
+- **Sprite billboards, moved to the vertex shader.** `Q3AutospritePlugin`
+  (GLSL and WGSL) turns each sprite vertex from per-vertex centre and offset
+  attributes toward `vEyePosition`; the CPU billboard remains for materials
+  without the plugin and while an effect layer exists. `updateAutosprites` fell
+  from 0.177 to 0.011 ms/frame in the same demo window. Paused frames aimed at
+  sprites on dm5 and dm2, plugin on, on again and off (CPU), on WebGL2 and
+  WebGPU: in every view where an authored-quad control differs (up to 7% of
+  pixels), GPU against CPU differs no more than two consecutive GPU captures
+  (0.06–0.18% of pixels by more than two levels, from the paused scene's own
+  drift); dm2's sprite view is identical. Captures used `engine.readPixels`: a
+  2D-canvas copy of a WebGPU canvas does not return the current frame. A
+  material plugin cannot be deactivated in Babylon (`_enable(false)` does
+  nothing), so the plugin's switch drives its define; frozen sprite materials
+  must be unfrozen for a switch to reach their effects. Not seen in a browser:
+  sprites of a multi-pass shader. Its later passes are clones with their own
+  vertex buffers, which the CPU billboard never updated; they carry the
+  attributes and get the plugin, but neither dm5 nor dm2 has one.
+
 The remaining large CPU cost is Babylon drawing about 80 opaque map surfaces a
 frame and evaluating active meshes, which the renderer results note leaves to a
 material redesign.

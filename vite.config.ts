@@ -176,6 +176,7 @@ export default defineConfig({
       '@babylonjs/core/Events/pointerEvents',
       '@babylonjs/core/Instrumentation/engineInstrumentation',
       '@babylonjs/core/Instrumentation/sceneInstrumentation',
+      '@babylonjs/core/Layers/effectLayer',
       '@babylonjs/core/Layers/glowLayer',
       '@babylonjs/core/Layers/layer',
       '@babylonjs/core/Layers/layerSceneComponent',

@@ -236,7 +236,7 @@ and scene membership remain intact. Mesh or scene disposal releases registration
 and the returned function can release it earlier. Gib shards use this policy;
 other disabled scene objects retain their existing handling.
 
-Autosprite billboards update before each world camera draws, after frame-level PVS. Additive sprites of one texture, whose every shader pass also adds, share one mesh: one draw and one vertex upload for all of them, in any order, since additive blending does not depend on it. The shared mesh carries the union of its sprites' PVS clusters. Sprites that blend by alpha keep a mesh each, drawn in face order. On `washoi_dm5` 76 sprites draw from 42 meshes, on `washoi_dm2` 62 from 4. Hidden/disabled sprites skip vertex work; visible sprites reuse their last uploaded orientation while the eye position is unchanged. Newly visible sprites refresh before selection, and map cleanup removes their callback. This is automatic on map load and needs no extra setting.
+Autosprite billboards turn in the vertex shader. Each sprite vertex carries its face centre and its offset from it (for `autosprite2`, the axis and its offsets along and across it), and the `Q3AutospritePlugin` on the sprite's Standard or PBR material faces it toward the eye of whichever camera draws it: the main view, a water reflection or a sky portal. Every mesh carrying that data is prepared on map load, extra shader passes and shine overlays included, and keeps the plugin when its material is replaced; its bounds hold every orientation. A mesh whose material cannot take the plugin, and every sprite mesh while a Babylon effect layer exists (`r_glow` above 0, whose glow pass uses a shader of its own), also gets the CPU billboard: it updates before each world camera draws, after frame-level PVS. Additive sprites of one texture, whose every shader pass also adds, share one mesh: one draw and one vertex upload for all of them, in any order, since additive blending does not depend on it. The shared mesh carries the union of its sprites' PVS clusters. Sprites that blend by alpha keep a mesh each, drawn in face order. On `washoi_dm5` 76 sprites draw from 42 meshes, on `washoi_dm2` 62 from 4. On the CPU path hidden/disabled sprites skip vertex work; visible sprites reuse their last uploaded orientation while the eye position is unchanged. Newly visible sprites refresh before selection, and map cleanup removes their callback. This is automatic on map load and needs no extra setting.
 
 For headless inspection, build geometry with `bsp render` before `pvs on`. Enabling updates visibility immediately, but command batches do not run the gameplay render loop. Mesh counts from `NullEngine` do not measure GPU performance. The repository's `docs/research/v0.9.23-rendering-research.md` tracks implementation progress, validation and remaining visual checks.
 
@@ -262,7 +262,7 @@ The repeatable geometry/PVS audit checks all authored deathmatch spawn origins a
 npx vite-node src/cli/audit-pvs.ts -- washoi_dm2 acidwdm2 wbomb6
 ```
 
-It verifies authored geometry hashes, reports mesh/triangle counts before frustum culling, and checks moving/stationary autosprite upload counts with PVS on/off. It does not benchmark GPU rendering or load the complete gameplay/material pipeline.
+It verifies authored geometry hashes, reports mesh/triangle counts before frustum culling, and checks the CPU billboard's moving/stationary upload counts with PVS on/off. It does not benchmark GPU rendering or load the complete gameplay/material pipeline.
 
 ## Headless verification
 

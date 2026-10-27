@@ -9,13 +9,14 @@
  */
 
 import { VertexBuffer } from "@babylonjs/core/Buffers/buffer";
+import { BoundingInfo } from "@babylonjs/core/Culling/boundingInfo";
 import { Constants } from "@babylonjs/core/Engines/constants";
 import { PBRMaterial } from "@babylonjs/core/Materials/PBR/pbrMaterial";
 import { ShaderMaterial } from "@babylonjs/core/Materials/shaderMaterial";
 import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
 import { Texture } from "@babylonjs/core/Materials/Textures/texture";
 import { Color3 } from "@babylonjs/core/Maths/math.color";
-import type { Vector3 } from "@babylonjs/core/Maths/math.vector";
+import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import type { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh";
 import { Mesh } from "@babylonjs/core/Meshes/mesh";
 import { VertexData } from "@babylonjs/core/Meshes/mesh.vertexData";
@@ -25,6 +26,13 @@ import { devLog } from "../../core/DevLog";
 import { applySafeMaxSimultaneousLights } from "../../lighting/DynamicLightSafety";
 import { RenderVars } from "../../rendering/RenderVars";
 import { GlowOverlayShaderMaterial } from "../shader/GlowOverlayShaderMaterial";
+import {
+  AUTOSPRITE_CENTER_KIND,
+  AUTOSPRITE_FRAME_KIND,
+  AUTOSPRITE_RIGHT_KIND,
+  configureQ3Autosprite,
+  isGpuAutosprite,
+} from "../shader/Q3AutospritePlugin";
 import { configureQ3Alpha, q3AlphaMode } from "../shader/Q3Blend";
 import { configureQ3DistanceRamp } from "../shader/Q3DistanceRampPlugin";
 import { Q3ShaderRegistry } from "../shader/Q3ShaderRegistry";
@@ -37,7 +45,12 @@ import { bspLightingProfile, scaleBspLighting } from "./BspLightingProfile";
 import type { BspFile } from "./BspLoader";
 import { classifyLiquids, DEFAULT_LIQUID_OVERRIDES, liquidKindFromSurfaceParms } from "./LiquidClassifier";
 import { createAutosprite2Geometry, updateAutosprite2Geometry } from "./mesh/autosprite2";
-import { type AutospriteRecord, autospriteRecord } from "./mesh/autospriteRecords";
+import {
+  type AutospriteRecord,
+  autospriteBounds,
+  autospriteRecord,
+  autospriteVertexData,
+} from "./mesh/autospriteRecords";
 import { cubemapObjectOfFaces } from "./mesh/cubemapObjects";
 import { buildMeshFace, buildPatchFace, buildPolygonFace } from "./mesh/faceBuilders";
 import { createRadialGradientTexture, createSolidColorTexture } from "./mesh/fallbackTextures";
@@ -798,6 +811,14 @@ export class BspMeshBuilder {
           memberIndices[member],
         );
       });
+      // The vertex shader's billboard, used wherever the mesh's material takes it
+      const billboard = autospriteVertexData(
+        members.map((si) => spriteRecords[si]),
+        positions,
+      );
+      spriteMesh.setVerticesData(AUTOSPRITE_CENTER_KIND, billboard.center, false, 4);
+      spriteMesh.setVerticesData(AUTOSPRITE_FRAME_KIND, billboard.frame, false, 4);
+      spriteMesh.setVerticesData(AUTOSPRITE_RIGHT_KIND, billboard.right, false, 4);
     }
     for (const record of spriteRecords) autospriteMeshData.push(record);
 
@@ -908,6 +929,12 @@ export class BspMeshBuilder {
     if (!result.autospriteMeshes?.length) return;
     const world = result.worldMesh;
     const scene = world.getScene();
+    // Every mesh drawing sprites, extra shader passes and shine overlays included,
+    // whatever material it holds now or later
+    for (const mesh of world.getChildMeshes(false)) {
+      if (mesh instanceof Mesh && mesh.isVerticesDataPresent(AUTOSPRITE_CENTER_KIND))
+        BspMeshBuilder.prepareGpuAutosprite(mesh);
+    }
     const observer = scene.onBeforeCameraRenderObservable.add((camera) => {
       if ((camera.layerMask & ~0x10000000) === 0) return;
       camera.getViewMatrix();
@@ -935,7 +962,7 @@ export class BspMeshBuilder {
     let uploads = 0;
 
     for (const [mesh, sprites] of BspMeshBuilder.autospritesByMesh(result.autospriteMeshes)) {
-      if (mesh.isDisposed() || !mesh.isVisible || mesh.visibility <= 0 || !mesh.isEnabled()) {
+      if (mesh.isDisposed() || !mesh.isVisible || mesh.visibility <= 0 || !mesh.isEnabled() || isGpuAutosprite(mesh)) {
         // Re-entering visibility must upload before the first visible draw.
         BspMeshBuilder.autospriteCameraPositions.delete(mesh);
         continue;
@@ -981,6 +1008,19 @@ export class BspMeshBuilder {
       uploads++;
     }
     return uploads;
+  }
+
+  /** Give a sprite mesh the vertex-shader billboard and bounds that hold every orientation. */
+  private static prepareGpuAutosprite(mesh: Mesh): void {
+    const center = mesh.getVerticesData(AUTOSPRITE_CENTER_KIND);
+    const frame = mesh.getVerticesData(AUTOSPRITE_FRAME_KIND);
+    const right = mesh.getVerticesData(AUTOSPRITE_RIGHT_KIND);
+    const positions = mesh.getVerticesData(VertexBuffer.PositionKind);
+    if (!center || !frame || !right || !positions) return;
+    const [x0, y0, z0, x1, y1, z1] = autospriteBounds(positions, center, frame, right);
+    mesh.setBoundingInfo(new BoundingInfo(new Vector3(x0, y0, z0), new Vector3(x1, y1, z1)));
+    configureQ3Autosprite(mesh.material);
+    mesh.onMaterialChangedObservable.add(() => configureQ3Autosprite(mesh.material));
   }
 
   /** The sprites of each mesh, in build order; computed once per build result. */

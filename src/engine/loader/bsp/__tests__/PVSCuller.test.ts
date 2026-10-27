@@ -1,6 +1,7 @@
 import { VertexBuffer } from "@babylonjs/core/Buffers/buffer";
 import { FreeCamera } from "@babylonjs/core/Cameras/freeCamera";
 import { NullEngine } from "@babylonjs/core/Engines/nullEngine";
+import type { EffectLayer } from "@babylonjs/core/Layers/effectLayer";
 import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
 import { RawTexture } from "@babylonjs/core/Materials/Textures/rawTexture";
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
@@ -20,6 +21,7 @@ import { MapLoader } from "../../map/MapLoader";
 import { PK3Index } from "../../pk3/PK3Index";
 import { PK3Loader } from "../../pk3/PK3Loader";
 import { PK3TextureLoader } from "../../pk3/PK3TextureLoader";
+import { isGpuAutosprite } from "../../shader/Q3AutospritePlugin";
 import { Q3ShaderRegistry } from "../../shader/Q3ShaderRegistry";
 import type { ResolvedMaterialProps } from "../../shader/Q3ShaderTypes";
 import * as BspEntityHandlers from "../BspEntityHandlers";
@@ -529,7 +531,7 @@ describe("default PVS through gameplay MapLoader", () => {
     expect(order).toEqual(["definitions", "dependencies", "preload", "handlers", "dispatch"]);
   });
 
-  it("uploads newly visible billboards in the same frame as a PVS boundary crossing", async () => {
+  it("turns billboards in the vertex shader, and with an effect layer uploads newly visible ones at a PVS crossing", async () => {
     const vertex = bsp.vertices[0];
     bsp.vertices = [2, -2].flatMap((x) =>
       [
@@ -570,6 +572,12 @@ describe("default PVS through gameplay MapLoader", () => {
       scene.onBeforeRenderObservable.notifyObservers(scene);
       scene.onBeforeCameraRenderObservable.notifyObservers(camera);
     };
+    frame();
+    expectUploads([0, 0]);
+    expect(sprites.map(({ mesh }) => isGpuAutosprite(mesh))).toEqual([true, true]);
+
+    // An effect layer draws with shaders of its own, so the CPU billboard runs as well
+    scene.effectLayers.push({} as EffectLayer);
     frame();
     expectUploads([1, 0]);
     camera.position.x = -0.1;

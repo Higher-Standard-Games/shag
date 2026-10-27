@@ -1,13 +1,23 @@
 import { VertexBuffer } from "@babylonjs/core/Buffers/buffer";
 import { FreeCamera } from "@babylonjs/core/Cameras/freeCamera";
 import { NullEngine } from "@babylonjs/core/Engines/nullEngine";
+import type { EffectLayer } from "@babylonjs/core/Layers/effectLayer";
+import { ShaderMaterial } from "@babylonjs/core/Materials/shaderMaterial";
+import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { Mesh } from "@babylonjs/core/Meshes/mesh";
 import { TransformNode } from "@babylonjs/core/Meshes/transformNode";
 import { Scene } from "@babylonjs/core/scene";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  AUTOSPRITE_CENTER_KIND,
+  AUTOSPRITE_FRAME_KIND,
+  AUTOSPRITE_RIGHT_KIND,
+  isGpuAutosprite,
+} from "../../shader/Q3AutospritePlugin";
 import { BspMeshBuilder, type BspMeshBuildResult } from "../BspMeshBuilder";
 import { createAutosprite2Geometry, updateAutosprite2Geometry } from "../mesh/autosprite2";
+import { type AutospriteVertexData, autospriteBounds, autospriteVertexData } from "../mesh/autospriteRecords";
 
 let engine: NullEngine;
 let scene: Scene;
@@ -258,5 +268,111 @@ describe("Qfusion autosprite2 authored axes", () => {
     updateAutosprite2Geometry(geometry, positions, null, new Vector3(5, 10, 10));
     expect(positions.every(Number.isFinite)).toBe(true);
     expect(createAutosprite2Geometry([0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 1, 2, 0, 2, 1]).quads).toHaveLength(0);
+  });
+});
+
+/** The vertex shader's billboard (Q3AutospritePlugin), evaluated on the CPU. */
+function shaderPosition(data: AutospriteVertexData, positions: ArrayLike<number>, v: number, eye: Vector3): number[] {
+  const [cx, cy, cz, mode] = Array.from(data.center.subarray(v * 4, v * 4 + 4));
+  const frame = data.frame.subarray(v * 4, v * 4 + 4);
+  const authored = Array.from(positions).slice(v * 3, v * 3 + 3);
+  if (mode < 0.5) return authored;
+  const center = new Vector3(cx, cy, cz);
+  const toEye = eye.subtract(center);
+  if (mode < 1.5) {
+    const distance = toEye.length();
+    if (distance < 0.001) return authored;
+    const f = toEye.scale(1 / distance);
+    let right = new Vector3(f.z, 0, -f.x);
+    let up: Vector3;
+    if (right.length() < 0.001) {
+      right = new Vector3(1, 0, 0);
+      up = new Vector3(0, 0, -1);
+    } else {
+      right = right.normalize();
+      up = new Vector3(f.y * right.z, f.z * right.x - f.x * right.z, -f.y * right.x);
+    }
+    return center.add(right.scale(frame[0])).add(up.scale(frame[1])).asArray();
+  }
+  const axis = new Vector3(frame[0], frame[1], frame[2]);
+  const across = toEye.subtract(axis.scale(Vector3.Dot(toEye, axis)));
+  if (across.length() < 0.0001) return authored;
+  const a = across.normalize();
+  const turned = new Vector3(axis.z * a.y - axis.y * a.z, axis.x * a.z - axis.z * a.x, axis.y * a.x - axis.x * a.y);
+  return center
+    .add(axis.scale(frame[3]))
+    .add(turned.scale(data.right[v * 4 + 3]))
+    .asArray();
+}
+
+describe("vertex-shader billboard data", () => {
+  const eyes = [
+    new Vector3(0, 0, 10),
+    new Vector3(30, 5, -4),
+    new Vector3(-7, -20, 3),
+    new Vector3(0.3, 50, 0.2),
+    new Vector3(12, 0.5, 40),
+  ];
+
+  it.each([false, true])("places every vertex where the CPU billboard does (autosprite2=%s)", (cylindrical) => {
+    const { mesh, result } = billboard(cylindrical);
+    const record = result.autospriteMeshes![0];
+    const authored = Array.from(mesh.getVerticesData(VertexBuffer.PositionKind)!);
+    if (cylindrical) record.axisGeometry = createAutosprite2Geometry(authored, mesh.getIndices()!);
+    record.vertexStart = 0;
+    const data = autospriteVertexData([record], authored);
+    const bounds = autospriteBounds(authored, data.center, data.frame, data.right);
+    for (const eye of eyes) {
+      BspMeshBuilder.updateAutosprites(result, eye);
+      const cpu = mesh.getVerticesData(VertexBuffer.PositionKind)!;
+      for (let v = 0; v < 4; v++) {
+        const gpu = shaderPosition(data, authored, v, eye);
+        gpu.forEach((value, axis) => {
+          expect(value).toBeCloseTo(cpu[v * 3 + axis], 5);
+          expect(value).toBeGreaterThanOrEqual(bounds[axis] - 1e-5);
+          expect(value).toBeLessThanOrEqual(bounds[axis + 3] + 1e-5);
+        });
+      }
+    }
+  });
+
+  it("keeps a face of fewer than four vertices as authored", () => {
+    const { mesh, result } = billboard();
+    const record = result.autospriteMeshes![0];
+    record.vertexOffsets = record.vertexOffsets.slice(0, 3);
+    const data = autospriteVertexData([record], mesh.getVerticesData(VertexBuffer.PositionKind)!);
+    expect(Array.from(data.center).filter((_, i) => i % 4 === 3)).toEqual([0, 0, 0, 0]);
+  });
+
+  it("hands a mesh to the vertex shader once its material takes the billboard, CPU while an effect layer draws", () => {
+    const { mesh, result, upload } = billboard();
+    const authored = mesh.getVerticesData(VertexBuffer.PositionKind)!;
+    const data = autospriteVertexData(result.autospriteMeshes!, authored);
+    mesh.setVerticesData(AUTOSPRITE_CENTER_KIND, data.center, false, 4);
+    mesh.setVerticesData(AUTOSPRITE_FRAME_KIND, data.frame, false, 4);
+    mesh.setVerticesData(AUTOSPRITE_RIGHT_KIND, data.right, false, 4);
+    mesh.material = new StandardMaterial("sprite", scene);
+    BspMeshBuilder.registerAutospriteUpdates(result);
+    expect(isGpuAutosprite(mesh)).toBe(true);
+    // The box holds the quad turned to any side, not just as authored
+    const box = mesh.getBoundingInfo().boundingBox;
+    expect(box.minimum.z).toBeCloseTo(-Math.SQRT2);
+    expect(box.maximum.x).toBeCloseTo(Math.SQRT2);
+
+    const eye = new Vector3(0, 0, 10);
+    expect(BspMeshBuilder.updateAutosprites(result, eye)).toBe(0);
+    expect(upload).not.toHaveBeenCalled();
+    // A material assigned later takes the billboard too
+    mesh.material = new StandardMaterial("replacement", scene);
+    expect(isGpuAutosprite(mesh)).toBe(true);
+    // A material that cannot take it leaves the mesh to the CPU billboard
+    mesh.material = new ShaderMaterial("custom", scene, "custom", {});
+    expect(isGpuAutosprite(mesh)).toBe(false);
+    expect(BspMeshBuilder.updateAutosprites(result, eye)).toBe(1);
+
+    mesh.material = new StandardMaterial("again", scene);
+    scene.effectLayers.push({} as EffectLayer);
+    expect(isGpuAutosprite(mesh)).toBe(false);
+    expect(BspMeshBuilder.updateAutosprites(result, new Vector3(5, 0, 10))).toBe(1);
   });
 });

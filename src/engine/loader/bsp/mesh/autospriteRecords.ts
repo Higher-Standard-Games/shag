@@ -10,6 +10,83 @@ interface AutospriteSource {
   shaderProps: { autosprite2?: boolean };
 }
 
+export interface AutospriteVertexData {
+  center: Float32Array;
+  frame: Float32Array;
+  right: Float32Array;
+}
+
+/**
+ * The vertex shader's billboard attributes (see `Q3AutospritePlugin`) for the
+ * sprites one mesh draws, from their records and the mesh's authored positions.
+ */
+export function autospriteVertexData(records: AutospriteRecord[], positions: ArrayLike<number>): AutospriteVertexData {
+  const count = positions.length / 3;
+  const center = new Float32Array(count * 4);
+  const frame = new Float32Array(count * 4);
+  const right = new Float32Array(count * 4);
+  for (const record of records) {
+    if (record.isAutosprite2) {
+      for (const quad of record.axisGeometry?.quads ?? []) {
+        const [cx, cy, cz] = quad.center;
+        for (const v of quad.vertices) {
+          const dx = positions[v * 3] - cx;
+          const dy = positions[v * 3 + 1] - cy;
+          const dz = positions[v * 3 + 2] - cz;
+          center.set([cx, cy, cz, 2], v * 4);
+          frame.set([...quad.axis, dx * quad.axis[0] + dy * quad.axis[1] + dz * quad.axis[2]], v * 4);
+          right.set([...quad.right, dx * quad.right[0] + dy * quad.right[1] + dz * quad.right[2]], v * 4);
+        }
+      }
+      continue;
+    }
+    // As the CPU billboard: a face of fewer than four vertices keeps its authored shape
+    if (record.vertexOffsets.length < 4) continue;
+    const start = record.vertexStart ?? 0;
+    const [cx, cy, cz] = record.center;
+    record.vertexOffsets.forEach(([rightFrac, upFrac], i) => {
+      center.set([cx, cy, cz, 1], (start + i) * 4);
+      frame.set([rightFrac * record.halfWidth, upFrac * record.halfHeight, 0, 0], (start + i) * 4);
+    });
+  }
+  return { center, frame, right };
+}
+
+/**
+ * A box holding every orientation the vertices can turn to: a billboarded
+ * vertex stays at its distance from the face centre. Min x, y, z, max x, y, z.
+ */
+export function autospriteBounds(
+  positions: ArrayLike<number>,
+  center: ArrayLike<number>,
+  frame: ArrayLike<number>,
+  right: ArrayLike<number>,
+): [number, number, number, number, number, number] {
+  const bounds: [number, number, number, number, number, number] = [
+    Infinity,
+    Infinity,
+    Infinity,
+    -Infinity,
+    -Infinity,
+    -Infinity,
+  ];
+  for (let v = 0; v < positions.length / 3; v++) {
+    const mode = center[v * 4 + 3];
+    const turns = mode > 0.5;
+    const radius = !turns
+      ? 0
+      : mode < 1.5
+        ? Math.hypot(frame[v * 4], frame[v * 4 + 1])
+        : Math.hypot(frame[v * 4 + 3], right[v * 4 + 3]);
+    for (let axis = 0; axis < 3; axis++) {
+      const at = turns ? center[v * 4 + axis] : positions[v * 3 + axis];
+      bounds[axis] = Math.min(bounds[axis], at - radius);
+      bounds[axis + 3] = Math.max(bounds[axis + 3], at + radius);
+    }
+  }
+  return bounds;
+}
+
 /**
  * Billboard data for one autosprite face drawn by `mesh` from `vertexStart`.
  * `batchPositions` and `indices` are the mesh's own: an autosprite2 quad keeps
