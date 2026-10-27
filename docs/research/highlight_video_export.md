@@ -2,6 +2,10 @@
 
 Date: 2026-10-22. Status: standalone browser proof passed; Washoi exporter not implemented.
 
+Planning review: 2026-10-26. Public target narrowed to existing 1/2/3-minute
+highlight reels. The review below supersedes the earlier interval/HUD scope;
+short intervals remain internal test fixtures only.
+
 ## Investigation result
 
 **Yes: Full HD60 MP4 export with synchronized audio is technically feasible on
@@ -28,11 +32,11 @@ capture of a running multiplayer match.
 
 The recommended first complete version supports:
 
-- A marked interval from a normal demo, plus an already generated cinematic reel.
+- An already generated cinematic highlight reel, using the existing 1/2/3-minute choices.
 - Full HD 1920×1080 at 60 FPS, landscape 16:9, SDR.
 - H.264 video and AAC stereo audio in an MP4 container, after capability checks.
-- Game SFX; optional selected music, disabled by default.
-- Clean cinematic picture or a deliberately specified export HUD.
+- Game SFX; music selection is deferred from the first public version.
+- Clean cinematic picture; full gameplay HUD export is deferred.
 - Reel title/shot cards and fades when the chosen reel contains them.
 - Progress, cancellation, and a local save. No account upload or YouTube publishing.
 
@@ -54,17 +58,27 @@ video renderer, video upload or server output directory is required. The local
 `.cache/` paths in the proof below are research-runner artifacts, not the planned
 player-facing save location.
 
-On supported desktop Chrome/Edge, a user click opens `showSaveFilePicker()` with
+The preferred public UI, refined on 2026-10-27, is a modal with duration
+selection, Generate, progress/cancel and a separate Download action. Generate
+writes the encoded result incrementally to bounded browser-managed temporary
+storage; Download then chooses a user-visible destination. This adds a temporary
+file/quota/copy proof gate. It supersedes choose-destination-before-generation
+as the primary UI; direct-to-destination remains a possible explicitly labelled
+fallback if temporary storage is unavailable. See the modal contract below.
+
+On supported desktop Chrome/Edge, the Download click opens `showSaveFilePicker()` with
 a suggested MP4 filename. The user chooses the destination, then the exporter
-opens a writable stream and feeds the muxer's positional writes into it. The
+opens a writable stream and copies the finalized temporary file into it. In
+direct-to-destination mode, the muxer's positional writes go to that stream. The
 browser authorizes access to that selected file; the website cannot silently
 choose an arbitrary disk path. Use HTTPS (localhost for development) and feature
 detection. See the
 [File System Access documentation](https://developer.chrome.com/docs/capabilities/web-apis/file-system-access).
 
-Open the picker directly from a user gesture, before asynchronous asset loading.
-A developer console command can prepare/open the export dialog, with an explicit
-Export/Choose file button to supply that gesture. If the API is unavailable,
+Open the picker directly from its user gesture, before asynchronous saving work.
+For direct-to-destination mode this is before generation/preparation; for the
+preferred Generate-then-Download mode it is a fresh click after finalization.
+A developer console command can prepare/open the same export dialog. If the API is unavailable,
 offer a bounded-size Blob download after rendering, using the browser's download
 destination behavior. The existing proof tests a simulated positional sink;
 real picker permissions, writable close/abort and storage failures remain to test.
@@ -118,7 +132,7 @@ Paths below are source observations, not proposed new APIs.
 | `src/games/fps/client/DemoViewer.ts` | Tick-based playhead, frame delivery, seeking, interpolation lookahead | Ordinary playback bounds catch-up after stalls. Export must advance in bounded fixed steps and verify no recorded events were skipped |
 | `src/games/fps/client/CinematicDemoPlayer.ts` | Builds the reel, camera paths, speed easing, title hold, shot transitions, `getVeil()` | Freeze the selected reel and derive an output timeline including holds, speed changes, replays and transitions |
 | `src/games/fps/client/TimedemoService.ts` | Temporarily fixes render dimensions with `engine.setSize`, disables camera input, drives manual playback before scene animation, restores state | The benchmark still passes measured wall time into playback; it is not an offline video exporter |
-| `src/main.ts` | Main render loop updates the player and renders the scene | Export needs exclusive frame ownership; leaving this loop and demo RAF running would double-step presentation |
+| `src/games/fps/client/main.ts` | Washoi's main render loop updates the player and renders the scene | Export needs exclusive frame ownership; leaving this loop and demo RAF running would double-step presentation |
 | `src/engine/loader/shader/ShaderAnimationSystem.ts` | Authored shader animation is centralized | Its update reads `performance.now()`; fixed demo steps alone do not fix world material animation |
 | `src/games/fps/client/hud/widgets/VitalsBlock.ts`, `DemoViewerHUD.ts` | HUD and reel graphics already exist | They are DOM/CSS, outside the game canvas |
 | `src/games/fps/client/HUDState.ts`, `ReelCards.ts` | Presentation data and reel copy can be reused | Need an explicit export overlay model rather than scraping rendered text |
@@ -127,10 +141,14 @@ Paths below are source observations, not proposed new APIs.
 | `src/engine/ui/UIScale.ts` | 1920×1080 reference layout | Live UI scaling depends on the window; export graphics must depend on output dimensions |
 | `src/engine/core/Cvar.ts` | Developer gating | Production browser builds lock developer mode off, so the first gated command will work in development, not as a production hidden switch |
 
-Babylon's installed `AudioV2/webAudio/webAudioEngine.d.ts` accepts an
-`AudioContext`, not an `OfflineAudioContext`. Do not assume its current engine
-can simply be handed an offline context. A small offline audio backend using
-shared decoded assets is the safer starting proposal.
+Babylon 9.31.2's installed `AudioV2/webAudio/webAudioEngine.d.ts` types the
+context as `AudioContext`, but its JavaScript explicitly detects
+`OfflineAudioContext`, reports it as running for scheduled sound calls, and
+avoids calling its absent `close()` method on disposal. Test a separate Babylon
+offline engine before deciding to write an independent mixer. This is evidence
+of an intended runtime path, not proof that SHAG's wrapper, automatic spatial
+updates or sound lifetimes work offline. `AudioV2Sfx` still starts sounds after
+asynchronous loading and uses wall time for active-source retirement.
 
 Existing manuals relevant to implementation: `docs/manual/guides/timedemo.md`,
 `shader-system.md`, `console-system.md`, `camera-system.md`, and the FPS manual's
@@ -197,7 +215,7 @@ idle → preparing → rendering/encoding → finalizing → complete
    the job. Export is unavailable during a live match; do not unexpectedly
    disconnect a player to begin one.
 2. Load map/models/fonts/audio; prepare the materials and effects used by the
-   clip. Run an unrecorded warmup/pre-roll. Wait for readiness without advancing
+   reel. Run an unrecorded warmup/pre-roll. Wait for readiness without advancing
    the movie clock, with bounded timeouts and missing-asset errors.
 3. Own the render update: suspend ordinary player/demo RAF advancement and
    automatic physics/animation steps that export will drive. Preserve and
@@ -353,7 +371,7 @@ Define these editorial policies before audio acceptance:
   rate. For eased speed changes, use the same time mapping for trigger times
   and rate automation; scheduling each event by division by one speed is wrong.
   Pitch-preserving time stretch is later work.
-- Music follows output time, not the demo's slowed time. Use one explicitly
+- If music is added later, it follows output time, not the demo's slowed time. Use one explicitly
   selected track/start offset for repeatable export; do not inherit a shuffled
   HTML playlist. Game-only sound is the default; uploading licensed music is
   the user's separate choice.
@@ -383,11 +401,13 @@ videoexport reel --preset fullhd --hud clean
 videoexport cancel
 ```
 
-Recipe validation should reject ambiguous time ranges, invalid camera subjects,
-empty reels, unsupported profiles and unavailable files before rendering. The
-console command and later UI should call the same job API. Consider a first
-version clip-length cap of 60 seconds, disclosed before starting; raise it after
-memory/output tests rather than promising arbitrary recording lengths.
+Public recipe validation should reject invalid camera subjects, empty reels,
+unsupported profiles and unavailable files before rendering. The console
+command and later UI should call the same job API. Public input is a frozen
+highlight reel; arbitrary intervals are internal fixtures. Accept the existing
+1/2/3-minute target choices only after measuring the longest resulting output,
+including its finite title/end cards and actual speed schedule. These choices
+are selection targets, not evidence of an exact 60/120/180-second file.
 
 Implementation phases with exit criteria:
 
@@ -404,12 +424,13 @@ Implementation phases with exit criteria:
    audio. Prove that an injected rendering stall introduces neither sound drift
    nor a long silence. These are necessary gates before calling it useful for
    YouTube highlights.
-4. **Complete developer feature:** clips plus frozen cinematic reels, game SFX,
-   clean/full supported HUD modes, progress/cancel/save and capability messages.
+4. **Complete developer feature:** frozen cinematic reels, game SFX,
+   clean picture with reel graphics, progress/cancel/save and capability messages.
    Freeze scope around Full HD60; no new server protocol or gameplay changes.
-5. **Player UI and wider support:** an Export action beside playback/reel controls,
-   tested extra presets and browsers. Decide production access separately from
-   the developer-gated prototype. 1440p/4K and vertical Shorts are later additions.
+5. **Player UI and wider support:** an Export action beside highlight/reel controls,
+   with complete 1/2/3-minute acceptance on supported desktop browsers. Decide
+   production access separately from the developer-gated prototype. Arbitrary
+   intervals, full gameplay HUD, music, 1440p/4K and vertical Shorts are later additions.
 
 Use encoder queues and incremental output. At 1080p, one RGBA image is about
 8.3 MB; 60 seconds of uncompressed 60 FPS frames would be about 30 GB. Never
@@ -446,12 +467,14 @@ Headless checks precede browser tests:
 - Existing required gates: `npm run typecheck`, `npm run test:run`,
   `npm run gate:biome`, `npm run build`.
 - Renderer/audio-clock edits require the renderer regression set:
-  `npm run test:simulation`, `npm run test:physics`, `npm run server:tick`,
-  `npm run server:fuzz -- --ticks 1000`, and indexed headless BSP loading.
-  The installed map is `washoi_dm2`; the older `wdm2` command in AGENTS.md is
-  known to refer to an absent package in this asset set. Record actual results.
+  `npm --prefix src/games/fps run test:simulation`,
+  `npm --prefix src/games/fps run test:physics`,
+  `npm --prefix src/games/fps run server:tick`,
+  `npm --prefix src/games/fps run server:fuzz -- --ticks 1000`, and
+  `npm --prefix src/games/fps run cli:game -- --exec "bsp load washoi_dm2; bsp info; quit"`.
+  Record actual results.
 - Update affected manuals/changelog when implementation lands, with
-  `npm run docs:build` and `npm run docs:fps:build` for game-manual edits.
+  `npm run docs:build` and `npm --prefix src/games/fps run docs:build` for game-manual edits.
 
 Real-browser acceptance must inspect the saved file, not just encoder callbacks:
 
@@ -529,7 +552,7 @@ Generated local evidence (ignored, regenerated by the runner):
 | Actual HUD fidelity | Share presentation data/assets and compare selected fixed-size game/export HUD frames; define exactly which elements are supported |
 | Game audio completeness | Collect real cues/loops/listener paths, test two-pass reconstruction, attenuation and cut tails; compare gunshot/flash sync after AAC |
 | Final render copy/colour | Capture all cameras and final postprocessing at 1080p; verify SDR/range/alpha and avoid viewport resize interference |
-| Memory and output failures | Measure a combat-heavy 60 s job; exercise real file picker, disk failure, codec failure and device loss; enforce limits |
+| Memory and output failures | Measure complete 1/2/3-minute reels, including the longest actual output; exercise real file picker, disk failure, codec failure and device loss; enforce limits |
 | Restoration | Cancel/fail a real export and verify renderer/input/audio ownership, original resolution and ordinary demo playback recover |
 
 No Washoi runtime feature, console command, protocol or production setting was
@@ -556,3 +579,325 @@ and relative Markdown links. `node --check` passed for each of the six `.mjs`
 files. The research documents are outside VitePress's published page/link graph.
 Renderer/network/game regression gates are reserved for implementation: this
 task adds standalone research scripts only.
+
+## Highlights-only plan validation, 2026-10-26
+
+This review changes planning only. It does not add an exporter, change live
+playback or establish acceptance for a real-game export.
+
+### Agreed product direction and proposed initial limits
+
+- Client-side export from an existing highlight reel. Servers supply ordinary
+  demo/assets only; no GPU render service, video upload or account publication.
+- The public target is the existing 1/2/3-minute reel choices. A ten-second
+  fixed-POV interval is a developer test, not an extra public trimming feature.
+- Proposed initial format: clean 1080p60 SDR H.264/AAC MP4, with game SFX,
+  existing reel cards/fades, progress/cancel and local save. Full gameplay HUD,
+  chat, music selection and arbitrary recordings are outside the initial scope.
+- Initial support is a tested desktop browser/OS/backend combination. A graphics
+  backend, codec or browser being selectable is not evidence of export support.
+- Normal demo playback and live matches keep their existing behavior. A public
+  export cannot take over a live match. Keep the eventual player job API separate
+  from the initial developer command's access gate.
+
+### Concrete gaps found in current source
+
+1. **The reel length is not an exact movie schedule.**
+   `SequenceBuilder._computeDurationMs` integrates piecewise-constant speed
+   keyframes; `CinematicDemoPlayer.update` eases speed on each update.
+   `SequenceBuilder.totalDurationMs` adds transition durations, whereas the
+   player's total sums segment durations and `getVeil()` overlays transitions
+   within shots. Title holding is separate. These are different accounting
+   paths, not safe inputs to an encoder's frame count. Build one pure, shared
+   reel schedule and verify preview/export mapping against it. Review any
+   intentional change to interactive timing separately; do not silently rewrite
+   the edit while implementing file export.
+2. **The ending is interactive rather than finite.** The player ends and shows
+   a card with Replay/Exit controls. Freeze its presentation data and assign a
+   finite export hold. A three-second closing hold is a proposal to review;
+   retain the authored title hold. Include both in displayed file duration.
+3. **A named crossfade is a dip, not a two-scene blend.** `getVeil()` implements
+   black-dip opacity for `crossfade`. Preserve that appearance initially; do not
+   infer a second simultaneous scene/render target from the transition's name.
+4. **Seeking does not reconstruct every transient effect.** At each rewind or
+   new shot, reset shot-local state, warm the destination and pre-roll the
+   bounded lead-in, then emit the first frame once. Do not emit preparation
+   events/audio, duplicate a boundary frag, or retain the previous shot's beam,
+   gib, loop or temporal postprocessing history. Ragdoll/gib simulation needs
+   repeatable substeps/seeds where possible, not a cross-device identity promise.
+5. **Public sound policy is unspecified.** Decide an explicit export mix instead
+   of accidentally inheriting the speaker mute state. Proposed: a fixed initial
+   SFX/channel mix, no music or chat/UI sounds, preserving the user's settings
+   and actual live audio state on exit. Test attenuation, camera changes,
+   beam/ambient loops, voice-instance policy and clipping. Slow motion may
+   lower pitch initially; pitch-preserving stretching is deferred.
+
+### Job and data-flow contract
+
+```text
+selected reel + demo/asset identities + export settings
+  -> frozen recipe and exact shot/movie schedule
+  -> bounded preparation, assets, camera paths and sound-cue collection
+  -> movie frame i -> shot + source playhead + camera/effect state
+  -> final scene/weapon/postprocess image + reel graphics
+  -> bounded encoder queues + aligned audio -> positional MP4 writes
+  -> finalize and close destination -> success
+```
+
+The output clock is `i / 60`; source time follows the shot's mapping and may
+rewind or slow down. Pre-roll has its own unrecorded traversal. Network, codec,
+disk and UI waiting advance none of these clocks. Exactly one owner advances
+playback, animations, physics and rendering. Frame-boundary rounding and seek
+event suppression must be covered by tests. Render warmup must not accidentally
+consume scheduled movie time or leak muted pre-roll cues into the mix.
+
+The recipe identifies demo bytes/version, selected reel, targets/camera paths,
+speed curves, graphics settings, random choices, map/package identities and
+output/audio policy. Pin the resources needed by the active job so eviction or
+another map operation cannot clear them. An ordinary code reload or asset
+rollout must not quietly mix versions midway through export. Complete preflight
+before writing encoded content; fail with the missing resource's identity when
+preparation cannot succeed. A three-minute output does not bound the source
+demo's length or indexing/analysis cost: avoid decoding/cloning the entire match
+into retained per-frame scene state.
+
+Preferred orchestration after discussion: a dedicated export page/session,
+initially for the integration proof. It reuses game composition and playback
+code with an export-owned bootstrap, rather than taking over the existing demo
+session. Separate document globals give the exporter its own singleton instances,
+scene and update owners. This reduces restoration coupling and lets a WebGL2
+export run without switching the original page's renderer. It does not remove
+the need for narrow clock/audio adapters in the reused systems, and it is not
+an operating-system crash or GPU-memory isolation guarantee.
+
+The extra scene exists for the export job only. Measure peak memory while both
+pages exist, avoid loading editor/lobby/live networking in the export bootstrap,
+and dispose its scene, engine, audio graph and media resources when the job
+ends. The completed page may retain a small result UI until closed. Reuse
+origin package caches where possible; cached bytes do not imply shared decoded
+models or GPU textures. Do not duplicate rendering/gameplay implementations or
+write temporary export settings into the user's persistent preferences. Pass a
+serializable frozen recipe and verified resource identities, not live scene
+objects or ownership of the main viewer's still-needed buffers. Opening and
+closing the export page must not join a lobby, replace a match or stop the
+original viewer. Account for browser popup/user-activation and independent save
+picker gestures in the page flow.
+
+Start with a validated WebGL2 export path; validate actual Babylon/WebGPU
+final-picture capture independently before advertising it. Keep generic
+clock/render/audio adapters in the engine and Washoi-specific recipes/UI in FPS.
+
+### Three-minute resource and failure budget
+
+At 1920x1080/60, 180 seconds contains 10,800 frames. Retaining their raw RGBA
+pixels would take about 89.6 GB. At configured 20 Mbps, video alone is about
+450 MB before audio/container overhead; actual variable-bitrate sizes vary.
+Float32 stereo 48 kHz PCM is about 69.1 MB before decoded source assets,
+offline graph resources or encoding copies. Three minutes is a useful bounded
+target, not automatically a small browser job.
+
+- Bound in-flight frames, GPU readbacks/bitmaps, encode queues, decoded audio,
+  cue schedules and pending disk writes. Close each owned media resource.
+- Prove memory plateaus during a busy three-minute reel and releases after
+  success/cancel. A six-second synthetic result cannot establish this.
+- Use real positional file writes and bounded MP4 metadata handling. The tested
+  `fastStart: false` path is the initial candidate. Its end metadata means an
+  interrupted file need not be playable; success requires finalization.
+- Treat the real save picker/writable as a separate acceptance gate. Pick the
+  destination from its own user gesture before asynchronous saving work. Test close,
+  abort, disk-full/write refusal and existing-file preservation. Do not assume
+  that wrapping a whole-file memory buffer in a stream solves memory use.
+- The old Blob fallback is conditional: do not offer a three-minute in-memory
+  download until measured safe. It is acceptable for initial public support to
+  require a validated streaming destination, with a clear unsupported message.
+- Decide hidden-tab behavior explicitly. Proposed first version: pause at a safe
+  frame boundary while hidden, retain movie time and resume only if resources
+  remain valid. Browser suspension/device loss may require cancel/restart;
+  there is no promised checkpoint/resume across reload or a closed tab.
+- Cancel must interrupt preparation, encoder backpressure and file writes, not
+  merely set a flag checked at the next rendered frame. Keep a responsive
+  progress UI by yielding during CPU-heavy work. A worker encoder/muxer is an
+  optional later placement; it does not give the live Babylon scene worker
+  ownership automatically.
+
+### Evidence gates before public implementation/rollout
+
+| Gate | Evidence required | State |
+| --- | --- | --- |
+| Synthetic file pipeline | Frame IDs, stalls, audio sync, incremental output, cancel/restart | Passed in the original PoC on one setup |
+| Exact reel schedule | Shared source/movie mapping, speed easing, finite cards, transition and event boundaries | Open; source discrepancies identified |
+| Small game-picture proof | Ten real-demo seconds/600 frames at 720p60; normal vs stalled processing produces matching sampled state/images | Open |
+| Offline game-audio proof | Evaluate Babylon offline path; gunshot/flash timing, moving listener/source, loops, cuts and slow motion after AAC decode | Open |
+| First full scene | Intro, POV replay and ending orbit with correct weapon/beam/ADS/effects, cards and final postprocessing | Open |
+| Save and lifetime proof | Actual file picker, slow/failing writes, cancellation in every phase, repeat export and normal-playback recovery | Open |
+| Long-form acceptance | Busy 1/2/3-minute reels including finite ending; bounded memory, complete event/frame schedule and sync at start/cuts/end | Open |
+| Public support matrix | Ordinary supported browser launches, codec preflight plus a short real encode, tested WebGL2/WebGPU combinations and actionable failures | Open |
+| Independent output review | Separate player/decoder checks for colour, seeking, initial AAC priming/end padding, text sharpness and audio clipping | Open |
+
+The two-pass audio proposal is still a design candidate. First prove identical
+resolved cue identities/timestamps and camera paths across collection/render
+traversals; asynchronous sound resolution and random effect choices cannot
+decide timing separately. If it fails that proof, revise cue collection or use
+bounded chunk mixing before integrating a full exporter. Do not retain raw
+video while waiting for an unknown complete audio schedule.
+
+### Separate audio preparation and final packaging
+
+Rendering audio separately is compatible with the offline design and is the
+preferred integration-proof structure. Separate generation does not require the
+player to save or merge two files:
+
+1. Freeze the reel's source/movie mapping, camera paths and random sound choices.
+2. Traverse the required shot ranges to collect resolved sound cues and listener
+   paths; render their stereo samples offline. No speaker recording is needed.
+3. Reset/pre-roll the scene and render video frames from the same recipe. With
+   the prepared audio available, feed timestamped AAC and video chunks to the
+   MP4 muxer under backpressure. The public result is one file.
+
+As an internal diagnostic, the short proof may also save a WAV and silent MP4
+and combine them afterward. Combining already encoded tracks is muxing/remuxing;
+it need not encode the video again. That route requires bounded intermediate
+storage and a tested remux adapter. It is not a reason to retain all raw video
+frames, install FFmpeg into the public browser client or require external user
+tools. The simpler initial public candidate prepares audio first, then writes
+the two tracks into one MP4 as video renders.
+
+These are separate responsibilities: mixing constructs the audio samples;
+encoding compresses samples/pictures; muxing packages the encoded tracks with
+timestamps. Do not await an entire audio-track feed before beginning the video
+feed in a muxer that applies inter-track backpressure. Preparation can be
+sequential while track feeding is interleaved/concurrent, as in the synthetic
+PoC. Separate passes still require the same exact schedule, camera/listener
+trajectory, cut/loop rules, initial codec delay and end-padding policy.
+
+### Optional encoding worker and parallel preparation, 2026-10-27
+
+Worker concurrency is feasible without another game scene. Keep this as a
+bounded proof gate rather than a prerequisite to the first real-game export.
+The original page may retain its scene; the dedicated export page owns one
+export scene. Encoder workers own media data and job state, not a Babylon
+engine, map, camera or third scene.
+
+Verified API boundaries: WebCodecs exposes `AudioEncoder`, `VideoEncoder`,
+`AudioData` and `VideoFrame` to dedicated workers; the raw media types have
+transfer support. Web Audio's `OfflineAudioContext` is exposed to Window,
+not an ordinary worker. Creating it in the export page still permits its
+asynchronous browser audio rendering to overlap other work. Browser codec and
+audio implementations own their processing resources; adding JavaScript workers
+does not guarantee extra hardware throughput or a particular speedup.
+
+The simplest worker candidate is one encoding/muxing worker that owns both
+encoders, the muxer and output ordering. The export page renders/composes the
+picture and transfers frames plus prepared audio samples through bounded queues.
+One worker can submit both tracks asynchronously; separate audio/video workers
+are optional only if profiling justifies their extra communication and lifetime
+coordination. Keep the file-picker user gesture in the page. Prove whether the
+selected writable can be handed to the worker or whether positional writes need
+a page-side bridge; there must remain one writer owner and end-to-end pressure.
+
+First worker proof: reuse the synthetic fixture, encode transferred frame/sample
+data, decode the result and check frame IDs, timestamps and A/V sync. Exercise
+slow output, worker/codec failure, cancellation, transferred-resource ownership,
+queue bounds and repeated jobs. Validate the pinned Mediabunny adapter in this
+placement; WebCodecs worker exposure alone does not establish that integration.
+Retain a same-page encoder adapter if moving ownership adds more complexity than
+the measured responsiveness benefit warrants.
+
+Once cue collection and the exact camera/shot schedule are frozen, offline audio
+mixing can potentially run while the export scene renders video. This is a
+different optimization from moving encoders to a worker. It cannot skip the
+dependency on sound events/listener paths, and inter-track backpressure must
+bound video produced while audio is not ready. Start with prepared audio first;
+test overlapping these stages after the shared schedule and audio correctness
+proofs pass. Moving the complete game renderer into an OffscreenCanvas worker
+or introducing a custom worker audio mixer is outside this initial plan.
+
+References: [WebCodecs worker interfaces](https://www.w3.org/TR/webcodecs/)
+and [OfflineAudioContext interface](https://www.w3.org/TR/webaudio-1.1/#OfflineAudioContext).
+
+### Public modal UI contract, 2026-10-27
+
+The owner's preferred UI is an in-page dialog over a strongly blurred/dimmed
+background, launched by a small Export video button in the existing highlight
+reel popover. Put that secondary button in the lower hint/footer area with
+enough room for the copy, rather than overlapping the 1/2/3-minute watch keys.
+Keep the existing watch path intact. Source: `DemosView.openReel()` makes each
+minute key start playback immediately; the popover therefore does not provide
+a persisted export selection to reuse implicitly.
+
+The export dialog has its own 1 / 2 / 3 minute selector. Opening it selects
+an available length (proposed default: last valid export choice, otherwise one
+minute). Reuse the existing `reelLengths` availability policy and explanation
+for disabled lengths; an empty highlight analysis still needs its own outcome.
+Show map and player summary, selected target length, format/resolution/rate and
+the exact calculated final duration when preparation determines it. Changing the
+length before generation invalidates any prepared recipe. Once generation starts,
+freeze length/settings and export that recipe. Switching a length after a result
+exists must not silently discard an undownloaded file.
+
+Use the game's established yellow panels, heading fonts, raised action buttons
+and top-right X. The background becomes inert as well as visually blurred;
+dialog focus is trapped, button/phase announcements are accessible, and closing
+returns focus to Export video. The backdrop/dialog is outside the recorded
+compositor. Keep the dialog sharp while blurring the surrounding UI. Honour
+reduced-motion/blur policy and retain an opaque/dimmed fallback with usable
+contrast. A progress display never depends on animation alone.
+
+| Dialog state | Main content/actions | Closing behavior |
+| --- | --- | --- |
+| Ready | Duration selector and summary; Generate video | X and Escape available; outside dismissal may follow the host dialog convention |
+| Preparing/generating | Frozen duration, phase, percentage/frame progress when known, ETA when useful; Cancel | X disabled with explanation; Escape/outside clicks cannot discard the job |
+| Cancelling | Cancelling message while resources and unfinished output are released | Remains open until cancellation acknowledges cleanup, then returns to Ready |
+| Finalizing | Finishing file; retain Cancel while safely abortable | Same protected close behavior; all frames submitted is not completion |
+| Video ready | Finished filename/duration/size; Download; optional Generate another | X/Escape available; discarding an unsaved result requires an explicit choice |
+| Saving | Saving progress where measurable; preserve generated result until save succeeds | Protect the copy operation; cancellation/failure returns to Video ready for another attempt |
+| Saved | Saved confirmation after destination close succeeds; Download again or Close | X/Escape/Close available |
+| Error | Specific error, recovery and retry/return action | Closing allowed once cleanup has finished |
+
+Cancel generation stops the job, not merely hides the dialog. Browser tab close
+or navigation can still terminate it; disabling the dialog's X cannot guarantee
+survival of browser shutdown. Keep any unload warning limited to an active job
+or unsaved result and avoid claiming a recoverable checkpoint after reload.
+
+An in-page dialog does not require giving the live page another scene. Candidate:
+embed the dedicated same-origin export document inside the modal, so it owns
+the export scene and its own globals while presenting the requested modal UX.
+Parent controls and job messages need explicit origin/job ownership and a
+single cancellation/cleanup path. This remains a proof gate: validate iframe
+render scheduling/visibility, focus and save gestures rather than assuming a
+`display:none` frame behaves like an active export page. The visible UI can
+remain in the parent while the isolated document renders; neither path creates
+a third scene. The standalone export page remains useful as a developer harness,
+not the planned public popup-window requirement.
+
+Generate-then-Download requires a temporary encoded file, not a retained array
+of raw frames or an automatically memory-backed 450 MB Blob. Candidate: a
+per-job Origin Private File System file with positional muxer writes. Check
+storage capability/budget before generation, handle quota/write errors, and
+stream/copy the finalized file to the selected destination on Download. That
+click supplies a new save-picker gesture. If the picker is cancelled, keep the
+generated file ready without regenerating the reel. Release it after explicit
+discard/close or a documented bounded result lifetime; clean up abandoned job
+files without touching the package download cache or another export job.
+
+Show Video ready only after the temporary MP4 is finalized/closed, and Saved
+only after the destination has closed successfully. If a fallback uses browser
+download handling without completion acknowledgement, say Download started
+instead. Temporary-storage support, peak disk usage (potentially temporary plus
+destination copies), quota failures, file permissions, retries and cleanup are
+additional acceptance cases for this preferred UX. Source references:
+[OPFS](https://web.dev/articles/origin-private-file-system),
+[File System Standard](https://fs.spec.whatwg.org/) and
+[save picker user gestures](https://developer.chrome.com/docs/capabilities/web-apis/file-system-access).
+
+Browser APIs and the pinned research package also need a release-dependency
+decision: lazy-load the export-only adapter, review/retain Mediabunny notices,
+and validate the selected package version rather than mixing current online API
+examples with the 1.62.1 proof. Real-time preview playback remains available if
+export is unsupported. Any optional upload compatibility check is a separate
+manual action, not automatic YouTube publishing.
+
+Current primary references: [WebCodecs](https://www.w3.org/TR/webcodecs/),
+[Mediabunny output and backpressure](https://mediabunny.dev/guide/writing-media-files),
+and [File System Access](https://developer.chrome.com/docs/capabilities/web-apis/file-system-access).
+These support the API direction; none establishes Washoi game acceptance.
