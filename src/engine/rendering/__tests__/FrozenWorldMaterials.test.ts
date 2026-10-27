@@ -34,7 +34,7 @@ describe("frozen world materials", () => {
     expect(dirty).not.toHaveBeenCalled();
   });
 
-  it("re-checks them once when a light arrives, is disabled or leaves", () => {
+  it("re-checks them once when a light arrives or is switched off", () => {
     const { dirty } = setup();
     const light = new HemisphericLight("container", new Vector3(0, 1, 0), scene);
     frame();
@@ -46,9 +46,10 @@ describe("frozen world materials", () => {
     frame();
     expect(dirty).toHaveBeenCalledTimes(2);
 
+    // Already off, so the world's lights do not change when it goes
     light.dispose();
     frame();
-    expect(dirty).toHaveBeenCalledTimes(3);
+    expect(dirty).toHaveBeenCalledTimes(2);
   });
 
   it("ignores lights no world surface can receive: a weapon-layer light, a model's own light", () => {
@@ -65,6 +66,28 @@ describe("frozen world materials", () => {
     modelLight.dispose();
     frame();
     expect(dirty).not.toHaveBeenCalled();
+  });
+
+  it("re-checks them when another light re-sorts the world's light order", () => {
+    const { dirty } = setup();
+    const sky = new HemisphericLight("sky", new Vector3(0, 1, 0), scene);
+    new HemisphericLight("sun", new Vector3(0, 1, 0), scene);
+    const wall = scene.getMeshByName("wall")!;
+    // Switched back on, the sky moves to the end of the wall's list
+    sky.setEnabled(false);
+    frame();
+    sky.setEnabled(true);
+    frame();
+    expect(wall.lightSources.map((light) => light.name)).toEqual(["sun", "sky"]);
+    dirty.mockClear();
+
+    // A light only a model receives puts every list back in scene order
+    const model = MeshBuilder.CreateBox("pickup", {}, scene);
+    const modelLight = new HemisphericLight("model", new Vector3(0, 1, 0), scene);
+    modelLight.includedOnlyMeshes = [model];
+    expect(wall.lightSources.map((light) => light.name)).toEqual(["sky", "sun"]);
+    frame();
+    expect(dirty).toHaveBeenCalledTimes(1);
   });
 
   it("re-checks them when the scene ambient changes", () => {

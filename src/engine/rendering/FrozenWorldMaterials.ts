@@ -1,5 +1,5 @@
-import type { Light } from "@babylonjs/core/Lights/light";
 import type { Material } from "@babylonjs/core/Materials/material";
+import type { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh";
 import type { Observer } from "@babylonjs/core/Misc/observable";
 import type { Scene } from "@babylonjs/core/scene";
 
@@ -14,16 +14,24 @@ import type { Scene } from "@babylonjs/core/scene";
  * the old light set (a clustered container created after the map loaded would
  * never light the walls) and its old ambient term.
  *
- * Once per frame this compares a signature of exactly that state. On a change
- * each tracked frozen material is checked and bound once more. Pooled lights
- * that join a clustered container within one task never appear in the
- * signature, so they cost nothing. Nor do lights no world surface can receive:
- * one scoped to its own meshes (a loaded model's light) or to a layer the world
- * is not on (the weapon view's lights, which the blade switches on and off).
- * Re-checking every world material for those cost fights a frame each time.
+ * The light order matters as much as the set: a shader binds each light by its
+ * slot, and a light in the wrong slot binds a uniform buffer of the wrong size,
+ * which WebGPU rejects with the whole frame. Babylon appends a light that is
+ * switched on to the end of each mesh's list, and re-sorts every list into
+ * scene order whenever any light is added, even one no world surface receives.
+ * World surfaces do not all receive the same lights either: lightmapped ones
+ * take only the clustered container.
+ *
+ * So once per frame this hashes the light list of every tracked surface, in
+ * order, with the scene ambient. On a change each tracked frozen material is
+ * checked and bound once more. Lights no world surface receives (a loaded
+ * model's own light, the weapon view's lights) appear in no surface's list, so
+ * they cost nothing unless they re-sort one. Pooled lights that join a
+ * clustered container within one task never appear either.
  */
 class FrozenWorldMaterialWatcher {
   private readonly materials = new Set<Material>();
+  private surfaces: AbstractMesh[] = [];
   private readonly observer: Observer<Scene> | null;
   private signature = "";
 
@@ -39,16 +47,24 @@ class FrozenWorldMaterialWatcher {
       this.materials.add(material);
       material.onDisposeObservable.addOnce(() => this.materials.delete(material));
     }
+    const surfaces = new Set<AbstractMesh>();
+    for (const material of this.materials) {
+      for (const mesh of material.getBindedMeshes()) surfaces.add(mesh);
+    }
+    this.surfaces = [...surfaces];
     this.signature = this.read();
   }
 
   private read(): string {
     const ambient = this.scene.ambientColor;
-    let signature = `${ambient.r},${ambient.g},${ambient.b}`;
-    for (const light of this.scene.lights) {
-      if (reachesWorld(light)) signature += `|${light.uniqueId}:${light.isEnabled() ? 1 : 0}`;
+    let hash = 0;
+    for (const surface of this.surfaces) {
+      if (surface.isDisposed()) continue;
+      const lights = surface.lightSources;
+      hash = (Math.imul(hash, 31) + lights.length) | 0;
+      for (const light of lights) hash = (Math.imul(hash, 31) + light.uniqueId) | 0;
     }
-    return signature;
+    return `${ambient.r},${ambient.g},${ambient.b}|${hash}`;
   }
 
   private check(): void {
@@ -64,18 +80,9 @@ class FrozenWorldMaterialWatcher {
   dispose(): void {
     if (this.observer) this.scene.onBeforeRenderObservable.remove(this.observer);
     this.materials.clear();
+    this.surfaces = [];
     watchers.delete(this.scene);
   }
-}
-
-/** The layer mask Babylon gives every mesh, the map's world surfaces included. */
-const WORLD_LAYER_MASK = 0x0fffffff;
-
-/** Whether a light can reach a world surface, by the rules Light.canAffectMesh applies. */
-function reachesWorld(light: Light): boolean {
-  if (light.includedOnlyMeshes.length > 0) return false;
-  const only = light.includeOnlyWithLayerMask;
-  return only === 0 || (only & WORLD_LAYER_MASK) !== 0;
 }
 
 const watchers = new WeakMap<Scene, FrozenWorldMaterialWatcher>();
