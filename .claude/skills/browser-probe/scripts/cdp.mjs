@@ -127,16 +127,27 @@ export async function openBrowser({ width = 1280, height = 720 } = {}) {
       fs.rmSync(profile, { recursive: true, force: true });
     } catch {}
   };
-  // Killing msedge.exe alone leaves its GPU and renderer processes running on
-  // Windows (about 500 MB each set), so take down the whole tree. A probe killed
-  // by `timeout` or Ctrl+C never reaches its `finally`, hence the signal handlers.
+  // Every process of this browser (about 500 MB a set) must go. On Windows the
+  // launched msedge.exe hands over to another process and exits, so its PID
+  // leads nowhere: find the processes by this probe's own profile directory. A
+  // probe killed by `timeout` or Ctrl+C never reaches its `finally`, hence the
+  // exit and signal handlers.
   let killed = false;
   const killTree = () => {
     if (killed) return;
     killed = true;
     try {
-      if (process.platform === "win32" && edge.pid) {
-        spawnSync("taskkill", ["/PID", String(edge.pid), "/T", "/F"], { stdio: "ignore" });
+      if (process.platform === "win32") {
+        const filter = `$_.CommandLine -like '*${path.basename(profile)}*'`;
+        spawnSync(
+          "powershell",
+          [
+            "-NoProfile",
+            "-Command",
+            `Get-CimInstance Win32_Process -Filter "name='msedge.exe'" | Where-Object { ${filter} } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }`,
+          ],
+          { stdio: "ignore" },
+        );
       } else {
         edge.kill("SIGKILL");
       }

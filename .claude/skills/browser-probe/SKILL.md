@@ -57,9 +57,12 @@ To import from the copy, point its import at
   seconds, or split it into several calls.
 - **Every probe must close its Edge.** Each headless Edge holds about 500 MB
   across its processes, and leftovers add up until the machine runs out of
-  memory. `cdp.mjs` kills the whole process tree on exit and on Ctrl+C, but
-  not when the node process is terminated from outside (a shell `timeout`,
-  the tool's own time limit). Bound a probe from inside instead:
+  memory. `cdp.mjs` kills every process of its browser on `close()`, on
+  `process.exit`, on an uncaught error and on Ctrl+C. It finds them by the
+  probe's profile directory: the launched `msedge.exe` hands over to another
+  process and exits, so its PID leads nowhere. Nothing runs when the node
+  process is terminated from outside (a shell `timeout`, the tool's own time
+  limit). Bound a probe from inside instead:
   `setTimeout(() => process.exit(3), 240_000).unref()`. After a run, check
   that none are left: `Get-Process msedge` in PowerShell, or
   `tasklist | grep -c msedge`.
