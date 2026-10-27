@@ -349,7 +349,7 @@ performance traces for layout/GC questions separate from the clean timing runs.
 | C3 | Idle effects and periodic work scheduling | Both | Constant pickup-source clips settle once and stop; animated sources retained | Headless coverage added; renderer regressions and real-media checks recorded in the focused investigation |
 | C4 | HUD invalidation and layout work | Both | Candidate | Measured remaining mutations/layout despite existing caches |
 | C5 | Event dispatch allocations | Both | Candidate | High-frequency allocation evidence; preserve nested dispatch semantics |
-| C6 | Remote animation/interpolation CPU | Both | Batched ragdoll pose implemented: real-rig parity, unchanged Havok trajectories, about 6× cheaper sync per ragdoll | Skin preparation gate implemented: builds 3.7 → 0.75 per frame. Next: hidden one-shots |
+| C6 | Remote animation/interpolation CPU | Both | Batched ragdoll pose implemented: real-rig parity, unchanged Havok trajectories, about 6× cheaper sync per ragdoll | Skin preparation gate implemented: builds 3.7 → 0.75 per frame. Hidden one-shots measured at about 0.0014 ms/frame: not adopted |
 | C7 | Server simulation and bot CPU | Server | Separate track | Reproducible process profiles and fixed gameplay workload |
 | C8 | Workers, Wasm or data-oriented batches | Both | Numeric pose boundary and transfer costs investigated; no alternate executor built | Packed JS reference first; substantial batch and end-to-end benefit including integration/latency |
 | C9 | Baked authored bone animation | Both | Installed API/source reviewed; 17-clip metadata budget estimated | Offline retargeted bake; CPU sockets, death handoff and every render pass validated |

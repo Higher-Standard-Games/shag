@@ -15,7 +15,7 @@ shaders, including actual player-pack storage estimates and integration blockers
 | 1 | Hidden pickup-source GLBs run constant imported animations | Six disabled sources, 150 constant channels; reversible A/B removed their work | First implementation: settle constant source clips and stop them; preserve meaningful/uncertain animation |
 | 2 | Ragdoll world-space bone writes repeatedly rebuild the rig | About 15 full absolute-matrix rebuilds per sync on a 65-bone rig | Implemented: batched visual pose with real-rig parity and unchanged Havok |
 | 3 | Linked bones can rebuild skin matrices even without pose changes | Installed source, headless reproduction, then 87% of real builds found redundant | Implemented: linked-value equality gate; builds 3.7 → 0.75 per frame |
-| 4 | Hidden one-shot animations remain possible | One hidden one-shot observed; the visibility path controls the locomotion group | Lower priority: quantify, then preserve the action clock/expiry when suppressing evaluation |
+| 4 | Hidden one-shot animations remain possible | Quantified: about 0.0014 ms/frame at most | Not adopted: the saving does not justify touching the attack clock |
 | Hold | Disabling ragdoll pre-step removes writes but changes physics | Synthetic same-configuration control matches; modified trajectory differs | Do not ship as a transparent CPU optimization |
 | Rejected lead | Static bodies need redundant transform syncing | Observed static bodies already disable both pre-step and sync | No blanket static-body patch needed |
 
@@ -311,6 +311,25 @@ The saving scales with the number of animated models in view; the earlier
 census window (about 12 builds per frame) suggests roughly 0.15 ms there. A
 revision gate driven by every pose writer could also skip the comparison, but
 needs every writer to take part.
+
+### Hidden one-shots: measured, not adopted
+
+`playOnce()` is used only for the blade slash (`GameEvents`, speed 2), and the
+renderer's off-screen pause covers the locomotion group, not the overlay. A
+probe counted frames where a one-shot played on a player whose animation the
+renderer had paused (WebGL2, 50 s of each demo):
+
+| Demo | One-shots started | Frames with a hidden one-shot | Share of frames |
+| --- | ---: | ---: | ---: |
+| `washoi_dm5_ffa_20261025_170933` | 9 | 529 of 5,682 | 9.3% |
+| `washoi_amphi1_amphi_20261019_143341` | 5 | 210 of 7,933 | 2.6% |
+| `washoi_dm11_duel_20261018_090720` | 0 | 0 of 8,143 | 0% |
+
+One evaluation of a slash overlay took about 15 µs (median, re-evaluating its
+animations in place). In the busiest demo that is about 8 ms over 50 s, or
+0.0014 ms per frame. Pausing the overlay would have to keep its end time,
+completion callback and the locomotion resume exact; that risk buys nothing
+measurable, so the overlay keeps playing while hidden.
 
 ## 4. Physics pre-step is not a behavior-free toggle
 
