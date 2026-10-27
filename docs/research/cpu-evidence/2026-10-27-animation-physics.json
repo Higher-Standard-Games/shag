@@ -1,0 +1,3836 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-10-27",
+  "babylon": "9.31.2",
+  "purpose": "Animation/physics attribution and isolated reproductions; no runtime fix or FPS gain claim.",
+  "traces": [
+    {
+      "rawDirectory": "public/data/benchmarks/results/2026-10-27-animation-physics-webgl2/1-webgl2",
+      "rawSha256": "ce096107020e6b7c3767abfa64a42edd1fe1590d354d26d8f73b951e491d43b9",
+      "runSha256": "60da683c959f76b4eb77e14d2f48f2e6e6bd76d94d02c2d3caea3a1260a2926a",
+      "engine": "460ad5f5479cd086cb8370c79f34a9a359f0683e",
+      "fps": "ca018d147cf0b5aac6c8f36012af7ac2da19288d",
+      "sourceHash": "7cc25ffc64dd91a5f06ff6ed443f5c041bdda6704b879b4829660d713934305e",
+      "complete": true,
+      "replayValid": false,
+      "sourceStable": true,
+      "reasons": [
+        "Playback skipped recorded frames/events after a stall"
+      ],
+      "phases": {
+        "freefly-start": {
+          "frames": 1291,
+          "physicsExecuteCalls": 1291,
+          "nativeWorldStepCalls": 1291,
+          "nativeWorldStepMs": 304.2999994754791,
+          "physicsExecuteMs": 461.0999975204468,
+          "skeletonPrepareCalls": 26380,
+          "skeletonPrepareMs": 770.2000160217285,
+          "poseStepCalls": 2772,
+          "sceneAnimateCalls": 1291,
+          "sceneAnimateMs": 397.90000081062317,
+          "absoluteRequests": 49589,
+          "absoluteRebuilds": 25222,
+          "absoluteBoneVisitsEstimate": 1639430,
+          "ragdollSyncCalls": 1681,
+          "ragdollAbsoluteRebuilds": 25208,
+          "ragdollBoneVisitsEstimate": 1638520,
+          "ragdollSyncMs": 135.90000128746033,
+          "bodyPrestepCalls": 25110,
+          "bodyPrestepTypeUnknown": 2445,
+          "bodySyncCalls": 25110,
+          "bodySyncTypeUnknown": 2445,
+          "bodyPrestepType2": 22665,
+          "bodySyncType2": 22665,
+          "oneShotStarts": 1,
+          "poseStepBlockedByOneShot": 68,
+          "ragdollRebuildsPerSync": 14.995835812016656,
+          "inclusiveInstrumentedMsPerFrame": {
+            "sceneAnimate": 0.30821069001597456,
+            "skeletonPrepare": 0.5965918017209361,
+            "physicsExecute": 0.3571649864604545,
+            "nativeStep": 0.23570875249843465,
+            "ragdollSync": 0.10526723569903976
+          }
+        },
+        "fps-gunplay-a": {
+          "frames": 1498,
+          "physicsExecuteCalls": 1498,
+          "bodyPrestepCalls": 20415,
+          "bodyPrestepType2": 20250,
+          "nativeWorldStepCalls": 1498,
+          "nativeWorldStepMs": 235.30000162124634,
+          "bodySyncCalls": 20415,
+          "bodySyncType2": 20250,
+          "physicsExecuteMs": 359.4000012874603,
+          "sceneAnimateCalls": 1498,
+          "sceneAnimateMs": 507.30000042915344,
+          "ragdollSyncCalls": 1363,
+          "absoluteRequests": 39767,
+          "absoluteRebuilds": 20447,
+          "absoluteBoneVisitsEstimate": 1329055,
+          "ragdollAbsoluteRebuilds": 20443,
+          "ragdollBoneVisitsEstimate": 1328795,
+          "ragdollSyncMs": 95.20000314712524,
+          "skeletonPrepareCalls": 23607,
+          "skeletonPrepareMs": 643.7000021934509,
+          "poseStepCalls": 3497,
+          "oneShotStarts": 1,
+          "bodyPrestepTypeUnknown": 165,
+          "bodySyncTypeUnknown": 165,
+          "ragdollRebuildsPerSync": 14.998532648569332,
+          "inclusiveInstrumentedMsPerFrame": {
+            "sceneAnimate": 0.33865153566699163,
+            "skeletonPrepare": 0.42970627649763077,
+            "physicsExecute": 0.23991989405037406,
+            "nativeStep": 0.15707610255089877,
+            "ragdollSync": 0.06355140397004355
+          }
+        },
+        "freefly-return": {
+          "frames": 908,
+          "physicsExecuteCalls": 908,
+          "nativeWorldStepCalls": 908,
+          "nativeWorldStepMs": 191.60000324249268,
+          "physicsExecuteMs": 294.8000018596649,
+          "sceneAnimateCalls": 908,
+          "sceneAnimateMs": 321.19999837875366,
+          "skeletonPrepareCalls": 15826,
+          "skeletonPrepareMs": 434.1000032424927,
+          "poseStepCalls": 447,
+          "absoluteRequests": 28784,
+          "absoluteRebuilds": 14644,
+          "absoluteBoneVisitsEstimate": 951860,
+          "ragdollSyncCalls": 976,
+          "ragdollAbsoluteRebuilds": 14636,
+          "ragdollBoneVisitsEstimate": 951340,
+          "ragdollSyncMs": 74.99999952316284,
+          "bodyPrestepCalls": 14580,
+          "bodyPrestepTypeUnknown": 1395,
+          "bodySyncCalls": 14580,
+          "bodySyncTypeUnknown": 1395,
+          "bodyPrestepType2": 13185,
+          "bodySyncType2": 13185,
+          "oneShotStarts": 2,
+          "ragdollRebuildsPerSync": 14.995901639344263,
+          "inclusiveInstrumentedMsPerFrame": {
+            "sceneAnimate": 0.3537444916065569,
+            "skeletonPrepare": 0.4780837040115558,
+            "physicsExecute": 0.32466960557231817,
+            "nativeStep": 0.21101321943005802,
+            "ragdollSync": 0.08259911841758022
+          }
+        },
+        "fps-gunplay-b": {
+          "frames": 1557,
+          "physicsExecuteCalls": 1557,
+          "bodyPrestepCalls": 15045,
+          "bodyPrestepType2": 14250,
+          "nativeWorldStepCalls": 1557,
+          "nativeWorldStepMs": 222.60000157356262,
+          "bodySyncCalls": 15045,
+          "bodySyncType2": 14250,
+          "physicsExecuteMs": 347.5000014305115,
+          "poseStepCalls": 1233,
+          "sceneAnimateCalls": 1557,
+          "sceneAnimateMs": 488.9000029563904,
+          "ragdollSyncCalls": 1006,
+          "absoluteRequests": 29534,
+          "absoluteRebuilds": 15093,
+          "absoluteBoneVisitsEstimate": 981045,
+          "ragdollAbsoluteRebuilds": 15087,
+          "ragdollBoneVisitsEstimate": 980655,
+          "ragdollSyncMs": 77.69999861717224,
+          "skeletonPrepareCalls": 18538,
+          "skeletonPrepareMs": 405.4999928474426,
+          "bodyPrestepTypeUnknown": 795,
+          "bodySyncTypeUnknown": 795,
+          "ragdollRebuildsPerSync": 14.997017892644136,
+          "inclusiveInstrumentedMsPerFrame": {
+            "sceneAnimate": 0.31400128642028924,
+            "skeletonPrepare": 0.2604367327215431,
+            "physicsExecute": 0.22318561427778516,
+            "nativeStep": 0.14296724571198627,
+            "ragdollSync": 0.049903659998183844
+          }
+        }
+      },
+      "sampleCount": 90,
+      "observedRigs": [
+        {
+          "bones": 65,
+          "colliders": 15
+        }
+      ],
+      "maxHiddenOneShots": 1,
+      "maxDisabledTargetChannels": 0,
+      "staticOnlySample": {
+        "at": 92421.19999980927,
+        "phase": "freefly-start",
+        "seconds": 0.012200000047683623,
+        "bodies": 131,
+        "motion": {
+          "0": 131
+        },
+        "sync": {},
+        "prestep": {},
+        "ragdolls": 0,
+        "ragdollBones": [],
+        "remoteModels": 6,
+        "activeOneShots": 0,
+        "hiddenOneShots": 0,
+        "groups": 64,
+        "playingGroups": 16,
+        "zeroSpeedGroups": 0,
+        "animatables": 558,
+        "skeletons": 39
+      },
+      "activeSample": {
+        "at": 94433.19999980927,
+        "phase": "freefly-start",
+        "seconds": 2.024700000047684,
+        "bodies": 146,
+        "motion": {
+          "0": 131,
+          "2": 15
+        },
+        "sync": {
+          "2": 15
+        },
+        "prestep": {
+          "2": 15
+        },
+        "ragdolls": 1,
+        "ragdollBones": [
+          {
+            "bones": 65,
+            "colliders": 15
+          }
+        ],
+        "remoteModels": 5,
+        "activeOneShots": 0,
+        "hiddenOneShots": 0,
+        "groups": 63,
+        "playingGroups": 16,
+        "zeroSpeedGroups": 0,
+        "animatables": 506,
+        "skeletons": 39
+      },
+      "limitation": "Inclusive wrapper timings and 500ms state sampling add overhead. Bone visits are estimated from dirty full-skeleton rebuilds, not a per-bone instrumentation count."
+    },
+    {
+      "rawDirectory": "public/data/benchmarks/results/2026-10-27-animation-physics-counts-webgl2/1-webgl2",
+      "rawSha256": "4de300498ebc5521f895c5d1a186c814264d0b6c0268d6ea952399badebde520",
+      "runSha256": "9cbe73cbbf967b6c413dde9926e2c6b94e39f2c29e036417f52d99dd67843409",
+      "engine": "460ad5f5479cd086cb8370c79f34a9a359f0683e",
+      "fps": "ca018d147cf0b5aac6c8f36012af7ac2da19288d",
+      "sourceHash": "7cc25ffc64dd91a5f06ff6ed443f5c041bdda6704b879b4829660d713934305e",
+      "complete": true,
+      "replayValid": true,
+      "sourceStable": true,
+      "reasons": [],
+      "phases": {
+        "freefly-start": {
+          "frames": 1417,
+          "physicsExecuteCalls": 1417,
+          "nativeWorldStepCalls": 1417,
+          "nativeWorldStepMs": 332.19999861717224,
+          "physicsExecuteMs": 490.40000319480896,
+          "poseStepCalls": 2937,
+          "sceneAnimateCalls": 1417,
+          "sceneAnimateMs": 387.6999990940094,
+          "skeletonPrepareCalls": 29431,
+          "skeletonPrepareMs": 739.7000043392181,
+          "absoluteRequests": 59217,
+          "absoluteRebuilds": 30202,
+          "absoluteBoneVisitsEstimate": 1963130,
+          "ragdollSyncCalls": 2013,
+          "ragdollAbsoluteRebuilds": 30188,
+          "ragdollBoneVisitsEstimate": 1962220,
+          "ragdollSyncMs": 137.09999918937683,
+          "bodyPrestepCalls": 30090,
+          "bodyPrestepTypeUnknown": 2985,
+          "bodySyncCalls": 30090,
+          "bodySyncTypeUnknown": 2985,
+          "bodyPrestepType2": 27105,
+          "bodySyncType2": 27105,
+          "oneShotStarts": 1,
+          "poseStepBlockedByOneShot": 75,
+          "ragdollRebuildsPerSync": 14.99652260307998,
+          "inclusiveInstrumentedMsPerFrame": {
+            "sceneAnimate": 0.27360620966408566,
+            "skeletonPrepare": 0.5220183516861102,
+            "physicsExecute": 0.3460832767782703,
+            "nativeStep": 0.2344389545639889,
+            "ragdollSync": 0.09675370443851576
+          }
+        },
+        "fps-gunplay-a": {
+          "frames": 1413,
+          "physicsExecuteCalls": 1413,
+          "bodyPrestepCalls": 19050,
+          "bodyPrestepType2": 18765,
+          "nativeWorldStepCalls": 1413,
+          "nativeWorldStepMs": 222.5999984741211,
+          "bodySyncCalls": 19050,
+          "bodySyncType2": 18765,
+          "physicsExecuteMs": 381.9000041484833,
+          "sceneAnimateCalls": 1413,
+          "sceneAnimateMs": 498.40000104904175,
+          "ragdollSyncCalls": 1272,
+          "absoluteRequests": 37128,
+          "absoluteRebuilds": 19082,
+          "absoluteBoneVisitsEstimate": 1240330,
+          "ragdollAbsoluteRebuilds": 19078,
+          "ragdollBoneVisitsEstimate": 1240070,
+          "ragdollSyncMs": 85.9000027179718,
+          "skeletonPrepareCalls": 22560,
+          "skeletonPrepareMs": 677.400000333786,
+          "poseStepCalls": 3231,
+          "oneShotStarts": 1,
+          "bodyPrestepTypeUnknown": 285,
+          "bodySyncTypeUnknown": 285,
+          "ragdollRebuildsPerSync": 14.998427672955975,
+          "inclusiveInstrumentedMsPerFrame": {
+            "sceneAnimate": 0.35272469996393613,
+            "skeletonPrepare": 0.4794055204060764,
+            "physicsExecute": 0.27027601142850904,
+            "nativeStep": 0.1575371539094983,
+            "ragdollSync": 0.06079264169707842
+          }
+        },
+        "freefly-return": {
+          "frames": 1067,
+          "physicsExecuteCalls": 1067,
+          "nativeWorldStepCalls": 1067,
+          "nativeWorldStepMs": 195.5000023841858,
+          "physicsExecuteMs": 301.6999981403351,
+          "sceneAnimateCalls": 1067,
+          "sceneAnimateMs": 333.4000012874603,
+          "skeletonPrepareCalls": 18865,
+          "skeletonPrepareMs": 479.1000039577484,
+          "poseStepCalls": 535,
+          "absoluteRequests": 35744,
+          "absoluteRebuilds": 18244,
+          "absoluteBoneVisitsEstimate": 1185860,
+          "ragdollSyncCalls": 1216,
+          "ragdollAbsoluteRebuilds": 18236,
+          "ragdollBoneVisitsEstimate": 1185340,
+          "ragdollSyncMs": 83.29999995231628,
+          "bodyPrestepCalls": 18180,
+          "bodyPrestepTypeUnknown": 1950,
+          "bodySyncCalls": 18180,
+          "bodySyncTypeUnknown": 1950,
+          "bodyPrestepType2": 16230,
+          "bodySyncType2": 16230,
+          "oneShotStarts": 2,
+          "ragdollRebuildsPerSync": 14.99671052631579,
+          "inclusiveInstrumentedMsPerFrame": {
+            "sceneAnimate": 0.31246485593951295,
+            "skeletonPrepare": 0.44901593623031716,
+            "physicsExecute": 0.28275538719806476,
+            "nativeStep": 0.1832239947368189,
+            "ragdollSync": 0.07806935328239577
+          }
+        },
+        "fps-gunplay-b": {
+          "frames": 1656,
+          "physicsExecuteCalls": 1656,
+          "bodyPrestepCalls": 14355,
+          "bodyPrestepType2": 13365,
+          "nativeWorldStepCalls": 1656,
+          "nativeWorldStepMs": 214.80000042915344,
+          "bodySyncCalls": 14355,
+          "bodySyncType2": 13365,
+          "physicsExecuteMs": 323.9000024795532,
+          "poseStepCalls": 1336,
+          "sceneAnimateCalls": 1656,
+          "sceneAnimateMs": 498.79998898506165,
+          "ragdollSyncCalls": 960,
+          "absoluteRequests": 28200,
+          "absoluteRebuilds": 14403,
+          "absoluteBoneVisitsEstimate": 936195,
+          "ragdollAbsoluteRebuilds": 14397,
+          "ragdollBoneVisitsEstimate": 935805,
+          "ragdollSyncMs": 73.1000030040741,
+          "skeletonPrepareCalls": 19467,
+          "skeletonPrepareMs": 436.9000017642975,
+          "bodyPrestepTypeUnknown": 990,
+          "bodySyncTypeUnknown": 990,
+          "ragdollRebuildsPerSync": 14.996875,
+          "inclusiveInstrumentedMsPerFrame": {
+            "sceneAnimate": 0.3012077228170662,
+            "skeletonPrepare": 0.26382850348085596,
+            "physicsExecute": 0.19559178893692827,
+            "nativeStep": 0.12971014518668686,
+            "ragdollSync": 0.04414251389134909
+          }
+        }
+      },
+      "groupCatalog": [
+        {
+          "id": 42058,
+          "name": "AWeapon",
+          "channels": 27,
+          "targets": [
+            {
+              "name": "tag_expansion",
+              "parent": "__root__"
+            },
+            {
+              "name": "tag_expansion",
+              "parent": "__root__"
+            },
+            {
+              "name": "tag_expansion",
+              "parent": "__root__"
+            },
+            {
+              "name": "tag_flash",
+              "parent": "__root__"
+            },
+            {
+              "name": "tag_barrel",
+              "parent": "__root__"
+            }
+          ]
+        },
+        {
+          "id": 42140,
+          "name": "AWeapon",
+          "channels": 21,
+          "targets": [
+            {
+              "name": "tag_expansion",
+              "parent": "__root__"
+            },
+            {
+              "name": "tag_expansion",
+              "parent": "__root__"
+            },
+            {
+              "name": "tag_expansion",
+              "parent": "__root__"
+            },
+            {
+              "name": "tag_flash",
+              "parent": "__root__"
+            },
+            {
+              "name": "tag_ammo",
+              "parent": "__root__"
+            }
+          ]
+        },
+        {
+          "id": 42212,
+          "name": "AWeapon",
+          "channels": 21,
+          "targets": [
+            {
+              "name": "tag_expansion",
+              "parent": "__root__"
+            },
+            {
+              "name": "tag_expansion",
+              "parent": "__root__"
+            },
+            {
+              "name": "tag_expansion",
+              "parent": "__root__"
+            },
+            {
+              "name": "tag_flash",
+              "parent": "__root__"
+            },
+            {
+              "name": "tag_ammo",
+              "parent": "__root__"
+            }
+          ]
+        },
+        {
+          "id": 42284,
+          "name": "AWeapon",
+          "channels": 27,
+          "targets": [
+            {
+              "name": "tag_expansion",
+              "parent": "__root__"
+            },
+            {
+              "name": "tag_barrel",
+              "parent": "__root__"
+            },
+            {
+              "name": "tag_expansion",
+              "parent": "__root__"
+            },
+            {
+              "name": "tag_barrel",
+              "parent": "__root__"
+            },
+            {
+              "name": "tag_recoil",
+              "parent": "__root__"
+            }
+          ]
+        },
+        {
+          "id": 42367,
+          "name": "AWeapon",
+          "channels": 27,
+          "targets": [
+            {
+              "name": "tag_expansion",
+              "parent": "__root__"
+            },
+            {
+              "name": "tag_expansion",
+              "parent": "__root__"
+            },
+            {
+              "name": "tag_barrel",
+              "parent": "__root__"
+            },
+            {
+              "name": "tag_recoil",
+              "parent": "__root__"
+            },
+            {
+              "name": "tag_expansion",
+              "parent": "__root__"
+            }
+          ]
+        },
+        {
+          "id": 42436,
+          "name": "AWeapon",
+          "channels": 27,
+          "targets": [
+            {
+              "name": "tag_expansion",
+              "parent": "__root__"
+            },
+            {
+              "name": "tag_barrel",
+              "parent": "__root__"
+            },
+            {
+              "name": "tag_expansion",
+              "parent": "__root__"
+            },
+            {
+              "name": "tag_barrel",
+              "parent": "__root__"
+            },
+            {
+              "name": "tag_recoil",
+              "parent": "__root__"
+            }
+          ]
+        },
+        {
+          "id": 42512,
+          "name": "ABarrel",
+          "channels": 3,
+          "targets": [
+            {
+              "name": "tag_barrel",
+              "parent": "__root__",
+              "grandparent": "node9_clone"
+            },
+            {
+              "name": "tag_barrel",
+              "parent": "__root__",
+              "grandparent": "node9_clone"
+            },
+            {
+              "name": "tag_barrel",
+              "parent": "__root__",
+              "grandparent": "node9_clone"
+            }
+          ]
+        },
+        {
+          "id": 42543,
+          "name": "ABarrel",
+          "channels": 3,
+          "targets": [
+            {
+              "name": "tag_barrel",
+              "parent": "__root__",
+              "grandparent": "node9_clone"
+            },
+            {
+              "name": "tag_barrel",
+              "parent": "__root__",
+              "grandparent": "node9_clone"
+            },
+            {
+              "name": "tag_barrel",
+              "parent": "__root__",
+              "grandparent": "node9_clone"
+            }
+          ]
+        },
+        {
+          "id": 42736,
+          "name": "ABarrel",
+          "channels": 3,
+          "targets": [
+            {
+              "name": "tag_expansion",
+              "parent": "__root__",
+              "grandparent": "node9_clone"
+            },
+            {
+              "name": "tag_expansion",
+              "parent": "__root__",
+              "grandparent": "node9_clone"
+            },
+            {
+              "name": "tag_expansion",
+              "parent": "__root__",
+              "grandparent": "node9_clone"
+            }
+          ]
+        },
+        {
+          "id": 49254,
+          "name": "anim_player_2_jump",
+          "channels": 52,
+          "targets": [
+            {
+              "name": "player_2/mixamorig:Hips",
+              "parent": "player_2/RootNode",
+              "grandparent": "player_2/__root__"
+            },
+            {
+              "name": "player_2/mixamorig:Spine",
+              "parent": "player_2/mixamorig:Hips",
+              "grandparent": "player_2/RootNode"
+            },
+            {
+              "name": "player_2/mixamorig:Spine1",
+              "parent": "player_2/mixamorig:Spine",
+              "grandparent": "player_2/mixamorig:Hips"
+            },
+            {
+              "name": "player_2/mixamorig:Spine2",
+              "parent": "player_2/mixamorig:Spine1",
+              "grandparent": "player_2/mixamorig:Spine"
+            },
+            {
+              "name": "player_2/mixamorig:Neck",
+              "parent": "player_2/mixamorig:Spine2",
+              "grandparent": "player_2/mixamorig:Spine1"
+            }
+          ]
+        },
+        {
+          "id": 53453,
+          "name": "AWeapon",
+          "channels": 27,
+          "targets": [
+            {
+              "name": "tag_expansion",
+              "parent": "__root__",
+              "grandparent": "model_machinegun.glb_1793086500919"
+            },
+            {
+              "name": "tag_barrel",
+              "parent": "__root__",
+              "grandparent": "model_machinegun.glb_1793086500919"
+            },
+            {
+              "name": "tag_expansion",
+              "parent": "__root__",
+              "grandparent": "model_machinegun.glb_1793086500919"
+            },
+            {
+              "name": "tag_barrel",
+              "parent": "__root__",
+              "grandparent": "model_machinegun.glb_1793086500919"
+            },
+            {
+              "name": "tag_recoil",
+              "parent": "__root__",
+              "grandparent": "model_machinegun.glb_1793086500919"
+            }
+          ]
+        },
+        {
+          "id": 53512,
+          "name": "AWeapon",
+          "channels": 27,
+          "targets": [
+            {
+              "name": "tag_expansion",
+              "parent": "__root__",
+              "grandparent": "model_plasmagun.glb_1793086500964"
+            },
+            {
+              "name": "tag_expansion",
+              "parent": "__root__",
+              "grandparent": "model_plasmagun.glb_1793086500964"
+            },
+            {
+              "name": "tag_expansion",
+              "parent": "__root__",
+              "grandparent": "model_plasmagun.glb_1793086500964"
+            },
+            {
+              "name": "tag_flash",
+              "parent": "node12",
+              "grandparent": "mixamorig:RightHand"
+            },
+            {
+              "name": "tag_barrel",
+              "parent": "__root__",
+              "grandparent": "model_plasmagun.glb_1793086500964"
+            }
+          ]
+        },
+        {
+          "id": 54047,
+          "name": "ABarrel",
+          "channels": 3,
+          "targets": [
+            {
+              "name": "tag_barrel",
+              "parent": "__root__",
+              "grandparent": "droppedWeapon_item_50004"
+            },
+            {
+              "name": "tag_barrel",
+              "parent": "__root__",
+              "grandparent": "droppedWeapon_item_50004"
+            },
+            {
+              "name": "tag_barrel",
+              "parent": "__root__",
+              "grandparent": "droppedWeapon_item_50004"
+            }
+          ]
+        },
+        {
+          "id": 54065,
+          "name": "ABarrel",
+          "channels": 3,
+          "targets": [
+            {
+              "name": "tag_barrel",
+              "parent": "__root__",
+              "grandparent": "droppedWeapon_item_50004"
+            },
+            {
+              "name": "tag_barrel",
+              "parent": "__root__",
+              "grandparent": "droppedWeapon_item_50004"
+            },
+            {
+              "name": "tag_barrel",
+              "parent": "__root__",
+              "grandparent": "droppedWeapon_item_50004"
+            }
+          ]
+        },
+        {
+          "id": 55253,
+          "name": "AWeapon",
+          "channels": 27,
+          "targets": [
+            {
+              "name": "tag_expansion",
+              "parent": "__root__",
+              "grandparent": "model_plasmagun.glb_1793086500964"
+            },
+            {
+              "name": "tag_expansion",
+              "parent": "__root__",
+              "grandparent": "model_plasmagun.glb_1793086500964"
+            },
+            {
+              "name": "tag_expansion",
+              "parent": "__root__",
+              "grandparent": "model_plasmagun.glb_1793086500964"
+            },
+            {
+              "name": "tag_flash",
+              "parent": "node12",
+              "grandparent": "mixamorig:RightHand"
+            },
+            {
+              "name": "tag_barrel",
+              "parent": "__root__",
+              "grandparent": "model_plasmagun.glb_1793086500964"
+            }
+          ]
+        },
+        {
+          "id": 55334,
+          "name": "anim_player_5_run",
+          "channels": 52,
+          "targets": [
+            {
+              "name": "player_5/mixamorig:Hips",
+              "parent": "player_5/RootNode",
+              "grandparent": "player_5/__root__"
+            },
+            {
+              "name": "player_5/mixamorig:Spine",
+              "parent": "player_5/mixamorig:Hips",
+              "grandparent": "player_5/RootNode"
+            },
+            {
+              "name": "player_5/mixamorig:Spine1",
+              "parent": "player_5/mixamorig:Spine",
+              "grandparent": "player_5/mixamorig:Hips"
+            },
+            {
+              "name": "player_5/mixamorig:Spine2",
+              "parent": "player_5/mixamorig:Spine1",
+              "grandparent": "player_5/mixamorig:Spine"
+            },
+            {
+              "name": "player_5/mixamorig:Neck",
+              "parent": "player_5/mixamorig:Spine2",
+              "grandparent": "player_5/mixamorig:Spine1"
+            }
+          ]
+        },
+        {
+          "id": 55281,
+          "name": "anim_player_5_walk",
+          "channels": 52,
+          "targets": [
+            {
+              "name": "player_5/mixamorig:Hips",
+              "parent": "player_5/RootNode",
+              "grandparent": "player_5/__root__"
+            },
+            {
+              "name": "player_5/mixamorig:Spine",
+              "parent": "player_5/mixamorig:Hips",
+              "grandparent": "player_5/RootNode"
+            },
+            {
+              "name": "player_5/mixamorig:Spine1",
+              "parent": "player_5/mixamorig:Spine",
+              "grandparent": "player_5/mixamorig:Hips"
+            },
+            {
+              "name": "player_5/mixamorig:Spine2",
+              "parent": "player_5/mixamorig:Spine1",
+              "grandparent": "player_5/mixamorig:Spine"
+            },
+            {
+              "name": "player_5/mixamorig:Neck",
+              "parent": "player_5/mixamorig:Spine2",
+              "grandparent": "player_5/mixamorig:Spine1"
+            }
+          ]
+        },
+        {
+          "id": 57023,
+          "name": "anim_player_5_strafe_r",
+          "channels": 52,
+          "targets": [
+            {
+              "name": "player_5/mixamorig:Hips",
+              "parent": "player_5/RootNode",
+              "grandparent": "player_5/__root__"
+            },
+            {
+              "name": "player_5/mixamorig:Spine",
+              "parent": "player_5/mixamorig:Hips",
+              "grandparent": "player_5/RootNode"
+            },
+            {
+              "name": "player_5/mixamorig:Spine1",
+              "parent": "player_5/mixamorig:Spine",
+              "grandparent": "player_5/mixamorig:Hips"
+            },
+            {
+              "name": "player_5/mixamorig:Spine2",
+              "parent": "player_5/mixamorig:Spine1",
+              "grandparent": "player_5/mixamorig:Spine"
+            },
+            {
+              "name": "player_5/mixamorig:Neck",
+              "parent": "player_5/mixamorig:Spine2",
+              "grandparent": "player_5/mixamorig:Spine1"
+            }
+          ]
+        },
+        {
+          "id": 55160,
+          "name": "anim_player_5_jump",
+          "channels": 52,
+          "targets": [
+            {
+              "name": "player_5/mixamorig:Hips",
+              "parent": "player_5/RootNode",
+              "grandparent": "player_5/__root__"
+            },
+            {
+              "name": "player_5/mixamorig:Spine",
+              "parent": "player_5/mixamorig:Hips",
+              "grandparent": "player_5/RootNode"
+            },
+            {
+              "name": "player_5/mixamorig:Spine1",
+              "parent": "player_5/mixamorig:Spine",
+              "grandparent": "player_5/mixamorig:Hips"
+            },
+            {
+              "name": "player_5/mixamorig:Spine2",
+              "parent": "player_5/mixamorig:Spine1",
+              "grandparent": "player_5/mixamorig:Spine"
+            },
+            {
+              "name": "player_5/mixamorig:Neck",
+              "parent": "player_5/mixamorig:Spine2",
+              "grandparent": "player_5/mixamorig:Spine1"
+            }
+          ]
+        },
+        {
+          "id": 57199,
+          "name": "anim_player_3_run",
+          "channels": 52,
+          "targets": [
+            {
+              "name": "player_3/mixamorig:Hips",
+              "parent": "player_3/RootNode",
+              "grandparent": "player_3/__root__"
+            },
+            {
+              "name": "player_3/mixamorig:Spine",
+              "parent": "player_3/mixamorig:Hips",
+              "grandparent": "player_3/RootNode"
+            },
+            {
+              "name": "player_3/mixamorig:Spine1",
+              "parent": "player_3/mixamorig:Spine",
+              "grandparent": "player_3/mixamorig:Hips"
+            },
+            {
+              "name": "player_3/mixamorig:Spine2",
+              "parent": "player_3/mixamorig:Spine1",
+              "grandparent": "player_3/mixamorig:Spine"
+            },
+            {
+              "name": "player_3/mixamorig:Neck",
+              "parent": "player_3/mixamorig:Spine2",
+              "grandparent": "player_3/mixamorig:Spine1"
+            }
+          ]
+        },
+        {
+          "id": 57381,
+          "name": "AWeapon",
+          "channels": 27,
+          "targets": [
+            {
+              "name": "tag_expansion",
+              "parent": "__root__",
+              "grandparent": "model_machinegun.glb_1793086507585"
+            },
+            {
+              "name": "tag_barrel",
+              "parent": "__root__",
+              "grandparent": "model_machinegun.glb_1793086507585"
+            },
+            {
+              "name": "tag_expansion",
+              "parent": "__root__",
+              "grandparent": "model_machinegun.glb_1793086507585"
+            },
+            {
+              "name": "tag_barrel",
+              "parent": "__root__",
+              "grandparent": "model_machinegun.glb_1793086507585"
+            },
+            {
+              "name": "tag_recoil",
+              "parent": "__root__",
+              "grandparent": "model_machinegun.glb_1793086507585"
+            }
+          ]
+        },
+        {
+          "id": 57409,
+          "name": "anim_player_5_strafe_l",
+          "channels": 52,
+          "targets": [
+            {
+              "name": "player_5/mixamorig:Hips",
+              "parent": "player_5/RootNode",
+              "grandparent": "player_5/__root__"
+            },
+            {
+              "name": "player_5/mixamorig:Spine",
+              "parent": "player_5/mixamorig:Hips",
+              "grandparent": "player_5/RootNode"
+            },
+            {
+              "name": "player_5/mixamorig:Spine1",
+              "parent": "player_5/mixamorig:Spine",
+              "grandparent": "player_5/mixamorig:Hips"
+            },
+            {
+              "name": "player_5/mixamorig:Spine2",
+              "parent": "player_5/mixamorig:Spine1",
+              "grandparent": "player_5/mixamorig:Spine"
+            },
+            {
+              "name": "player_5/mixamorig:Neck",
+              "parent": "player_5/mixamorig:Spine2",
+              "grandparent": "player_5/mixamorig:Spine1"
+            }
+          ]
+        },
+        {
+          "id": 55105,
+          "name": "anim_player_5_idle",
+          "channels": 52,
+          "targets": [
+            {
+              "name": "player_5/mixamorig:Hips",
+              "parent": "player_5/RootNode",
+              "grandparent": "player_5/__root__"
+            },
+            {
+              "name": "player_5/mixamorig:Spine",
+              "parent": "player_5/mixamorig:Hips",
+              "grandparent": "player_5/RootNode"
+            },
+            {
+              "name": "player_5/mixamorig:Spine1",
+              "parent": "player_5/mixamorig:Spine",
+              "grandparent": "player_5/mixamorig:Hips"
+            },
+            {
+              "name": "player_5/mixamorig:Spine2",
+              "parent": "player_5/mixamorig:Spine1",
+              "grandparent": "player_5/mixamorig:Spine"
+            },
+            {
+              "name": "player_5/mixamorig:Neck",
+              "parent": "player_5/mixamorig:Spine2",
+              "grandparent": "player_5/mixamorig:Spine1"
+            }
+          ]
+        },
+        {
+          "id": 57574,
+          "name": "anim_player_3_blade_slash_overlay",
+          "channels": 52,
+          "targets": [
+            {
+              "name": "player_3/mixamorig:Hips",
+              "parent": "player_3/RootNode",
+              "grandparent": "player_3/__root__"
+            },
+            {
+              "name": "player_3/mixamorig:Spine",
+              "parent": "player_3/mixamorig:Hips",
+              "grandparent": "player_3/RootNode"
+            },
+            {
+              "name": "player_3/mixamorig:Spine1",
+              "parent": "player_3/mixamorig:Spine",
+              "grandparent": "player_3/mixamorig:Hips"
+            },
+            {
+              "name": "player_3/mixamorig:Spine2",
+              "parent": "player_3/mixamorig:Spine1",
+              "grandparent": "player_3/mixamorig:Spine"
+            },
+            {
+              "name": "player_3/mixamorig:Neck",
+              "parent": "player_3/mixamorig:Spine2",
+              "grandparent": "player_3/mixamorig:Spine1"
+            }
+          ]
+        },
+        {
+          "id": 58964,
+          "name": "AWeapon",
+          "channels": 21,
+          "targets": [
+            {
+              "name": "tag_expansion",
+              "parent": "__root__",
+              "grandparent": "model_voltaic.glb_1793086510511"
+            },
+            {
+              "name": "tag_expansion",
+              "parent": "__root__",
+              "grandparent": "model_voltaic.glb_1793086510511"
+            },
+            {
+              "name": "tag_expansion",
+              "parent": "__root__",
+              "grandparent": "model_voltaic.glb_1793086510511"
+            },
+            {
+              "name": "tag_flash",
+              "parent": "node13",
+              "grandparent": "mixamorig:RightHand"
+            },
+            {
+              "name": "tag_ammo",
+              "parent": "__root__",
+              "grandparent": "model_voltaic.glb_1793086510511"
+            }
+          ]
+        },
+        {
+          "id": 59053,
+          "name": "ABarrel",
+          "channels": 3,
+          "targets": [
+            {
+              "name": "tag_barrel",
+              "parent": "__root__",
+              "grandparent": "droppedWeapon_item_50008"
+            },
+            {
+              "name": "tag_barrel",
+              "parent": "__root__",
+              "grandparent": "droppedWeapon_item_50008"
+            },
+            {
+              "name": "tag_barrel",
+              "parent": "__root__",
+              "grandparent": "droppedWeapon_item_50008"
+            }
+          ]
+        },
+        {
+          "id": 59071,
+          "name": "ABarrel",
+          "channels": 3,
+          "targets": [
+            {
+              "name": "tag_barrel",
+              "parent": "__root__",
+              "grandparent": "droppedWeapon_item_50008"
+            },
+            {
+              "name": "tag_barrel",
+              "parent": "__root__",
+              "grandparent": "droppedWeapon_item_50008"
+            },
+            {
+              "name": "tag_barrel",
+              "parent": "__root__",
+              "grandparent": "droppedWeapon_item_50008"
+            }
+          ]
+        },
+        {
+          "id": 59130,
+          "name": "ABarrel",
+          "channels": 3,
+          "targets": [
+            {
+              "name": "tag_barrel",
+              "parent": "__root__",
+              "grandparent": "droppedWeapon_item_50010"
+            },
+            {
+              "name": "tag_barrel",
+              "parent": "__root__",
+              "grandparent": "droppedWeapon_item_50010"
+            },
+            {
+              "name": "tag_barrel",
+              "parent": "__root__",
+              "grandparent": "droppedWeapon_item_50010"
+            }
+          ]
+        },
+        {
+          "id": 59148,
+          "name": "ABarrel",
+          "channels": 3,
+          "targets": [
+            {
+              "name": "tag_barrel",
+              "parent": "__root__",
+              "grandparent": "droppedWeapon_item_50010"
+            },
+            {
+              "name": "tag_barrel",
+              "parent": "__root__",
+              "grandparent": "droppedWeapon_item_50010"
+            },
+            {
+              "name": "tag_barrel",
+              "parent": "__root__",
+              "grandparent": "droppedWeapon_item_50010"
+            }
+          ]
+        },
+        {
+          "id": 51459,
+          "name": "anim_player_4_idle",
+          "channels": 52,
+          "targets": [
+            {
+              "name": "player_4/mixamorig:Hips",
+              "parent": "player_4/RootNode",
+              "grandparent": "player_4/__root__"
+            },
+            {
+              "name": "player_4/mixamorig:Spine",
+              "parent": "player_4/mixamorig:Hips",
+              "grandparent": "player_4/RootNode"
+            },
+            {
+              "name": "player_4/mixamorig:Spine1",
+              "parent": "player_4/mixamorig:Spine",
+              "grandparent": "player_4/mixamorig:Hips"
+            },
+            {
+              "name": "player_4/mixamorig:Spine2",
+              "parent": "player_4/mixamorig:Spine1",
+              "grandparent": "player_4/mixamorig:Spine"
+            },
+            {
+              "name": "player_4/mixamorig:Neck",
+              "parent": "player_4/mixamorig:Spine2",
+              "grandparent": "player_4/mixamorig:Spine1"
+            }
+          ]
+        },
+        {
+          "id": 53225,
+          "name": "anim_player_6_strafe_l",
+          "channels": 52,
+          "targets": [
+            {
+              "name": "player_6/mixamorig:Hips",
+              "parent": "player_6/RootNode",
+              "grandparent": "player_6/__root__"
+            },
+            {
+              "name": "player_6/mixamorig:Spine",
+              "parent": "player_6/mixamorig:Hips",
+              "grandparent": "player_6/RootNode"
+            },
+            {
+              "name": "player_6/mixamorig:Spine1",
+              "parent": "player_6/mixamorig:Spine",
+              "grandparent": "player_6/mixamorig:Hips"
+            },
+            {
+              "name": "player_6/mixamorig:Spine2",
+              "parent": "player_6/mixamorig:Spine1",
+              "grandparent": "player_6/mixamorig:Spine"
+            },
+            {
+              "name": "player_6/mixamorig:Neck",
+              "parent": "player_6/mixamorig:Spine2",
+              "grandparent": "player_6/mixamorig:Spine1"
+            }
+          ]
+        },
+        {
+          "id": 59250,
+          "name": "ABarrel",
+          "channels": 3,
+          "targets": [
+            {
+              "name": "tag_barrel",
+              "parent": "__root__",
+              "grandparent": "droppedWeapon_item_50012"
+            },
+            {
+              "name": "tag_barrel",
+              "parent": "__root__",
+              "grandparent": "droppedWeapon_item_50012"
+            },
+            {
+              "name": "tag_barrel",
+              "parent": "__root__",
+              "grandparent": "droppedWeapon_item_50012"
+            }
+          ]
+        },
+        {
+          "id": 59268,
+          "name": "ABarrel",
+          "channels": 3,
+          "targets": [
+            {
+              "name": "tag_barrel",
+              "parent": "__root__",
+              "grandparent": "droppedWeapon_item_50012"
+            },
+            {
+              "name": "tag_barrel",
+              "parent": "__root__",
+              "grandparent": "droppedWeapon_item_50012"
+            },
+            {
+              "name": "tag_barrel",
+              "parent": "__root__",
+              "grandparent": "droppedWeapon_item_50012"
+            }
+          ]
+        },
+        {
+          "id": 52644,
+          "name": "anim_player_6_jump",
+          "channels": 52,
+          "targets": [
+            {
+              "name": "player_6/mixamorig:Hips",
+              "parent": "player_6/RootNode",
+              "grandparent": "player_6/__root__"
+            },
+            {
+              "name": "player_6/mixamorig:Spine",
+              "parent": "player_6/mixamorig:Hips",
+              "grandparent": "player_6/RootNode"
+            },
+            {
+              "name": "player_6/mixamorig:Spine1",
+              "parent": "player_6/mixamorig:Spine",
+              "grandparent": "player_6/mixamorig:Hips"
+            },
+            {
+              "name": "player_6/mixamorig:Spine2",
+              "parent": "player_6/mixamorig:Spine1",
+              "grandparent": "player_6/mixamorig:Spine"
+            },
+            {
+              "name": "player_6/mixamorig:Neck",
+              "parent": "player_6/mixamorig:Spine2",
+              "grandparent": "player_6/mixamorig:Spine1"
+            }
+          ]
+        },
+        {
+          "id": 52754,
+          "name": "anim_player_6_strafe_r",
+          "channels": 52,
+          "targets": [
+            {
+              "name": "player_6/mixamorig:Hips",
+              "parent": "player_6/RootNode",
+              "grandparent": "player_6/__root__"
+            },
+            {
+              "name": "player_6/mixamorig:Spine",
+              "parent": "player_6/mixamorig:Hips",
+              "grandparent": "player_6/RootNode"
+            },
+            {
+              "name": "player_6/mixamorig:Spine1",
+              "parent": "player_6/mixamorig:Spine",
+              "grandparent": "player_6/mixamorig:Hips"
+            },
+            {
+              "name": "player_6/mixamorig:Spine2",
+              "parent": "player_6/mixamorig:Spine1",
+              "grandparent": "player_6/mixamorig:Spine"
+            },
+            {
+              "name": "player_6/mixamorig:Neck",
+              "parent": "player_6/mixamorig:Spine2",
+              "grandparent": "player_6/mixamorig:Spine1"
+            }
+          ]
+        },
+        {
+          "id": 53837,
+          "name": "anim_player_4_strafe_l",
+          "channels": 52,
+          "targets": [
+            {
+              "name": "player_4/mixamorig:Hips",
+              "parent": "player_4/RootNode",
+              "grandparent": "player_4/__root__"
+            },
+            {
+              "name": "player_4/mixamorig:Spine",
+              "parent": "player_4/mixamorig:Hips",
+              "grandparent": "player_4/RootNode"
+            },
+            {
+              "name": "player_4/mixamorig:Spine1",
+              "parent": "player_4/mixamorig:Spine",
+              "grandparent": "player_4/mixamorig:Hips"
+            },
+            {
+              "name": "player_4/mixamorig:Spine2",
+              "parent": "player_4/mixamorig:Spine1",
+              "grandparent": "player_4/mixamorig:Spine"
+            },
+            {
+              "name": "player_4/mixamorig:Neck",
+              "parent": "player_4/mixamorig:Spine2",
+              "grandparent": "player_4/mixamorig:Spine1"
+            }
+          ]
+        },
+        {
+          "id": 60518,
+          "name": "anim_player_1_strafe_r",
+          "channels": 52,
+          "targets": [
+            {
+              "name": "player_1/mixamorig:Hips",
+              "parent": "player_1/RootNode",
+              "grandparent": "player_1/__root__"
+            },
+            {
+              "name": "player_1/mixamorig:Spine",
+              "parent": "player_1/mixamorig:Hips",
+              "grandparent": "player_1/RootNode"
+            },
+            {
+              "name": "player_1/mixamorig:Spine1",
+              "parent": "player_1/mixamorig:Spine",
+              "grandparent": "player_1/mixamorig:Hips"
+            },
+            {
+              "name": "player_1/mixamorig:Spine2",
+              "parent": "player_1/mixamorig:Spine1",
+              "grandparent": "player_1/mixamorig:Spine"
+            },
+            {
+              "name": "player_1/mixamorig:Neck",
+              "parent": "player_1/mixamorig:Spine2",
+              "grandparent": "player_1/mixamorig:Spine1"
+            }
+          ]
+        },
+        {
+          "id": 60627,
+          "name": "anim_player_1_walk",
+          "channels": 52,
+          "targets": [
+            {
+              "name": "player_1/mixamorig:Hips",
+              "parent": "player_1/RootNode",
+              "grandparent": "player_1/__root__"
+            },
+            {
+              "name": "player_1/mixamorig:Spine",
+              "parent": "player_1/mixamorig:Hips",
+              "grandparent": "player_1/RootNode"
+            },
+            {
+              "name": "player_1/mixamorig:Spine1",
+              "parent": "player_1/mixamorig:Spine",
+              "grandparent": "player_1/mixamorig:Hips"
+            },
+            {
+              "name": "player_1/mixamorig:Spine2",
+              "parent": "player_1/mixamorig:Spine1",
+              "grandparent": "player_1/mixamorig:Spine"
+            },
+            {
+              "name": "player_1/mixamorig:Neck",
+              "parent": "player_1/mixamorig:Spine2",
+              "grandparent": "player_1/mixamorig:Spine1"
+            }
+          ]
+        },
+        {
+          "id": 60763,
+          "name": "AWeapon",
+          "channels": 27,
+          "targets": [
+            {
+              "name": "tag_expansion",
+              "parent": "__root__",
+              "grandparent": "model_plasmagun.glb_1793086500964"
+            },
+            {
+              "name": "tag_expansion",
+              "parent": "__root__",
+              "grandparent": "model_plasmagun.glb_1793086500964"
+            },
+            {
+              "name": "tag_expansion",
+              "parent": "__root__",
+              "grandparent": "model_plasmagun.glb_1793086500964"
+            },
+            {
+              "name": "tag_flash",
+              "parent": "node12",
+              "grandparent": "mixamorig:RightHand"
+            },
+            {
+              "name": "tag_barrel",
+              "parent": "__root__",
+              "grandparent": "model_plasmagun.glb_1793086500964"
+            }
+          ]
+        },
+        {
+          "id": 61951,
+          "name": "AWeapon",
+          "channels": 27,
+          "targets": [
+            {
+              "name": "tag_expansion",
+              "parent": "__root__",
+              "grandparent": "model_plasmagun.glb_1793086500964"
+            },
+            {
+              "name": "tag_expansion",
+              "parent": "__root__",
+              "grandparent": "model_plasmagun.glb_1793086500964"
+            },
+            {
+              "name": "tag_expansion",
+              "parent": "__root__",
+              "grandparent": "model_plasmagun.glb_1793086500964"
+            },
+            {
+              "name": "tag_flash",
+              "parent": "node12",
+              "grandparent": "mixamorig:RightHand"
+            },
+            {
+              "name": "tag_barrel",
+              "parent": "__root__",
+              "grandparent": "model_plasmagun.glb_1793086500964"
+            }
+          ]
+        },
+        {
+          "id": 63499,
+          "name": "anim_player_5_walk",
+          "channels": 52,
+          "targets": [
+            {
+              "name": "player_5/mixamorig:Hips",
+              "parent": "player_5/RootNode",
+              "grandparent": "player_5/__root__"
+            },
+            {
+              "name": "player_5/mixamorig:Spine",
+              "parent": "player_5/mixamorig:Hips",
+              "grandparent": "player_5/RootNode"
+            },
+            {
+              "name": "player_5/mixamorig:Spine1",
+              "parent": "player_5/mixamorig:Spine",
+              "grandparent": "player_5/mixamorig:Hips"
+            },
+            {
+              "name": "player_5/mixamorig:Spine2",
+              "parent": "player_5/mixamorig:Spine1",
+              "grandparent": "player_5/mixamorig:Spine"
+            },
+            {
+              "name": "player_5/mixamorig:Neck",
+              "parent": "player_5/mixamorig:Spine2",
+              "grandparent": "player_5/mixamorig:Spine1"
+            }
+          ]
+        },
+        {
+          "id": 63582,
+          "name": "AWeapon",
+          "channels": 27,
+          "targets": [
+            {
+              "name": "tag_expansion",
+              "parent": "__root__",
+              "grandparent": "model_plasmagun.glb_1793086500964"
+            },
+            {
+              "name": "tag_expansion",
+              "parent": "__root__",
+              "grandparent": "model_plasmagun.glb_1793086500964"
+            },
+            {
+              "name": "tag_expansion",
+              "parent": "__root__",
+              "grandparent": "model_plasmagun.glb_1793086500964"
+            },
+            {
+              "name": "tag_flash",
+              "parent": "node12",
+              "grandparent": "mixamorig:RightHand"
+            },
+            {
+              "name": "tag_barrel",
+              "parent": "__root__",
+              "grandparent": "model_plasmagun.glb_1793086500964"
+            }
+          ]
+        },
+        {
+          "id": 63634,
+          "name": "anim_player_5_strafe_l",
+          "channels": 52,
+          "targets": [
+            {
+              "name": "player_5/mixamorig:Hips",
+              "parent": "player_5/RootNode",
+              "grandparent": "player_5/__root__"
+            },
+            {
+              "name": "player_5/mixamorig:Spine",
+              "parent": "player_5/mixamorig:Hips",
+              "grandparent": "player_5/RootNode"
+            },
+            {
+              "name": "player_5/mixamorig:Spine1",
+              "parent": "player_5/mixamorig:Spine",
+              "grandparent": "player_5/mixamorig:Hips"
+            },
+            {
+              "name": "player_5/mixamorig:Spine2",
+              "parent": "player_5/mixamorig:Spine1",
+              "grandparent": "player_5/mixamorig:Spine"
+            },
+            {
+              "name": "player_5/mixamorig:Neck",
+              "parent": "player_5/mixamorig:Spine2",
+              "grandparent": "player_5/mixamorig:Spine1"
+            }
+          ]
+        },
+        {
+          "id": 63693,
+          "name": "anim_player_5_strafe_r",
+          "channels": 52,
+          "targets": [
+            {
+              "name": "player_5/mixamorig:Hips",
+              "parent": "player_5/RootNode",
+              "grandparent": "player_5/__root__"
+            },
+            {
+              "name": "player_5/mixamorig:Spine",
+              "parent": "player_5/mixamorig:Hips",
+              "grandparent": "player_5/RootNode"
+            },
+            {
+              "name": "player_5/mixamorig:Spine1",
+              "parent": "player_5/mixamorig:Spine",
+              "grandparent": "player_5/mixamorig:Hips"
+            },
+            {
+              "name": "player_5/mixamorig:Spine2",
+              "parent": "player_5/mixamorig:Spine1",
+              "grandparent": "player_5/mixamorig:Spine"
+            },
+            {
+              "name": "player_5/mixamorig:Neck",
+              "parent": "player_5/mixamorig:Spine2",
+              "grandparent": "player_5/mixamorig:Spine1"
+            }
+          ]
+        },
+        {
+          "id": 63802,
+          "name": "AWeapon",
+          "channels": 27,
+          "targets": [
+            {
+              "name": "tag_expansion",
+              "parent": "__root__",
+              "grandparent": "model_machinegun.glb_1793086507585"
+            },
+            {
+              "name": "tag_barrel",
+              "parent": "__root__",
+              "grandparent": "model_machinegun.glb_1793086507585"
+            },
+            {
+              "name": "tag_expansion",
+              "parent": "__root__",
+              "grandparent": "model_machinegun.glb_1793086507585"
+            },
+            {
+              "name": "tag_barrel",
+              "parent": "__root__",
+              "grandparent": "model_machinegun.glb_1793086507585"
+            },
+            {
+              "name": "tag_recoil",
+              "parent": "__root__",
+              "grandparent": "model_machinegun.glb_1793086507585"
+            }
+          ]
+        },
+        {
+          "id": 60574,
+          "name": "anim_player_1_run",
+          "channels": 52,
+          "targets": [
+            {
+              "name": "player_1/mixamorig:Hips",
+              "parent": "player_1/RootNode",
+              "grandparent": "player_1/__root__"
+            },
+            {
+              "name": "player_1/mixamorig:Spine",
+              "parent": "player_1/mixamorig:Hips",
+              "grandparent": "player_1/RootNode"
+            },
+            {
+              "name": "player_1/mixamorig:Spine1",
+              "parent": "player_1/mixamorig:Spine",
+              "grandparent": "player_1/mixamorig:Hips"
+            },
+            {
+              "name": "player_1/mixamorig:Spine2",
+              "parent": "player_1/mixamorig:Spine1",
+              "grandparent": "player_1/mixamorig:Spine"
+            },
+            {
+              "name": "player_1/mixamorig:Neck",
+              "parent": "player_1/mixamorig:Spine2",
+              "grandparent": "player_1/mixamorig:Spine1"
+            }
+          ]
+        },
+        {
+          "id": 63892,
+          "name": "ABarrel",
+          "channels": 3,
+          "targets": [
+            {
+              "name": "tag_barrel",
+              "parent": "__root__",
+              "grandparent": "droppedWeapon_item_50016"
+            },
+            {
+              "name": "tag_barrel",
+              "parent": "__root__",
+              "grandparent": "droppedWeapon_item_50016"
+            },
+            {
+              "name": "tag_barrel",
+              "parent": "__root__",
+              "grandparent": "droppedWeapon_item_50016"
+            }
+          ]
+        },
+        {
+          "id": 63910,
+          "name": "ABarrel",
+          "channels": 3,
+          "targets": [
+            {
+              "name": "tag_barrel",
+              "parent": "__root__",
+              "grandparent": "droppedWeapon_item_50016"
+            },
+            {
+              "name": "tag_barrel",
+              "parent": "__root__",
+              "grandparent": "droppedWeapon_item_50016"
+            },
+            {
+              "name": "tag_barrel",
+              "parent": "__root__",
+              "grandparent": "droppedWeapon_item_50016"
+            }
+          ]
+        },
+        {
+          "id": 64034,
+          "name": "anim_player_1_slide",
+          "channels": 42,
+          "targets": [
+            {
+              "name": "player_1/mixamorig:Hips",
+              "parent": "player_1/RootNode",
+              "grandparent": "player_1/__root__"
+            },
+            {
+              "name": "player_1/mixamorig:Spine",
+              "parent": "player_1/mixamorig:Hips",
+              "grandparent": "player_1/RootNode"
+            },
+            {
+              "name": "player_1/mixamorig:Spine1",
+              "parent": "player_1/mixamorig:Spine",
+              "grandparent": "player_1/mixamorig:Hips"
+            },
+            {
+              "name": "player_1/mixamorig:Spine2",
+              "parent": "player_1/mixamorig:Spine1",
+              "grandparent": "player_1/mixamorig:Spine"
+            },
+            {
+              "name": "player_1/mixamorig:Neck",
+              "parent": "player_1/mixamorig:Spine2",
+              "grandparent": "player_1/mixamorig:Spine1"
+            }
+          ]
+        },
+        {
+          "id": 64107,
+          "name": "AWeapon",
+          "channels": 27,
+          "targets": [
+            {
+              "name": "tag_expansion",
+              "parent": "__root__",
+              "grandparent": "weapon_plasmagun"
+            },
+            {
+              "name": "tag_expansion",
+              "parent": "__root__",
+              "grandparent": "weapon_plasmagun"
+            },
+            {
+              "name": "tag_expansion",
+              "parent": "__root__",
+              "grandparent": "weapon_plasmagun"
+            },
+            {
+              "name": "tag_flash",
+              "parent": "__root__",
+              "grandparent": "weapon_plasmagun"
+            },
+            {
+              "name": "tag_barrel",
+              "parent": "__root__",
+              "grandparent": "weapon_plasmagun"
+            }
+          ]
+        },
+        {
+          "id": 64153,
+          "name": "ABarrel",
+          "channels": 3,
+          "targets": [
+            {
+              "name": "tag_barrel",
+              "parent": "__root__",
+              "grandparent": "__root__"
+            },
+            {
+              "name": "tag_barrel",
+              "parent": "__root__",
+              "grandparent": "__root__"
+            },
+            {
+              "name": "tag_barrel",
+              "parent": "__root__",
+              "grandparent": "__root__"
+            }
+          ]
+        },
+        {
+          "id": 64171,
+          "name": "ABarrel",
+          "channels": 3,
+          "targets": [
+            {
+              "name": "tag_barrel",
+              "parent": "__root__",
+              "grandparent": "__root__"
+            },
+            {
+              "name": "tag_barrel",
+              "parent": "__root__",
+              "grandparent": "__root__"
+            },
+            {
+              "name": "tag_barrel",
+              "parent": "__root__",
+              "grandparent": "__root__"
+            }
+          ]
+        },
+        {
+          "id": 65228,
+          "name": "anim_player_2_idle",
+          "channels": 52,
+          "targets": [
+            {
+              "name": "player_2/mixamorig:Hips",
+              "parent": "player_2/RootNode",
+              "grandparent": "player_2/__root__"
+            },
+            {
+              "name": "player_2/mixamorig:Spine",
+              "parent": "player_2/mixamorig:Hips",
+              "grandparent": "player_2/RootNode"
+            },
+            {
+              "name": "player_2/mixamorig:Spine1",
+              "parent": "player_2/mixamorig:Spine",
+              "grandparent": "player_2/mixamorig:Hips"
+            },
+            {
+              "name": "player_2/mixamorig:Spine2",
+              "parent": "player_2/mixamorig:Spine1",
+              "grandparent": "player_2/mixamorig:Spine"
+            },
+            {
+              "name": "player_2/mixamorig:Neck",
+              "parent": "player_2/mixamorig:Spine2",
+              "grandparent": "player_2/mixamorig:Spine1"
+            }
+          ]
+        },
+        {
+          "id": 66413,
+          "name": "anim_player_5_blade_slash_overlay",
+          "channels": 52,
+          "targets": [
+            {
+              "name": "player_5/mixamorig:Hips",
+              "parent": "player_5/RootNode",
+              "grandparent": "player_5/__root__"
+            },
+            {
+              "name": "player_5/mixamorig:Spine",
+              "parent": "player_5/mixamorig:Hips",
+              "grandparent": "player_5/RootNode"
+            },
+            {
+              "name": "player_5/mixamorig:Spine1",
+              "parent": "player_5/mixamorig:Spine",
+              "grandparent": "player_5/mixamorig:Hips"
+            },
+            {
+              "name": "player_5/mixamorig:Spine2",
+              "parent": "player_5/mixamorig:Spine1",
+              "grandparent": "player_5/mixamorig:Spine"
+            },
+            {
+              "name": "player_5/mixamorig:Neck",
+              "parent": "player_5/mixamorig:Spine2",
+              "grandparent": "player_5/mixamorig:Spine1"
+            }
+          ]
+        },
+        {
+          "id": 66508,
+          "name": "AWeapon",
+          "channels": 27,
+          "targets": [
+            {
+              "name": "tag_expansion",
+              "parent": "__root__",
+              "grandparent": "model_machinegun.glb_1793086500919"
+            },
+            {
+              "name": "tag_barrel",
+              "parent": "__root__",
+              "grandparent": "model_machinegun.glb_1793086500919"
+            },
+            {
+              "name": "tag_expansion",
+              "parent": "__root__",
+              "grandparent": "model_machinegun.glb_1793086500919"
+            },
+            {
+              "name": "tag_barrel",
+              "parent": "__root__",
+              "grandparent": "model_machinegun.glb_1793086500919"
+            },
+            {
+              "name": "tag_recoil",
+              "parent": "__root__",
+              "grandparent": "model_machinegun.glb_1793086500919"
+            }
+          ]
+        },
+        {
+          "id": 66358,
+          "name": "anim_player_5_idle",
+          "channels": 52,
+          "targets": [
+            {
+              "name": "player_5/mixamorig:Hips",
+              "parent": "player_5/RootNode",
+              "grandparent": "player_5/__root__"
+            },
+            {
+              "name": "player_5/mixamorig:Spine",
+              "parent": "player_5/mixamorig:Hips",
+              "grandparent": "player_5/RootNode"
+            },
+            {
+              "name": "player_5/mixamorig:Spine1",
+              "parent": "player_5/mixamorig:Spine",
+              "grandparent": "player_5/mixamorig:Hips"
+            },
+            {
+              "name": "player_5/mixamorig:Spine2",
+              "parent": "player_5/mixamorig:Spine1",
+              "grandparent": "player_5/mixamorig:Spine"
+            },
+            {
+              "name": "player_5/mixamorig:Neck",
+              "parent": "player_5/mixamorig:Spine2",
+              "grandparent": "player_5/mixamorig:Spine1"
+            }
+          ]
+        },
+        {
+          "id": 67759,
+          "name": "AWeapon",
+          "channels": 27,
+          "targets": [
+            {
+              "name": "tag_expansion",
+              "parent": "__root__",
+              "grandparent": "weapon_plasmagun"
+            },
+            {
+              "name": "tag_expansion",
+              "parent": "__root__",
+              "grandparent": "weapon_plasmagun"
+            },
+            {
+              "name": "tag_expansion",
+              "parent": "__root__",
+              "grandparent": "weapon_plasmagun"
+            },
+            {
+              "name": "tag_flash",
+              "parent": "__root__",
+              "grandparent": "weapon_plasmagun"
+            },
+            {
+              "name": "tag_barrel",
+              "parent": "__root__",
+              "grandparent": "weapon_plasmagun"
+            }
+          ]
+        },
+        {
+          "id": 67805,
+          "name": "ABarrel",
+          "channels": 3,
+          "targets": [
+            {
+              "name": "tag_barrel",
+              "parent": "__root__",
+              "grandparent": "__root__"
+            },
+            {
+              "name": "tag_barrel",
+              "parent": "__root__",
+              "grandparent": "__root__"
+            },
+            {
+              "name": "tag_barrel",
+              "parent": "__root__",
+              "grandparent": "__root__"
+            }
+          ]
+        },
+        {
+          "id": 67823,
+          "name": "ABarrel",
+          "channels": 3,
+          "targets": [
+            {
+              "name": "tag_barrel",
+              "parent": "__root__",
+              "grandparent": "__root__"
+            },
+            {
+              "name": "tag_barrel",
+              "parent": "__root__",
+              "grandparent": "__root__"
+            },
+            {
+              "name": "tag_barrel",
+              "parent": "__root__",
+              "grandparent": "__root__"
+            }
+          ]
+        },
+        {
+          "id": 68238,
+          "name": "AWeapon",
+          "channels": 27,
+          "targets": [
+            {
+              "name": "tag_expansion",
+              "parent": "__root__",
+              "grandparent": "model_plasmagun.glb_1793086500964"
+            },
+            {
+              "name": "tag_expansion",
+              "parent": "__root__",
+              "grandparent": "model_plasmagun.glb_1793086500964"
+            },
+            {
+              "name": "tag_expansion",
+              "parent": "__root__",
+              "grandparent": "model_plasmagun.glb_1793086500964"
+            },
+            {
+              "name": "tag_flash",
+              "parent": "node12",
+              "grandparent": "mixamorig:RightHand"
+            },
+            {
+              "name": "tag_barrel",
+              "parent": "__root__",
+              "grandparent": "model_plasmagun.glb_1793086500964"
+            }
+          ]
+        },
+        {
+          "id": 67993,
+          "name": "anim_player_3_run",
+          "channels": 52,
+          "targets": [
+            {
+              "name": "player_3/mixamorig:Hips",
+              "parent": "player_3/RootNode",
+              "grandparent": "player_3/__root__"
+            },
+            {
+              "name": "player_3/mixamorig:Spine",
+              "parent": "player_3/mixamorig:Hips",
+              "grandparent": "player_3/RootNode"
+            },
+            {
+              "name": "player_3/mixamorig:Spine1",
+              "parent": "player_3/mixamorig:Spine",
+              "grandparent": "player_3/mixamorig:Hips"
+            },
+            {
+              "name": "player_3/mixamorig:Spine2",
+              "parent": "player_3/mixamorig:Spine1",
+              "grandparent": "player_3/mixamorig:Spine"
+            },
+            {
+              "name": "player_3/mixamorig:Neck",
+              "parent": "player_3/mixamorig:Spine2",
+              "grandparent": "player_3/mixamorig:Spine1"
+            }
+          ]
+        },
+        {
+          "id": 68599,
+          "name": "AWeapon",
+          "channels": 21,
+          "targets": [
+            {
+              "name": "tag_expansion",
+              "parent": "__root__",
+              "grandparent": "model_voltaic.glb_1793086510511"
+            },
+            {
+              "name": "tag_expansion",
+              "parent": "__root__",
+              "grandparent": "model_voltaic.glb_1793086510511"
+            },
+            {
+              "name": "tag_expansion",
+              "parent": "__root__",
+              "grandparent": "model_voltaic.glb_1793086510511"
+            },
+            {
+              "name": "tag_flash",
+              "parent": "node13",
+              "grandparent": "mixamorig:RightHand"
+            },
+            {
+              "name": "tag_ammo",
+              "parent": "__root__",
+              "grandparent": "model_voltaic.glb_1793086510511"
+            }
+          ]
+        },
+        {
+          "id": 68046,
+          "name": "anim_player_3_walk",
+          "channels": 52,
+          "targets": [
+            {
+              "name": "player_3/mixamorig:Hips",
+              "parent": "player_3/RootNode",
+              "grandparent": "player_3/__root__"
+            },
+            {
+              "name": "player_3/mixamorig:Spine",
+              "parent": "player_3/mixamorig:Hips",
+              "grandparent": "player_3/RootNode"
+            },
+            {
+              "name": "player_3/mixamorig:Spine1",
+              "parent": "player_3/mixamorig:Spine",
+              "grandparent": "player_3/mixamorig:Hips"
+            },
+            {
+              "name": "player_3/mixamorig:Spine2",
+              "parent": "player_3/mixamorig:Spine1",
+              "grandparent": "player_3/mixamorig:Spine"
+            },
+            {
+              "name": "player_3/mixamorig:Neck",
+              "parent": "player_3/mixamorig:Spine2",
+              "grandparent": "player_3/mixamorig:Spine1"
+            }
+          ]
+        },
+        {
+          "id": 68743,
+          "name": "AWeapon",
+          "channels": 27,
+          "targets": [
+            {
+              "name": "tag_expansion",
+              "parent": "__root__",
+              "grandparent": "model_machinegun.glb_1793086507585"
+            },
+            {
+              "name": "tag_barrel",
+              "parent": "__root__",
+              "grandparent": "model_machinegun.glb_1793086507585"
+            },
+            {
+              "name": "tag_expansion",
+              "parent": "__root__",
+              "grandparent": "model_machinegun.glb_1793086507585"
+            },
+            {
+              "name": "tag_barrel",
+              "parent": "__root__",
+              "grandparent": "model_machinegun.glb_1793086507585"
+            },
+            {
+              "name": "tag_recoil",
+              "parent": "__root__",
+              "grandparent": "model_machinegun.glb_1793086507585"
+            }
+          ]
+        },
+        {
+          "id": 68973,
+          "name": "ABarrel",
+          "channels": 3,
+          "targets": [
+            {
+              "name": "tag_expansion",
+              "parent": "__root__",
+              "grandparent": "droppedWeapon_item_50022"
+            },
+            {
+              "name": "tag_expansion",
+              "parent": "__root__",
+              "grandparent": "droppedWeapon_item_50022"
+            },
+            {
+              "name": "tag_expansion",
+              "parent": "__root__",
+              "grandparent": "droppedWeapon_item_50022"
+            }
+          ]
+        },
+        {
+          "id": 66536,
+          "name": "anim_player_2_jump",
+          "channels": 52,
+          "targets": [
+            {
+              "name": "player_2/mixamorig:Hips",
+              "parent": "player_2/RootNode",
+              "grandparent": "player_2/__root__"
+            },
+            {
+              "name": "player_2/mixamorig:Spine",
+              "parent": "player_2/mixamorig:Hips",
+              "grandparent": "player_2/RootNode"
+            },
+            {
+              "name": "player_2/mixamorig:Spine1",
+              "parent": "player_2/mixamorig:Spine",
+              "grandparent": "player_2/mixamorig:Hips"
+            },
+            {
+              "name": "player_2/mixamorig:Spine2",
+              "parent": "player_2/mixamorig:Spine1",
+              "grandparent": "player_2/mixamorig:Spine"
+            },
+            {
+              "name": "player_2/mixamorig:Neck",
+              "parent": "player_2/mixamorig:Spine2",
+              "grandparent": "player_2/mixamorig:Spine1"
+            }
+          ]
+        },
+        {
+          "id": 70229,
+          "name": "anim_player_6_jump",
+          "channels": 52,
+          "targets": [
+            {
+              "name": "player_6/mixamorig:Hips",
+              "parent": "player_6/RootNode",
+              "grandparent": "player_6/__root__"
+            },
+            {
+              "name": "player_6/mixamorig:Spine",
+              "parent": "player_6/mixamorig:Hips",
+              "grandparent": "player_6/RootNode"
+            },
+            {
+              "name": "player_6/mixamorig:Spine1",
+              "parent": "player_6/mixamorig:Spine",
+              "grandparent": "player_6/mixamorig:Hips"
+            },
+            {
+              "name": "player_6/mixamorig:Spine2",
+              "parent": "player_6/mixamorig:Spine1",
+              "grandparent": "player_6/mixamorig:Spine"
+            },
+            {
+              "name": "player_6/mixamorig:Neck",
+              "parent": "player_6/mixamorig:Spine2",
+              "grandparent": "player_6/mixamorig:Spine1"
+            }
+          ]
+        },
+        {
+          "id": 71567,
+          "name": "AWeapon",
+          "channels": 27,
+          "targets": [
+            {
+              "name": "tag_expansion",
+              "parent": "__root__",
+              "grandparent": "model_machinegun.glb_1793086500919"
+            },
+            {
+              "name": "tag_barrel",
+              "parent": "__root__",
+              "grandparent": "model_machinegun.glb_1793086500919"
+            },
+            {
+              "name": "tag_expansion",
+              "parent": "__root__",
+              "grandparent": "model_machinegun.glb_1793086500919"
+            },
+            {
+              "name": "tag_barrel",
+              "parent": "__root__",
+              "grandparent": "model_machinegun.glb_1793086500919"
+            },
+            {
+              "name": "tag_recoil",
+              "parent": "__root__",
+              "grandparent": "model_machinegun.glb_1793086500919"
+            }
+          ]
+        },
+        {
+          "id": 71690,
+          "name": "AWeapon",
+          "channels": 27,
+          "targets": [
+            {
+              "name": "tag_expansion",
+              "parent": "__root__",
+              "grandparent": "model_glauncher.glb_1793086526976"
+            },
+            {
+              "name": "tag_expansion",
+              "parent": "__root__",
+              "grandparent": "model_glauncher.glb_1793086526976"
+            },
+            {
+              "name": "tag_barrel",
+              "parent": "__root__",
+              "grandparent": "model_glauncher.glb_1793086526976"
+            },
+            {
+              "name": "tag_recoil",
+              "parent": "__root__",
+              "grandparent": "model_glauncher.glb_1793086526976"
+            },
+            {
+              "name": "tag_expansion",
+              "parent": "__root__",
+              "grandparent": "model_glauncher.glb_1793086526976"
+            }
+          ]
+        },
+        {
+          "id": 71930,
+          "name": "anim_player_6_run",
+          "channels": 52,
+          "targets": [
+            {
+              "name": "player_6/mixamorig:Hips",
+              "parent": "player_6/RootNode",
+              "grandparent": "player_6/__root__"
+            },
+            {
+              "name": "player_6/mixamorig:Spine",
+              "parent": "player_6/mixamorig:Hips",
+              "grandparent": "player_6/RootNode"
+            },
+            {
+              "name": "player_6/mixamorig:Spine1",
+              "parent": "player_6/mixamorig:Spine",
+              "grandparent": "player_6/mixamorig:Hips"
+            },
+            {
+              "name": "player_6/mixamorig:Spine2",
+              "parent": "player_6/mixamorig:Spine1",
+              "grandparent": "player_6/mixamorig:Spine"
+            },
+            {
+              "name": "player_6/mixamorig:Neck",
+              "parent": "player_6/mixamorig:Spine2",
+              "grandparent": "player_6/mixamorig:Spine1"
+            }
+          ]
+        },
+        {
+          "id": 71877,
+          "name": "anim_player_6_walk",
+          "channels": 52,
+          "targets": [
+            {
+              "name": "player_6/mixamorig:Hips",
+              "parent": "player_6/RootNode",
+              "grandparent": "player_6/__root__"
+            },
+            {
+              "name": "player_6/mixamorig:Spine",
+              "parent": "player_6/mixamorig:Hips",
+              "grandparent": "player_6/RootNode"
+            },
+            {
+              "name": "player_6/mixamorig:Spine1",
+              "parent": "player_6/mixamorig:Spine",
+              "grandparent": "player_6/mixamorig:Hips"
+            },
+            {
+              "name": "player_6/mixamorig:Spine2",
+              "parent": "player_6/mixamorig:Spine1",
+              "grandparent": "player_6/mixamorig:Spine"
+            },
+            {
+              "name": "player_6/mixamorig:Neck",
+              "parent": "player_6/mixamorig:Spine2",
+              "grandparent": "player_6/mixamorig:Spine1"
+            }
+          ]
+        },
+        {
+          "id": 72123,
+          "name": "AWeapon",
+          "channels": 21,
+          "targets": [
+            {
+              "name": "tag_expansion",
+              "parent": "__root__",
+              "grandparent": "model_voltaic.glb_1793086510511"
+            },
+            {
+              "name": "tag_expansion",
+              "parent": "__root__",
+              "grandparent": "model_voltaic.glb_1793086510511"
+            },
+            {
+              "name": "tag_expansion",
+              "parent": "__root__",
+              "grandparent": "model_voltaic.glb_1793086510511"
+            },
+            {
+              "name": "tag_flash",
+              "parent": "node13",
+              "grandparent": "mixamorig:RightHand"
+            },
+            {
+              "name": "tag_ammo",
+              "parent": "__root__",
+              "grandparent": "model_voltaic.glb_1793086510511"
+            }
+          ]
+        },
+        {
+          "id": 72208,
+          "name": "AWeapon",
+          "channels": 21,
+          "targets": [
+            {
+              "name": "tag_expansion",
+              "parent": "__root__",
+              "grandparent": "model_voltaic.glb_1793086510511"
+            },
+            {
+              "name": "tag_expansion",
+              "parent": "__root__",
+              "grandparent": "model_voltaic.glb_1793086510511"
+            },
+            {
+              "name": "tag_expansion",
+              "parent": "__root__",
+              "grandparent": "model_voltaic.glb_1793086510511"
+            },
+            {
+              "name": "tag_flash",
+              "parent": "node13",
+              "grandparent": "mixamorig:RightHand"
+            },
+            {
+              "name": "tag_ammo",
+              "parent": "__root__",
+              "grandparent": "model_voltaic.glb_1793086510511"
+            }
+          ]
+        },
+        {
+          "id": 72244,
+          "name": "ABarrel",
+          "channels": 3,
+          "targets": [
+            {
+              "name": "tag_barrel",
+              "parent": "__root__",
+              "grandparent": "droppedWeapon_item_50024"
+            },
+            {
+              "name": "tag_barrel",
+              "parent": "__root__",
+              "grandparent": "droppedWeapon_item_50024"
+            },
+            {
+              "name": "tag_barrel",
+              "parent": "__root__",
+              "grandparent": "droppedWeapon_item_50024"
+            }
+          ]
+        },
+        {
+          "id": 72262,
+          "name": "ABarrel",
+          "channels": 3,
+          "targets": [
+            {
+              "name": "tag_barrel",
+              "parent": "__root__",
+              "grandparent": "droppedWeapon_item_50024"
+            },
+            {
+              "name": "tag_barrel",
+              "parent": "__root__",
+              "grandparent": "droppedWeapon_item_50024"
+            },
+            {
+              "name": "tag_barrel",
+              "parent": "__root__",
+              "grandparent": "droppedWeapon_item_50024"
+            }
+          ]
+        },
+        {
+          "id": 72393,
+          "name": "AWeapon",
+          "channels": 27,
+          "targets": [
+            {
+              "name": "tag_expansion",
+              "parent": "__root__",
+              "grandparent": "model_machinegun.glb_1793086507585"
+            },
+            {
+              "name": "tag_barrel",
+              "parent": "__root__",
+              "grandparent": "model_machinegun.glb_1793086507585"
+            },
+            {
+              "name": "tag_expansion",
+              "parent": "__root__",
+              "grandparent": "model_machinegun.glb_1793086507585"
+            },
+            {
+              "name": "tag_barrel",
+              "parent": "__root__",
+              "grandparent": "model_machinegun.glb_1793086507585"
+            },
+            {
+              "name": "tag_recoil",
+              "parent": "__root__",
+              "grandparent": "model_machinegun.glb_1793086507585"
+            }
+          ]
+        },
+        {
+          "id": 72459,
+          "name": "AWeapon",
+          "channels": 27,
+          "targets": [
+            {
+              "name": "tag_expansion",
+              "parent": "__root__",
+              "grandparent": "model_machinegun.glb_1793086507585"
+            },
+            {
+              "name": "tag_barrel",
+              "parent": "__root__",
+              "grandparent": "model_machinegun.glb_1793086507585"
+            },
+            {
+              "name": "tag_expansion",
+              "parent": "__root__",
+              "grandparent": "model_machinegun.glb_1793086507585"
+            },
+            {
+              "name": "tag_barrel",
+              "parent": "__root__",
+              "grandparent": "model_machinegun.glb_1793086507585"
+            },
+            {
+              "name": "tag_recoil",
+              "parent": "__root__",
+              "grandparent": "model_machinegun.glb_1793086507585"
+            }
+          ]
+        },
+        {
+          "id": 73773,
+          "name": "AWeapon",
+          "channels": 27,
+          "targets": [
+            {
+              "name": "tag_expansion",
+              "parent": "__root__",
+              "grandparent": "model_plasmagun.glb_1793086500964"
+            },
+            {
+              "name": "tag_expansion",
+              "parent": "__root__",
+              "grandparent": "model_plasmagun.glb_1793086500964"
+            },
+            {
+              "name": "tag_expansion",
+              "parent": "__root__",
+              "grandparent": "model_plasmagun.glb_1793086500964"
+            },
+            {
+              "name": "tag_flash",
+              "parent": "node12",
+              "grandparent": "mixamorig:RightHand"
+            },
+            {
+              "name": "tag_barrel",
+              "parent": "__root__",
+              "grandparent": "model_plasmagun.glb_1793086500964"
+            }
+          ]
+        },
+        {
+          "id": 74974,
+          "name": "anim_player_6_jump",
+          "channels": 52,
+          "targets": [
+            {
+              "name": "player_6/mixamorig:Hips",
+              "parent": "player_6/RootNode",
+              "grandparent": "player_6/__root__"
+            },
+            {
+              "name": "player_6/mixamorig:Spine",
+              "parent": "player_6/mixamorig:Hips",
+              "grandparent": "player_6/RootNode"
+            },
+            {
+              "name": "player_6/mixamorig:Spine1",
+              "parent": "player_6/mixamorig:Spine",
+              "grandparent": "player_6/mixamorig:Hips"
+            },
+            {
+              "name": "player_6/mixamorig:Spine2",
+              "parent": "player_6/mixamorig:Spine1",
+              "grandparent": "player_6/mixamorig:Spine"
+            },
+            {
+              "name": "player_6/mixamorig:Neck",
+              "parent": "player_6/mixamorig:Spine2",
+              "grandparent": "player_6/mixamorig:Spine1"
+            }
+          ]
+        },
+        {
+          "id": 75027,
+          "name": "anim_player_6_blade_slash_overlay",
+          "channels": 52,
+          "targets": [
+            {
+              "name": "player_6/mixamorig:Hips",
+              "parent": "player_6/RootNode",
+              "grandparent": "player_6/__root__"
+            },
+            {
+              "name": "player_6/mixamorig:Spine",
+              "parent": "player_6/mixamorig:Hips",
+              "grandparent": "player_6/RootNode"
+            },
+            {
+              "name": "player_6/mixamorig:Spine1",
+              "parent": "player_6/mixamorig:Spine",
+              "grandparent": "player_6/mixamorig:Hips"
+            },
+            {
+              "name": "player_6/mixamorig:Spine2",
+              "parent": "player_6/mixamorig:Spine1",
+              "grandparent": "player_6/mixamorig:Spine"
+            },
+            {
+              "name": "player_6/mixamorig:Neck",
+              "parent": "player_6/mixamorig:Spine2",
+              "grandparent": "player_6/mixamorig:Spine1"
+            }
+          ]
+        },
+        {
+          "id": 76248,
+          "name": "AWeapon",
+          "channels": 27,
+          "targets": [
+            {
+              "name": "tag_expansion",
+              "parent": "__root__",
+              "grandparent": "model_machinegun.glb_1793086500919"
+            },
+            {
+              "name": "tag_barrel",
+              "parent": "__root__",
+              "grandparent": "model_machinegun.glb_1793086500919"
+            },
+            {
+              "name": "tag_expansion",
+              "parent": "__root__",
+              "grandparent": "model_machinegun.glb_1793086500919"
+            },
+            {
+              "name": "tag_barrel",
+              "parent": "__root__",
+              "grandparent": "model_machinegun.glb_1793086500919"
+            },
+            {
+              "name": "tag_recoil",
+              "parent": "__root__",
+              "grandparent": "model_machinegun.glb_1793086500919"
+            }
+          ]
+        },
+        {
+          "id": 76318,
+          "name": "AWeapon",
+          "channels": 21,
+          "targets": [
+            {
+              "name": "tag_expansion",
+              "parent": "__root__",
+              "grandparent": "model_voltaic.glb_1793086510511"
+            },
+            {
+              "name": "tag_expansion",
+              "parent": "__root__",
+              "grandparent": "model_voltaic.glb_1793086510511"
+            },
+            {
+              "name": "tag_expansion",
+              "parent": "__root__",
+              "grandparent": "model_voltaic.glb_1793086510511"
+            },
+            {
+              "name": "tag_flash",
+              "parent": "node13",
+              "grandparent": "mixamorig:RightHand"
+            },
+            {
+              "name": "tag_ammo",
+              "parent": "__root__",
+              "grandparent": "model_voltaic.glb_1793086510511"
+            }
+          ]
+        },
+        {
+          "id": 62088,
+          "name": "anim_player_1_strafe_l",
+          "channels": 52,
+          "targets": [
+            {
+              "name": "player_1/mixamorig:Hips",
+              "parent": "player_1/RootNode",
+              "grandparent": "player_1/__root__"
+            },
+            {
+              "name": "player_1/mixamorig:Spine",
+              "parent": "player_1/mixamorig:Hips",
+              "grandparent": "player_1/RootNode"
+            },
+            {
+              "name": "player_1/mixamorig:Spine1",
+              "parent": "player_1/mixamorig:Spine",
+              "grandparent": "player_1/mixamorig:Hips"
+            },
+            {
+              "name": "player_1/mixamorig:Spine2",
+              "parent": "player_1/mixamorig:Spine1",
+              "grandparent": "player_1/mixamorig:Spine"
+            },
+            {
+              "name": "player_1/mixamorig:Neck",
+              "parent": "player_1/mixamorig:Spine2",
+              "grandparent": "player_1/mixamorig:Spine1"
+            }
+          ]
+        },
+        {
+          "id": 76621,
+          "name": "anim_player_4_blade_slash_overlay",
+          "channels": 52,
+          "targets": [
+            {
+              "name": "player_4/mixamorig:Hips",
+              "parent": "player_4/RootNode",
+              "grandparent": "player_4/__root__"
+            },
+            {
+              "name": "player_4/mixamorig:Spine",
+              "parent": "player_4/mixamorig:Hips",
+              "grandparent": "player_4/RootNode"
+            },
+            {
+              "name": "player_4/mixamorig:Spine1",
+              "parent": "player_4/mixamorig:Spine",
+              "grandparent": "player_4/mixamorig:Hips"
+            },
+            {
+              "name": "player_4/mixamorig:Spine2",
+              "parent": "player_4/mixamorig:Spine1",
+              "grandparent": "player_4/mixamorig:Spine"
+            },
+            {
+              "name": "player_4/mixamorig:Neck",
+              "parent": "player_4/mixamorig:Spine2",
+              "grandparent": "player_4/mixamorig:Spine1"
+            }
+          ]
+        },
+        {
+          "id": 76696,
+          "name": "anim_player_6_strafe_r",
+          "channels": 52,
+          "targets": [
+            {
+              "name": "player_6/mixamorig:Hips",
+              "parent": "player_6/RootNode",
+              "grandparent": "player_6/__root__"
+            },
+            {
+              "name": "player_6/mixamorig:Spine",
+              "parent": "player_6/mixamorig:Hips",
+              "grandparent": "player_6/RootNode"
+            },
+            {
+              "name": "player_6/mixamorig:Spine1",
+              "parent": "player_6/mixamorig:Spine",
+              "grandparent": "player_6/mixamorig:Hips"
+            },
+            {
+              "name": "player_6/mixamorig:Spine2",
+              "parent": "player_6/mixamorig:Spine1",
+              "grandparent": "player_6/mixamorig:Spine"
+            },
+            {
+              "name": "player_6/mixamorig:Neck",
+              "parent": "player_6/mixamorig:Spine2",
+              "grandparent": "player_6/mixamorig:Spine1"
+            }
+          ]
+        },
+        {
+          "id": 76927,
+          "name": "AWeapon",
+          "channels": 27,
+          "targets": [
+            {
+              "name": "tag_expansion",
+              "parent": "__root__",
+              "grandparent": "model_machinegun.glb_1793086507585"
+            },
+            {
+              "name": "tag_barrel",
+              "parent": "__root__",
+              "grandparent": "model_machinegun.glb_1793086507585"
+            },
+            {
+              "name": "tag_expansion",
+              "parent": "__root__",
+              "grandparent": "model_machinegun.glb_1793086507585"
+            },
+            {
+              "name": "tag_barrel",
+              "parent": "__root__",
+              "grandparent": "model_machinegun.glb_1793086507585"
+            },
+            {
+              "name": "tag_recoil",
+              "parent": "__root__",
+              "grandparent": "model_machinegun.glb_1793086507585"
+            }
+          ]
+        },
+        {
+          "id": 60455,
+          "name": "anim_player_1_jump",
+          "channels": 52,
+          "targets": [
+            {
+              "name": "player_1/mixamorig:Hips",
+              "parent": "player_1/RootNode",
+              "grandparent": "player_1/__root__"
+            },
+            {
+              "name": "player_1/mixamorig:Spine",
+              "parent": "player_1/mixamorig:Hips",
+              "grandparent": "player_1/RootNode"
+            },
+            {
+              "name": "player_1/mixamorig:Spine1",
+              "parent": "player_1/mixamorig:Spine",
+              "grandparent": "player_1/mixamorig:Hips"
+            },
+            {
+              "name": "player_1/mixamorig:Spine2",
+              "parent": "player_1/mixamorig:Spine1",
+              "grandparent": "player_1/mixamorig:Spine"
+            },
+            {
+              "name": "player_1/mixamorig:Neck",
+              "parent": "player_1/mixamorig:Spine2",
+              "grandparent": "player_1/mixamorig:Spine1"
+            }
+          ]
+        },
+        {
+          "id": 77180,
+          "name": "AWeapon",
+          "channels": 27,
+          "targets": [
+            {
+              "name": "tag_expansion",
+              "parent": "__root__",
+              "grandparent": "weapon_plasmagun"
+            },
+            {
+              "name": "tag_expansion",
+              "parent": "__root__",
+              "grandparent": "weapon_plasmagun"
+            },
+            {
+              "name": "tag_expansion",
+              "parent": "__root__",
+              "grandparent": "weapon_plasmagun"
+            },
+            {
+              "name": "tag_flash",
+              "parent": "__root__",
+              "grandparent": "weapon_plasmagun"
+            },
+            {
+              "name": "tag_barrel",
+              "parent": "__root__",
+              "grandparent": "weapon_plasmagun"
+            }
+          ]
+        },
+        {
+          "id": 77262,
+          "name": "ABarrel",
+          "channels": 3,
+          "targets": [
+            {
+              "name": "tag_barrel",
+              "parent": "__root__",
+              "grandparent": "__root__"
+            },
+            {
+              "name": "tag_barrel",
+              "parent": "__root__",
+              "grandparent": "__root__"
+            },
+            {
+              "name": "tag_barrel",
+              "parent": "__root__",
+              "grandparent": "__root__"
+            }
+          ]
+        },
+        {
+          "id": 77280,
+          "name": "ABarrel",
+          "channels": 3,
+          "targets": [
+            {
+              "name": "tag_barrel",
+              "parent": "__root__",
+              "grandparent": "__root__"
+            },
+            {
+              "name": "tag_barrel",
+              "parent": "__root__",
+              "grandparent": "__root__"
+            },
+            {
+              "name": "tag_barrel",
+              "parent": "__root__",
+              "grandparent": "__root__"
+            }
+          ]
+        },
+        {
+          "id": 78446,
+          "name": "AWeapon",
+          "channels": 21,
+          "targets": [
+            {
+              "name": "tag_expansion",
+              "parent": "__root__",
+              "grandparent": "model_voltaic.glb_1793086510511"
+            },
+            {
+              "name": "tag_expansion",
+              "parent": "__root__",
+              "grandparent": "model_voltaic.glb_1793086510511"
+            },
+            {
+              "name": "tag_expansion",
+              "parent": "__root__",
+              "grandparent": "model_voltaic.glb_1793086510511"
+            },
+            {
+              "name": "tag_flash",
+              "parent": "node13",
+              "grandparent": "mixamorig:RightHand"
+            },
+            {
+              "name": "tag_ammo",
+              "parent": "__root__",
+              "grandparent": "model_voltaic.glb_1793086510511"
+            }
+          ]
+        },
+        {
+          "id": 67611,
+          "name": "anim_player_3_idle",
+          "channels": 52,
+          "targets": [
+            {
+              "name": "player_3/mixamorig:Hips",
+              "parent": "player_3/RootNode",
+              "grandparent": "player_3/__root__"
+            },
+            {
+              "name": "player_3/mixamorig:Spine",
+              "parent": "player_3/mixamorig:Hips",
+              "grandparent": "player_3/RootNode"
+            },
+            {
+              "name": "player_3/mixamorig:Spine1",
+              "parent": "player_3/mixamorig:Spine",
+              "grandparent": "player_3/mixamorig:Hips"
+            },
+            {
+              "name": "player_3/mixamorig:Spine2",
+              "parent": "player_3/mixamorig:Spine1",
+              "grandparent": "player_3/mixamorig:Spine"
+            },
+            {
+              "name": "player_3/mixamorig:Neck",
+              "parent": "player_3/mixamorig:Spine2",
+              "grandparent": "player_3/mixamorig:Spine1"
+            }
+          ]
+        },
+        {
+          "id": 76110,
+          "name": "anim_player_2_idle",
+          "channels": 52,
+          "targets": [
+            {
+              "name": "player_2/mixamorig:Hips",
+              "parent": "player_2/RootNode",
+              "grandparent": "player_2/__root__"
+            },
+            {
+              "name": "player_2/mixamorig:Spine",
+              "parent": "player_2/mixamorig:Hips",
+              "grandparent": "player_2/RootNode"
+            },
+            {
+              "name": "player_2/mixamorig:Spine1",
+              "parent": "player_2/mixamorig:Spine",
+              "grandparent": "player_2/mixamorig:Hips"
+            },
+            {
+              "name": "player_2/mixamorig:Spine2",
+              "parent": "player_2/mixamorig:Spine1",
+              "grandparent": "player_2/mixamorig:Spine"
+            },
+            {
+              "name": "player_2/mixamorig:Neck",
+              "parent": "player_2/mixamorig:Spine2",
+              "grandparent": "player_2/mixamorig:Spine1"
+            }
+          ]
+        },
+        {
+          "id": 78723,
+          "name": "ABarrel",
+          "channels": 3,
+          "targets": [
+            {
+              "name": "tag_barrel",
+              "parent": "__root__",
+              "grandparent": "droppedWeapon_item_50032"
+            },
+            {
+              "name": "tag_barrel",
+              "parent": "__root__",
+              "grandparent": "droppedWeapon_item_50032"
+            },
+            {
+              "name": "tag_barrel",
+              "parent": "__root__",
+              "grandparent": "droppedWeapon_item_50032"
+            }
+          ]
+        },
+        {
+          "id": 78741,
+          "name": "ABarrel",
+          "channels": 3,
+          "targets": [
+            {
+              "name": "tag_barrel",
+              "parent": "__root__",
+              "grandparent": "droppedWeapon_item_50032"
+            },
+            {
+              "name": "tag_barrel",
+              "parent": "__root__",
+              "grandparent": "droppedWeapon_item_50032"
+            },
+            {
+              "name": "tag_barrel",
+              "parent": "__root__",
+              "grandparent": "droppedWeapon_item_50032"
+            }
+          ]
+        },
+        {
+          "id": 76395,
+          "name": "anim_player_2_walk",
+          "channels": 52,
+          "targets": [
+            {
+              "name": "player_2/mixamorig:Hips",
+              "parent": "player_2/RootNode",
+              "grandparent": "player_2/__root__"
+            },
+            {
+              "name": "player_2/mixamorig:Spine",
+              "parent": "player_2/mixamorig:Hips",
+              "grandparent": "player_2/RootNode"
+            },
+            {
+              "name": "player_2/mixamorig:Spine1",
+              "parent": "player_2/mixamorig:Spine",
+              "grandparent": "player_2/mixamorig:Hips"
+            },
+            {
+              "name": "player_2/mixamorig:Spine2",
+              "parent": "player_2/mixamorig:Spine1",
+              "grandparent": "player_2/mixamorig:Spine"
+            },
+            {
+              "name": "player_2/mixamorig:Neck",
+              "parent": "player_2/mixamorig:Spine2",
+              "grandparent": "player_2/mixamorig:Spine1"
+            }
+          ]
+        },
+        {
+          "id": 68099,
+          "name": "anim_player_3_strafe_l",
+          "channels": 52,
+          "targets": [
+            {
+              "name": "player_3/mixamorig:Hips",
+              "parent": "player_3/RootNode",
+              "grandparent": "player_3/__root__"
+            },
+            {
+              "name": "player_3/mixamorig:Spine",
+              "parent": "player_3/mixamorig:Hips",
+              "grandparent": "player_3/RootNode"
+            },
+            {
+              "name": "player_3/mixamorig:Spine1",
+              "parent": "player_3/mixamorig:Spine",
+              "grandparent": "player_3/mixamorig:Hips"
+            },
+            {
+              "name": "player_3/mixamorig:Spine2",
+              "parent": "player_3/mixamorig:Spine1",
+              "grandparent": "player_3/mixamorig:Spine"
+            },
+            {
+              "name": "player_3/mixamorig:Neck",
+              "parent": "player_3/mixamorig:Spine2",
+              "grandparent": "player_3/mixamorig:Spine1"
+            }
+          ]
+        },
+        {
+          "id": 76562,
+          "name": "anim_player_2_strafe_r",
+          "channels": 52,
+          "targets": [
+            {
+              "name": "player_2/mixamorig:Hips",
+              "parent": "player_2/RootNode",
+              "grandparent": "player_2/__root__"
+            },
+            {
+              "name": "player_2/mixamorig:Spine",
+              "parent": "player_2/mixamorig:Hips",
+              "grandparent": "player_2/RootNode"
+            },
+            {
+              "name": "player_2/mixamorig:Spine1",
+              "parent": "player_2/mixamorig:Spine",
+              "grandparent": "player_2/mixamorig:Hips"
+            },
+            {
+              "name": "player_2/mixamorig:Spine2",
+              "parent": "player_2/mixamorig:Spine1",
+              "grandparent": "player_2/mixamorig:Spine"
+            },
+            {
+              "name": "player_2/mixamorig:Neck",
+              "parent": "player_2/mixamorig:Spine2",
+              "grandparent": "player_2/mixamorig:Spine1"
+            }
+          ]
+        },
+        {
+          "id": 77008,
+          "name": "anim_player_2_strafe_l",
+          "channels": 52,
+          "targets": [
+            {
+              "name": "player_2/mixamorig:Hips",
+              "parent": "player_2/RootNode",
+              "grandparent": "player_2/__root__"
+            },
+            {
+              "name": "player_2/mixamorig:Spine",
+              "parent": "player_2/mixamorig:Hips",
+              "grandparent": "player_2/RootNode"
+            },
+            {
+              "name": "player_2/mixamorig:Spine1",
+              "parent": "player_2/mixamorig:Spine",
+              "grandparent": "player_2/mixamorig:Hips"
+            },
+            {
+              "name": "player_2/mixamorig:Spine2",
+              "parent": "player_2/mixamorig:Spine1",
+              "grandparent": "player_2/mixamorig:Spine"
+            },
+            {
+              "name": "player_2/mixamorig:Neck",
+              "parent": "player_2/mixamorig:Spine2",
+              "grandparent": "player_2/mixamorig:Spine1"
+            }
+          ]
+        },
+        {
+          "id": 79887,
+          "name": "anim_player_1_idle",
+          "channels": 52,
+          "targets": [
+            {
+              "name": "player_1/mixamorig:Hips",
+              "parent": "player_1/RootNode",
+              "grandparent": "player_1/__root__"
+            },
+            {
+              "name": "player_1/mixamorig:Spine",
+              "parent": "player_1/mixamorig:Hips",
+              "grandparent": "player_1/RootNode"
+            },
+            {
+              "name": "player_1/mixamorig:Spine1",
+              "parent": "player_1/mixamorig:Spine",
+              "grandparent": "player_1/mixamorig:Hips"
+            },
+            {
+              "name": "player_1/mixamorig:Spine2",
+              "parent": "player_1/mixamorig:Spine1",
+              "grandparent": "player_1/mixamorig:Spine"
+            },
+            {
+              "name": "player_1/mixamorig:Neck",
+              "parent": "player_1/mixamorig:Spine2",
+              "grandparent": "player_1/mixamorig:Spine1"
+            }
+          ]
+        },
+        {
+          "id": 80029,
+          "name": "AWeapon",
+          "channels": 27,
+          "targets": [
+            {
+              "name": "tag_expansion",
+              "parent": "__root__",
+              "grandparent": "weapon_plasmagun"
+            },
+            {
+              "name": "tag_expansion",
+              "parent": "__root__",
+              "grandparent": "weapon_plasmagun"
+            },
+            {
+              "name": "tag_expansion",
+              "parent": "__root__",
+              "grandparent": "weapon_plasmagun"
+            },
+            {
+              "name": "tag_flash",
+              "parent": "__root__",
+              "grandparent": "weapon_plasmagun"
+            },
+            {
+              "name": "tag_barrel",
+              "parent": "__root__",
+              "grandparent": "weapon_plasmagun"
+            }
+          ]
+        },
+        {
+          "id": 80075,
+          "name": "ABarrel",
+          "channels": 3,
+          "targets": [
+            {
+              "name": "tag_barrel",
+              "parent": "__root__",
+              "grandparent": "__root__"
+            },
+            {
+              "name": "tag_barrel",
+              "parent": "__root__",
+              "grandparent": "__root__"
+            },
+            {
+              "name": "tag_barrel",
+              "parent": "__root__",
+              "grandparent": "__root__"
+            }
+          ]
+        },
+        {
+          "id": 80093,
+          "name": "ABarrel",
+          "channels": 3,
+          "targets": [
+            {
+              "name": "tag_barrel",
+              "parent": "__root__",
+              "grandparent": "__root__"
+            },
+            {
+              "name": "tag_barrel",
+              "parent": "__root__",
+              "grandparent": "__root__"
+            },
+            {
+              "name": "tag_barrel",
+              "parent": "__root__",
+              "grandparent": "__root__"
+            }
+          ]
+        },
+        {
+          "id": 73844,
+          "name": "anim_player_5_walk",
+          "channels": 52,
+          "targets": [
+            {
+              "name": "player_5/mixamorig:Hips",
+              "parent": "player_5/RootNode",
+              "grandparent": "player_5/__root__"
+            },
+            {
+              "name": "player_5/mixamorig:Spine",
+              "parent": "player_5/mixamorig:Hips",
+              "grandparent": "player_5/RootNode"
+            },
+            {
+              "name": "player_5/mixamorig:Spine1",
+              "parent": "player_5/mixamorig:Spine",
+              "grandparent": "player_5/mixamorig:Hips"
+            },
+            {
+              "name": "player_5/mixamorig:Spine2",
+              "parent": "player_5/mixamorig:Spine1",
+              "grandparent": "player_5/mixamorig:Spine"
+            },
+            {
+              "name": "player_5/mixamorig:Neck",
+              "parent": "player_5/mixamorig:Spine2",
+              "grandparent": "player_5/mixamorig:Spine1"
+            }
+          ]
+        },
+        {
+          "id": 78361,
+          "name": "anim_player_6_jump",
+          "channels": 52,
+          "targets": [
+            {
+              "name": "player_6/mixamorig:Hips",
+              "parent": "player_6/RootNode",
+              "grandparent": "player_6/__root__"
+            },
+            {
+              "name": "player_6/mixamorig:Spine",
+              "parent": "player_6/mixamorig:Hips",
+              "grandparent": "player_6/RootNode"
+            },
+            {
+              "name": "player_6/mixamorig:Spine1",
+              "parent": "player_6/mixamorig:Spine",
+              "grandparent": "player_6/mixamorig:Hips"
+            },
+            {
+              "name": "player_6/mixamorig:Spine2",
+              "parent": "player_6/mixamorig:Spine1",
+              "grandparent": "player_6/mixamorig:Spine"
+            },
+            {
+              "name": "player_6/mixamorig:Neck",
+              "parent": "player_6/mixamorig:Spine2",
+              "grandparent": "player_6/mixamorig:Spine1"
+            }
+          ]
+        },
+        {
+          "id": 80186,
+          "name": "AWeapon",
+          "channels": 21,
+          "targets": [
+            {
+              "name": "tag_expansion",
+              "parent": "__root__",
+              "grandparent": "model_voltaic.glb_1793086510511"
+            },
+            {
+              "name": "tag_expansion",
+              "parent": "__root__",
+              "grandparent": "model_voltaic.glb_1793086510511"
+            },
+            {
+              "name": "tag_expansion",
+              "parent": "__root__",
+              "grandparent": "model_voltaic.glb_1793086510511"
+            },
+            {
+              "name": "tag_flash",
+              "parent": "node13",
+              "grandparent": "mixamorig:RightHand"
+            },
+            {
+              "name": "tag_ammo",
+              "parent": "__root__",
+              "grandparent": "model_voltaic.glb_1793086510511"
+            }
+          ]
+        },
+        {
+          "id": 80222,
+          "name": "ABarrel",
+          "channels": 3,
+          "targets": [
+            {
+              "name": "tag_barrel",
+              "parent": "__root__",
+              "grandparent": "droppedWeapon_item_50034"
+            },
+            {
+              "name": "tag_barrel",
+              "parent": "__root__",
+              "grandparent": "droppedWeapon_item_50034"
+            },
+            {
+              "name": "tag_barrel",
+              "parent": "__root__",
+              "grandparent": "droppedWeapon_item_50034"
+            }
+          ]
+        },
+        {
+          "id": 80240,
+          "name": "ABarrel",
+          "channels": 3,
+          "targets": [
+            {
+              "name": "tag_barrel",
+              "parent": "__root__",
+              "grandparent": "droppedWeapon_item_50034"
+            },
+            {
+              "name": "tag_barrel",
+              "parent": "__root__",
+              "grandparent": "droppedWeapon_item_50034"
+            },
+            {
+              "name": "tag_barrel",
+              "parent": "__root__",
+              "grandparent": "droppedWeapon_item_50034"
+            }
+          ]
+        },
+        {
+          "id": 80300,
+          "name": "AWeapon",
+          "channels": 27,
+          "targets": [
+            {
+              "name": "tag_expansion",
+              "parent": "__root__",
+              "grandparent": "model_machinegun.glb_1793086507585"
+            },
+            {
+              "name": "tag_barrel",
+              "parent": "__root__",
+              "grandparent": "model_machinegun.glb_1793086507585"
+            },
+            {
+              "name": "tag_expansion",
+              "parent": "__root__",
+              "grandparent": "model_machinegun.glb_1793086507585"
+            },
+            {
+              "name": "tag_barrel",
+              "parent": "__root__",
+              "grandparent": "model_machinegun.glb_1793086507585"
+            },
+            {
+              "name": "tag_recoil",
+              "parent": "__root__",
+              "grandparent": "model_machinegun.glb_1793086507585"
+            }
+          ]
+        }
+      ],
+      "sampleCount": 90,
+      "observedRigs": [
+        {
+          "bones": 65,
+          "colliders": 15
+        }
+      ],
+      "maxHiddenOneShots": 1,
+      "maxDisabledTargetChannels": 387,
+      "staticOnlySample": {
+        "at": 89311.5,
+        "phase": "freefly-start",
+        "seconds": 0.020500000000000185,
+        "bodies": 131,
+        "motion": {
+          "0": 131
+        },
+        "sync": {},
+        "prestep": {},
+        "ragdolls": 0,
+        "ragdollBones": [],
+        "remoteModels": 6,
+        "activeOneShots": 0,
+        "hiddenOneShots": 0,
+        "groups": 64,
+        "playingGroups": 16,
+        "zeroSpeedGroups": 0,
+        "playingGroupIds": [
+          42058,
+          42140,
+          42212,
+          42284,
+          42367,
+          42436,
+          42512,
+          42543,
+          42736,
+          49254,
+          53453,
+          53512,
+          54047,
+          54065,
+          55253,
+          55334
+        ],
+        "disabledTargetChannels": 231,
+        "animatables": 558,
+        "skeletons": 39
+      },
+      "activeSample": {
+        "at": 91330.40000009537,
+        "phase": "freefly-start",
+        "seconds": 2.0415,
+        "bodies": 146,
+        "motion": {
+          "0": 131,
+          "2": 15
+        },
+        "sync": {
+          "2": 15
+        },
+        "prestep": {
+          "2": 15
+        },
+        "ragdolls": 1,
+        "ragdollBones": [
+          {
+            "bones": 65,
+            "colliders": 15
+          }
+        ],
+        "remoteModels": 5,
+        "activeOneShots": 0,
+        "hiddenOneShots": 0,
+        "groups": 63,
+        "playingGroups": 16,
+        "zeroSpeedGroups": 0,
+        "playingGroupIds": [
+          42058,
+          42140,
+          42212,
+          42284,
+          42367,
+          42436,
+          42512,
+          42543,
+          42736,
+          53453,
+          53512,
+          54047,
+          54065,
+          55253,
+          55334,
+          57199
+        ],
+        "disabledTargetChannels": 234,
+        "animatables": 506,
+        "skeletons": 39
+      },
+      "limitation": "Inclusive wrapper timings and 500ms state sampling add overhead. Bone visits are estimated from dirty full-skeleton rebuilds, not a per-bone instrumentation count."
+    }
+  ],
+  "cacheAB": {
+    "rawDirectory": "public/data/benchmarks/results/2026-10-27-cache-animation-ab",
+    "runSha256": "ae2efc63effe92c6f6d78cfc8b5da189cc30a9fa4625843fd923fa32837e1f6f",
+    "harnessSha256": "0fda36ddec0b12cf4ac8df5e2b9a8e1ca354d5886eb6d42d68fe787658ae4d2e",
+    "sourceBefore": {
+      "head": "54aa5549c5a6bca9eba63e3fab44b322418842a7",
+      "fps": "ca018d147cf0b5aac6c8f36012af7ac2da19288d",
+      "changes": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "sourceAfter": {
+      "head": "93d076d4b6f493010dd6fb72368257be4a208cdd",
+      "fps": "ca018d147cf0b5aac6c8f36012af7ac2da19288d",
+      "changes": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "rawStableFlag": false,
+    "commitPathsChanged": [
+      "docs/research/highlight_video_export.md"
+    ],
+    "commitPathsVerification": "git diff --name-only <sourceBefore.head> <sourceAfter.head>",
+    "runtimeEquivalent": true,
+    "settings": {
+      "backend": "ThinEngine",
+      "width": 1256,
+      "height": 581
+    },
+    "templates": [
+      {
+        "path": "/data/models/weapons/voltaic/voltaic.glb",
+        "rootEnabled": false,
+        "groups": [
+          {
+            "name": "AWeapon",
+            "playing": true,
+            "channels": 21,
+            "constantChannels": 21
+          }
+        ]
+      },
+      {
+        "path": "/data/models/weapons/electrobolt/electrobolt.glb",
+        "rootEnabled": false,
+        "groups": [
+          {
+            "name": "AWeapon",
+            "playing": true,
+            "channels": 21,
+            "constantChannels": 21
+          }
+        ]
+      },
+      {
+        "path": "/data/models/weapons/plasmagun/plasmagun.glb",
+        "rootEnabled": false,
+        "groups": [
+          {
+            "name": "AWeapon",
+            "playing": true,
+            "channels": 27,
+            "constantChannels": 27
+          }
+        ]
+      },
+      {
+        "path": "/data/models/weapons/rlauncher/rlauncher.glb",
+        "rootEnabled": false,
+        "groups": [
+          {
+            "name": "AWeapon",
+            "playing": true,
+            "channels": 27,
+            "constantChannels": 27
+          }
+        ]
+      },
+      {
+        "path": "/data/models/weapons/glauncher/glauncher.glb",
+        "rootEnabled": false,
+        "groups": [
+          {
+            "name": "AWeapon",
+            "playing": true,
+            "channels": 27,
+            "constantChannels": 27
+          }
+        ]
+      },
+      {
+        "path": "/data/models/weapons/riotgun/riotgun.glb",
+        "rootEnabled": false,
+        "groups": [
+          {
+            "name": "AWeapon",
+            "playing": true,
+            "channels": 27,
+            "constantChannels": 27
+          }
+        ]
+      }
+    ],
+    "rounds": [
+      {
+        "templatesRunning": true,
+        "samples": 660,
+        "meanMs": 0.28363637057217683,
+        "p50Ms": 0.2999999523162842,
+        "p95Ms": 0.40000009536743164,
+        "activeAnimatables": 634,
+        "playingGroups": 21,
+        "playhead": 17099.7375
+      },
+      {
+        "templatesRunning": false,
+        "samples": 654,
+        "meanMs": 0.20948012560514864,
+        "p50Ms": 0.20000004768371582,
+        "p95Ms": 0.3000001907348633,
+        "activeAnimatables": 484,
+        "playingGroups": 15,
+        "playhead": 17099.7375
+      },
+      {
+        "templatesRunning": false,
+        "samples": 662,
+        "meanMs": 0.2083081522016727,
+        "p50Ms": 0.20000004768371582,
+        "p95Ms": 0.3000001907348633,
+        "activeAnimatables": 484,
+        "playingGroups": 15,
+        "playhead": 17099.7375
+      },
+      {
+        "templatesRunning": true,
+        "samples": 661,
+        "meanMs": 0.29561270455549415,
+        "p50Ms": 0.2999999523162842,
+        "p95Ms": 0.40000009536743164,
+        "activeAnimatables": 634,
+        "playingGroups": 21,
+        "playhead": 17099.7375
+      }
+    ],
+    "httpFailures": [],
+    "runtimeExceptions": [],
+    "limitation": "Paused real demo; cached pickup-template animation groups only. Instrumented diagnostic, not a gameplay FPS benchmark."
+  },
+  "synthetic": {
+    "batchedPose": {
+      "synthetic": true,
+      "trials": 32,
+      "bones": 64,
+      "controlledBones": 16,
+      "nativeRebuilds": 512,
+      "batchedRebuilds": 32,
+      "maxMatrixError": 9.5367431640625e-7,
+      "limitation": "Positive uniform mesh scale, parent-first synthetic binary rig. No negative/nonuniform scale, Vanguard bind conventions, root position transfer, live physics or visual parity claim."
+    },
+    "prestep": {
+      "synthetic": true,
+      "bones": 3,
+      "ticks": 1200,
+      "tickHz": 125,
+      "baselinePreSteps": 3600,
+      "disabledPreSteps": 0,
+      "maxPositionQuaternionVelocityComponentDifference": 3.5374000817537308,
+      "maxPosition": 0.05355831980705261,
+      "maxQuaternionComponentDifferenceSignSensitive": 1.4101485013961792,
+      "maxVelocity": 3.5374000817537308,
+      "firstDivergedTick": 121,
+      "controlMaxDifference": 0,
+      "limitation": "Small synthetic jointed ragdoll with floor, not Vanguard asset parity or a performance benchmark. Quaternion component differences are sign-sensitive, not orientation error."
+    },
+    "linkedPrepare": {
+      "synthetic": true,
+      "unchangedPoseFrames": 16,
+      "linkedSkinMatrixBuilds": 16,
+      "unlinkedControlBuilds": 0,
+      "limitation": "One static linked bone. Detaching links is a diagnostic control, not a proposed game change. Does not quantify current Vanguard pose-LOD uploads."
+    },
+    "scripts": {
+      "batched-bone-proof.mjs": "c300a23574a33771fdca8cbbdd0f66cecba3d5a89181a9aa9878a5a77216d9e4",
+      "havok-prestep.mjs": "9152c8f8425cf026fd806b8ef0e5ba83be9fa805dfbd7099a9aa52f9a1244bb5",
+      "linked-bone-prepare-proof.mjs": "ff8db311bf2eda7d6a023145947ac3791dfc2b7cf8a15980978df7a2ee9ece4a"
+    }
+  }
+}

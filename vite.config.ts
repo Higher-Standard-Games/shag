@@ -135,6 +135,7 @@ export default defineConfig({
       '@babylonjs/core/Actions/actionManager',
       '@babylonjs/core/Animations/animatable',
       '@babylonjs/core/Animations/animation',
+      '@babylonjs/core/Animations/animationEvent',
       '@babylonjs/core/Animations/animationGroup',
       '@babylonjs/core/AudioV2/abstractAudio/audioBus',
       '@babylonjs/core/AudioV2/abstractAudio/audioEngineV2',

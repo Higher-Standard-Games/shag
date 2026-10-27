@@ -57,6 +57,13 @@ while the match loading screen is still visible. Joining consumes that prepared
 view instead of rebuilding its model cache. The pickup-model cache is separate
 from this held-weapon cache.
 
+Pickup GLB sources with constant transform clips settle their authored pose once
+and stop those clips before caching. Their clones keep that pose without running
+the hidden source's animation every frame. Sources with changing curves, cubic
+tangents, animation events or blending retain playback, as their shared skeletons
+can still animate pickup clones. This policy applies only to pickup preloading;
+held weapons and barrels retain their own animation ownership.
+
 Held-weapon and projectile preparation use bounded material checks. A match
 cancellation detaches its waits; late held-weapon imports cannot replace the
 cancelled view. Required projectile-model failures are reported as preparation

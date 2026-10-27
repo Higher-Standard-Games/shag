@@ -1,0 +1,3473 @@
+{
+  "schemaVersion": 1,
+  "createdAt": "2026-10-27T06:51:12.203Z",
+  "purpose": "Diagnostic CPU attribution; one sampled replay per backend, no before/after speedup claim.",
+  "hardware": {
+    "cpu": "AMD Ryzen 7 7700X",
+    "cores": 8,
+    "logicalProcessors": 16
+  },
+  "limitations": [
+    "Logical replay validity and stable source do not establish uncontended or repeated performance evidence.",
+    "Another agent renderer probe was observed during WebGPU capture. Cross-backend timing comparisons are not accepted.",
+    "Inclusive entries overlap. Application exclusive self time excludes dependency/native costs called by the application.",
+    "Whole-run phase counters include boundary frames omitted by the CPU slice; use slice frames only for sampled per-frame normalization.",
+    "Main-thread sampling does not measure total browser/process CPU, GPU duration, native audio CPU or allocation bytes."
+  ],
+  "replays": [
+    {
+      "backend": "webgl2",
+      "rawDirectory": "public/data/benchmarks/results/2026-10-27-cpu-study-webgl2/1-webgl2",
+      "runSha256": "ed1ec8880cc8a1384240f0c02862020de05d21cb6adaad921068291e5d0fd12a",
+      "timedemoSha256": "5d6f651ad2c9f5c6799cdde77ccc5b6d87153a8949f0755550df2e08c75196d4",
+      "sourceBefore": {
+        "engine": "7ce7030bf46bc5102a87bc4c56f00948beb6d1a4",
+        "fps": "ca018d147cf0b5aac6c8f36012af7ac2da19288d",
+        "sourceChangeSha256": "0f6824ad4756a5b4644b051aea657c6f847955cff3cec2e27155af53303268b1"
+      },
+      "sourceAfter": {
+        "engine": "7ce7030bf46bc5102a87bc4c56f00948beb6d1a4",
+        "fps": "ca018d147cf0b5aac6c8f36012af7ac2da19288d",
+        "sourceChangeSha256": "0f6824ad4756a5b4644b051aea657c6f847955cff3cec2e27155af53303268b1"
+      },
+      "complete": true,
+      "replayValid": true,
+      "stableSource": true,
+      "exceptions": 0,
+      "rejectionReasons": [],
+      "environment": {
+        "browser": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36 Edg/156.0.0.0",
+        "babylonVersion": "9.31.2",
+        "engineClass": "_Engine",
+        "shagVersion": "1.0.0-alpha.6",
+        "buildLabel": "7ce7030b-codex-profile",
+        "webgpuCompatibilityMode": null,
+        "viewport": [
+          1416,
+          808
+        ],
+        "devicePixelRatio": 1,
+        "profile": {
+          "width": 1280,
+          "height": 720,
+          "fov": 90,
+          "requiredCvars": {
+            "r_ssr": 0,
+            "r_glow": 0,
+            "r_daynight": 0,
+            "cl_player_outline": 1
+          }
+        },
+        "cvars": {
+          "cl_ads_fov_reduction": 15,
+          "cl_ads_offset_y": 2,
+          "cl_ads_sensitivity": 0.5,
+          "cl_ads_time": 0.08,
+          "cl_animdebug": 0,
+          "cl_autorun": 1,
+          "cl_autoswitch": 1,
+          "cl_bobbing": 0,
+          "cl_crouchmult": 0.5,
+          "cl_debugbbox": 0,
+          "cl_debugbbox_offset": 100,
+          "cl_debugplayer": 0,
+          "cl_debugplayer_offset": 100,
+          "cl_debugplayer_run_speed": 400,
+          "cl_debugplayer_scale": 36,
+          "cl_debugplayer_walk_speed": 50,
+          "cl_flyspeed": 400,
+          "cl_fov": 90,
+          "cl_gunbob": 1,
+          "cl_gunbob_amplitude": 1.5,
+          "cl_gunbob_jump": 2,
+          "cl_gunbob_land": 3,
+          "cl_gunbob_speed": 1,
+          "cl_gunbob_sprint_inward": 30,
+          "cl_gunbob_sprint_tilt": 10,
+          "cl_hud": 1,
+          "cl_interp": 0,
+          "cl_invertclock": 0,
+          "cl_netgraph": 0,
+          "cl_player_fullbright": 0,
+          "cl_player_fullbright_intensity": 0.25,
+          "cl_player_outline": 1,
+          "cl_player_outline_proxy": 0,
+          "cl_player_outline_size": 25,
+          "cl_player_pose_hz": 30,
+          "cl_remotehitbox": 0,
+          "cl_showspeed": 1,
+          "cl_smoothfactor": 0.15,
+          "cl_smoothstairs": 1,
+          "cl_speed": 320,
+          "cl_speedfov": 0.38,
+          "cl_speedfovspeed": 5,
+          "cl_sprintmult": 1.5,
+          "cl_team_ally_color": "1.55 0.2 1.35",
+          "cl_team_ally_outline_color": "1.85 0.28 1.65",
+          "cl_team_ally_sounds": "male",
+          "cl_team_enemy_color": "0.1 1.15 1.85",
+          "cl_team_enemy_outline_color": "0.16 1.35 2.2",
+          "cl_team_enemy_sounds": "bobot",
+          "cl_team_ffa_color": "0.1 1.15 1.85",
+          "cl_team_ffa_outline_color": "0.16 1.35 2.2",
+          "cl_timenudge": 0,
+          "cl_vieweffects": 1,
+          "cl_wep_ads_x": 0,
+          "cl_wep_ads_y": 0,
+          "cl_wep_ads_z": 0,
+          "cl_wep_hip_x": 0,
+          "cl_wep_hip_y": 0,
+          "cl_wep_hip_z": 0,
+          "cl_wep_scale": 0,
+          "r_ambient": 1,
+          "r_anisotropy": 4,
+          "r_arealights": 1,
+          "r_arealights_auto": 0,
+          "r_arealights_intensity": 1,
+          "r_arealights_max": 4,
+          "r_bloom": 0,
+          "r_bsp_cellsize": 0,
+          "r_bsp_freeze": 1,
+          "r_bsp_pbr": 1,
+          "r_cel_color": "0 0 0",
+          "r_cel_depth_threshold": 0.1,
+          "r_cel_normal_threshold": 0.3,
+          "r_cel_opacity": 1,
+          "r_cel_outlines": 0,
+          "r_cel_thickness": 1.5,
+          "r_cel_weapon_color": "0 0 0",
+          "r_cel_weapon_outlines": 1,
+          "r_cel_weapon_width": 25,
+          "r_colorcorrection": 0,
+          "r_colorcorrection_strength": 1,
+          "r_colorsimulation": 0,
+          "r_contrast": 1,
+          "r_daynight": 0,
+          "r_daynight_animate": 0,
+          "r_daynight_length": 1440,
+          "r_daynight_lm_max": 1,
+          "r_daynight_lm_min": 0.05,
+          "r_daynight_moon_intensity": 0.15,
+          "r_daynight_sky_tint": 1,
+          "r_daynight_speed": 1,
+          "r_daynight_sun_intensity": 0.3,
+          "r_daynight_time": 0.5,
+          "r_deluxe": 1,
+          "r_emissive": 1,
+          "r_exposure": 1,
+          "r_glossmap": 1,
+          "r_glow": 0,
+          "r_godrays": 1,
+          "r_godrays_decay": 0.965,
+          "r_godrays_density": 0.92,
+          "r_godrays_exposure": 0.32,
+          "r_godrays_samples": 60,
+          "r_godrays_weight": 0.5,
+          "r_ktx2": 1,
+          "r_lightintensity": 1,
+          "r_lightmap": 1,
+          "r_lightmapscale": 1,
+          "r_material_clone_batch": 1,
+          "r_normalmap": 1,
+          "r_picmip": 0,
+          "r_showtris": 0,
+          "r_softhalos": 1,
+          "r_ssr": 0,
+          "r_ssr_strength": 0.4,
+          "r_underwater_distortion": 1,
+          "r_water": 1,
+          "r_water_actors": 1,
+          "r_water_blur": 0.3,
+          "r_water_contact": 0.25,
+          "r_water_debug": 0,
+          "r_water_detail": 0.8,
+          "r_water_highlights": 0.6,
+          "r_water_probe_height": 64,
+          "r_water_quality": 2,
+          "r_water_reflection": 1.3,
+          "r_water_roughness": 0.3,
+          "r_weapon_candidates": 0,
+          "r_webgpu": 0,
+          "r_wireframe": 0
+        },
+        "capabilities": {
+          "timerQuery": true,
+          "maxTextureSize": 16384
+        }
+      },
+      "shaderCompiles": 15,
+      "runSummary": {
+        "frames": 5381,
+        "wallMs": {
+          "p50": 7.299999952316284,
+          "p95": 14.5,
+          "p99": 20.420000076293928
+        },
+        "playbackCpuMs": {
+          "p50": 0.5,
+          "p95": 1.2999999523162842,
+          "p99": 3.399999976158142
+        },
+        "sceneCpuMs": {
+          "p50": 5.299999952316284,
+          "p95": 11.299999952316284,
+          "p99": 14.520000004768354
+        },
+        "animationMs": {
+          "p50": 0.7000000476837158,
+          "p95": 1.7000000476837158,
+          "p99": 3.7200000286102113
+        },
+        "drawCalls": {
+          "p50": 165,
+          "p95": 296,
+          "p99": 341
+        },
+        "triangles": {
+          "p50": 210376,
+          "p95": 311266,
+          "p99": 340578.8
+        },
+        "alivePlayers": {
+          "p50": 5,
+          "p95": 6,
+          "p99": 6
+        },
+        "loadedBodies": {
+          "p50": 5,
+          "p95": 6,
+          "p99": 6
+        },
+        "bundles": null,
+        "outlineProxy": null,
+        "missingPovWeaponFrames": 16,
+        "unreadySceneFrames": 0,
+        "sceneReadinessObservedFrames": 0,
+        "pendingSceneDataFrames": 20,
+        "frameBudgetMs": 8.333333333333334,
+        "overBudgetPercent": 29.975840921761755
+      },
+      "phases": [
+        {
+          "phase": "freefly-start",
+          "profileFile": "1-webgl2-freefly-start.cpuprofile",
+          "summarySha256": "50d0ca103717892c258c9cff900ce0102ca106e819be1f29739d5bb847500ac5",
+          "slicedFrames": 977,
+          "slicedDurationMs": 11669.899,
+          "sampledMs": 11669.574000000213,
+          "unsampledMs": 0.32499999978608685,
+          "fullPhaseCounters": {
+            "frames": 1010,
+            "wallMs": {
+              "p50": 10.899999976158142,
+              "p95": 17.8549999654293,
+              "p99": 24.645999937057475
+            },
+            "playbackCpuMs": {
+              "p50": 0.8999999761581421,
+              "p95": 1.7000000476837158,
+              "p99": 5.964000002145754
+            },
+            "sceneCpuMs": {
+              "p50": 9.100000023841858,
+              "p95": 13.700000047683716,
+              "p99": 16.290999950170512
+            },
+            "animationMs": {
+              "p50": 1.2000000476837158,
+              "p95": 2.1999999284744263,
+              "p99": 6.2819999587535795
+            },
+            "drawCalls": {
+              "p50": 165.5,
+              "p95": 316.0999999999999,
+              "p99": 360.90999999999997
+            },
+            "triangles": {
+              "p50": 243769,
+              "p95": 315727.3,
+              "p99": 349191.83
+            },
+            "alivePlayers": {
+              "p50": 5,
+              "p95": 6,
+              "p99": 6
+            },
+            "loadedBodies": {
+              "p50": 5,
+              "p95": 6,
+              "p99": 6
+            },
+            "bundles": null,
+            "outlineProxy": null,
+            "missingPovWeaponFrames": 0,
+            "unreadySceneFrames": 0,
+            "sceneReadinessObservedFrames": 0,
+            "pendingSceneDataFrames": 6,
+            "frameBudgetMs": 8.333333333333334,
+            "overBudgetPercent": 86.73267326732673
+          },
+          "selected": [
+            {
+              "category": "rendering",
+              "function": "_evaluateActiveMeshes",
+              "source": "dependency",
+              "selfMsPerFrame": 0.6529406345957014,
+              "inclusiveMsPerFrame": 3.1214339815762377
+            },
+            {
+              "category": "rendering",
+              "function": "_renderForCamera",
+              "source": "dependency",
+              "selfMsPerFrame": 0.33145649948822964,
+              "inclusiveMsPerFrame": 8.59429682702146
+            },
+            {
+              "category": "demo",
+              "function": "updatePlaybackFrame",
+              "source": "games/fps/client/DemoService.ts",
+              "selfMsPerFrame": 0.0016366427840327534,
+              "inclusiveMsPerFrame": 1.0988423746161744
+            },
+            {
+              "category": "demo",
+              "function": "_syncDemoPresentationClock",
+              "source": "games/fps/client/DemoService.ts",
+              "selfMsPerFrame": 0.002445240532241556,
+              "inclusiveMsPerFrame": 0.43571033776867957
+            },
+            {
+              "category": "demo",
+              "function": "stepDemoPhysics",
+              "source": "games/fps/client/DemoService.ts",
+              "selfMsPerFrame": 0.0027799385875127945,
+              "inclusiveMsPerFrame": 0.3689201637666325
+            },
+            {
+              "category": "demo",
+              "function": "readFrame",
+              "source": "shared/demo/DemoReader.ts",
+              "selfMsPerFrame": 0,
+              "inclusiveMsPerFrame": 0.17440839303991792
+            },
+            {
+              "category": "snapshot",
+              "function": "decodeSnapshot",
+              "source": "shared/net/BinaryProtocol.ts",
+              "selfMsPerFrame": 0.003051177072671443,
+              "inclusiveMsPerFrame": 0.1592589559877174
+            },
+            {
+              "category": "snapshot",
+              "function": "decodeEntities",
+              "source": "shared/net/BinaryProtocol.ts",
+              "selfMsPerFrame": 0.08119344933469803,
+              "inclusiveMsPerFrame": 0.09162538382804505
+            },
+            {
+              "category": "snapshot",
+              "function": "decodeEvents",
+              "source": "shared/net/BinaryProtocol.ts",
+              "selfMsPerFrame": 0.03564790174002048,
+              "inclusiveMsPerFrame": 0.0551525076765609
+            },
+            {
+              "category": "snapshot",
+              "function": "handleServerStateUpdate",
+              "source": "games/fps/client/GameEvents.ts",
+              "selfMsPerFrame": 0.010877175025588536,
+              "inclusiveMsPerFrame": 0.19402251791197536
+            },
+            {
+              "category": "presentation",
+              "function": "render",
+              "source": "games/fps/client/RemotePlayerRenderer.ts",
+              "selfMsPerFrame": 0.0037410440122824973,
+              "inclusiveMsPerFrame": 0.2272272262026613
+            },
+            {
+              "category": "presentation",
+              "function": "updateModel",
+              "source": "games/fps/client/RemotePlayerRenderer.ts",
+              "selfMsPerFrame": 0.004612077789150461,
+              "inclusiveMsPerFrame": 0.10249129989764579
+            },
+            {
+              "category": "effects",
+              "function": "update",
+              "source": "games/fps/client/GibSystem.ts",
+              "selfMsPerFrame": 0.005725690890481065,
+              "inclusiveMsPerFrame": 0.031640736949846475
+            },
+            {
+              "category": "gc",
+              "function": "(garbage collector)",
+              "source": "V8",
+              "selfMsPerFrame": 0.0733193449334698,
+              "inclusiveMsPerFrame": 0.0733193449334698
+            },
+            {
+              "category": "idle",
+              "function": "(idle)",
+              "source": "V8",
+              "selfMsPerFrame": 0.04182906857727737,
+              "inclusiveMsPerFrame": 0.04182906857727737
+            }
+          ],
+          "topApplicationExclusive": [
+            {
+              "function": "decodeEntities",
+              "source": "shared/net/BinaryProtocol.ts",
+              "selfMsPerFrame": 0.08119344933469803,
+              "inclusiveMsPerFrame": 0.09162538382804505
+            },
+            {
+              "function": "decodeEvents",
+              "source": "shared/net/BinaryProtocol.ts",
+              "selfMsPerFrame": 0.03564790174002048,
+              "inclusiveMsPerFrame": 0.0551525076765609
+            },
+            {
+              "function": "",
+              "source": "games/fps/client/TimedemoService.ts",
+              "selfMsPerFrame": 0.022910951893551686,
+              "inclusiveMsPerFrame": 0.034916069600818826
+            },
+            {
+              "function": "",
+              "source": "games/fps/client/TimedemoService.ts",
+              "selfMsPerFrame": 0.012297850562947799,
+              "inclusiveMsPerFrame": 1.117215967246677
+            },
+            {
+              "function": "update",
+              "source": "games/fps/world/pickups/procedural/ProceduralPickupVisual.ts",
+              "selfMsPerFrame": 0.011613101330603885,
+              "inclusiveMsPerFrame": 0.014536335721596723
+            },
+            {
+              "function": "handleServerStateUpdate",
+              "source": "games/fps/client/GameEvents.ts",
+              "selfMsPerFrame": 0.010877175025588536,
+              "inclusiveMsPerFrame": 0.19402251791197536
+            },
+            {
+              "function": "processProjectileEntities",
+              "source": "games/fps/client/GameEvents.ts",
+              "selfMsPerFrame": 0.009088024564994883,
+              "inclusiveMsPerFrame": 0.026325486182190376
+            },
+            {
+              "function": "renderEntities",
+              "source": "games/fps/client/RemotePlayerRenderer.ts",
+              "selfMsPerFrame": 0.0076131013306038895,
+              "inclusiveMsPerFrame": 0.21455885363357224
+            },
+            {
+              "function": "readString",
+              "source": "shared/net/BinaryProtocol.ts",
+              "selfMsPerFrame": 0.007454452405322416,
+              "inclusiveMsPerFrame": 0.041375639713408394
+            },
+            {
+              "function": "_readFrameAt",
+              "source": "shared/demo/DemoReader.ts",
+              "selfMsPerFrame": 0.007004094165813716,
+              "inclusiveMsPerFrame": 0.17440839303991792
+            },
+            {
+              "function": "update",
+              "source": "games/fps/client/GibSystem.ts",
+              "selfMsPerFrame": 0.005725690890481065,
+              "inclusiveMsPerFrame": 0.031640736949846475
+            },
+            {
+              "function": "isClientKey",
+              "source": "games/fps/ClientEntityKey.ts",
+              "selfMsPerFrame": 0.005310133060388945,
+              "inclusiveMsPerFrame": 0.005310133060388945
+            }
+          ]
+        },
+        {
+          "phase": "fps-gunplay-a",
+          "profileFile": "1-webgl2-fps-gunplay-a.cpuprofile",
+          "summarySha256": "a06b3a976500220dd5495cf49c6f402bfa027b48309830f0042c17a1536c61f7",
+          "slicedFrames": 1540,
+          "slicedDurationMs": 11608.899,
+          "sampledMs": 11608.623000000143,
+          "unsampledMs": 0.27599999985613977,
+          "fullPhaseCounters": {
+            "frames": 1568,
+            "wallMs": {
+              "p50": 6.200000047683716,
+              "p95": 12.900000053644181,
+              "p99": 18.8989999759197
+            },
+            "playbackCpuMs": {
+              "p50": 0.40000009536743164,
+              "p95": 1.2999999523162842,
+              "p99": 4.2639999842643155
+            },
+            "sceneCpuMs": {
+              "p50": 5.199999928474426,
+              "p95": 10,
+              "p99": 13.400000015497207
+            },
+            "animationMs": {
+              "p50": 0.7000000476837158,
+              "p95": 1.7000000476837158,
+              "p99": 4.664999999999964
+            },
+            "drawCalls": {
+              "p50": 144,
+              "p95": 190,
+              "p99": 246.65999999999985
+            },
+            "triangles": {
+              "p50": 188119,
+              "p95": 257788.09999999995,
+              "p99": 313879.96
+            },
+            "alivePlayers": {
+              "p50": 6,
+              "p95": 6,
+              "p99": 6
+            },
+            "loadedBodies": {
+              "p50": 6,
+              "p95": 6,
+              "p99": 6
+            },
+            "bundles": null,
+            "outlineProxy": null,
+            "missingPovWeaponFrames": 4,
+            "unreadySceneFrames": 0,
+            "sceneReadinessObservedFrames": 0,
+            "pendingSceneDataFrames": 7,
+            "frameBudgetMs": 8.333333333333334,
+            "overBudgetPercent": 26.211734693877553
+          },
+          "selected": [
+            {
+              "category": "rendering",
+              "function": "_evaluateActiveMeshes",
+              "source": "dependency",
+              "selfMsPerFrame": 0.39046428571428565,
+              "inclusiveMsPerFrame": 1.7131857142857096
+            },
+            {
+              "category": "rendering",
+              "function": "_renderForCamera",
+              "source": "dependency",
+              "selfMsPerFrame": 0.18126753246753238,
+              "inclusiveMsPerFrame": 5.021134415584324
+            },
+            {
+              "category": "demo",
+              "function": "updatePlaybackFrame",
+              "source": "games/fps/client/DemoService.ts",
+              "selfMsPerFrame": 0.0007311688311688311,
+              "inclusiveMsPerFrame": 0.605453896103897
+            },
+            {
+              "category": "demo",
+              "function": "_syncDemoPresentationClock",
+              "source": "games/fps/client/DemoService.ts",
+              "selfMsPerFrame": 0.0014025974025974027,
+              "inclusiveMsPerFrame": 0.24576428571428555
+            },
+            {
+              "category": "demo",
+              "function": "stepDemoPhysics",
+              "source": "games/fps/client/DemoService.ts",
+              "selfMsPerFrame": 0.001042857142857143,
+              "inclusiveMsPerFrame": 0.19779610389610375
+            },
+            {
+              "category": "demo",
+              "function": "readFrame",
+              "source": "shared/demo/DemoReader.ts",
+              "selfMsPerFrame": 0.0003727272727272727,
+              "inclusiveMsPerFrame": 0.10398896103896108
+            },
+            {
+              "category": "snapshot",
+              "function": "decodeSnapshot",
+              "source": "shared/net/BinaryProtocol.ts",
+              "selfMsPerFrame": 0.0007084415584415586,
+              "inclusiveMsPerFrame": 0.09067207792207796
+            },
+            {
+              "category": "snapshot",
+              "function": "decodeEntities",
+              "source": "shared/net/BinaryProtocol.ts",
+              "selfMsPerFrame": 0.03993701298701299,
+              "inclusiveMsPerFrame": 0.05116623376623376
+            },
+            {
+              "category": "snapshot",
+              "function": "decodeEvents",
+              "source": "shared/net/BinaryProtocol.ts",
+              "selfMsPerFrame": 0.021339610389610394,
+              "inclusiveMsPerFrame": 0.031005844155844144
+            },
+            {
+              "category": "snapshot",
+              "function": "handleServerStateUpdate",
+              "source": "games/fps/client/GameEvents.ts",
+              "selfMsPerFrame": 0.006759740259740259,
+              "inclusiveMsPerFrame": 0.06883961038961041
+            },
+            {
+              "category": "presentation",
+              "function": "render",
+              "source": "games/fps/client/RemotePlayerRenderer.ts",
+              "selfMsPerFrame": 0.0018097402597402597,
+              "inclusiveMsPerFrame": 0.1332824675324675
+            },
+            {
+              "category": "presentation",
+              "function": "updateModel",
+              "source": "games/fps/client/RemotePlayerRenderer.ts",
+              "selfMsPerFrame": 0.004010389610389611,
+              "inclusiveMsPerFrame": 0.05134870129870129
+            },
+            {
+              "category": "effects",
+              "function": "update",
+              "source": "games/fps/client/GibSystem.ts",
+              "selfMsPerFrame": 0.012396103896103898,
+              "inclusiveMsPerFrame": 0.030062337662337662
+            },
+            {
+              "category": "hud",
+              "function": "drawTriangles",
+              "source": "engine/ui/hud/DamageOverlay.ts",
+              "selfMsPerFrame": 0.017312987012987016,
+              "inclusiveMsPerFrame": 0.017312987012987016
+            },
+            {
+              "category": "gc",
+              "function": "(garbage collector)",
+              "source": "V8",
+              "selfMsPerFrame": 0.07531688311688316,
+              "inclusiveMsPerFrame": 0.07531688311688316
+            },
+            {
+              "category": "idle",
+              "function": "(idle)",
+              "source": "V8",
+              "selfMsPerFrame": 0.6946948051948044,
+              "inclusiveMsPerFrame": 0.6946948051948044
+            }
+          ],
+          "topApplicationExclusive": [
+            {
+              "function": "decodeEntities",
+              "source": "shared/net/BinaryProtocol.ts",
+              "selfMsPerFrame": 0.03993701298701299,
+              "inclusiveMsPerFrame": 0.05116623376623376
+            },
+            {
+              "function": "decodeEvents",
+              "source": "shared/net/BinaryProtocol.ts",
+              "selfMsPerFrame": 0.021339610389610394,
+              "inclusiveMsPerFrame": 0.031005844155844144
+            },
+            {
+              "function": "drawTriangles",
+              "source": "engine/ui/hud/DamageOverlay.ts",
+              "selfMsPerFrame": 0.017312987012987016,
+              "inclusiveMsPerFrame": 0.017312987012987016
+            },
+            {
+              "function": "update",
+              "source": "games/fps/client/GibSystem.ts",
+              "selfMsPerFrame": 0.012396103896103898,
+              "inclusiveMsPerFrame": 0.030062337662337662
+            },
+            {
+              "function": "",
+              "source": "games/fps/client/TimedemoService.ts",
+              "selfMsPerFrame": 0.009588961038961038,
+              "inclusiveMsPerFrame": 0.018140259740259738
+            },
+            {
+              "function": "drawVignette",
+              "source": "engine/ui/hud/DamageOverlay.ts",
+              "selfMsPerFrame": 0.006912987012987013,
+              "inclusiveMsPerFrame": 0.006912987012987013
+            },
+            {
+              "function": "handleServerStateUpdate",
+              "source": "games/fps/client/GameEvents.ts",
+              "selfMsPerFrame": 0.006759740259740259,
+              "inclusiveMsPerFrame": 0.06883961038961041
+            },
+            {
+              "function": "processProjectileEntities",
+              "source": "games/fps/client/GameEvents.ts",
+              "selfMsPerFrame": 0.005802597402597403,
+              "inclusiveMsPerFrame": 0.009877922077922078
+            },
+            {
+              "function": "update",
+              "source": "games/fps/world/pickups/procedural/ProceduralPickupVisual.ts",
+              "selfMsPerFrame": 0.005691558441558442,
+              "inclusiveMsPerFrame": 0.008183116883116884
+            },
+            {
+              "function": "",
+              "source": "games/fps/client/TimedemoService.ts",
+              "selfMsPerFrame": 0.00538961038961039,
+              "inclusiveMsPerFrame": 0.6143993506493516
+            },
+            {
+              "function": "decodeInputs",
+              "source": "shared/demo/DemoInputs.ts",
+              "selfMsPerFrame": 0.005374675324675325,
+              "inclusiveMsPerFrame": 0.008611688311688312
+            },
+            {
+              "function": "renderEntities",
+              "source": "games/fps/client/RemotePlayerRenderer.ts",
+              "selfMsPerFrame": 0.005075974025974026,
+              "inclusiveMsPerFrame": 0.1257116883116883
+            }
+          ]
+        },
+        {
+          "phase": "freefly-return",
+          "profileFile": "1-webgl2-freefly-return.cpuprofile",
+          "summarySha256": "02bbc1dccb9ad2f7bf1e2b7dbe547c1213addd04e0ed4e33370b73b2d6e57de0",
+          "slicedFrames": 1181,
+          "slicedDurationMs": 8697.399,
+          "sampledMs": 8696.940999999943,
+          "unsampledMs": 0.4580000000569271,
+          "fullPhaseCounters": {
+            "frames": 1204,
+            "wallMs": {
+              "p50": 7,
+              "p95": 11.100000023841858,
+              "p99": 16.79700007081032
+            },
+            "playbackCpuMs": {
+              "p50": 0.40000009536743164,
+              "p95": 0.8999999761581421,
+              "p99": 2.7879999530315507
+            },
+            "sceneCpuMs": {
+              "p50": 5.200000047683716,
+              "p95": 8.399999976158142,
+              "p99": 10.294000070095068
+            },
+            "animationMs": {
+              "p50": 0.6999999284744263,
+              "p95": 1.1999999284744263,
+              "p99": 2.8969999754428892
+            },
+            "drawCalls": {
+              "p50": 233,
+              "p95": 319,
+              "p99": 343.97
+            },
+            "triangles": {
+              "p50": 251237,
+              "p95": 338705,
+              "p99": 389089.24
+            },
+            "alivePlayers": {
+              "p50": 5,
+              "p95": 6,
+              "p99": 6
+            },
+            "loadedBodies": {
+              "p50": 5,
+              "p95": 6,
+              "p99": 6
+            },
+            "bundles": null,
+            "outlineProxy": null,
+            "missingPovWeaponFrames": 0,
+            "unreadySceneFrames": 0,
+            "sceneReadinessObservedFrames": 0,
+            "pendingSceneDataFrames": 0,
+            "frameBudgetMs": 8.333333333333334,
+            "overBudgetPercent": 17.774086378737543
+          },
+          "selected": [
+            {
+              "category": "rendering",
+              "function": "_evaluateActiveMeshes",
+              "source": "dependency",
+              "selfMsPerFrame": 0.23524555461473326,
+              "inclusiveMsPerFrame": 1.215580863674852
+            },
+            {
+              "category": "rendering",
+              "function": "_renderForCamera",
+              "source": "dependency",
+              "selfMsPerFrame": 0.10677646062658776,
+              "inclusiveMsPerFrame": 4.812447925486802
+            },
+            {
+              "category": "demo",
+              "function": "updatePlaybackFrame",
+              "source": "games/fps/client/DemoService.ts",
+              "selfMsPerFrame": 0.002743437764606266,
+              "inclusiveMsPerFrame": 0.46243183742591
+            },
+            {
+              "category": "demo",
+              "function": "_syncDemoPresentationClock",
+              "source": "games/fps/client/DemoService.ts",
+              "selfMsPerFrame": 0.0006460626587637596,
+              "inclusiveMsPerFrame": 0.19963505503810325
+            },
+            {
+              "category": "demo",
+              "function": "stepDemoPhysics",
+              "source": "games/fps/client/DemoService.ts",
+              "selfMsPerFrame": 0.00045639288738357327,
+              "inclusiveMsPerFrame": 0.1713276883996613
+            },
+            {
+              "category": "demo",
+              "function": "readFrame",
+              "source": "shared/demo/DemoReader.ts",
+              "selfMsPerFrame": 0,
+              "inclusiveMsPerFrame": 0.07585690093141408
+            },
+            {
+              "category": "snapshot",
+              "function": "decodeSnapshot",
+              "source": "shared/net/BinaryProtocol.ts",
+              "selfMsPerFrame": 0.0018602878916172735,
+              "inclusiveMsPerFrame": 0.06375359864521593
+            },
+            {
+              "category": "snapshot",
+              "function": "decodeEntities",
+              "source": "shared/net/BinaryProtocol.ts",
+              "selfMsPerFrame": 0.026458933107535984,
+              "inclusiveMsPerFrame": 0.03197629127857747
+            },
+            {
+              "category": "snapshot",
+              "function": "decodeEvents",
+              "source": "shared/net/BinaryProtocol.ts",
+              "selfMsPerFrame": 0.01827519051651143,
+              "inclusiveMsPerFrame": 0.025652836579170196
+            },
+            {
+              "category": "snapshot",
+              "function": "handleServerStateUpdate",
+              "source": "games/fps/client/GameEvents.ts",
+              "selfMsPerFrame": 0.004163420829805251,
+              "inclusiveMsPerFrame": 0.05282218458933105
+            },
+            {
+              "category": "presentation",
+              "function": "render",
+              "source": "games/fps/client/RemotePlayerRenderer.ts",
+              "selfMsPerFrame": 0.0009652836579170196,
+              "inclusiveMsPerFrame": 0.09729466553768001
+            },
+            {
+              "category": "presentation",
+              "function": "updateModel",
+              "source": "games/fps/client/RemotePlayerRenderer.ts",
+              "selfMsPerFrame": 0.00323454699407282,
+              "inclusiveMsPerFrame": 0.0521769686706181
+            },
+            {
+              "category": "effects",
+              "function": "update",
+              "source": "games/fps/client/GibSystem.ts",
+              "selfMsPerFrame": 0.006459779847586791,
+              "inclusiveMsPerFrame": 0.01658171041490263
+            },
+            {
+              "category": "gc",
+              "function": "(garbage collector)",
+              "source": "V8",
+              "selfMsPerFrame": 0.1026816257408976,
+              "inclusiveMsPerFrame": 0.1026816257408976
+            },
+            {
+              "category": "idle",
+              "function": "(idle)",
+              "source": "V8",
+              "selfMsPerFrame": 0.8523895004233702,
+              "inclusiveMsPerFrame": 0.8523895004233702
+            }
+          ],
+          "topApplicationExclusive": [
+            {
+              "function": "decodeEntities",
+              "source": "shared/net/BinaryProtocol.ts",
+              "selfMsPerFrame": 0.026458933107535984,
+              "inclusiveMsPerFrame": 0.03197629127857747
+            },
+            {
+              "function": "decodeEvents",
+              "source": "shared/net/BinaryProtocol.ts",
+              "selfMsPerFrame": 0.01827519051651143,
+              "inclusiveMsPerFrame": 0.025652836579170196
+            },
+            {
+              "function": "update",
+              "source": "games/fps/client/GibSystem.ts",
+              "selfMsPerFrame": 0.006459779847586791,
+              "inclusiveMsPerFrame": 0.01658171041490263
+            },
+            {
+              "function": "",
+              "source": "games/fps/client/TimedemoService.ts",
+              "selfMsPerFrame": 0.005272650296359018,
+              "inclusiveMsPerFrame": 0.011374259102455547
+            },
+            {
+              "function": "",
+              "source": "games/fps/client/TimedemoService.ts",
+              "selfMsPerFrame": 0.0050626587637595255,
+              "inclusiveMsPerFrame": 0.468397121083827
+            },
+            {
+              "function": "update",
+              "source": "games/fps/world/pickups/procedural/ProceduralPickupVisual.ts",
+              "selfMsPerFrame": 0.004728196443691787,
+              "inclusiveMsPerFrame": 0.005669771380186282
+            },
+            {
+              "function": "applyHitboxVisualStyle",
+              "source": "games/fps/client/RemotePlayerRenderer.ts",
+              "selfMsPerFrame": 0.0046274343776460634,
+              "inclusiveMsPerFrame": 0.012924640135478407
+            },
+            {
+              "function": "renderEntities",
+              "source": "games/fps/client/RemotePlayerRenderer.ts",
+              "selfMsPerFrame": 0.004618120237087215,
+              "inclusiveMsPerFrame": 0.08849534292972064
+            },
+            {
+              "function": "handleServerStateUpdate",
+              "source": "games/fps/client/GameEvents.ts",
+              "selfMsPerFrame": 0.004163420829805251,
+              "inclusiveMsPerFrame": 0.05282218458933105
+            },
+            {
+              "function": "decodeInputs",
+              "source": "shared/demo/DemoInputs.ts",
+              "selfMsPerFrame": 0.0037231160033869603,
+              "inclusiveMsPerFrame": 0.007890770533446233
+            },
+            {
+              "function": "getPlayerModelVisualStyleKey",
+              "source": "games/fps/client/PlayerModelVisualSettings.ts",
+              "selfMsPerFrame": 0.0037070279424216766,
+              "inclusiveMsPerFrame": 0.0064394580863674855
+            },
+            {
+              "function": "getFrameTimeMs",
+              "source": "games/fps/client/DemoViewer.ts",
+              "selfMsPerFrame": 0.003666384419983066,
+              "inclusiveMsPerFrame": 0.003666384419983066
+            }
+          ]
+        },
+        {
+          "phase": "fps-gunplay-b",
+          "profileFile": "1-webgl2-fps-gunplay-b.cpuprofile",
+          "summarySha256": "326d1fc1b3e8dbe4107a2a2983d8a850816f8bbb5534b5e7740d5089195793db",
+          "slicedFrames": 1559,
+          "slicedDurationMs": 11579.999,
+          "sampledMs": 11579.67700000033,
+          "unsampledMs": 0.32199999966906034,
+          "fullPhaseCounters": {
+            "frames": 1599,
+            "wallMs": {
+              "p50": 7.200000047683716,
+              "p95": 9,
+              "p99": 13.899999978542327
+            },
+            "playbackCpuMs": {
+              "p50": 0.3999999761581421,
+              "p95": 0.7100000381469636,
+              "p99": 1.100000023841858
+            },
+            "sceneCpuMs": {
+              "p50": 4.5,
+              "p95": 7.100000023841858,
+              "p99": 9.100000023841858
+            },
+            "animationMs": {
+              "p50": 0.6000000238418579,
+              "p95": 1,
+              "p99": 1.399999976158142
+            },
+            "drawCalls": {
+              "p50": 171,
+              "p95": 219,
+              "p99": 230
+            },
+            "triangles": {
+              "p50": 207944,
+              "p95": 237758.5,
+              "p99": 265931.16
+            },
+            "alivePlayers": {
+              "p50": 6,
+              "p95": 6,
+              "p99": 6
+            },
+            "loadedBodies": {
+              "p50": 6,
+              "p95": 6,
+              "p99": 6
+            },
+            "bundles": null,
+            "outlineProxy": null,
+            "missingPovWeaponFrames": 12,
+            "unreadySceneFrames": 0,
+            "sceneReadinessObservedFrames": 0,
+            "pendingSceneDataFrames": 7,
+            "frameBudgetMs": 8.333333333333334,
+            "overBudgetPercent": 7.004377736085053
+          },
+          "selected": [
+            {
+              "category": "rendering",
+              "function": "_evaluateActiveMeshes",
+              "source": "dependency",
+              "selfMsPerFrame": 0.27155035279025014,
+              "inclusiveMsPerFrame": 1.1368499037844773
+            },
+            {
+              "category": "rendering",
+              "function": "_renderForCamera",
+              "source": "dependency",
+              "selfMsPerFrame": 0.128640795381655,
+              "inclusiveMsPerFrame": 3.9625548428479225
+            },
+            {
+              "category": "demo",
+              "function": "updatePlaybackFrame",
+              "source": "games/fps/client/DemoService.ts",
+              "selfMsPerFrame": 0.0014053880692751766,
+              "inclusiveMsPerFrame": 0.2475593329057089
+            },
+            {
+              "category": "demo",
+              "function": "_syncDemoPresentationClock",
+              "source": "games/fps/client/DemoService.ts",
+              "selfMsPerFrame": 0,
+              "inclusiveMsPerFrame": 0.04784926234765877
+            },
+            {
+              "category": "demo",
+              "function": "stepDemoPhysics",
+              "source": "games/fps/client/DemoService.ts",
+              "selfMsPerFrame": 0,
+              "inclusiveMsPerFrame": 0.042245028864656815
+            },
+            {
+              "category": "demo",
+              "function": "readFrame",
+              "source": "shared/demo/DemoReader.ts",
+              "selfMsPerFrame": 0,
+              "inclusiveMsPerFrame": 0.051654265554842885
+            },
+            {
+              "category": "snapshot",
+              "function": "decodeSnapshot",
+              "source": "shared/net/BinaryProtocol.ts",
+              "selfMsPerFrame": 0.0006856959589480436,
+              "inclusiveMsPerFrame": 0.04670942912123156
+            },
+            {
+              "category": "snapshot",
+              "function": "decodeEntities",
+              "source": "shared/net/BinaryProtocol.ts",
+              "selfMsPerFrame": 0.01755933290570879,
+              "inclusiveMsPerFrame": 0.023153303399615136
+            },
+            {
+              "category": "snapshot",
+              "function": "decodeEvents",
+              "source": "shared/net/BinaryProtocol.ts",
+              "selfMsPerFrame": 0.01238871071199487,
+              "inclusiveMsPerFrame": 0.019062860808210392
+            },
+            {
+              "category": "snapshot",
+              "function": "handleServerStateUpdate",
+              "source": "games/fps/client/GameEvents.ts",
+              "selfMsPerFrame": 0.004872995509942271,
+              "inclusiveMsPerFrame": 0.02991468890314304
+            },
+            {
+              "category": "presentation",
+              "function": "render",
+              "source": "games/fps/client/RemotePlayerRenderer.ts",
+              "selfMsPerFrame": 0.003877485567671584,
+              "inclusiveMsPerFrame": 0.08164079538165502
+            },
+            {
+              "category": "presentation",
+              "function": "updateModel",
+              "source": "games/fps/client/RemotePlayerRenderer.ts",
+              "selfMsPerFrame": 0.0038755612572161633,
+              "inclusiveMsPerFrame": 0.04253110968569595
+            },
+            {
+              "category": "effects",
+              "function": "update",
+              "source": "games/fps/client/GibSystem.ts",
+              "selfMsPerFrame": 0.0007042976266837717,
+              "inclusiveMsPerFrame": 0.0024425914047466325
+            },
+            {
+              "category": "hud",
+              "function": "drawTriangles",
+              "source": "engine/ui/hud/DamageOverlay.ts",
+              "selfMsPerFrame": 0.03742783835792173,
+              "inclusiveMsPerFrame": 0.03742783835792173
+            },
+            {
+              "category": "gc",
+              "function": "(garbage collector)",
+              "source": "V8",
+              "selfMsPerFrame": 0.046262347658755615,
+              "inclusiveMsPerFrame": 0.046262347658755615
+            },
+            {
+              "category": "idle",
+              "function": "(idle)",
+              "source": "V8",
+              "selfMsPerFrame": 2.172219371391899,
+              "inclusiveMsPerFrame": 2.172219371391899
+            }
+          ],
+          "topApplicationExclusive": [
+            {
+              "function": "drawTriangles",
+              "source": "engine/ui/hud/DamageOverlay.ts",
+              "selfMsPerFrame": 0.03742783835792173,
+              "inclusiveMsPerFrame": 0.03742783835792173
+            },
+            {
+              "function": "decodeEntities",
+              "source": "shared/net/BinaryProtocol.ts",
+              "selfMsPerFrame": 0.01755933290570879,
+              "inclusiveMsPerFrame": 0.023153303399615136
+            },
+            {
+              "function": "decodeEvents",
+              "source": "shared/net/BinaryProtocol.ts",
+              "selfMsPerFrame": 0.01238871071199487,
+              "inclusiveMsPerFrame": 0.019062860808210392
+            },
+            {
+              "function": "update",
+              "source": "games/fps/world/pickups/procedural/ProceduralPickupVisual.ts",
+              "selfMsPerFrame": 0.006112892880051316,
+              "inclusiveMsPerFrame": 0.00822771007055805
+            },
+            {
+              "function": "drawVignette",
+              "source": "engine/ui/hud/DamageOverlay.ts",
+              "selfMsPerFrame": 0.005253367543296985,
+              "inclusiveMsPerFrame": 0.005253367543296985
+            },
+            {
+              "function": "handleServerStateUpdate",
+              "source": "games/fps/client/GameEvents.ts",
+              "selfMsPerFrame": 0.004872995509942271,
+              "inclusiveMsPerFrame": 0.02991468890314304
+            },
+            {
+              "function": "renderEntities",
+              "source": "games/fps/client/RemotePlayerRenderer.ts",
+              "selfMsPerFrame": 0.004688903143040411,
+              "inclusiveMsPerFrame": 0.072520205259782
+            },
+            {
+              "function": "render",
+              "source": "games/fps/client/RemotePlayerRenderer.ts",
+              "selfMsPerFrame": 0.003877485567671584,
+              "inclusiveMsPerFrame": 0.08164079538165502
+            },
+            {
+              "function": "updateModel",
+              "source": "games/fps/client/RemotePlayerRenderer.ts",
+              "selfMsPerFrame": 0.0038755612572161633,
+              "inclusiveMsPerFrame": 0.04253110968569595
+            },
+            {
+              "function": "",
+              "source": "games/fps/client/TimedemoService.ts",
+              "selfMsPerFrame": 0.0038742783835792184,
+              "inclusiveMsPerFrame": 0.007737652341244389
+            },
+            {
+              "function": "_tick",
+              "source": "engine/ui/hud/DamageOverlay.ts",
+              "selfMsPerFrame": 0.003864656831302117,
+              "inclusiveMsPerFrame": 0.04689544579858885
+            },
+            {
+              "function": "applyHitboxVisualStyle",
+              "source": "games/fps/client/RemotePlayerRenderer.ts",
+              "selfMsPerFrame": 0.003820397690827454,
+              "inclusiveMsPerFrame": 0.007671584348941629
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "backend": "webgpu",
+      "rawDirectory": "public/data/benchmarks/results/2026-10-27-cpu-study-webgpu/1-webgpu",
+      "runSha256": "ff750502e7e6cdc539e3749f39562282cc5c35099aeeb180f942b93f1b0e8498",
+      "timedemoSha256": "6e3a870cb7afa4e7fb739588aa963914402230c450a6a0fcb4220b2826ecda99",
+      "sourceBefore": {
+        "engine": "7ce7030bf46bc5102a87bc4c56f00948beb6d1a4",
+        "fps": "ca018d147cf0b5aac6c8f36012af7ac2da19288d",
+        "sourceChangeSha256": "0f6824ad4756a5b4644b051aea657c6f847955cff3cec2e27155af53303268b1"
+      },
+      "sourceAfter": {
+        "engine": "7ce7030bf46bc5102a87bc4c56f00948beb6d1a4",
+        "fps": "ca018d147cf0b5aac6c8f36012af7ac2da19288d",
+        "sourceChangeSha256": "0f6824ad4756a5b4644b051aea657c6f847955cff3cec2e27155af53303268b1"
+      },
+      "complete": true,
+      "replayValid": true,
+      "stableSource": true,
+      "exceptions": 0,
+      "rejectionReasons": [],
+      "environment": {
+        "browser": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36 Edg/156.0.0.0",
+        "babylonVersion": "9.31.2",
+        "engineClass": "_WebGPUEngine",
+        "shagVersion": "1.0.0-alpha.6",
+        "buildLabel": "7ce7030b-codex-profile",
+        "webgpuCompatibilityMode": true,
+        "viewport": [
+          1416,
+          808
+        ],
+        "devicePixelRatio": 1,
+        "profile": {
+          "width": 1280,
+          "height": 720,
+          "fov": 90,
+          "requiredCvars": {
+            "r_ssr": 0,
+            "r_glow": 0,
+            "r_daynight": 0,
+            "cl_player_outline": 1
+          }
+        },
+        "cvars": {
+          "cl_ads_fov_reduction": 15,
+          "cl_ads_offset_y": 2,
+          "cl_ads_sensitivity": 0.5,
+          "cl_ads_time": 0.08,
+          "cl_animdebug": 0,
+          "cl_autorun": 1,
+          "cl_autoswitch": 1,
+          "cl_bobbing": 0,
+          "cl_crouchmult": 0.5,
+          "cl_debugbbox": 0,
+          "cl_debugbbox_offset": 100,
+          "cl_debugplayer": 0,
+          "cl_debugplayer_offset": 100,
+          "cl_debugplayer_run_speed": 400,
+          "cl_debugplayer_scale": 36,
+          "cl_debugplayer_walk_speed": 50,
+          "cl_flyspeed": 400,
+          "cl_fov": 90,
+          "cl_gunbob": 1,
+          "cl_gunbob_amplitude": 1.5,
+          "cl_gunbob_jump": 2,
+          "cl_gunbob_land": 3,
+          "cl_gunbob_speed": 1,
+          "cl_gunbob_sprint_inward": 30,
+          "cl_gunbob_sprint_tilt": 10,
+          "cl_hud": 1,
+          "cl_interp": 0,
+          "cl_invertclock": 0,
+          "cl_netgraph": 0,
+          "cl_player_fullbright": 0,
+          "cl_player_fullbright_intensity": 0.25,
+          "cl_player_outline": 1,
+          "cl_player_outline_proxy": 0,
+          "cl_player_outline_size": 25,
+          "cl_player_pose_hz": 30,
+          "cl_remotehitbox": 0,
+          "cl_showspeed": 1,
+          "cl_smoothfactor": 0.15,
+          "cl_smoothstairs": 1,
+          "cl_speed": 320,
+          "cl_speedfov": 0.38,
+          "cl_speedfovspeed": 5,
+          "cl_sprintmult": 1.5,
+          "cl_team_ally_color": "1.55 0.2 1.35",
+          "cl_team_ally_outline_color": "1.85 0.28 1.65",
+          "cl_team_ally_sounds": "male",
+          "cl_team_enemy_color": "0.1 1.15 1.85",
+          "cl_team_enemy_outline_color": "0.16 1.35 2.2",
+          "cl_team_enemy_sounds": "bobot",
+          "cl_team_ffa_color": "0.1 1.15 1.85",
+          "cl_team_ffa_outline_color": "0.16 1.35 2.2",
+          "cl_timenudge": 0,
+          "cl_vieweffects": 1,
+          "cl_wep_ads_x": 0,
+          "cl_wep_ads_y": 0,
+          "cl_wep_ads_z": 0,
+          "cl_wep_hip_x": 0,
+          "cl_wep_hip_y": 0,
+          "cl_wep_hip_z": 0,
+          "cl_wep_scale": 0,
+          "r_ambient": 1,
+          "r_anisotropy": 4,
+          "r_arealights": 1,
+          "r_arealights_auto": 0,
+          "r_arealights_intensity": 1,
+          "r_arealights_max": 4,
+          "r_bloom": 0,
+          "r_bsp_cellsize": 0,
+          "r_bsp_freeze": 1,
+          "r_bsp_pbr": 1,
+          "r_cel_color": "0 0 0",
+          "r_cel_depth_threshold": 0.1,
+          "r_cel_normal_threshold": 0.3,
+          "r_cel_opacity": 1,
+          "r_cel_outlines": 0,
+          "r_cel_thickness": 1.5,
+          "r_cel_weapon_color": "0 0 0",
+          "r_cel_weapon_outlines": 1,
+          "r_cel_weapon_width": 25,
+          "r_colorcorrection": 0,
+          "r_colorcorrection_strength": 1,
+          "r_colorsimulation": 0,
+          "r_contrast": 1,
+          "r_daynight": 0,
+          "r_daynight_animate": 0,
+          "r_daynight_length": 1440,
+          "r_daynight_lm_max": 1,
+          "r_daynight_lm_min": 0.05,
+          "r_daynight_moon_intensity": 0.15,
+          "r_daynight_sky_tint": 1,
+          "r_daynight_speed": 1,
+          "r_daynight_sun_intensity": 0.3,
+          "r_daynight_time": 0.5,
+          "r_deluxe": 1,
+          "r_emissive": 1,
+          "r_exposure": 1,
+          "r_glossmap": 1,
+          "r_glow": 0,
+          "r_godrays": 1,
+          "r_godrays_decay": 0.965,
+          "r_godrays_density": 0.92,
+          "r_godrays_exposure": 0.32,
+          "r_godrays_samples": 60,
+          "r_godrays_weight": 0.5,
+          "r_ktx2": 1,
+          "r_lightintensity": 1,
+          "r_lightmap": 1,
+          "r_lightmapscale": 1,
+          "r_material_clone_batch": 1,
+          "r_normalmap": 1,
+          "r_picmip": 0,
+          "r_showtris": 0,
+          "r_softhalos": 1,
+          "r_ssr": 0,
+          "r_ssr_strength": 0.4,
+          "r_underwater_distortion": 1,
+          "r_water": 1,
+          "r_water_actors": 1,
+          "r_water_blur": 0.3,
+          "r_water_contact": 0.25,
+          "r_water_debug": 0,
+          "r_water_detail": 0.8,
+          "r_water_highlights": 0.6,
+          "r_water_probe_height": 64,
+          "r_water_quality": 2,
+          "r_water_reflection": 1.3,
+          "r_water_roughness": 0.3,
+          "r_weapon_candidates": 0,
+          "r_webgpu": 0,
+          "r_wireframe": 0
+        },
+        "capabilities": {
+          "timerQuery": false,
+          "maxTextureSize": 8192
+        }
+      },
+      "shaderCompiles": 25,
+      "runSummary": {
+        "frames": 4143,
+        "wallMs": {
+          "p50": 9.299999952316284,
+          "p95": 19.48999999761578,
+          "p99": 28.600000023841858
+        },
+        "playbackCpuMs": {
+          "p50": 0.6000000238418579,
+          "p95": 1.5,
+          "p99": 4.5
+        },
+        "sceneCpuMs": {
+          "p50": 7.900000095367432,
+          "p95": 15.200000047683716,
+          "p99": 20.899999976158142
+        },
+        "animationMs": {
+          "p50": 0.9000000953674316,
+          "p95": 2.100000023841858,
+          "p99": 5.057999944686882
+        },
+        "drawCalls": {
+          "p50": 158,
+          "p95": 277,
+          "p99": 345
+        },
+        "triangles": {
+          "p50": 205743,
+          "p95": 302695.5,
+          "p99": 347663
+        },
+        "alivePlayers": {
+          "p50": 5,
+          "p95": 6,
+          "p99": 6
+        },
+        "loadedBodies": {
+          "p50": 5,
+          "p95": 6,
+          "p99": 6
+        },
+        "bundles": null,
+        "outlineProxy": null,
+        "missingPovWeaponFrames": 57,
+        "unreadySceneFrames": 0,
+        "sceneReadinessObservedFrames": 0,
+        "pendingSceneDataFrames": 28,
+        "frameBudgetMs": 8.333333333333334,
+        "overBudgetPercent": 62.877142167511465
+      },
+      "phases": [
+        {
+          "phase": "freefly-start",
+          "profileFile": "1-webgpu-freefly-start.cpuprofile",
+          "summarySha256": "af625f7fd409d6948f2576c01258a57372ab19293debcaffe853fe20b947c31e",
+          "slicedFrames": 1097,
+          "slicedDurationMs": 11229.699,
+          "sampledMs": 11229.566000000192,
+          "unsampledMs": 0.13299999980881694,
+          "fullPhaseCounters": {
+            "frames": 1166,
+            "wallMs": {
+              "p50": 9.799999952316284,
+              "p95": 15.174999952316284,
+              "p99": 19.54500004649156
+            },
+            "playbackCpuMs": {
+              "p50": 0.6000000238418579,
+              "p95": 1.100000023841858,
+              "p99": 3.3350000381469638
+            },
+            "sceneCpuMs": {
+              "p50": 8.300000071525574,
+              "p95": 12.399999976158142,
+              "p99": 13.53499996662139
+            },
+            "animationMs": {
+              "p50": 0.8999999761581421,
+              "p95": 1.4000000953674316,
+              "p99": 3.634999990463248
+            },
+            "drawCalls": {
+              "p50": 162,
+              "p95": 319,
+              "p99": 365.3499999999999
+            },
+            "triangles": {
+              "p50": 243914,
+              "p95": 315736.5,
+              "p99": 349736.19999999995
+            },
+            "alivePlayers": {
+              "p50": 5,
+              "p95": 6,
+              "p99": 6
+            },
+            "loadedBodies": {
+              "p50": 5,
+              "p95": 6,
+              "p99": 6
+            },
+            "bundles": null,
+            "outlineProxy": null,
+            "missingPovWeaponFrames": 0,
+            "unreadySceneFrames": 0,
+            "sceneReadinessObservedFrames": 0,
+            "pendingSceneDataFrames": 8,
+            "frameBudgetMs": 8.333333333333334,
+            "overBudgetPercent": 72.29845626072041
+          },
+          "selected": [
+            {
+              "category": "rendering",
+              "function": "_evaluateActiveMeshes",
+              "source": "dependency",
+              "selfMsPerFrame": 0.47134366453965326,
+              "inclusiveMsPerFrame": 2.1939735642661717
+            },
+            {
+              "category": "rendering",
+              "function": "_renderForCamera",
+              "source": "dependency",
+              "selfMsPerFrame": 0.20013400182315408,
+              "inclusiveMsPerFrame": 7.647951686417376
+            },
+            {
+              "category": "demo",
+              "function": "updatePlaybackFrame",
+              "source": "games/fps/client/DemoService.ts",
+              "selfMsPerFrame": 0.0044320875113947125,
+              "inclusiveMsPerFrame": 0.6584621695533271
+            },
+            {
+              "category": "demo",
+              "function": "_syncDemoPresentationClock",
+              "source": "games/fps/client/DemoService.ts",
+              "selfMsPerFrame": 0.0004895168641750228,
+              "inclusiveMsPerFrame": 0.32559708295350936
+            },
+            {
+              "category": "demo",
+              "function": "stepDemoPhysics",
+              "source": "games/fps/client/DemoService.ts",
+              "selfMsPerFrame": 0.00047128532360984503,
+              "inclusiveMsPerFrame": 0.2755159525979945
+            },
+            {
+              "category": "demo",
+              "function": "readFrame",
+              "source": "shared/demo/DemoReader.ts",
+              "selfMsPerFrame": 0.0005168641750227894,
+              "inclusiveMsPerFrame": 0.06556608933454877
+            },
+            {
+              "category": "snapshot",
+              "function": "decodeSnapshot",
+              "source": "shared/net/BinaryProtocol.ts",
+              "selfMsPerFrame": 0.0005223336371923427,
+              "inclusiveMsPerFrame": 0.059579762989972675
+            },
+            {
+              "category": "snapshot",
+              "function": "decodeEntities",
+              "source": "shared/net/BinaryProtocol.ts",
+              "selfMsPerFrame": 0.009905195989061076,
+              "inclusiveMsPerFrame": 0.017408386508659984
+            },
+            {
+              "category": "snapshot",
+              "function": "decodeEvents",
+              "source": "shared/net/BinaryProtocol.ts",
+              "selfMsPerFrame": 0.025453053783044667,
+              "inclusiveMsPerFrame": 0.03707930720145852
+            },
+            {
+              "category": "snapshot",
+              "function": "handleServerStateUpdate",
+              "source": "games/fps/client/GameEvents.ts",
+              "selfMsPerFrame": 0.005486782133090247,
+              "inclusiveMsPerFrame": 0.0836116681859617
+            },
+            {
+              "category": "presentation",
+              "function": "render",
+              "source": "games/fps/client/RemotePlayerRenderer.ts",
+              "selfMsPerFrame": 0.0020683682771194165,
+              "inclusiveMsPerFrame": 0.13132087511394722
+            },
+            {
+              "category": "presentation",
+              "function": "updateModel",
+              "source": "games/fps/client/RemotePlayerRenderer.ts",
+              "selfMsPerFrame": 0.00299179580674567,
+              "inclusiveMsPerFrame": 0.05283226982680036
+            },
+            {
+              "category": "effects",
+              "function": "update",
+              "source": "games/fps/client/GibSystem.ts",
+              "selfMsPerFrame": 0.006396536007292617,
+              "inclusiveMsPerFrame": 0.025551504102096622
+            },
+            {
+              "category": "gc",
+              "function": "(garbage collector)",
+              "source": "V8",
+              "selfMsPerFrame": 0.04068732907930718,
+              "inclusiveMsPerFrame": 0.04068732907930718
+            },
+            {
+              "category": "idle",
+              "function": "(idle)",
+              "source": "V8",
+              "selfMsPerFrame": 0.13879580674567008,
+              "inclusiveMsPerFrame": 0.13879580674567008
+            }
+          ],
+          "topApplicationExclusive": [
+            {
+              "function": "decodeEvents",
+              "source": "shared/net/BinaryProtocol.ts",
+              "selfMsPerFrame": 0.025453053783044667,
+              "inclusiveMsPerFrame": 0.03707930720145852
+            },
+            {
+              "function": "",
+              "source": "games/fps/client/TimedemoService.ts",
+              "selfMsPerFrame": 0.010498632634457614,
+              "inclusiveMsPerFrame": 0.024428441203281675
+            },
+            {
+              "function": "decodeEntities",
+              "source": "shared/net/BinaryProtocol.ts",
+              "selfMsPerFrame": 0.009905195989061076,
+              "inclusiveMsPerFrame": 0.017408386508659984
+            },
+            {
+              "function": "update",
+              "source": "games/fps/world/pickups/procedural/ProceduralPickupVisual.ts",
+              "selfMsPerFrame": 0.008651777575205105,
+              "inclusiveMsPerFrame": 0.011699179580674568
+            },
+            {
+              "function": "processProjectileEntities",
+              "source": "games/fps/client/GameEvents.ts",
+              "selfMsPerFrame": 0.008134001823154057,
+              "inclusiveMsPerFrame": 0.01877484047402006
+            },
+            {
+              "function": "getPlaybackModelStats",
+              "source": "games/fps/client/DemoService.ts",
+              "selfMsPerFrame": 0.006454876937101186,
+              "inclusiveMsPerFrame": 0.01090884229717411
+            },
+            {
+              "function": "update",
+              "source": "games/fps/client/GibSystem.ts",
+              "selfMsPerFrame": 0.006396536007292617,
+              "inclusiveMsPerFrame": 0.025551504102096622
+            },
+            {
+              "function": "",
+              "source": "games/fps/client/TimedemoService.ts",
+              "selfMsPerFrame": 0.006372835004557884,
+              "inclusiveMsPerFrame": 0.6698623518687328
+            },
+            {
+              "function": "renderEntities",
+              "source": "games/fps/client/RemotePlayerRenderer.ts",
+              "selfMsPerFrame": 0.006145852324521422,
+              "inclusiveMsPerFrame": 0.12614676390154975
+            },
+            {
+              "function": "extractEntities",
+              "source": "games/fps/client/RemotePlayerLogic.ts",
+              "selfMsPerFrame": 0.005504102096627165,
+              "inclusiveMsPerFrame": 0.008208751139471285
+            },
+            {
+              "function": "handleServerStateUpdate",
+              "source": "games/fps/client/GameEvents.ts",
+              "selfMsPerFrame": 0.005486782133090247,
+              "inclusiveMsPerFrame": 0.0836116681859617
+            },
+            {
+              "function": "isClientKey",
+              "source": "games/fps/ClientEntityKey.ts",
+              "selfMsPerFrame": 0.005216043755697356,
+              "inclusiveMsPerFrame": 0.005216043755697356
+            }
+          ]
+        },
+        {
+          "phase": "fps-gunplay-a",
+          "profileFile": "1-webgpu-fps-gunplay-a.cpuprofile",
+          "summarySha256": "33cde268ceff518c1a4eb94e892a9041ce57085f8106f7ce7971ef7ee31dc76a",
+          "slicedFrames": 1293,
+          "slicedDurationMs": 11623.3,
+          "sampledMs": 11622.770000000133,
+          "unsampledMs": 0.5299999998660496,
+          "fullPhaseCounters": {
+            "frames": 1327,
+            "wallMs": {
+              "p50": 8,
+              "p95": 12.600000023841858,
+              "p99": 19.12200002908707
+            },
+            "playbackCpuMs": {
+              "p50": 0.5,
+              "p95": 1.100000023841858,
+              "p99": 2.973999993801118
+            },
+            "sceneCpuMs": {
+              "p50": 7,
+              "p95": 10.100000023841858,
+              "p99": 13.273999977111817
+            },
+            "animationMs": {
+              "p50": 0.7999999523162842,
+              "p95": 1.5,
+              "p99": 3.399999976158142
+            },
+            "drawCalls": {
+              "p50": 144,
+              "p95": 190.70000000000005,
+              "p99": 235
+            },
+            "triangles": {
+              "p50": 187075,
+              "p95": 241767.20000000007,
+              "p99": 282705
+            },
+            "alivePlayers": {
+              "p50": 6,
+              "p95": 6,
+              "p99": 6
+            },
+            "loadedBodies": {
+              "p50": 6,
+              "p95": 6,
+              "p99": 6
+            },
+            "bundles": null,
+            "outlineProxy": null,
+            "missingPovWeaponFrames": 4,
+            "unreadySceneFrames": 0,
+            "sceneReadinessObservedFrames": 0,
+            "pendingSceneDataFrames": 5,
+            "frameBudgetMs": 8.333333333333334,
+            "overBudgetPercent": 42.57724189902034
+          },
+          "selected": [
+            {
+              "category": "rendering",
+              "function": "_evaluateActiveMeshes",
+              "source": "dependency",
+              "selfMsPerFrame": 0.41070456303170905,
+              "inclusiveMsPerFrame": 1.9102629543696774
+            },
+            {
+              "category": "rendering",
+              "function": "_renderForCamera",
+              "source": "dependency",
+              "selfMsPerFrame": 0.2025676720804331,
+              "inclusiveMsPerFrame": 6.522822892497985
+            },
+            {
+              "category": "demo",
+              "function": "updatePlaybackFrame",
+              "source": "games/fps/client/DemoService.ts",
+              "selfMsPerFrame": 0.0008275328692962104,
+              "inclusiveMsPerFrame": 0.5080866202629541
+            },
+            {
+              "category": "demo",
+              "function": "_syncDemoPresentationClock",
+              "source": "games/fps/client/DemoService.ts",
+              "selfMsPerFrame": 0,
+              "inclusiveMsPerFrame": 0.19852822892498054
+            },
+            {
+              "category": "demo",
+              "function": "stepDemoPhysics",
+              "source": "games/fps/client/DemoService.ts",
+              "selfMsPerFrame": 0,
+              "inclusiveMsPerFrame": 0.1642884764114462
+            },
+            {
+              "category": "demo",
+              "function": "readFrame",
+              "source": "shared/demo/DemoReader.ts",
+              "selfMsPerFrame": 0,
+              "inclusiveMsPerFrame": 0.05022505800464036
+            },
+            {
+              "category": "snapshot",
+              "function": "decodeSnapshot",
+              "source": "shared/net/BinaryProtocol.ts",
+              "selfMsPerFrame": 0.0011407579273008507,
+              "inclusiveMsPerFrame": 0.04593348801237431
+            },
+            {
+              "category": "snapshot",
+              "function": "decodeEntities",
+              "source": "shared/net/BinaryProtocol.ts",
+              "selfMsPerFrame": 0.005552977571539057,
+              "inclusiveMsPerFrame": 0.01059087393658159
+            },
+            {
+              "category": "snapshot",
+              "function": "decodeEvents",
+              "source": "shared/net/BinaryProtocol.ts",
+              "selfMsPerFrame": 0.01594586233565352,
+              "inclusiveMsPerFrame": 0.027486465583913385
+            },
+            {
+              "category": "snapshot",
+              "function": "handleServerStateUpdate",
+              "source": "games/fps/client/GameEvents.ts",
+              "selfMsPerFrame": 0.008166279969064192,
+              "inclusiveMsPerFrame": 0.0960881670533643
+            },
+            {
+              "category": "presentation",
+              "function": "render",
+              "source": "games/fps/client/RemotePlayerRenderer.ts",
+              "selfMsPerFrame": 0.0008863109048723898,
+              "inclusiveMsPerFrame": 0.10600928074245945
+            },
+            {
+              "category": "presentation",
+              "function": "updateModel",
+              "source": "games/fps/client/RemotePlayerRenderer.ts",
+              "selfMsPerFrame": 0.0030448569218870843,
+              "inclusiveMsPerFrame": 0.04189172467130702
+            },
+            {
+              "category": "effects",
+              "function": "update",
+              "source": "games/fps/client/GibSystem.ts",
+              "selfMsPerFrame": 0.006808197989172468,
+              "inclusiveMsPerFrame": 0.015261407579273011
+            },
+            {
+              "category": "hud",
+              "function": "drawTriangles",
+              "source": "engine/ui/hud/DamageOverlay.ts",
+              "selfMsPerFrame": 0.017440061871616393,
+              "inclusiveMsPerFrame": 0.017440061871616393
+            },
+            {
+              "category": "gc",
+              "function": "(garbage collector)",
+              "source": "V8",
+              "selfMsPerFrame": 0.027689095127610207,
+              "inclusiveMsPerFrame": 0.027689095127610207
+            },
+            {
+              "category": "idle",
+              "function": "(idle)",
+              "source": "V8",
+              "selfMsPerFrame": 0.5347045630317084,
+              "inclusiveMsPerFrame": 0.5347045630317084
+            }
+          ],
+          "topApplicationExclusive": [
+            {
+              "function": "drawTriangles",
+              "source": "engine/ui/hud/DamageOverlay.ts",
+              "selfMsPerFrame": 0.017440061871616393,
+              "inclusiveMsPerFrame": 0.017440061871616393
+            },
+            {
+              "function": "decodeEvents",
+              "source": "shared/net/BinaryProtocol.ts",
+              "selfMsPerFrame": 0.01594586233565352,
+              "inclusiveMsPerFrame": 0.027486465583913385
+            },
+            {
+              "function": "update",
+              "source": "games/fps/world/pickups/procedural/ProceduralPickupVisual.ts",
+              "selfMsPerFrame": 0.00948723897911833,
+              "inclusiveMsPerFrame": 0.012479505027068832
+            },
+            {
+              "function": "handleServerStateUpdate",
+              "source": "games/fps/client/GameEvents.ts",
+              "selfMsPerFrame": 0.008166279969064192,
+              "inclusiveMsPerFrame": 0.0960881670533643
+            },
+            {
+              "function": "update",
+              "source": "games/fps/client/GibSystem.ts",
+              "selfMsPerFrame": 0.006808197989172468,
+              "inclusiveMsPerFrame": 0.015261407579273011
+            },
+            {
+              "function": "",
+              "source": "games/fps/client/TimedemoService.ts",
+              "selfMsPerFrame": 0.0064439288476411455,
+              "inclusiveMsPerFrame": 0.012767208043310134
+            },
+            {
+              "function": "renderEntities",
+              "source": "games/fps/client/RemotePlayerRenderer.ts",
+              "selfMsPerFrame": 0.006335653518948182,
+              "inclusiveMsPerFrame": 0.10223665893271466
+            },
+            {
+              "function": "decodeEntities",
+              "source": "shared/net/BinaryProtocol.ts",
+              "selfMsPerFrame": 0.005552977571539057,
+              "inclusiveMsPerFrame": 0.01059087393658159
+            },
+            {
+              "function": "",
+              "source": "games/fps/client/TimedemoService.ts",
+              "selfMsPerFrame": 0.004638824439288477,
+              "inclusiveMsPerFrame": 0.5135746326372775
+            },
+            {
+              "function": "isClientKey",
+              "source": "games/fps/ClientEntityKey.ts",
+              "selfMsPerFrame": 0.003796597061098221,
+              "inclusiveMsPerFrame": 0.003796597061098221
+            },
+            {
+              "function": "push",
+              "source": "games/fps/client/DemoEntityTimeline.ts",
+              "selfMsPerFrame": 0.0036504253673627215,
+              "inclusiveMsPerFrame": 0.00448646558391338
+            },
+            {
+              "function": "readString",
+              "source": "shared/net/BinaryProtocol.ts",
+              "selfMsPerFrame": 0.0034555297757153905,
+              "inclusiveMsPerFrame": 0.02209590100541377
+            }
+          ]
+        },
+        {
+          "phase": "freefly-return",
+          "profileFile": "1-webgpu-freefly-return.cpuprofile",
+          "summarySha256": "5e12ec0a991a18912a6194679bae44ac304f42db14ce66753767a984a6e3c168",
+          "slicedFrames": 597,
+          "slicedDurationMs": 8806.899,
+          "sampledMs": 8806.751999999982,
+          "unsampledMs": 0.14700000001721492,
+          "fullPhaseCounters": {
+            "frames": 612,
+            "wallMs": {
+              "p50": 13.25,
+              "p95": 26.760000008344594,
+              "p99": 40.24899992585176
+            },
+            "playbackCpuMs": {
+              "p50": 0.8000000715255737,
+              "p95": 2.399999976158142,
+              "p99": 7.188999938964843
+            },
+            "sceneCpuMs": {
+              "p50": 11.100000023841858,
+              "p95": 20.144999980926507,
+              "p99": 25.367000087499616
+            },
+            "animationMs": {
+              "p50": 1.2999999523162842,
+              "p95": 3.100000023841858,
+              "p99": 7.600000023841858
+            },
+            "drawCalls": {
+              "p50": 211,
+              "p95": 304.44999999999993,
+              "p99": 324.78
+            },
+            "triangles": {
+              "p50": 242476,
+              "p95": 321995.14999999997,
+              "p99": 387927.19999999995
+            },
+            "alivePlayers": {
+              "p50": 5,
+              "p95": 6,
+              "p99": 6
+            },
+            "loadedBodies": {
+              "p50": 5,
+              "p95": 6,
+              "p99": 6
+            },
+            "bundles": null,
+            "outlineProxy": null,
+            "missingPovWeaponFrames": 0,
+            "unreadySceneFrames": 0,
+            "sceneReadinessObservedFrames": 0,
+            "pendingSceneDataFrames": 0,
+            "frameBudgetMs": 8.333333333333334,
+            "overBudgetPercent": 87.25490196078431
+          },
+          "selected": [
+            {
+              "category": "rendering",
+              "function": "_evaluateActiveMeshes",
+              "source": "dependency",
+              "selfMsPerFrame": 0.4692361809045229,
+              "inclusiveMsPerFrame": 2.616030150753763
+            },
+            {
+              "category": "rendering",
+              "function": "_renderForCamera",
+              "source": "dependency",
+              "selfMsPerFrame": 0.1925092127303184,
+              "inclusiveMsPerFrame": 10.59774706867662
+            },
+            {
+              "category": "demo",
+              "function": "updatePlaybackFrame",
+              "source": "games/fps/client/DemoService.ts",
+              "selfMsPerFrame": 0.0027554438860971525,
+              "inclusiveMsPerFrame": 1.0490134003350082
+            },
+            {
+              "category": "demo",
+              "function": "_syncDemoPresentationClock",
+              "source": "games/fps/client/DemoService.ts",
+              "selfMsPerFrame": 0.0022110552763819095,
+              "inclusiveMsPerFrame": 0.4658810720268005
+            },
+            {
+              "category": "demo",
+              "function": "stepDemoPhysics",
+              "source": "games/fps/client/DemoService.ts",
+              "selfMsPerFrame": 0.0009195979899497488,
+              "inclusiveMsPerFrame": 0.37780234505862625
+            },
+            {
+              "category": "demo",
+              "function": "readFrame",
+              "source": "shared/demo/DemoReader.ts",
+              "selfMsPerFrame": 0.0010117252931323283,
+              "inclusiveMsPerFrame": 0.12187437185929646
+            },
+            {
+              "category": "snapshot",
+              "function": "decodeSnapshot",
+              "source": "shared/net/BinaryProtocol.ts",
+              "selfMsPerFrame": 0.0018224455611390287,
+              "inclusiveMsPerFrame": 0.09858291457286429
+            },
+            {
+              "category": "snapshot",
+              "function": "decodeEntities",
+              "source": "shared/net/BinaryProtocol.ts",
+              "selfMsPerFrame": 0.012552763819095477,
+              "inclusiveMsPerFrame": 0.033817420435510885
+            },
+            {
+              "category": "snapshot",
+              "function": "decodeEvents",
+              "source": "shared/net/BinaryProtocol.ts",
+              "selfMsPerFrame": 0.03397654941373535,
+              "inclusiveMsPerFrame": 0.05496649916247906
+            },
+            {
+              "category": "snapshot",
+              "function": "handleServerStateUpdate",
+              "source": "games/fps/client/GameEvents.ts",
+              "selfMsPerFrame": 0.016524288107202682,
+              "inclusiveMsPerFrame": 0.1508944723618091
+            },
+            {
+              "category": "presentation",
+              "function": "render",
+              "source": "games/fps/client/RemotePlayerRenderer.ts",
+              "selfMsPerFrame": 0.005467336683417085,
+              "inclusiveMsPerFrame": 0.24256951423785597
+            },
+            {
+              "category": "presentation",
+              "function": "updateModel",
+              "source": "games/fps/client/RemotePlayerRenderer.ts",
+              "selfMsPerFrame": 0.0053969849246231156,
+              "inclusiveMsPerFrame": 0.1243149078726968
+            },
+            {
+              "category": "effects",
+              "function": "update",
+              "source": "games/fps/client/GibSystem.ts",
+              "selfMsPerFrame": 0.019517587939698496,
+              "inclusiveMsPerFrame": 0.054705192629815755
+            },
+            {
+              "category": "hud",
+              "function": "drawTriangles",
+              "source": "engine/ui/hud/DamageOverlay.ts",
+              "selfMsPerFrame": 0.002733668341708543,
+              "inclusiveMsPerFrame": 0.002733668341708543
+            },
+            {
+              "category": "gc",
+              "function": "(garbage collector)",
+              "source": "V8",
+              "selfMsPerFrame": 0.17953601340033515,
+              "inclusiveMsPerFrame": 0.17953601340033515
+            },
+            {
+              "category": "idle",
+              "function": "(idle)",
+              "source": "V8",
+              "selfMsPerFrame": 0.11349246231155778,
+              "inclusiveMsPerFrame": 0.11349246231155778
+            }
+          ],
+          "topApplicationExclusive": [
+            {
+              "function": "decodeEvents",
+              "source": "shared/net/BinaryProtocol.ts",
+              "selfMsPerFrame": 0.03397654941373535,
+              "inclusiveMsPerFrame": 0.05496649916247906
+            },
+            {
+              "function": "update",
+              "source": "games/fps/client/GibSystem.ts",
+              "selfMsPerFrame": 0.019517587939698496,
+              "inclusiveMsPerFrame": 0.054705192629815755
+            },
+            {
+              "function": "handleServerStateUpdate",
+              "source": "games/fps/client/GameEvents.ts",
+              "selfMsPerFrame": 0.016524288107202682,
+              "inclusiveMsPerFrame": 0.1508944723618091
+            },
+            {
+              "function": "update",
+              "source": "games/fps/world/pickups/procedural/ProceduralPickupVisual.ts",
+              "selfMsPerFrame": 0.014865996649916249,
+              "inclusiveMsPerFrame": 0.017644891122278055
+            },
+            {
+              "function": "_readFrameAt",
+              "source": "shared/demo/DemoReader.ts",
+              "selfMsPerFrame": 0.01396147403685092,
+              "inclusiveMsPerFrame": 0.12098827470686765
+            },
+            {
+              "function": "decodeEntities",
+              "source": "shared/net/BinaryProtocol.ts",
+              "selfMsPerFrame": 0.012552763819095477,
+              "inclusiveMsPerFrame": 0.033817420435510885
+            },
+            {
+              "function": "",
+              "source": "games/fps/client/TimedemoService.ts",
+              "selfMsPerFrame": 0.01011892797319933,
+              "inclusiveMsPerFrame": 0.023634840871021776
+            },
+            {
+              "function": "playTeleportEffect",
+              "source": "games/fps/client/RemotePlayerRenderer.ts",
+              "selfMsPerFrame": 0.008549413735343384,
+              "inclusiveMsPerFrame": 0.008549413735343384
+            },
+            {
+              "function": "extractEntities",
+              "source": "games/fps/client/RemotePlayerLogic.ts",
+              "selfMsPerFrame": 0.006812395309882748,
+              "inclusiveMsPerFrame": 0.00865494137353434
+            },
+            {
+              "function": "renderEntities",
+              "source": "games/fps/client/RemotePlayerRenderer.ts",
+              "selfMsPerFrame": 0.006649916247906198,
+              "inclusiveMsPerFrame": 0.22448576214405355
+            },
+            {
+              "function": "isClientKey",
+              "source": "games/fps/ClientEntityKey.ts",
+              "selfMsPerFrame": 0.0065946398659966505,
+              "inclusiveMsPerFrame": 0.0065946398659966505
+            },
+            {
+              "function": "",
+              "source": "games/fps/client/TimedemoService.ts",
+              "selfMsPerFrame": 0.006412060301507538,
+              "inclusiveMsPerFrame": 1.059989949748743
+            }
+          ]
+        },
+        {
+          "phase": "fps-gunplay-b",
+          "profileFile": "1-webgpu-fps-gunplay-b.cpuprofile",
+          "summarySha256": "09ae601ddb7e2b261abb9f458153ef62d012f4f57cfbd24814586e00521ef8fc",
+          "slicedFrames": 982,
+          "slicedDurationMs": 11271.3,
+          "sampledMs": 11270.836000000101,
+          "unsampledMs": 0.4639999998980784,
+          "fullPhaseCounters": {
+            "frames": 1038,
+            "wallMs": {
+              "p50": 9.600000023841858,
+              "p95": 21.515000003576276,
+              "p99": 29.251999984979584
+            },
+            "playbackCpuMs": {
+              "p50": 0.6000000238418579,
+              "p95": 1.5,
+              "p99": 4.24100002646438
+            },
+            "sceneCpuMs": {
+              "p50": 8.299999952316284,
+              "p95": 16.614999908208844,
+              "p99": 21.077999987602162
+            },
+            "animationMs": {
+              "p50": 1,
+              "p95": 2.200000047683716,
+              "p99": 4.951999957561446
+            },
+            "drawCalls": {
+              "p50": 160,
+              "p95": 207.14999999999998,
+              "p99": 223
+            },
+            "triangles": {
+              "p50": 191354,
+              "p95": 227997.85,
+              "p99": 265703.9
+            },
+            "alivePlayers": {
+              "p50": 5,
+              "p95": 6,
+              "p99": 6
+            },
+            "loadedBodies": {
+              "p50": 5,
+              "p95": 6,
+              "p99": 6
+            },
+            "bundles": null,
+            "outlineProxy": null,
+            "missingPovWeaponFrames": 53,
+            "unreadySceneFrames": 0,
+            "sceneReadinessObservedFrames": 0,
+            "pendingSceneDataFrames": 15,
+            "frameBudgetMs": 8.333333333333334,
+            "overBudgetPercent": 63.872832369942195
+          },
+          "selected": [
+            {
+              "category": "rendering",
+              "function": "_evaluateActiveMeshes",
+              "source": "dependency",
+              "selfMsPerFrame": 0.46772097759674147,
+              "inclusiveMsPerFrame": 2.2833116089613066
+            },
+            {
+              "category": "rendering",
+              "function": "_renderForCamera",
+              "source": "dependency",
+              "selfMsPerFrame": 0.24002443991853364,
+              "inclusiveMsPerFrame": 8.205316700610933
+            },
+            {
+              "category": "demo",
+              "function": "updatePlaybackFrame",
+              "source": "games/fps/client/DemoService.ts",
+              "selfMsPerFrame": 0.0017026476578411408,
+              "inclusiveMsPerFrame": 0.7290020366598767
+            },
+            {
+              "category": "demo",
+              "function": "_syncDemoPresentationClock",
+              "source": "games/fps/client/DemoService.ts",
+              "selfMsPerFrame": 0.002205702647657841,
+              "inclusiveMsPerFrame": 0.22543890020366605
+            },
+            {
+              "category": "demo",
+              "function": "stepDemoPhysics",
+              "source": "games/fps/client/DemoService.ts",
+              "selfMsPerFrame": 0,
+              "inclusiveMsPerFrame": 0.17758655804480655
+            },
+            {
+              "category": "demo",
+              "function": "readFrame",
+              "source": "shared/demo/DemoReader.ts",
+              "selfMsPerFrame": 0.0005437881873727088,
+              "inclusiveMsPerFrame": 0.10970162932790224
+            },
+            {
+              "category": "snapshot",
+              "function": "decodeSnapshot",
+              "source": "shared/net/BinaryProtocol.ts",
+              "selfMsPerFrame": 0.0015407331975560083,
+              "inclusiveMsPerFrame": 0.09052443991853357
+            },
+            {
+              "category": "snapshot",
+              "function": "decodeEntities",
+              "source": "shared/net/BinaryProtocol.ts",
+              "selfMsPerFrame": 0.010438900203665988,
+              "inclusiveMsPerFrame": 0.02215478615071283
+            },
+            {
+              "category": "snapshot",
+              "function": "decodeEvents",
+              "source": "shared/net/BinaryProtocol.ts",
+              "selfMsPerFrame": 0.03475152749490835,
+              "inclusiveMsPerFrame": 0.05906517311608959
+            },
+            {
+              "category": "snapshot",
+              "function": "handleServerStateUpdate",
+              "source": "games/fps/client/GameEvents.ts",
+              "selfMsPerFrame": 0.01929938900203666,
+              "inclusiveMsPerFrame": 0.13161507128309588
+            },
+            {
+              "category": "presentation",
+              "function": "render",
+              "source": "games/fps/client/RemotePlayerRenderer.ts",
+              "selfMsPerFrame": 0.008421588594704685,
+              "inclusiveMsPerFrame": 0.16714765784114058
+            },
+            {
+              "category": "presentation",
+              "function": "updateModel",
+              "source": "games/fps/client/RemotePlayerRenderer.ts",
+              "selfMsPerFrame": 0.00680040733197556,
+              "inclusiveMsPerFrame": 0.09539511201629333
+            },
+            {
+              "category": "effects",
+              "function": "update",
+              "source": "games/fps/client/GibSystem.ts",
+              "selfMsPerFrame": 0.006857433808553973,
+              "inclusiveMsPerFrame": 0.02006313645621182
+            },
+            {
+              "category": "hud",
+              "function": "drawTriangles",
+              "source": "engine/ui/hud/DamageOverlay.ts",
+              "selfMsPerFrame": 0.04841955193482689,
+              "inclusiveMsPerFrame": 0.04841955193482689
+            },
+            {
+              "category": "gc",
+              "function": "(garbage collector)",
+              "source": "V8",
+              "selfMsPerFrame": 0.04967209775967413,
+              "inclusiveMsPerFrame": 0.04967209775967413
+            },
+            {
+              "category": "idle",
+              "function": "(idle)",
+              "source": "V8",
+              "selfMsPerFrame": 0.4128564154786155,
+              "inclusiveMsPerFrame": 0.4128564154786155
+            }
+          ],
+          "topApplicationExclusive": [
+            {
+              "function": "drawTriangles",
+              "source": "engine/ui/hud/DamageOverlay.ts",
+              "selfMsPerFrame": 0.04841955193482689,
+              "inclusiveMsPerFrame": 0.04841955193482689
+            },
+            {
+              "function": "decodeEvents",
+              "source": "shared/net/BinaryProtocol.ts",
+              "selfMsPerFrame": 0.03475152749490835,
+              "inclusiveMsPerFrame": 0.05906517311608959
+            },
+            {
+              "function": "handleServerStateUpdate",
+              "source": "games/fps/client/GameEvents.ts",
+              "selfMsPerFrame": 0.01929938900203666,
+              "inclusiveMsPerFrame": 0.13161507128309588
+            },
+            {
+              "function": "",
+              "source": "games/fps/client/TimedemoService.ts",
+              "selfMsPerFrame": 0.011698574338085537,
+              "inclusiveMsPerFrame": 0.02140835030549898
+            },
+            {
+              "function": "update",
+              "source": "games/fps/world/pickups/procedural/ProceduralPickupVisual.ts",
+              "selfMsPerFrame": 0.011415478615071282,
+              "inclusiveMsPerFrame": 0.01254480651731161
+            },
+            {
+              "function": "_readFrameAt",
+              "source": "shared/demo/DemoReader.ts",
+              "selfMsPerFrame": 0.010819755600814662,
+              "inclusiveMsPerFrame": 0.10915784114052952
+            },
+            {
+              "function": "spawn",
+              "source": "games/fps/client/DamageNumbers.ts",
+              "selfMsPerFrame": 0.010618126272912424,
+              "inclusiveMsPerFrame": 0.013954175152749491
+            },
+            {
+              "function": "decodeEntities",
+              "source": "shared/net/BinaryProtocol.ts",
+              "selfMsPerFrame": 0.010438900203665988,
+              "inclusiveMsPerFrame": 0.02215478615071283
+            },
+            {
+              "function": "render",
+              "source": "games/fps/client/RemotePlayerRenderer.ts",
+              "selfMsPerFrame": 0.008421588594704685,
+              "inclusiveMsPerFrame": 0.16714765784114058
+            },
+            {
+              "function": "drawVignette",
+              "source": "engine/ui/hud/DamageOverlay.ts",
+              "selfMsPerFrame": 0.007229124236252546,
+              "inclusiveMsPerFrame": 0.007229124236252546
+            },
+            {
+              "function": "_tick",
+              "source": "engine/ui/hud/DamageOverlay.ts",
+              "selfMsPerFrame": 0.006988798370672097,
+              "inclusiveMsPerFrame": 0.06319959266802444
+            },
+            {
+              "function": "update",
+              "source": "games/fps/client/GibSystem.ts",
+              "selfMsPerFrame": 0.006857433808553973,
+              "inclusiveMsPerFrame": 0.02006313645621182
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "live": [
+    {
+      "rawDirectory": "public/data/benchmarks/results/2026-10-27-cpu-study-live-webgl2-attempt3",
+      "runSha256": "6509dbfc3de0d84f972ce3dab33f8a5a125c6f69e1f7d9ecfd67cad788b7be07",
+      "harnessSha256": "ea9dfb57082a2be0f814ce35461df2f4050edb5bb015cec1048c20d6af0cbed4",
+      "complete": true,
+      "stableSource": true,
+      "sourceBefore": {
+        "engine": "460ad5f5479cd086cb8370c79f34a9a359f0683e",
+        "fps": "ca018d147cf0b5aac6c8f36012af7ac2da19288d",
+        "runtimeHash": "a086309e5e7ba8ec1a17c64c979f5e2044302a1f8e0e9a2f60ee12ac1bd7b530",
+        "media": {
+          "washoi_player_model.pk3": "11ae3b6815c87abbe60831017dfb19044d0a2486608d42af8e0dc67c3839036b",
+          "pk3_manifest.json": "e57bcc014eea8ba29930ce0dc4b1c84ce763ac689f563f3b630a534960a63749",
+          "pk3_index.json": "bb5c3b7ba85bb137d523ffe450a5c360d4b159be1e60fc5bb47ab97cf6ad869f"
+        }
+      },
+      "sourceAfter": {
+        "engine": "460ad5f5479cd086cb8370c79f34a9a359f0683e",
+        "fps": "ca018d147cf0b5aac6c8f36012af7ac2da19288d",
+        "runtimeHash": "a086309e5e7ba8ec1a17c64c979f5e2044302a1f8e0e9a2f60ee12ac1bd7b530",
+        "media": {
+          "washoi_player_model.pk3": "11ae3b6815c87abbe60831017dfb19044d0a2486608d42af8e0dc67c3839036b",
+          "pk3_manifest.json": "e57bcc014eea8ba29930ce0dc4b1c84ce763ac689f563f3b630a534960a63749",
+          "pk3_index.json": "bb5c3b7ba85bb137d523ffe450a5c360d4b159be1e60fc5bb47ab97cf6ad869f"
+        }
+      },
+      "environment": {
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/156.0.0.0 Safari/537.36 Edg/156.0.0.0",
+        "isWebGPU": false,
+        "width": 1256,
+        "height": 581,
+        "dpr": 1,
+        "graphics": {
+          "vendor": "Google Inc. (NVIDIA)",
+          "renderer": "ANGLE (NVIDIA, NVIDIA GeForce RTX 4070 SUPER (0x00002783) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+          "version": "WebGL 2.0 (OpenGL ES 3.0 Chromium)"
+        },
+        "settings": {
+          "r_ssr": 0,
+          "r_glow": 0,
+          "r_daynight": 0,
+          "cl_player_pose_hz": 30,
+          "cl_player_outline": 1
+        }
+      },
+      "phases": [
+        {
+          "phase": "idle",
+          "summarySha256": "fa49bc4e675f363c07167c90388e956315950bb3a855a200e298f587a36aee76",
+          "rawProfileSha256": "5e701dac1174ad0b16dd34cf30db086fc7638d72b30a9788484332cde6424d61",
+          "sliceProfileSha256": "96479deaab70780eaa0a8372807833388609dcaeab16f9a1458300d74b45adfe",
+          "durationMs": 12013.84000012207,
+          "sampledMs": 12013.470000122343,
+          "unsampledMs": 0.36999999972795194,
+          "frameBoundaryCount": 1979,
+          "stableSource": true,
+          "changedFiles": [],
+          "commands": 1504,
+          "confirmedSnapshots": 752,
+          "reconciliations": 0,
+          "resyncs": 0,
+          "pendingInputs": [
+            13,
+            4
+          ],
+          "positionBefore": {
+            "x": 254,
+            "y": 24.03125,
+            "z": -270
+          },
+          "positionAfter": {
+            "x": 254,
+            "y": 24.03125,
+            "z": -270
+          },
+          "intermediatePositions": [],
+          "selected": [
+            {
+              "function": "handleServerStateUpdate",
+              "source": "games/fps/client/GameEvents.ts",
+              "selfMsPerFrame": null,
+              "inclusiveMsPerFrame": null,
+              "selfMs": 10.441000000000003,
+              "inclusiveMs": 41.400999999999996,
+              "selfCpuMsPerSecond": 0.8690809932456162,
+              "inclusiveCpuMsPerSecond": 3.44610882112458
+            },
+            {
+              "function": "renderRemotePlayers",
+              "source": "games/fps/Game.ts",
+              "selfMsPerFrame": null,
+              "inclusiveMsPerFrame": null,
+              "selfMs": 8.24,
+              "inclusiveMs": 79.42699999999996,
+              "selfCpuMsPerSecond": 0.6858756234406547,
+              "inclusiveCpuMsPerSecond": 6.611291643570492
+            },
+            {
+              "function": "trace",
+              "source": "engine/physics/SweepCollisionBackend.ts",
+              "selfMsPerFrame": null,
+              "inclusiveMsPerFrame": null,
+              "selfMs": 5.111,
+              "inclusiveMs": 29.695,
+              "selfCpuMsPerSecond": 0.42542600866567787,
+              "inclusiveCpuMsPerSecond": 2.4717326017075534
+            },
+            {
+              "function": "simulateCore",
+              "source": "games/fps/simulation/MovementProfile.ts",
+              "selfMsPerFrame": null,
+              "inclusiveMsPerFrame": null,
+              "selfMs": 4.439,
+              "inclusiveMs": 39.91299999999998,
+              "selfCpuMsPerSecond": 0.36949052092877016,
+              "inclusiveCpuMsPerSecond": 3.3222516697071405
+            },
+            {
+              "function": "processInput",
+              "source": "games/fps/client/V2NetworkClient.ts",
+              "selfMsPerFrame": null,
+              "inclusiveMsPerFrame": null,
+              "selfMs": 2.8179999999999996,
+              "inclusiveMs": 59.22999999999997,
+              "selfCpuMsPerSecond": 0.2345628042300685,
+              "inclusiveCpuMsPerSecond": 4.930147230144412
+            },
+            {
+              "function": "processBufferedSnapshots",
+              "source": "games/fps/client/V2NetworkClient.ts",
+              "selfMsPerFrame": null,
+              "inclusiveMsPerFrame": null,
+              "selfMs": 2.7380000000000004,
+              "inclusiveMs": 6.609000000000001,
+              "selfCpuMsPerSecond": 0.22790381759472242,
+              "inclusiveCpuMsPerSecond": 0.5501155334125348
+            },
+            {
+              "function": "simulate",
+              "source": "games/fps/simulation/MovementProfile.ts",
+              "selfMsPerFrame": null,
+              "inclusiveMsPerFrame": null,
+              "selfMs": 1.764,
+              "inclusiveMs": 50.34899999999996,
+              "selfCpuMsPerSecond": 0.14683065530938286,
+              "inclusiveCpuMsPerSecond": 4.190916476288045
+            },
+            {
+              "function": "decodeSnapshot",
+              "source": "shared/net/BinaryProtocol.ts",
+              "selfMsPerFrame": null,
+              "inclusiveMsPerFrame": null,
+              "selfMs": 1.6749999999999998,
+              "inclusiveMs": 32.289,
+              "selfCpuMsPerSecond": 0.13942253267756025,
+              "inclusiveCpuMsPerSecond": 2.687650243358653
+            },
+            {
+              "function": "add",
+              "source": "games/fps/client/InputHistory.ts",
+              "selfMsPerFrame": null,
+              "inclusiveMsPerFrame": null,
+              "selfMs": 1.6520000000000001,
+              "inclusiveMs": 1.6520000000000001,
+              "selfCpuMsPerSecond": 0.13750807401989826,
+              "inclusiveCpuMsPerSecond": 0.13750807401989826
+            },
+            {
+              "function": "pruneAcked",
+              "source": "games/fps/client/InputHistory.ts",
+              "selfMsPerFrame": null,
+              "inclusiveMsPerFrame": null,
+              "selfMs": 1.097,
+              "inclusiveMs": 1.097,
+              "selfCpuMsPerSecond": 0.09131135423718424,
+              "inclusiveCpuMsPerSecond": 0.09131135423718424
+            },
+            {
+              "function": "sendInput",
+              "source": "games/fps/Game.ts",
+              "selfMsPerFrame": null,
+              "inclusiveMsPerFrame": null,
+              "selfMs": 1.0790000000000002,
+              "inclusiveMs": 118.79700000000007,
+              "selfCpuMsPerSecond": 0.08981308224423137,
+              "inclusiveCpuMsPerSecond": 9.88834544149023
+            },
+            {
+              "function": "isInView",
+              "source": "games/fps/world/FPSPickup.ts",
+              "selfMsPerFrame": null,
+              "inclusiveMsPerFrame": null,
+              "selfMs": 0.559,
+              "inclusiveMs": 2.821,
+              "selfCpuMsPerSecond": 0.04652966911448131,
+              "inclusiveCpuMsPerSecond": 0.23481251622889404
+            },
+            {
+              "function": "decodeSnapshot",
+              "source": "engine/network/protocol/MessageCodec.ts",
+              "selfMsPerFrame": null,
+              "inclusiveMsPerFrame": null,
+              "selfMs": 0.55,
+              "inclusiveMs": 32.294,
+              "selfCpuMsPerSecond": 0.04578053311800486,
+              "inclusiveCpuMsPerSecond": 2.6880664300233614
+            },
+            {
+              "function": "stepSlideMove",
+              "source": "engine/physics/SweepBackendAdapter.ts",
+              "selfMsPerFrame": null,
+              "inclusiveMsPerFrame": null,
+              "selfMs": 0.55,
+              "inclusiveMs": 1.092,
+              "selfCpuMsPerSecond": 0.04578053311800486,
+              "inclusiveCpuMsPerSecond": 0.09089516757247511
+            },
+            {
+              "function": "get",
+              "source": "games/fps/client/InputHistory.ts",
+              "selfMsPerFrame": null,
+              "inclusiveMsPerFrame": null,
+              "selfMs": 0.54,
+              "inclusiveMs": 0.54,
+              "selfCpuMsPerSecond": 0.04494815978858659,
+              "inclusiveCpuMsPerSecond": 0.04494815978858659
+            },
+            {
+              "function": "trace",
+              "source": "engine/physics/SweepBackendAdapter.ts",
+              "selfMsPerFrame": null,
+              "inclusiveMsPerFrame": null,
+              "selfMs": 0,
+              "inclusiveMs": 32.230000000000004,
+              "selfCpuMsPerSecond": 0,
+              "inclusiveCpuMsPerSecond": 2.682739240715085
+            },
+            {
+              "function": "trace",
+              "source": "shared/collision/SharedCollisionWorld.ts",
+              "selfMsPerFrame": null,
+              "inclusiveMsPerFrame": null,
+              "selfMs": 0,
+              "inclusiveMs": 18.679000000000002,
+              "selfCpuMsPerSecond": 0,
+              "inclusiveCpuMsPerSecond": 1.5547901420203871
+            },
+            {
+              "function": "stepSlideMove",
+              "source": "shared/collision/SharedCollisionWorld.ts",
+              "selfMsPerFrame": null,
+              "inclusiveMsPerFrame": null,
+              "selfMs": 0,
+              "inclusiveMs": 15.192,
+              "selfCpuMsPerSecond": 0,
+              "inclusiveCpuMsPerSecond": 1.264541562052236
+            },
+            {
+              "function": "stepSlideMove",
+              "source": "engine/physics/SweepCollisionBackend.ts",
+              "selfMsPerFrame": null,
+              "inclusiveMsPerFrame": null,
+              "selfMs": 0,
+              "inclusiveMs": 0.542,
+              "selfCpuMsPerSecond": 0,
+              "inclusiveCpuMsPerSecond": 0.04511463445447025
+            }
+          ]
+        },
+        {
+          "phase": "movement",
+          "summarySha256": "319ca54b0dcafedc0bb70f98d47cf74dae46a4016e33c6547e1bcdefe3555cbd",
+          "rawProfileSha256": "468174e1efe93089e73cd336bc429ad1afe8958fe195f4e77a7431f90513e371",
+          "sliceProfileSha256": "fe4d5c87df27bfe8d1222e6f23b8e74fdd5df184d5c20f85ec5968b3d06cb8f2",
+          "durationMs": 12017.32899987793,
+          "sampledMs": 12017.147000000206,
+          "unsampledMs": 0.18199987772277382,
+          "frameBoundaryCount": 1986,
+          "stableSource": true,
+          "changedFiles": [],
+          "commands": 1505,
+          "confirmedSnapshots": 753,
+          "reconciliations": 0,
+          "resyncs": 0,
+          "pendingInputs": [
+            5,
+            3
+          ],
+          "positionBefore": {
+            "x": 254,
+            "y": 24.03125,
+            "z": -270
+          },
+          "positionAfter": {
+            "x": 256.6515019241207,
+            "y": 24.040665550046317,
+            "z": -271.304313342193
+          },
+          "intermediatePositions": [],
+          "selected": [
+            {
+              "function": "simulate",
+              "source": "games/fps/simulation/MovementProfile.ts",
+              "selfMsPerFrame": null,
+              "inclusiveMsPerFrame": null,
+              "selfMs": 11.024000000000001,
+              "inclusiveMs": 100.69300000000001,
+              "selfCpuMsPerSecond": 0.9173419484572638,
+              "inclusiveCpuMsPerSecond": 8.378983383164666
+            },
+            {
+              "function": "simulateCore",
+              "source": "games/fps/simulation/MovementProfile.ts",
+              "selfMsPerFrame": null,
+              "inclusiveMsPerFrame": null,
+              "selfMs": 10.407000000000002,
+              "inclusiveMs": 74.766,
+              "selfCpuMsPerSecond": 0.8659994246729631,
+              "inclusiveCpuMsPerSecond": 6.221515613058399
+            },
+            {
+              "function": "renderRemotePlayers",
+              "source": "games/fps/Game.ts",
+              "selfMsPerFrame": null,
+              "inclusiveMsPerFrame": null,
+              "selfMs": 9.826,
+              "inclusiveMs": 53.06699999999999,
+              "selfCpuMsPerSecond": 0.8176525748858013,
+              "inclusiveCpuMsPerSecond": 4.415873111282802
+            },
+            {
+              "function": "handleServerStateUpdate",
+              "source": "games/fps/client/GameEvents.ts",
+              "selfMsPerFrame": null,
+              "inclusiveMsPerFrame": null,
+              "selfMs": 9.169,
+              "inclusiveMs": 37.717,
+              "selfCpuMsPerSecond": 0.7629815244380127,
+              "inclusiveCpuMsPerSecond": 3.1385510041693228
+            },
+            {
+              "function": "trace",
+              "source": "engine/physics/SweepCollisionBackend.ts",
+              "selfMsPerFrame": null,
+              "inclusiveMsPerFrame": null,
+              "selfMs": 8.716000000000001,
+              "inclusiveMs": 51.75099999999998,
+              "selfCpuMsPerSecond": 0.7252859599740124,
+              "inclusiveCpuMsPerSecond": 4.30636458405405
+            },
+            {
+              "function": "sendInput",
+              "source": "games/fps/Game.ts",
+              "selfMsPerFrame": null,
+              "inclusiveMsPerFrame": null,
+              "selfMs": 5.204,
+              "inclusiveMs": 170.28200000000018,
+              "selfCpuMsPerSecond": 0.43304131891977504,
+              "inclusiveCpuMsPerSecond": 14.169704432801156
+            },
+            {
+              "function": "decodeSnapshot",
+              "source": "shared/net/BinaryProtocol.ts",
+              "selfMsPerFrame": null,
+              "inclusiveMsPerFrame": null,
+              "selfMs": 2.896,
+              "inclusiveMs": 29.863000000000003,
+              "selfCpuMsPerSecond": 0.24098533043652356,
+              "inclusiveCpuMsPerSecond": 2.4849947937934753
+            },
+            {
+              "function": "add",
+              "source": "games/fps/client/InputHistory.ts",
+              "selfMsPerFrame": null,
+              "inclusiveMsPerFrame": null,
+              "selfMs": 2.394,
+              "inclusiveMs": 2.394,
+              "selfCpuMsPerSecond": 0.19921232080975051,
+              "inclusiveCpuMsPerSecond": 0.19921232080975051
+            },
+            {
+              "function": "isInView",
+              "source": "games/fps/world/FPSPickup.ts",
+              "selfMsPerFrame": null,
+              "inclusiveMsPerFrame": null,
+              "selfMs": 1.686,
+              "inclusiveMs": 5.911999999999999,
+              "selfCpuMsPerSecond": 0.14029739886601475,
+              "inclusiveCpuMsPerSecond": 0.49195624086351075
+            },
+            {
+              "function": "processInput",
+              "source": "games/fps/client/V2NetworkClient.ts",
+              "selfMsPerFrame": null,
+              "inclusiveMsPerFrame": null,
+              "selfMs": 1.6400000000000001,
+              "inclusiveMs": 111.21300000000004,
+              "selfCpuMsPerSecond": 0.1364695932030037,
+              "inclusiveCpuMsPerSecond": 9.254385895661983
+            },
+            {
+              "function": "decodeSnapshot",
+              "source": "engine/network/protocol/MessageCodec.ts",
+              "selfMsPerFrame": null,
+              "inclusiveMsPerFrame": null,
+              "selfMs": 1.6270000000000002,
+              "inclusiveMs": 32.041000000000004,
+              "selfCpuMsPerSecond": 0.13538782203737013,
+              "inclusiveCpuMsPerSecond": 2.666233070620391
+            },
+            {
+              "function": "stepSlideMove",
+              "source": "engine/physics/SweepCollisionBackend.ts",
+              "selfMsPerFrame": null,
+              "inclusiveMsPerFrame": null,
+              "selfMs": 1.086,
+              "inclusiveMs": 33.635000000000005,
+              "selfCpuMsPerSecond": 0.09036949891369635,
+              "inclusiveCpuMsPerSecond": 2.7988748581603837
+            },
+            {
+              "function": "processBufferedSnapshots",
+              "source": "games/fps/client/V2NetworkClient.ts",
+              "selfMsPerFrame": null,
+              "inclusiveMsPerFrame": null,
+              "selfMs": 1.078,
+              "inclusiveMs": 4.9510000000000005,
+              "selfCpuMsPerSecond": 0.08970379358099877,
+              "inclusiveCpuMsPerSecond": 0.41198838777321417
+            },
+            {
+              "function": "get",
+              "source": "games/fps/client/InputHistory.ts",
+              "selfMsPerFrame": null,
+              "inclusiveMsPerFrame": null,
+              "selfMs": 0.944,
+              "inclusiveMs": 0.944,
+              "selfCpuMsPerSecond": 0.0785532292583143,
+              "inclusiveCpuMsPerSecond": 0.0785532292583143
+            },
+            {
+              "function": "trace",
+              "source": "engine/physics/SweepBackendAdapter.ts",
+              "selfMsPerFrame": null,
+              "inclusiveMsPerFrame": null,
+              "selfMs": 0.653,
+              "inclusiveMs": 24.789,
+              "selfCpuMsPerSecond": 0.05433819778143988,
+              "inclusiveCpuMsPerSecond": 2.0627711865300355
+            },
+            {
+              "function": "trace",
+              "source": "shared/collision/SharedCollisionWorld.ts",
+              "selfMsPerFrame": null,
+              "inclusiveMsPerFrame": null,
+              "selfMs": 0.549,
+              "inclusiveMs": 20.947999999999997,
+              "selfCpuMsPerSecond": 0.04568402845637136,
+              "inclusiveCpuMsPerSecond": 1.74314941366861
+            },
+            {
+              "function": "stepSlideMove",
+              "source": "engine/physics/SweepBackendAdapter.ts",
+              "selfMsPerFrame": null,
+              "inclusiveMsPerFrame": null,
+              "selfMs": 0.543,
+              "inclusiveMs": 34.178000000000004,
+              "selfCpuMsPerSecond": 0.045184749456848174,
+              "inclusiveCpuMsPerSecond": 2.8440596076172318
+            },
+            {
+              "function": "stepSlideMove",
+              "source": "shared/collision/SharedCollisionWorld.ts",
+              "selfMsPerFrame": null,
+              "inclusiveMsPerFrame": null,
+              "selfMs": 0.247,
+              "inclusiveMs": 39.367999999999995,
+              "selfCpuMsPerSecond": 0.02055365214703775,
+              "inclusiveCpuMsPerSecond": 3.2759359422047853
+            }
+          ]
+        }
+      ],
+      "limitation": "One player/no bots, randomized spawn and headless browser. Counter differences are observed; CPU rates are not an accepted A/B timing comparison. Slice and frame boundaries differ by CDP bracketing uncertainty."
+    },
+    {
+      "rawDirectory": "public/data/benchmarks/results/2026-10-27-cpu-study-live-webgl2-delay100",
+      "runSha256": "9d385d1fe9f2e365548e5ed2355c8b158e6090c176f77b3f89fa675387a1bd7f",
+      "harnessSha256": "b4281f5bebe389c3586d9b05ea80d3f63e1014b77c72305d535405ecc8a82997",
+      "complete": true,
+      "stableSource": true,
+      "requestedOneWayDelayMs": 100,
+      "sourceBefore": {
+        "engine": "460ad5f5479cd086cb8370c79f34a9a359f0683e",
+        "fps": "ca018d147cf0b5aac6c8f36012af7ac2da19288d",
+        "runtimeHash": "a086309e5e7ba8ec1a17c64c979f5e2044302a1f8e0e9a2f60ee12ac1bd7b530",
+        "media": {
+          "washoi_player_model.pk3": "11ae3b6815c87abbe60831017dfb19044d0a2486608d42af8e0dc67c3839036b",
+          "pk3_manifest.json": "e57bcc014eea8ba29930ce0dc4b1c84ce763ac689f563f3b630a534960a63749",
+          "pk3_index.json": "bb5c3b7ba85bb137d523ffe450a5c360d4b159be1e60fc5bb47ab97cf6ad869f"
+        }
+      },
+      "sourceAfter": {
+        "engine": "460ad5f5479cd086cb8370c79f34a9a359f0683e",
+        "fps": "ca018d147cf0b5aac6c8f36012af7ac2da19288d",
+        "runtimeHash": "a086309e5e7ba8ec1a17c64c979f5e2044302a1f8e0e9a2f60ee12ac1bd7b530",
+        "media": {
+          "washoi_player_model.pk3": "11ae3b6815c87abbe60831017dfb19044d0a2486608d42af8e0dc67c3839036b",
+          "pk3_manifest.json": "e57bcc014eea8ba29930ce0dc4b1c84ce763ac689f563f3b630a534960a63749",
+          "pk3_index.json": "bb5c3b7ba85bb137d523ffe450a5c360d4b159be1e60fc5bb47ab97cf6ad869f"
+        }
+      },
+      "environment": {
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/156.0.0.0 Safari/537.36 Edg/156.0.0.0",
+        "isWebGPU": false,
+        "width": 1256,
+        "height": 581,
+        "dpr": 1,
+        "graphics": {
+          "vendor": "Google Inc. (NVIDIA)",
+          "renderer": "ANGLE (NVIDIA, NVIDIA GeForce RTX 4070 SUPER (0x00002783) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+          "version": "WebGL 2.0 (OpenGL ES 3.0 Chromium)"
+        },
+        "settings": {
+          "r_ssr": 0,
+          "r_glow": 0,
+          "r_daynight": 0,
+          "cl_player_pose_hz": 30,
+          "cl_player_outline": 1
+        }
+      },
+      "phases": [
+        {
+          "phase": "idle",
+          "summarySha256": "51ba04d1f20f8a21f35440c502937cf090a46dc35ef2b96370ec28dcc116259d",
+          "rawProfileSha256": "c40e097c903719e83936db0d7a311d5216ca6320b226b4cace641f0bd5d9c15a",
+          "sliceProfileSha256": "1b81cc63a2a881c66dcb278d725f74f2fe2a83a736bad5cc2bf08ac87088641a",
+          "durationMs": 12002.336999877929,
+          "sampledMs": 12002.30300000024,
+          "unsampledMs": 0.03399987768898427,
+          "frameBoundaryCount": 1984,
+          "stableSource": true,
+          "changedFiles": [],
+          "commands": 1502,
+          "confirmedSnapshots": 737,
+          "reconciliations": 0,
+          "resyncs": 0,
+          "pendingInputs": [
+            39,
+            29
+          ],
+          "physicsBodies": 88,
+          "ragdolls": 0,
+          "positionBefore": {
+            "x": -798,
+            "y": 424.03125,
+            "z": -344
+          },
+          "positionAfter": {
+            "x": -798,
+            "y": 424.03125,
+            "z": -344
+          },
+          "intermediatePositions": [],
+          "selected": [
+            {
+              "function": "renderRemotePlayers",
+              "source": "games/fps/Game.ts",
+              "selfMsPerFrame": null,
+              "inclusiveMsPerFrame": null,
+              "selfMs": 14.969000000000001,
+              "inclusiveMs": 71.43100000000001,
+              "selfCpuMsPerSecond": 1.2471737795857794,
+              "inclusiveCpuMsPerSecond": 5.951424293512714
+            },
+            {
+              "function": "simulateCore",
+              "source": "games/fps/simulation/MovementProfile.ts",
+              "selfMsPerFrame": null,
+              "inclusiveMsPerFrame": null,
+              "selfMs": 5.890000000000001,
+              "inclusiveMs": 37.717999999999996,
+              "selfCpuMsPerSecond": 0.49073776215914494,
+              "inclusiveCpuMsPerSecond": 3.1425546541797327
+            },
+            {
+              "function": "sendInput",
+              "source": "games/fps/Game.ts",
+              "selfMsPerFrame": null,
+              "inclusiveMsPerFrame": null,
+              "selfMs": 4.938000000000001,
+              "inclusiveMs": 118.831,
+              "selfCpuMsPerSecond": 0.41141987598333746,
+              "inclusiveCpuMsPerSecond": 9.90065518083758
+            },
+            {
+              "function": "trace",
+              "source": "engine/physics/SweepCollisionBackend.ts",
+              "selfMsPerFrame": null,
+              "inclusiveMsPerFrame": null,
+              "selfMs": 4.356000000000001,
+              "inclusiveMs": 26.565000000000005,
+              "selfCpuMsPerSecond": 0.3629293195187157,
+              "inclusiveCpuMsPerSecond": 2.213318956155804
+            },
+            {
+              "function": "handleServerStateUpdate",
+              "source": "games/fps/client/GameEvents.ts",
+              "selfMsPerFrame": null,
+              "inclusiveMsPerFrame": null,
+              "selfMs": 3.739,
+              "inclusiveMs": 43.661,
+              "selfCpuMsPerSecond": 0.3115226642976303,
+              "inclusiveCpuMsPerSecond": 3.637708223027237
+            },
+            {
+              "function": "isInView",
+              "source": "games/fps/world/FPSPickup.ts",
+              "selfMsPerFrame": null,
+              "inclusiveMsPerFrame": null,
+              "selfMs": 3.3460000000000005,
+              "inclusiveMs": 12.969,
+              "selfCpuMsPerSecond": 0.2787790411179116,
+              "inclusiveCpuMsPerSecond": 1.0805395649307215
+            },
+            {
+              "function": "processBufferedSnapshots",
+              "source": "games/fps/client/V2NetworkClient.ts",
+              "selfMsPerFrame": null,
+              "inclusiveMsPerFrame": null,
+              "selfMs": 2.722,
+              "inclusiveMs": 8.133,
+              "selfCpuMsPerSecond": 0.22678916614553352,
+              "inclusiveCpuMsPerSecond": 0.677618033894792
+            },
+            {
+              "function": "add",
+              "source": "games/fps/client/InputHistory.ts",
+              "selfMsPerFrame": null,
+              "inclusiveMsPerFrame": null,
+              "selfMs": 2.285,
+              "inclusiveMs": 2.285,
+              "selfCpuMsPerSecond": 0.19037959024340342,
+              "inclusiveCpuMsPerSecond": 0.19037959024340342
+            },
+            {
+              "function": "simulate",
+              "source": "games/fps/simulation/MovementProfile.ts",
+              "selfMsPerFrame": null,
+              "inclusiveMsPerFrame": null,
+              "selfMs": 2.202,
+              "inclusiveMs": 46.34699999999998,
+              "selfCpuMsPerSecond": 0.1834642703352185,
+              "inclusiveCpuMsPerSecond": 3.861497973308978
+            },
+            {
+              "function": "decodeSnapshot",
+              "source": "shared/net/BinaryProtocol.ts",
+              "selfMsPerFrame": null,
+              "inclusiveMsPerFrame": null,
+              "selfMs": 2.156,
+              "inclusiveMs": 33.45500000000001,
+              "selfCpuMsPerSecond": 0.1796316833981522,
+              "inclusiveCpuMsPerSecond": 2.7873738256424785
+            },
+            {
+              "function": "processInput",
+              "source": "games/fps/client/V2NetworkClient.ts",
+              "selfMsPerFrame": null,
+              "inclusiveMsPerFrame": null,
+              "selfMs": 2.1540000000000004,
+              "inclusiveMs": 51.88699999999998,
+              "selfCpuMsPerSecond": 0.17946504918349715,
+              "inclusiveCpuMsPerSecond": 4.323074747903488
+            },
+            {
+              "function": "decodeSnapshot",
+              "source": "engine/network/protocol/MessageCodec.ts",
+              "selfMsPerFrame": null,
+              "inclusiveMsPerFrame": null,
+              "selfMs": 0.557,
+              "inclusiveMs": 34.012000000000015,
+              "selfCpuMsPerSecond": 0.04640762878143357,
+              "inclusiveCpuMsPerSecond": 2.8337814544239124
+            },
+            {
+              "function": "stepSlideMove",
+              "source": "shared/collision/SharedCollisionWorld.ts",
+              "selfMsPerFrame": null,
+              "inclusiveMsPerFrame": null,
+              "selfMs": 0.551,
+              "inclusiveMs": 11.932000000000002,
+              "selfCpuMsPerSecond": 0.045907726137468394,
+              "inclusiveCpuMsPerSecond": 0.9941397246320743
+            },
+            {
+              "function": "get",
+              "source": "games/fps/client/InputHistory.ts",
+              "selfMsPerFrame": null,
+              "inclusiveMsPerFrame": null,
+              "selfMs": 0.537,
+              "inclusiveMs": 0.537,
+              "selfCpuMsPerSecond": 0.04474128663488299,
+              "inclusiveCpuMsPerSecond": 0.04474128663488299
+            },
+            {
+              "function": "trace",
+              "source": "shared/collision/SharedCollisionWorld.ts",
+              "selfMsPerFrame": null,
+              "inclusiveMsPerFrame": null,
+              "selfMs": 0.53,
+              "inclusiveMs": 18.813,
+              "selfCpuMsPerSecond": 0.04415806688359029,
+              "inclusiveCpuMsPerSecond": 1.5674447401528
+            },
+            {
+              "function": "pruneAcked",
+              "source": "games/fps/client/InputHistory.ts",
+              "selfMsPerFrame": null,
+              "inclusiveMsPerFrame": null,
+              "selfMs": 0.516,
+              "inclusiveMs": 0.516,
+              "selfCpuMsPerSecond": 0.042991627381004885,
+              "inclusiveCpuMsPerSecond": 0.042991627381004885
+            },
+            {
+              "function": "trace",
+              "source": "engine/physics/SweepBackendAdapter.ts",
+              "selfMsPerFrame": null,
+              "inclusiveMsPerFrame": null,
+              "selfMs": 0,
+              "inclusiveMs": 28.586000000000006,
+              "selfCpuMsPerSecond": 0,
+              "inclusiveCpuMsPerSecond": 2.38170283006474
+            },
+            {
+              "function": "stepSlideMove",
+              "source": "engine/physics/SweepBackendAdapter.ts",
+              "selfMsPerFrame": null,
+              "inclusiveMsPerFrame": null,
+              "selfMs": 0,
+              "inclusiveMs": 1.078,
+              "selfCpuMsPerSecond": 0,
+              "inclusiveCpuMsPerSecond": 0.0898158416990761
+            },
+            {
+              "function": "stepSlideMove",
+              "source": "engine/physics/SweepCollisionBackend.ts",
+              "selfMsPerFrame": null,
+              "inclusiveMsPerFrame": null,
+              "selfMs": 0,
+              "inclusiveMs": 0.553,
+              "selfCpuMsPerSecond": 0,
+              "inclusiveCpuMsPerSecond": 0.04607436035212346
+            }
+          ]
+        },
+        {
+          "phase": "movement",
+          "summarySha256": "f08638c90cb9e7bbab2947c5d936dcaaaf11e59e96780bf8215cc1a40c8c58a0",
+          "rawProfileSha256": "e3f006717658d07b2a9628e96057f9a9ee04bfce113d9471cbfda5c2bf020da3",
+          "sliceProfileSha256": "92ab66a185c7047f103097084256b8eb163ed8e91caef2344f6268b93a1ffff7",
+          "durationMs": 12057.93899987793,
+          "sampledMs": 12057.696000000213,
+          "unsampledMs": 0.24299987771701126,
+          "frameBoundaryCount": 1993,
+          "stableSource": true,
+          "changedFiles": [],
+          "commands": 1510,
+          "confirmedSnapshots": 749,
+          "reconciliations": 0,
+          "resyncs": 0,
+          "pendingInputs": [
+            38,
+            30
+          ],
+          "physicsBodies": 88,
+          "ragdolls": 0,
+          "positionBefore": {
+            "x": -798,
+            "y": 424.03125,
+            "z": -344
+          },
+          "positionAfter": {
+            "x": -799.96875,
+            "y": 424.0531368100966,
+            "z": -449.03480915281057
+          },
+          "intermediatePositions": [
+            {
+              "x": -640.007254081773,
+              "y": 424.03125,
+              "z": -344
+            },
+            {
+              "x": -581.6537259136855,
+              "y": 424.0430493090475,
+              "z": -671.96875
+            }
+          ],
+          "selected": [
+            {
+              "function": "isInView",
+              "source": "games/fps/world/FPSPickup.ts",
+              "selfMsPerFrame": null,
+              "inclusiveMsPerFrame": null,
+              "selfMs": 10.344,
+              "inclusiveMs": 23.598000000000003,
+              "selfCpuMsPerSecond": 0.8578580468938115,
+              "inclusiveCpuMsPerSecond": 1.9570508691608823
+            },
+            {
+              "function": "trace",
+              "source": "engine/physics/SweepCollisionBackend.ts",
+              "selfMsPerFrame": null,
+              "inclusiveMsPerFrame": null,
+              "selfMs": 7.772,
+              "inclusiveMs": 54.855,
+              "selfCpuMsPerSecond": 0.6445545959453503,
+              "inclusiveCpuMsPerSecond": 4.549284915154682
+            },
+            {
+              "function": "handleServerStateUpdate",
+              "source": "games/fps/client/GameEvents.ts",
+              "selfMsPerFrame": null,
+              "inclusiveMsPerFrame": null,
+              "selfMs": 6.5,
+              "inclusiveMs": 43.126,
+              "selfCpuMsPerSecond": 0.5390639312461113,
+              "inclusiveCpuMsPerSecond": 3.576564784449199
+            },
+            {
+              "function": "simulate",
+              "source": "games/fps/simulation/MovementProfile.ts",
+              "selfMsPerFrame": null,
+              "inclusiveMsPerFrame": null,
+              "selfMs": 6.1370000000000005,
+              "inclusiveMs": 89.2000000000001,
+              "selfCpuMsPerSecond": 0.5089592840088285,
+              "inclusiveCpuMsPerSecond": 7.397615794946643
+            },
+            {
+              "function": "simulateCore",
+              "source": "games/fps/simulation/MovementProfile.ts",
+              "selfMsPerFrame": null,
+              "inclusiveMsPerFrame": null,
+              "selfMs": 5.702000000000001,
+              "inclusiveMs": 72.59600000000003,
+              "selfCpuMsPerSecond": 0.47288346707158874,
+              "inclusiveCpuMsPerSecond": 6.020597715806571
+            },
+            {
+              "function": "renderRemotePlayers",
+              "source": "games/fps/Game.ts",
+              "selfMsPerFrame": null,
+              "inclusiveMsPerFrame": null,
+              "selfMs": 5.3790000000000004,
+              "inclusiveMs": 56.47799999999998,
+              "selfCpuMsPerSecond": 0.44609613633428197,
+              "inclusiveCpuMsPerSecond": 4.68388503214121
+            },
+            {
+              "function": "sendInput",
+              "source": "games/fps/Game.ts",
+              "selfMsPerFrame": null,
+              "inclusiveMsPerFrame": null,
+              "selfMs": 5.104,
+              "inclusiveMs": 162.97200000000004,
+              "selfCpuMsPerSecond": 0.42328958539694644,
+              "inclusiveCpuMsPerSecond": 13.515742615852503
+            },
+            {
+              "function": "processInput",
+              "source": "games/fps/client/V2NetworkClient.ts",
+              "selfMsPerFrame": null,
+              "inclusiveMsPerFrame": null,
+              "selfMs": 3.33,
+              "inclusiveMs": 99.8070000000001,
+              "selfCpuMsPerSecond": 0.2761665986230078,
+              "inclusiveCpuMsPerSecond": 8.277285197827798
+            },
+            {
+              "function": "decodeSnapshot",
+              "source": "shared/net/BinaryProtocol.ts",
+              "selfMsPerFrame": null,
+              "inclusiveMsPerFrame": null,
+              "selfMs": 2.7110000000000003,
+              "inclusiveMs": 23.704999999999995,
+              "selfCpuMsPerSecond": 0.22483112578587813,
+              "inclusiveCpuMsPerSecond": 1.9659246907983177
+            },
+            {
+              "function": "decodeSnapshot",
+              "source": "engine/network/protocol/MessageCodec.ts",
+              "selfMsPerFrame": null,
+              "inclusiveMsPerFrame": null,
+              "selfMs": 2.7030000000000003,
+              "inclusiveMs": 26.408,
+              "selfCpuMsPerSecond": 0.2241676624858829,
+              "inclusiveCpuMsPerSecond": 2.190092353284201
+            },
+            {
+              "function": "stepSlideMove",
+              "source": "engine/physics/SweepBackendAdapter.ts",
+              "selfMsPerFrame": null,
+              "inclusiveMsPerFrame": null,
+              "selfMs": 2.6689999999999996,
+              "inclusiveMs": 31.284000000000006,
+              "selfCpuMsPerSecond": 0.2213479434609032,
+              "inclusiveCpuMsPerSecond": 2.5944732346312844
+            },
+            {
+              "function": "add",
+              "source": "games/fps/client/InputHistory.ts",
+              "selfMsPerFrame": null,
+              "inclusiveMsPerFrame": null,
+              "selfMs": 2.146,
+              "inclusiveMs": 2.692,
+              "selfCpuMsPerSecond": 0.1779740302237161,
+              "inclusiveCpuMsPerSecond": 0.22325540044838948
+            },
+            {
+              "function": "pruneAcked",
+              "source": "games/fps/client/InputHistory.ts",
+              "selfMsPerFrame": null,
+              "inclusiveMsPerFrame": null,
+              "selfMs": 1.109,
+              "inclusiveMs": 1.109,
+              "selfCpuMsPerSecond": 0.09197259996183652,
+              "inclusiveCpuMsPerSecond": 0.09197259996183652
+            },
+            {
+              "function": "stepSlideMove",
+              "source": "shared/collision/SharedCollisionWorld.ts",
+              "selfMsPerFrame": null,
+              "inclusiveMsPerFrame": null,
+              "selfMs": 1.072,
+              "inclusiveMs": 38.847,
+              "selfCpuMsPerSecond": 0.08890408219935866,
+              "inclusiveCpuMsPerSecond": 3.2216948518642594
+            },
+            {
+              "function": "stepSlideMove",
+              "source": "engine/physics/SweepCollisionBackend.ts",
+              "selfMsPerFrame": null,
+              "inclusiveMsPerFrame": null,
+              "selfMs": 0.912,
+              "inclusiveMs": 28.076000000000004,
+              "selfCpuMsPerSecond": 0.07563481619945438,
+              "inclusiveCpuMsPerSecond": 2.3284244513332033
+            },
+            {
+              "function": "trace",
+              "source": "engine/physics/SweepBackendAdapter.ts",
+              "selfMsPerFrame": null,
+              "inclusiveMsPerFrame": null,
+              "selfMs": 0.545,
+              "inclusiveMs": 29.893999999999995,
+              "selfCpuMsPerSecond": 0.04519843731217395,
+              "inclusiveCpuMsPerSecond": 2.479196486257115
+            },
+            {
+              "function": "processBufferedSnapshots",
+              "source": "games/fps/client/V2NetworkClient.ts",
+              "selfMsPerFrame": null,
+              "inclusiveMsPerFrame": null,
+              "selfMs": 0.543,
+              "inclusiveMs": 5.498,
+              "selfCpuMsPerSecond": 0.04503257148717514,
+              "inclusiveCpuMsPerSecond": 0.45596515292171075
+            },
+            {
+              "function": "trace",
+              "source": "shared/collision/SharedCollisionWorld.ts",
+              "selfMsPerFrame": null,
+              "inclusiveMsPerFrame": null,
+              "selfMs": 0,
+              "inclusiveMs": 24.526999999999997,
+              "selfCpuMsPerSecond": 0,
+              "inclusiveCpuMsPerSecond": 2.034095544872826
+            },
+            {
+              "function": "trace",
+              "source": "engine/physics/CollisionManager.ts",
+              "selfMsPerFrame": null,
+              "inclusiveMsPerFrame": null,
+              "selfMs": 0,
+              "inclusiveMs": 0.541,
+              "selfCpuMsPerSecond": 0,
+              "inclusiveCpuMsPerSecond": 0.04486670566217634
+            }
+          ]
+        }
+      ],
+      "limitation": "One player/no bots, randomized spawn and headless browser. Counter differences are observed; CPU rates are not an accepted A/B timing comparison. Slice and frame boundaries differ by CDP bracketing uncertainty.",
+      "proxy": {
+        "messages": 10186,
+        "bytes": 1963183,
+        "errors": [],
+        "minDelayMs": 99.04760000000533,
+        "p50DelayMs": 101.11030000000028,
+        "p95DelayMs": 109.34769999999844,
+        "p99DelayMs": 689.6235000000015,
+        "maxDelayMs": 1423.6224000000002,
+        "limitation": "Aggregate forwarding delay spans startup and measured phases; configured delay is not a constant observed RTT."
+      },
+      "archivedHarnessMatches": true,
+      "proxyHarnessSha256": "a3169ed25cac02917c8c395ee3bb7d27770768ffd99be3ebc29e229f9e18f303"
+    }
+  ],
+  "rejectedAttempts": [
+    {
+      "rawDirectory": "public/data/benchmarks/results/2026-10-27-cpu-study-live-webgl2",
+      "reason": "Loadout unconfirmed; spectator state and no prediction commands."
+    },
+    {
+      "rawDirectory": "public/data/benchmarks/results/2026-10-27-cpu-study-live-webgl2-attempt2",
+      "reason": "Completed live movement but broad source fingerprint changed; diagnostic only."
+    }
+  ]
+}

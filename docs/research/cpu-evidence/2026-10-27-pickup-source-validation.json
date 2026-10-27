@@ -1,0 +1,115 @@
+{
+  "date": "2026-10-27",
+  "scope": "Constant pickup GLB source animation ownership; isolated API/render checks, not a full game replay or FPS benchmark.",
+  "source": {
+    "head": "fbaa33b29d91a8d96c6d5f8a0f0f0de2a9219195",
+    "fps": "ca018d147cf0b5aac6c8f36012af7ac2da19288d",
+    "runtimeDiffHash": "743513fa207c672965732c88f9d131f9ae24f5d5021f4baf072cb33d5e846fda",
+    "preloaderHash": "fc442ccc5a17046738479ab91b766c208e3b5f1caee85c7e9516458c7fb7d634"
+  },
+  "rawReport": "public/data/benchmarks/results/2026-10-27-pickup-source-verified/run.json",
+  "rawReportSha256": "118cbb385608293361325580c8e94af29caae8badaddaa046e927056d7a29361",
+  "testRunLogSha256": "a5382e88553aaf468c89236d721a1ade6d6fe928ae19a8823a5214fcd40c9524",
+  "backends": [
+    {
+      "backend": "webgl2",
+      "actualClass": "ThinEngine",
+      "isWebGPU": false,
+      "webGLVersion": 2,
+      "channels": {
+        "initial": 0,
+        "control": 150,
+        "settled": 0
+      },
+      "exactSourcePoseAttachmentAndPaletteParity": true,
+      "sourceCount": 6,
+      "sharedCloneSkeletonObserved": true,
+      "runtimeExceptions": [],
+      "httpFailures": [],
+      "warnings": [
+        "warning: BJS - [10:49:26]: /skins/0: Failed to find common root",
+        "warning: BJS - [10:49:26]: /skins/0: Failed to find common root",
+        "warning: BJS - [10:49:26]: /skins/0: Failed to find common root",
+        "warning: BJS - [10:49:26]: /skins/0: Failed to find common root",
+        "warning: BJS - [10:49:26]: /skins/0: Failed to find common root",
+        "warning: BJS - [10:49:26]: /skins/0: Failed to find common root"
+      ]
+    },
+    {
+      "backend": "webgpu",
+      "actualClass": "AbstractEngine",
+      "isWebGPU": true,
+      "channels": {
+        "initial": 0,
+        "control": 150,
+        "settled": 0
+      },
+      "exactSourcePoseAttachmentAndPaletteParity": true,
+      "sourceCount": 6,
+      "sharedCloneSkeletonObserved": true,
+      "runtimeExceptions": [],
+      "httpFailures": [],
+      "warnings": [
+        "warning: BJS - [10:49:32]: /skins/0: Failed to find common root",
+        "warning: BJS - [10:49:32]: /skins/0: Failed to find common root",
+        "warning: BJS - [10:49:32]: /skins/0: Failed to find common root",
+        "warning: BJS - [10:49:32]: /skins/0: Failed to find common root",
+        "warning: BJS - [10:49:32]: /skins/0: Failed to find common root",
+        "warning: BJS - [10:49:32]: /skins/0: Failed to find common root"
+      ]
+    }
+  ],
+  "validation": [
+    {
+      "command": "npm.cmd run typecheck",
+      "result": "pass"
+    },
+    {
+      "command": "npm.cmd run test:run",
+      "result": "743 files passed; 5776 tests passed; 1 skipped"
+    },
+    {
+      "command": "npm.cmd run gate:biome",
+      "result": "pass; 0 errors, 47 warnings; baseline unchanged"
+    },
+    {
+      "command": "npm.cmd run build",
+      "result": "production build and sourcemap relocation completed"
+    },
+    {
+      "command": "npm.cmd run docs:build",
+      "result": "pass; confirmed native exit 0"
+    },
+    {
+      "command": "npm.cmd --prefix src/games/fps run test:simulation",
+      "result": "pass; native exit 0"
+    },
+    {
+      "command": "npm.cmd --prefix src/games/fps run test:physics",
+      "result": "pass; expected position diagnostic; native exit 0"
+    },
+    {
+      "command": "npm.cmd --prefix src/games/fps run server:tick",
+      "result": "pass; checksums match; native exit 0"
+    },
+    {
+      "command": "npm.cmd --prefix src/games/fps run server:fuzz -- --ticks 1000",
+      "result": "pass; no errors, repeated checksum 473413716; native exit 0"
+    },
+    {
+      "command": "npm.cmd --prefix src/games/fps run cli:game -- --exec \"bsp load washoi_dm2; bsp info; quit\"",
+      "result": "pass; Faces: 7475; native exit 0"
+    },
+    {
+      "command": "node .cache/cpu-study/pickup-source-verified.mjs",
+      "result": "pass; both real-GPU backends; native exit 0"
+    }
+  ],
+  "notes": [
+    "First full suite failed only because the new AnimationEvent test import needed a generated Vite optimizeDeps entry; npm.cmd run deps:babylon added one entry and the full suite then passed.",
+    "PowerShell stderr redirection returned a shell error for successful full-test/build progress output; complete runner and postbuild summaries were checked. Later redirected checks explicitly returned LASTEXITCODE, including a confirming manual build.",
+    "Full-demo probe did not complete and is excluded. Earlier isolated attempts used duplicate Babylon Scene imports, then an incorrect class-name assertion; both are excluded. The selected run uses Vite-resolved imports and checks isWebGPU/webGLVersion.",
+    "Existing Failed to find common root warnings occur six times on each backend. No runtime exceptions or HTTP failures in the selected run.",
+    "No full gameplay replay, weak-hardware timing comparison or production deployment was performed for this implementation."
+  ]
+}

@@ -5,8 +5,10 @@
  * and preloads them to avoid loading hitches during gameplay.
  */
 
+import { Animation } from "@babylonjs/core/Animations/animation";
+import type { AnimationGroup } from "@babylonjs/core/Animations/animationGroup";
 import type { Material } from "@babylonjs/core/Materials/material";
-import { Vector3 } from "@babylonjs/core/Maths/math.vector";
+import { Quaternion, Vector3 } from "@babylonjs/core/Maths/math.vector";
 import type { Mesh } from "@babylonjs/core/Meshes/mesh";
 import { TransformNode } from "@babylonjs/core/Meshes/transformNode";
 import type { Scene } from "@babylonjs/core/scene";
@@ -178,6 +180,7 @@ export class AssetPreloader {
                 }
               }
 
+              this.settleConstantSourceAnimations(root, glbResult.animationGroups);
               result = {
                 root,
                 meshes,
@@ -329,6 +332,54 @@ export class AssetPreloader {
     } catch (e) {
       console.warn(`[AssetPreloader] Failed to clone cached model:`, e);
       return null;
+    }
+  }
+
+  /** Constant pickup clips supply a pose; animated sources still drive their shared clone skeletons. */
+  private settleConstantSourceAnimations(root: TransformNode, groups: readonly AnimationGroup[]): void {
+    const active = groups.filter((group) => group.isStarted);
+    // Preserve the whole active set when clips can interact or carry timed behavior.
+    if (
+      active.some(
+        (group) =>
+          group.isAdditive ||
+          group.weight !== -1 ||
+          group.enableBlending ||
+          group.onAnimationGroupEndObservable.hasObservers() ||
+          group.onAnimationGroupLoopObservable.hasObservers() ||
+          group.targetedAnimations.length === 0 ||
+          !group.targetedAnimations.every(({ target, animation }) => {
+            if (
+              !(target instanceof TransformNode) ||
+              (target !== root && !target.isDescendantOf(root)) ||
+              target.animationPropertiesOverride ||
+              !["position", "rotation", "rotationQuaternion", "scaling"].includes(animation.targetProperty) ||
+              animation.loopMode !== Animation.ANIMATIONLOOPMODE_CYCLE ||
+              animation.enableBlending ||
+              animation.getEvents().length > 0
+            )
+              return false;
+            const keys = animation.getKeys();
+            const first: unknown = keys[0]?.value;
+            return (
+              (first instanceof Vector3 || first instanceof Quaternion) &&
+              keys.every((key) => {
+                // Equal cubic endpoints can still move between keys. Unknown curve types stay active.
+                if (key.inTangent !== undefined || key.outTangent !== undefined) return false;
+                const value: unknown = key.value;
+                return first instanceof Vector3
+                  ? value instanceof Vector3 && first.equals(value)
+                  : value instanceof Quaternion && first.equals(value);
+              })
+            );
+          }),
+      )
+    )
+      return;
+    for (const group of active) {
+      // Apply the authored pose even when caching finishes before the first animation tick.
+      group.goToFrame(group.from);
+      group.stop(true);
     }
   }
 

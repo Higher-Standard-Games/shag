@@ -1,0 +1,189 @@
+{
+  "date": "2026-10-27",
+  "package": "washoi_player_model.pk3",
+  "packageSha256": "11ae3b6815c87abbe60831017dfb19044d0a2486608d42af8e0dc67c3839036b",
+  "skinJointCount": 65,
+  "sampleRate": 30,
+  "clips": [
+    {
+      "name": "idle",
+      "file": "rifle aiming idle.glb",
+      "optional": false,
+      "present": true,
+      "durationSeconds": 3.06666660308838,
+      "estimatedFrames30Hz": 93,
+      "sourceChannels": 53
+    },
+    {
+      "name": "run",
+      "file": "rifle run.glb",
+      "optional": false,
+      "present": true,
+      "durationSeconds": 0.699999988079071,
+      "estimatedFrames30Hz": 22,
+      "sourceChannels": 53
+    },
+    {
+      "name": "strafe_l",
+      "file": "strafe left.glb",
+      "optional": false,
+      "present": true,
+      "durationSeconds": 1.03333330154419,
+      "estimatedFrames30Hz": 32,
+      "sourceChannels": 53
+    },
+    {
+      "name": "strafe_r",
+      "file": "strafe right.glb",
+      "optional": false,
+      "present": true,
+      "durationSeconds": 1.39999997615814,
+      "estimatedFrames30Hz": 43,
+      "sourceChannels": 53
+    },
+    {
+      "name": "jump",
+      "file": "rifle jump.glb",
+      "optional": false,
+      "present": true,
+      "durationSeconds": 0.566666662693024,
+      "estimatedFrames30Hz": 18,
+      "sourceChannels": 53
+    },
+    {
+      "name": "walk",
+      "file": "walking.glb",
+      "optional": false,
+      "present": true,
+      "durationSeconds": 1.36666667461395,
+      "estimatedFrames30Hz": 43,
+      "sourceChannels": 53
+    },
+    {
+      "name": "reload",
+      "file": "reloading.glb",
+      "optional": false,
+      "present": true,
+      "durationSeconds": 3.26666665077209,
+      "estimatedFrames30Hz": 99,
+      "sourceChannels": 53
+    },
+    {
+      "name": "blade_slash",
+      "file": "blade_slash.glb",
+      "optional": false,
+      "present": true,
+      "durationSeconds": 1.26666665077209,
+      "estimatedFrames30Hz": 39,
+      "sourceChannels": 53
+    },
+    {
+      "name": "slide",
+      "file": "slide.glb",
+      "optional": false,
+      "present": true,
+      "durationSeconds": 1.53333330154419,
+      "estimatedFrames30Hz": 47,
+      "sourceChannels": 43
+    },
+    {
+      "name": "crouch_walk",
+      "file": "crouch_walk_forward.glb",
+      "optional": false,
+      "present": true,
+      "durationSeconds": 1.16666662693024,
+      "estimatedFrames30Hz": 36,
+      "sourceChannels": 53
+    },
+    {
+      "name": "crouch_walk_back",
+      "file": "crouch_walk_backward.glb",
+      "optional": false,
+      "present": true,
+      "durationSeconds": 1,
+      "estimatedFrames30Hz": 31,
+      "sourceChannels": 53
+    },
+    {
+      "name": "crouch_strafe_l",
+      "file": "crouch_walk_left.glb",
+      "optional": false,
+      "present": true,
+      "durationSeconds": 1,
+      "estimatedFrames30Hz": 31,
+      "sourceChannels": 53
+    },
+    {
+      "name": "crouch_strafe_r",
+      "file": "crouch_walk_right.glb",
+      "optional": false,
+      "present": true,
+      "durationSeconds": 1,
+      "estimatedFrames30Hz": 31,
+      "sourceChannels": 53
+    },
+    {
+      "name": "walljump",
+      "file": "wallrun.glb",
+      "optional": false,
+      "present": true,
+      "durationSeconds": 0.666666686534882,
+      "estimatedFrames30Hz": 22,
+      "sourceChannels": 43
+    },
+    {
+      "name": "swim",
+      "file": "swimming.glb",
+      "optional": false,
+      "present": true,
+      "durationSeconds": 4.53333330154419,
+      "estimatedFrames30Hz": 137,
+      "sourceChannels": 51
+    },
+    {
+      "name": "swim_idle",
+      "file": "swimming_idle.glb",
+      "optional": false,
+      "present": true,
+      "durationSeconds": 3,
+      "estimatedFrames30Hz": 91,
+      "sourceChannels": 50
+    },
+    {
+      "name": "climb",
+      "file": "climbing_ladder.glb",
+      "optional": false,
+      "present": true,
+      "durationSeconds": 0.766666650772095,
+      "estimatedFrames30Hz": 24,
+      "sourceChannels": 43
+    },
+    {
+      "name": "dance_1",
+      "file": "dance_1.glb",
+      "optional": true,
+      "present": false
+    },
+    {
+      "name": "dance_2",
+      "file": "dance_2.glb",
+      "optional": true,
+      "present": false
+    },
+    {
+      "name": "dance_3",
+      "file": "dance_3.glb",
+      "optional": true,
+      "present": false
+    }
+  ],
+  "estimate": {
+    "coreFrames": 839,
+    "allFrames": 839,
+    "bytesPerFrameF32": 4224,
+    "coreF32Bytes": 3543936,
+    "coreF16Bytes": 1771968,
+    "allF32Bytes": 3543936
+  },
+  "limitation": "Metadata-only budget at 30 Hz, not an actual retargeted bake. Excludes atlas padding, socket data, copies and compressed-download size; raw source durations may differ from a final clip policy."
+}
