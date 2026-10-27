@@ -1,6 +1,7 @@
 import type { AbstractEngine } from "@babylonjs/core/Engines/abstractEngine";
 import { Color3, Color4 } from "@babylonjs/core/Maths/math.color";
 import { Scene } from "@babylonjs/core/scene";
+import { gateSkinPreparation } from "../animation/SkinPreparationGate";
 import { devLog } from "../core/DevLog";
 import { QualityDetector } from "../core/QualityDetector";
 import { ServiceLocator } from "../core/ServiceLocator";
@@ -28,6 +29,7 @@ export function createBrowserScene(engine: AbstractEngine): Scene {
   const scene = new Scene(engine);
   scene.preventDefaultOnPointerDown = false;
   applySceneRendererPolicy(scene);
+  gateSkinPreparation(scene);
   WorldFogController.getInstance();
   scene.clearColor = new Color4(0.1, 0.1, 0.1, 1);
   scene.ambientColor = new Color3(1, 1, 1);

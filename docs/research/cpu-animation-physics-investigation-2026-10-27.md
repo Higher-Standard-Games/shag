@@ -14,7 +14,7 @@ shaders, including actual player-pack storage estimates and integration blockers
 | --- | --- | --- | --- |
 | 1 | Hidden pickup-source GLBs run constant imported animations | Six disabled sources, 150 constant channels; reversible A/B removed their work | First implementation: settle constant source clips and stop them; preserve meaningful/uncertain animation |
 | 2 | Ragdoll world-space bone writes repeatedly rebuild the rig | About 15 full absolute-matrix rebuilds per sync on a 65-bone rig | Implemented: batched visual pose with real-rig parity and unchanged Havok |
-| 3 | Linked bones can rebuild skin matrices even without pose changes | Installed source plus a headless static-bone reproduction | Measure actual Vanguard uploads between 30 Hz pose writes before designing a gate |
+| 3 | Linked bones can rebuild skin matrices even without pose changes | Installed source, headless reproduction, then 87% of real builds found redundant | Implemented: linked-value equality gate; builds 3.7 → 0.75 per frame |
 | 4 | Hidden one-shot animations remain possible | One hidden one-shot observed; the visibility path controls the locomotion group | Lower priority: quantify, then preserve the action clock/expiry when suppressing evaluation |
 | Hold | Disabling ragdoll pre-step removes writes but changes physics | Synthetic same-configuration control matches; modified trajectory differs | Do not ship as a transparent CPU optimization |
 | Rejected lead | Static bodies need redundant transform syncing | Observed static bodies already disable both pre-step and sync | No blanket static-body patch needed |
@@ -272,6 +272,45 @@ Only then consider an instance-owned pose-version gate for stepped actors. It
 must invalidate on one-shots, clip switches, root-motion correction, scale/pose
 changes and transitions back to full-rate evaluation. A global skeleton freeze
 would be unsafe.
+
+### Skin preparation gate: measurement and implementation
+
+Measured first, with the dm5 FFA demo on WebGL2 (12 s windows, 93–106 fps): 45
+skeletons rebuilt about 1,130–1,220 palettes a second, and 87% of the builds had
+linked inputs identical to the same skeleton's previous build. Player skeletons
+(65 bones, 20–30 µs a build) were 61–87% redundant; weapon and pickup skeletons
+(1–9 bones, about 4 µs) 98–100%. Every gated skeleton in play had all bones
+linked, `needInitialSkinMatrix` off, quaternion rotations and a matrix texture;
+ragdolls had none linked.
+
+[SkinPreparationGate](../../src/engine/animation/SkinPreparationGate.ts),
+installed by `createBrowserScene`, wraps each skeleton's `prepare()`. With every
+bone linked, the palette is a function of the linked position, rotation and
+scale values alone; the gate compares them with the values of the last build
+and calls Babylon's `prepare()` only on a change. An unlinked bone, an Euler
+node rotation or `needInitialSkinMatrix` leaves the skeleton to Babylon. It
+writes no Babylon state. [Its tests](../../src/engine/animation/__tests__/SkinPreparationGate.test.ts)
+check builds against changes, a frame-by-frame palette match against an
+ungated twin, the ragdoll and Euler fallbacks, forced preparation and scene
+installation.
+
+Browser check, same demo and machine:
+
+| Check | WebGL2 | WebGPU |
+| --- | --- | --- |
+| Skin preparation, alternating 1 s windows, 12 s each mode | 0.096 → 0.048 ms/frame | 0.146 → 0.055 ms/frame |
+| Palette builds per frame | 3.6 → 0.7 | 3.9 → 0.8 |
+| Palettes prepared in a frame against a native rebuild from the same nodes | About 82,600 checked; only the frame below differs | About 26,650 checked; only the frame below differs |
+
+The palette check found one differing frame per run, on `player_2` about
+40 s into the demo, with about 50 bones' nodes changed after that skeleton had
+prepared. The same check with the gate removed finds the same frame, skeleton
+and drift, so it is how that frame is written, not the gate.
+
+The saving scales with the number of animated models in view; the earlier
+census window (about 12 builds per frame) suggests roughly 0.15 ms there. A
+revision gate driven by every pose writer could also skip the comparison, but
+needs every writer to take part.
 
 ## 4. Physics pre-step is not a behavior-free toggle
 

@@ -297,7 +297,7 @@ These paths describe a possible implementation, not files already created:
 | --- | --- | --- |
 | A: cache animation ownership, implemented | Existing engine `AssetPreloader.ts`; tests beside loader tests | Constant transform clips settle once; meaningful/uncertain source animations retained. Validation recorded in the focused investigation |
 | B: batched ragdoll pose, implemented | Game `client/ragdoll/BatchedPoseSync.ts`, wired by `RagdollSystem.ts` | Real Vanguard matrices and sockets match native; physics unchanged. Validation recorded in the focused investigation |
-| C: skin preparation and hidden actions | Existing engine `PlayerModelManager.ts`, game animation LOD/timeline; supported Babylon extension if necessary | Per-actor upload counts justify change; no private dirty suppression; every invalidation tested |
+| C: skin preparation, implemented; hidden actions open | Engine `animation/SkinPreparationGate.ts`, installed by `createBrowserScene`; hidden one-shots still in `PlayerModelManager.ts` | Linked-value equality gate, no Babylon state written; validation recorded in the focused investigation |
 | D: shared numeric pose representation | Engine `animation/pose/` only if consumers need it; game owns clip/LOD policy | Typed-array JS reference passes parity and removes allocations; no new backend yet |
 | E: offline BVA experiment | Media/bake tool plus engine animation adapter; game supplies rig/clip policy | One baked clip and CPU sockets match; then all clips/passes on both renderers |
 | F: alternate numeric executor | Wasm or worker behind the same pose boundary, not duplicate gameplay logic | End-to-end benefit survives copies, object application and scheduling |

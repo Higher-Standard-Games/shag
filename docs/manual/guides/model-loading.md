@@ -228,6 +228,15 @@ const names = loader.getAnimationNames(result);
 
 Check the source signatures for optional frame ranges and animation information.
 
+A browser scene skips a skeleton's skin-matrix rebuild and matrix upload while
+its pose holds still: between the steps of a player clip stepped at
+`cl_player_pose_hz`, or while a weapon or pickup keeps a fixed pose. While every
+bone is linked to a glTF node, the gate in
+`src/engine/animation/SkinPreparationGate.ts` compares the nodes' position,
+rotation and scale with the last build and calls Babylon's `prepare()` only when
+one changed. Write a pose through the linked nodes; a rig with an unlinked bone
+(a ragdoll) prepares every frame as Babylon does.
+
 ## Units and coordinates
 
 Loose glTF scale is asset-dependent; the developer command defaults to 100 for BSP-scale inspection. Treat that as a preview default, not a universal meters-to-Quake conversion.
