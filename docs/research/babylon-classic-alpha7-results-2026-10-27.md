@@ -20,7 +20,7 @@ This note answers the five items in the
 | 2 | Freeze weapon part materials | Both | Measured, not adopted | World weapon draws 27 → 16 µs, about 0.08 ms/frame; muzzle-flash, charge and lighting writers make it unsafe for that gain |
 | 3 | Map draw count | Both | Partly shipped (`aa83a30d`) | Additive sprites batched: dm5 76 → 42 meshes, dm2 62 → 4, dm11 62 → 37; shared materials across cells measured useless |
 | 4 | Candidate selection (path 5) | Both | Shipped (`3d502293`), registry not built | Weapon camera selection 1.0 → 0.15 ms (WebGL2), 0.55 → 0.09 ms (WebGPU); skipping disabled meshes saves nothing |
-| 5 | WebGPU render bundles on a CPU-limited machine | WebGPU | Measured; recommend default after QA | `?ncm=1` 9–14% faster per frame at 2×/4× CPU throttle; images match; map changes clean after 1a |
+| 5 | WebGPU render bundles on a CPU-limited machine | WebGPU | Default after owner QA (`89941638`) | `?ncm=1` 9–14% faster per frame at 2×/4× CPU throttle; images match; map changes clean after 1a |
 
 ## 1. WebGPU stall after map load
 
@@ -159,7 +159,9 @@ tint, weapon sway). Map changes in bundle mode are clean after 1a.
 Recommendation: make `?ncm=1` the WebGPU default after one owner QA session in
 a live lobby match (weapons, effects, outlines, map rotation), since
 non-compatibility mode disables `separateCullingPass` and water occlusion
-queries. Not changed in this cycle.
+queries. The owner played a session with `?ncm=1` on October 27 without
+problems, and render bundles became WebGPU's default (`89941638`); `?ncm=0`
+turns them off for a session.
 
 ## Validation
 
