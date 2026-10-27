@@ -337,6 +337,39 @@ compressed mip chains uploaded as array layers, which means reading the source
 files again: WebGL2 cannot copy a compressed texture into an array on the GPU.
 Animated, alpha-tested, two-sided and vertex-lit surfaces stay separate.
 
+### Texture arrays, step 1: Standard materials
+
+Implemented for Standard materials (`BspSurfaceArrays`, `TextureArrays`,
+`BspSurfaceArrayPlugin`; see the BSP manual). Measured in the dm5 and dm2 demos:
+
+| | dm5 WebGL2 | dm5 WebGPU | dm2 both |
+| --- | ---: | ---: | ---: |
+| Surfaces merged / meshes drawing them | 19 / 8 | 23 / 8 | 7 / 1 |
+| Opaque map draws per frame, off → on | 93.2 → 84.7 | 93.3 → 81.9 | 66 → 60 |
+| `_renderForCamera` ms/frame, off → on (two pairs) | 4.20 → 3.94, 3.90 → 3.76 | 5.69 → 5.67; the second pair ran under outside load | — |
+
+WebGL2 gains about 0.15–0.25 ms a frame; WebGPU shows nothing measurable,
+since render bundles already make each draw cheap there. Paused frames at
+three demo points per map, map geometry only (players, weapons and effects
+hidden: a powerup glow and other wall-clock effects differ between any two
+captures), merging on against off, both backends: every difference is within
+the off-against-off noise of separate sessions, and most points are identical.
+Four map loads in one session (dm5, dm2, amphi1, dm5) on both backends: no
+errors, arrays rebuilt per map, the compressed-upload capture released each
+time.
+
+Found while validating: some WebGPU textures report one mip level to Babylon
+though their mips were generated, so array shapes read the level count from the
+GPU texture; Babylon's material-plugin `!` regex rules see the main shader before
+includes are expanded, so the normal is perturbed again from the array in
+`CUSTOM_FRAGMENT_UPDATE_DIFFUSE` instead of replacing the sample inside
+`bumpFragment`; and Babylon sorts opaque draws by material id, so a merged mesh
+draws at its first member's place. A coplanar pair of different textures could
+in principle resolve its depth tie differently; no case appeared on either map.
+
+Step 2 is PBR, about 40–70% of opaque map draws: albedo instead of diffuse,
+the same normal-map path, and Babylon's PBR sub-plugins in the signature.
+
 ## Source audit: useful candidates and existing safeguards
 
 All proposed changes below are conditional on new evidence. Source inspected in

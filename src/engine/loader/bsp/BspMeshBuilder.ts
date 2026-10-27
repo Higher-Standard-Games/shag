@@ -185,6 +185,8 @@ export class BspMeshBuilder {
       indexOffset: number;
       pvsClusters: Set<number>;
       spatialCell: string | null;
+      /** Opaque without blending, animation, deform, decal offset, liquid or cubemap */
+      plainOpaque: boolean;
       baseKey: string;
       // Fog params if any face in this group has a fog effect
       fogParams?: { color: [number, number, number]; depthForOpaque: number };
@@ -405,16 +407,17 @@ export class BspMeshBuilder {
       const lmIdx = face.lightmapIndex >= 0 ? face.lightmapIndex : -1;
       const isPatch = face.faceType === 2;
       const cubemapObject = cubemapObjects.get(i);
-      const spatialCell =
-        spatialCellSize &&
+      // A plain opaque surface: no blending, animation, deform, decal offset, liquid or cubemap
+      const plainOpaque =
         cubemapObject === undefined &&
         !shaderProps.isTransparent &&
         shaderProps.alphaMode === "opaque" &&
         !shaderProps.needsAnimation &&
         !shaderProps.polygonOffset &&
         !liquidByTextureIndex.has(face.textureIndex) &&
-        !shaderRegistry.getShader(textureName)?.deformVertexes?.length &&
-        !faceClusters[i].includes(-1)
+        !shaderRegistry.getShader(textureName)?.deformVertexes?.length;
+      const spatialCell =
+        spatialCellSize && plainOpaque && !faceClusters[i].includes(-1)
           ? faceSpatialCell(this.bsp, face, spatialCellSize)
           : null;
       const layered = this.layeredLightmaps && lmIdx >= 0;
@@ -448,6 +451,7 @@ export class BspMeshBuilder {
           indexOffset: 0,
           pvsClusters: new Set(),
           spatialCell,
+          plainOpaque,
           baseKey,
         };
         textureGroups.set(groupKey, group);
@@ -643,6 +647,8 @@ export class BspMeshBuilder {
         bspPvsClusters: [...group.pvsClusters],
         bspSpatialCell: group.spatialCell,
         bspSpatialCellSize: group.spatialCell === null ? 0 : spatialCellSize,
+        // May share a draw with other textures through texture arrays (BspSurfaceArrays)
+        surfaceArrayEligible: group.plainOpaque,
         contentFlags: texFlags?.contentFlags ?? 0,
         surfaceFlags: texFlags?.surfaceFlags ?? 0,
         fogParams: group.fogParams,

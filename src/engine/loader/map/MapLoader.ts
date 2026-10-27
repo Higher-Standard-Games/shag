@@ -28,12 +28,14 @@ import RenderVars from "../../rendering/RenderVars";
 import { parseSkyPortal, SkyPortalView } from "../../rendering/SkyPortal";
 import { SkyVisibility, skyClusterBounds } from "../../rendering/SkyVisibility";
 import { SurfaceCubemaps } from "../../rendering/SurfaceCubemaps";
+import { captureCompressedUploads } from "../../rendering/TextureArrays";
 import { WorldFogController } from "../../rendering/WorldFogController";
 import { LiquidSurfaceSystem } from "../../rendering/water/LiquidSurfaceSystem";
 import { waterMapLights, waterSurfaceLights } from "../../rendering/water/WaterSurfaceLighting";
 import { registerBspEntityHandlers, setCurrentBspForHandlers } from "../bsp/BspEntityHandlers";
 import { type BspFile, BspLoader } from "../bsp/BspLoader";
 import { BspMeshBuilder, type BspMeshBuildResult } from "../bsp/BspMeshBuilder";
+import { mergeBspSurfaceArrays } from "../bsp/BspSurfaceArrays";
 import { parseWorldFog } from "../bsp/WorldFog";
 import { PK3Index } from "../pk3/PK3Index";
 import { PK3Loader } from "../pk3/PK3Loader";
@@ -484,13 +486,19 @@ export class MapLoader {
     // of the render loop until fog and baked-lighting plugins own their layouts.
     meshResult.worldMesh.setEnabled(false);
 
-    // Phase 6: Apply textures
+    // Phase 6: Apply textures. WebGL2 keeps compressed uploads for the texture arrays below.
     progress("Textures", "Loading and applying");
-    await BspMeshBuilder.applyTextures(meshResult, bsp, scene, undefined, {
-      deluxe: deluxeEnabled,
-      pbr: bspPbrEnabled,
-      signal,
-    });
+    const uploads = captureCompressedUploads(scene.getEngine());
+    try {
+      await BspMeshBuilder.applyTextures(meshResult, bsp, scene, undefined, {
+        deluxe: deluxeEnabled,
+        pbr: bspPbrEnabled,
+        signal,
+      });
+    } catch (error) {
+      uploads.stop();
+      throw error;
+    }
 
     // Phase 7: Apply skybox
     progress("Skybox", "Creating");
@@ -540,6 +548,15 @@ export class MapLoader {
     } catch (e) {
       console.warn(`[MapLoader] Failed to apply lightmaps:`, e);
     }
+
+    // Surfaces differing only in their images share a draw through texture arrays
+    try {
+      const arrays = mergeBspSurfaceArrays(meshResult);
+      devLog(`[MapLoader] ${arrays.merged} surfaces now draw as ${arrays.meshes} (${arrays.arrays} texture arrays)`);
+    } catch (e) {
+      console.warn("[MapLoader] Texture-array merge failed; surfaces keep their own draws:", e);
+    }
+    uploads.stop();
 
     meshResult.worldMesh.setEnabled(true);
 

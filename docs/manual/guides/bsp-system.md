@@ -240,6 +240,33 @@ Autosprite billboards turn in the vertex shader. Each sprite vertex carries its 
 
 For headless inspection, build geometry with `bsp render` before `pvs on`. Enabling updates visibility immediately, but command batches do not run the gameplay render loop. Mesh counts from `NullEngine` do not measure GPU performance. The repository's `docs/research/v0.9.23-rendering-research.md` tracks implementation progress, validation and remaining visual checks.
 
+## Texture-array surfaces
+
+Every map texture builds a mesh of its own, and each costs a draw. Once textures
+and lightmaps are on the materials, `BspSurfaceArrays` merges plain opaque
+surfaces that differ only in their base and normal-map images into one mesh: the
+images become layers of 2D texture arrays (`TextureArrays`), and a per-vertex
+layer index tells `BspSurfaceArrayPlugin` which layer each surface samples. The
+plugin replaces Babylon's base sample and perturbs the normal again from the
+normal-map array, so lighting, fog and the other plugins see what the surface's
+own texture would have given them.
+
+Surfaces merge only when everything else matches: material settings and
+plugins (baked lighting, fog, detail map), lightmap, fog volume, content and
+surface flags, vertex attributes, and images of one size, format, mip count and
+sampling. Animated, blended, alpha-tested, deformed, liquid, cubemap and
+decal-offset surfaces, Standard materials with gloss, glow or opacity maps, PBR
+surfaces, and textures whose names mark an effect (flare, halo, glow, light,
+sprite) keep their own mesh. WebGPU copies images into arrays on the GPU; WebGL2
+copies uncompressed images through a framebuffer and takes compressed (BC7) ones
+from the mip data captured while the map's textures upload, data released once
+the merge is done. On `washoi_dm5` 19 surfaces (WebGL2) or 23 (WebGPU) draw as 8
+meshes, about 93 opaque map draws a frame becoming 82–85; on `washoi_dm2` 7 or 6
+draw as one.
+
+`r_surface_arrays 0` keeps every surface separate on the next map load, for
+diagnostics; it is not persisted.
+
 ## Experimental spatial grouping
 
 `r_bsp_cellsize` changes grouping on the next map load. The default is `0` (off); positive values use 128-4096 map-unit cells. Only eligible opaque texture/lightmap/patch groups with at least 1,024 triangles split. Small batches, liquids, transparent surfaces, animated materials and sprites retain their existing grouping. Existing fog associations carry across split cells. Whole faces are preserved, so large faces can extend outside their assigned cell.

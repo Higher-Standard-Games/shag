@@ -244,6 +244,14 @@ defaults to 1 on every browser and backend; 0 restores Babylon's full scan for
 diagnostics. The cvar is not persisted. Registered
 camera ownership, action-manager meshes and custom LOD selectors are preserved.
 
+## Texture-array surfaces
+
+The cvar `r_surface_arrays` merges plain opaque map surfaces that differ only in
+their images into texture-array meshes on map load (see the
+[BSP system](./bsp-system.md#texture-array-surfaces)). It defaults to 1; 0 keeps
+every surface separate on the next map load, for diagnostics. The cvar is not
+persisted.
+
 ## Adding a variable
 
 Add the definition to `DEFAULT_VARS` with `value`, `defaultValue`, `min`, `max`, a valid category, and a useful description. Then:
