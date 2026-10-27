@@ -78,7 +78,7 @@ export const PLASMA_EXPLOSION: ExplosionConfig = {
   outerColor: new Color3(0.1, 0.9, 0.2), // vivid green outer
   smokeColor: new Color3(0.1, 0.2, 0.1), // green-tinted smoke
   rays: { min: 4, max: 6 }, // a small pop; plasma fights spawn many
-  shakeIntensity: 0.15, // minimal camera shake
+  shakeIntensity: 0.075,
   shakeMaxRange: 360, // half of default (close range only)
 };
 
