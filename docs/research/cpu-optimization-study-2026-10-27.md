@@ -242,6 +242,46 @@ It includes the exact capture/proxy harness copies and their checksums. The
 summary JSON links the measured intervals to raw and sliced profile checksums.
 No runtime optimization follows automatically from these samples.
 
+## Profile after the animation and physics work
+
+A headless sampled profile (250 µs) of 30 s of `washoi_dm5_ffa_20261025_170933`
+on WebGL2, taken after the renderer, ragdoll and skin-preparation changes on
+this branch, summarized with `scripts/benchmarks/cpu-profile.mjs`. 3,611 frames
+at 120 fps; one run, so the figures rank work rather than measure gains.
+
+| Work | Inclusive ms/frame |
+| --- | ---: |
+| Babylon `_renderForCamera`, all cameras | 5.56 |
+| of which drawing the rendering groups | 3.36 |
+| of which `_evaluateActiveMeshes` | 1.57 |
+| `(program)`: native and driver work outside JavaScript | 1.16 (self) |
+| `DemoService.tick` (demo playback only) | 0.54 |
+| `SceneMeshCandidates` filters (pay for fewer evaluated meshes) | 0.19 |
+| `updateAutosprites` (CPU billboards and their uploads) | 0.18 |
+| `Q3SoftParticleDepth` camera observer | 0.135 |
+| Skin preparation gate (comparison 0.061 self) | 0.13 |
+| Remote player rendering | 0.10 |
+| Snapshot decode, `handleServerStateUpdate` | 0.035, 0.073 |
+| Garbage collection (self) | 0.032 |
+
+Game and engine JavaScript outside Babylon is now small next to Babylon's
+own frame. Two follow-ups came out of it:
+
+- **Soft-particle depth scan, fixed.** Each camera pass walked every scene
+  mesh to find the few with a soft material, mostly in the `material` getter.
+  Each soft material now keeps Babylon's own `meshMap` (maintained by the mesh
+  material setter and disposal once present); the scan reads those lists and
+  their instances. The observer's `prepare` fell from 0.102 to 0.029 ms/frame
+  in a second profile of the same demo window. Tests cover meshes assigned
+  before and after, reassigned away, disposed, instanced and pass-only.
+- **Skin gate comparison, left as is.** Comparing all ten values in one
+  condition instead of a call per value measured 0.066 against 0.061 ms/frame:
+  the cost is reading the node values, not the calls.
+
+The remaining large CPU cost is Babylon drawing about 80 opaque map surfaces a
+frame and evaluating active meshes, which the renderer results note leaves to a
+material redesign.
+
 ## Source audit: useful candidates and existing safeguards
 
 All proposed changes below are conditional on new evidence. Source inspected in

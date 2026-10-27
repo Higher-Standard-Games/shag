@@ -4,6 +4,7 @@ import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
 import type { RenderTargetTexture } from "@babylonjs/core/Materials/Textures/renderTargetTexture";
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { CreateBox } from "@babylonjs/core/Meshes/Builders/boxBuilder";
+import "@babylonjs/core/Meshes/instancedMesh";
 import { Scene } from "@babylonjs/core/scene";
 import "@babylonjs/core/Rendering/depthRendererSceneComponent";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -123,6 +124,40 @@ describe("soft particle depth ownership", () => {
     const map = provider.mapFor(camera) as RenderTargetTexture;
     const drawn = map.getCustomRenderList!(0, scene.meshes, scene.meshes.length)!.map((mesh) => mesh.name);
     expect(drawn).toEqual(["behind", "in front", "around the camera"]);
+  });
+  it("finds soft meshes however they came by the material, and forgets those that lost it", () => {
+    const inView = () => {
+      frame();
+      return provider.mapFor(camera) !== null;
+    };
+    scene.getMeshByName("cone")!.setEnabled(false);
+    expect(inView()).toBe(false);
+
+    const later = CreateBox("assigned later", {}, scene);
+    later.material = material;
+    expect(inView()).toBe(true);
+    later.material = new StandardMaterial("plain", scene);
+    expect(inView()).toBe(false);
+
+    // An instance draws with its source's material: the source switched off, the instance drawn
+    const source = CreateBox("source", {}, scene);
+    source.material = material;
+    source.setEnabled(false);
+    const instance = source.createInstance("instance");
+    instance.setEnabled(true);
+    expect(inView()).toBe(true);
+    instance.dispose();
+    expect(inView()).toBe(false);
+
+    // Babylon also lists a mesh that uses the material for one render pass only
+    const pass = CreateBox("pass only", {}, scene);
+    pass.setMaterialForRenderPass(1, material);
+    expect(inView()).toBe(false);
+
+    later.material = material;
+    expect(inView()).toBe(true);
+    later.dispose();
+    expect(inView()).toBe(false);
   });
   it("stops the capture while soft halos are off", () => {
     frame();

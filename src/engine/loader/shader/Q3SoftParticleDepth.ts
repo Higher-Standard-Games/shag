@@ -5,6 +5,7 @@ import { RawTexture } from "@babylonjs/core/Materials/Textures/rawTexture";
 import type { Texture } from "@babylonjs/core/Materials/Textures/texture";
 import { type Matrix, Vector3 } from "@babylonjs/core/Maths/math.vector";
 import type { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh";
+import type { Mesh } from "@babylonjs/core/Meshes/mesh";
 import { DepthRenderer } from "@babylonjs/core/Rendering/depthRenderer";
 import type { Scene } from "@babylonjs/core/scene";
 import { RenderVars } from "../../rendering/RenderVars";
@@ -18,6 +19,11 @@ export const Q3_SOFT_FADE_RATE = 0.02;
 const FADE_DEPTH = 1 / Q3_SOFT_FADE_RATE;
 /** View depth in front of which a box corner counts as at or behind the camera. */
 const NEAR = 0.01;
+
+/** An InstancedMesh: its material is its source mesh's. */
+function isInstance(mesh: AbstractMesh): boolean {
+  return "sourceMesh" in mesh;
+}
 
 const viewCorner = new Vector3();
 const clipCorner = new Vector3();
@@ -87,6 +93,15 @@ export class Q3SoftParticleDepth {
       providers.set(scene, provider);
     }
     provider.materials.add(material);
+    // Babylon keeps a material's meshMap current through every mesh's material
+    // setter and disposal once the map exists; seed it with meshes assigned
+    // before this point. An instance takes its source's material and is not listed.
+    if (!material.meshMap) {
+      material.meshMap = {};
+      for (const mesh of scene.meshes) {
+        if (mesh.material === material && !isInstance(mesh)) material.meshMap[mesh.uniqueId] = mesh;
+      }
+    }
     material.onDisposeObservable.addOnce(() => {
       provider.materials.delete(material);
       if (!provider.materials.size) provider.dispose();
@@ -107,18 +122,18 @@ export class Q3SoftParticleDepth {
       this.setRendering(false);
       return;
     }
-    for (const mesh of this.scene.meshes) {
-      if (
-        mesh.material &&
-        this.materials.has(mesh.material) &&
-        mesh.isVisible &&
-        mesh.isEnabled() &&
-        (mesh.layerMask & camera.layerMask) !== 0 &&
-        camera.isInFrustum(mesh)
-      ) {
-        const at = this.reach.length;
-        screenBounds(mesh, camera.getViewMatrix(), camera.getProjectionMatrix(), this.reach, at);
-        this.reach[at + 5] += FADE_DEPTH;
+    // The meshes drawn with a soft material, from each material's own list
+    // instead of a pass over every mesh in the scene
+    for (const material of this.materials) {
+      const meshes = material.meshMap;
+      if (!meshes) continue;
+      for (const id in meshes) {
+        const mesh = meshes[id];
+        // A mesh using the material for one render pass only is listed too
+        if (!mesh || mesh.material !== material) continue;
+        this.addReach(mesh, camera);
+        const instances = (mesh as Mesh).instances;
+        if (instances) for (const instance of instances) this.addReach(instance, camera);
       }
     }
     if (!this.reach.length || this.unavailable) {
@@ -175,6 +190,15 @@ export class Q3SoftParticleDepth {
     camera.customRenderTargets.push(map);
     this.renderer = renderer;
     this.camera = camera;
+  }
+
+  /** Record a soft mesh's screen reach when this camera draws it. */
+  private addReach(mesh: AbstractMesh, camera: Camera): void {
+    if (!mesh.isVisible || !mesh.isEnabled() || (mesh.layerMask & camera.layerMask) === 0 || !camera.isInFrustum(mesh))
+      return;
+    const at = this.reach.length;
+    screenBounds(mesh, camera.getViewMatrix(), camera.getProjectionMatrix(), this.reach, at);
+    this.reach[at + 5] += FADE_DEPTH;
   }
 
   /**
