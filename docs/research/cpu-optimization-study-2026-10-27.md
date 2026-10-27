@@ -300,6 +300,43 @@ The remaining large CPU cost is Babylon drawing about 80 opaque map surfaces a
 frame and evaluating active meshes, which the renderer results note leaves to a
 material redesign.
 
+### Texture arrays: census before a design
+
+A probe recorded the opaque map meshes the main camera drew over 15 s of demo
+playback (WebGL2), with what separates their materials besides the diffuse
+image: material class, plugins, normal/specular/emissive textures, lightmap,
+vertex colours, culling, alpha test and texture animation, plus diffuse and
+normal-map size and format.
+
+| | dm5 | dm2 |
+| --- | ---: | ---: |
+| Opaque map draws per frame | 92 | 65 |
+| PBR share of draws | 41% | 68% |
+| With a normal map | 71% | 78% |
+| BC7-compressed diffuse / RGBA8 | 72% / 26% | 99% / 1% |
+| Diffuse sizes | 22 | 19 |
+| Lightmap textures | 2 | 2 |
+
+Spatial cells are off by default (`r_bsp_cellsize 0`), so each mesh is one
+texture (and lightmap group) across the whole map, culled by whole-map bounds
+and the union of its PVS clusters; most draw on most frames. Merging meshes of
+one material signature, each merged mesh drawn whenever any member is visible:
+
+| Merge | dm5 draws | dm2 draws | Geometry drawn |
+| --- | ---: | ---: | ---: |
+| None | 92 | 65 | 100% |
+| Arrays per diffuse and normal-map size and format | 56 | 31 | up to 103% / 107% |
+| All diffuse images resampled to shared sizes | 19 | 10 | up to 107% / 114% |
+
+At the measured 10–12 µs of CPU per world draw on WebGL2, that is about 0.4
+or 0.8 ms per frame on dm5, before fewer active-mesh evaluations. A merged
+material must reproduce per layer: albedo and normal map (both as arrays),
+Babylon's PBR sub-plugins, `BspBakedLighting` with per-texture gloss intensity
+and exponent, and the fog and detail-map plugins. BC7 layers need their
+compressed mip chains uploaded as array layers, which means reading the source
+files again: WebGL2 cannot copy a compressed texture into an array on the GPU.
+Animated, alpha-tested, two-sided and vertex-lit surfaces stay separate.
+
 ## Source audit: useful candidates and existing safeguards
 
 All proposed changes below are conditional on new evidence. Source inspected in
