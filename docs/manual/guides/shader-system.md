@@ -364,8 +364,8 @@ it needs a reload. The depth and colour passes run only while an occlusion query
 says a liquid surface is drawn, and seen from above flat water they skip meshes
 wholly above it.
 
-Experimental WebGPU non-compatibility mode (`?renderer=webgpu&ncm=1`) disables
-liquid occlusion queries because a queued query can replay into a pass without
+WebGPU runs in non-compatibility mode (render bundles; `?ncm=0` turns it off
+for a session), which disables liquid occlusion queries because a queued query can replay into a pass without
 a query set. Liquid surfaces still use normal visibility and frustum selection;
 the conservative fallback can draw water behind walls. WebGL and compatibility-mode
 WebGPU retain strict queries, except while the eye is inside the surface bounds.

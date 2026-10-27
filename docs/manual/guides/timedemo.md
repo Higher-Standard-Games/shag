@@ -109,10 +109,11 @@ playback CPU is reported separately. Wall times are refresh-paced real-time resu
 so they are not an uncapped throughput score. `--mode fixed` is explicitly rejected
 until presentation clocks/effects can follow a validated logical clock.
 
-For the experimental WebGPU render-bundle mode, compare fresh sessions using
+To measure WebGPU render bundles, compare fresh sessions using
 `?renderer=webgpu&ncm=0` and `?renderer=webgpu&ncm=1`. Alternate at least three
-repetitions of each with the same fixture/profile and export each report. The
-normal mode remains the default; this comparison does not change saved settings.
+repetitions of each with the same fixture/profile and export each report.
+Render bundles are WebGPU's default; `ncm=0` turns them off for that session only
+and does not change saved settings.
 
 Under `ncm=1`, each sample's `bundles` records created/reused bundle submission
 counts for that engine frame. Run and phase summaries include totals, counts per

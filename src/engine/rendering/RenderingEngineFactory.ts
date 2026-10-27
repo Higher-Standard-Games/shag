@@ -135,12 +135,13 @@ export function resolveRenderingBackend(webGPUCvarEnabled: boolean, search = "")
 }
 
 /**
- * Session-only opt-in to WebGPU non-compatibility mode, `?ncm=1`. Babylon then
- * records and replays render bundles, trading bundle construction for cheaper
- * submission. Startup only: materials read the mode when they are built.
+ * WebGPU runs in non-compatibility mode unless the session URL says `?ncm=0`.
+ * Babylon then records and replays render bundles, trading bundle construction
+ * for cheaper submission. Startup only: materials read the mode when they are
+ * built.
  */
 export function resolveWebGPUNonCompatibilityMode(search = ""): boolean {
-  return new URLSearchParams(search).get("ncm") === "1";
+  return new URLSearchParams(search).get("ncm") !== "0";
 }
 
 /** Whether materials may use `separateCullingPass`, which NCM cannot record. */

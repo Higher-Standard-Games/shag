@@ -52,11 +52,11 @@ describe("RenderingEngineFactory", () => {
     expect(GetClass("BABYLON.ComputeShaderParticleSystem")).toBeTypeOf("function");
   });
 
-  it("opts into WebGPU non-compatibility mode only through the session URL", () => {
-    expect(resolveWebGPUNonCompatibilityMode("")).toBe(false);
-    expect(resolveWebGPUNonCompatibilityMode("?renderer=webgpu")).toBe(false);
+  it("uses WebGPU non-compatibility mode unless the session URL turns it off", () => {
+    expect(resolveWebGPUNonCompatibilityMode("")).toBe(true);
+    expect(resolveWebGPUNonCompatibilityMode("?renderer=webgpu")).toBe(true);
     expect(resolveWebGPUNonCompatibilityMode("?renderer=webgpu&ncm=1")).toBe(true);
-    expect(resolveWebGPUNonCompatibilityMode("?ncm=0")).toBe(false);
+    expect(resolveWebGPUNonCompatibilityMode("?renderer=webgpu&ncm=0")).toBe(false);
   });
 
   it("applies non-compatibility mode to WebGPU and never to WebGL", async () => {
