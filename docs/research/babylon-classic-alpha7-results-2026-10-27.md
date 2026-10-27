@@ -177,7 +177,8 @@ npm.cmd --prefix src/games/fps run cli:game -- --exec "bsp load washoi_dm2; bsp 
 npm.cmd run audit:pvs -- washoi_dm5
 ```
 
-Results are in the final report of the cycle. The browser probes were
+All of these passed on the branch tip. The owner playtested the branch build
+on October 27 and reported no problems. The browser probes were
 throwaway scripts in the session scratchpad; each is described above with its
 method, and the reusable parts are the browser-probe skill's `cdp.mjs`.
 
