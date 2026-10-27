@@ -211,7 +211,7 @@ export class LiquidSurfaceSystem {
    * A kind-specific map always wins over the general sky fallback.
    */
   /** Capture every pool's room cubemap now; map loading calls this behind the loading screen. */
-  captureReflections(camera: Camera): number {
+  captureReflections(camera: Camera): Promise<number> {
     return this.probes.captureAll(camera);
   }
 

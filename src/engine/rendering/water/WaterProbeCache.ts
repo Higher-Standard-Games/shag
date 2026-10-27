@@ -110,6 +110,8 @@ export class WaterProbeCache {
   readonly entries: CachedWaterProbe[] = [];
   private readonly staticMeshes = new Set<AbstractMesh>();
   private readonly patches = new Map<AbstractMesh, WaterPatch>();
+  /** Probes made for a pool whose capture shaders are still compiling */
+  private readonly pending = new Map<WaterPatch, CachedWaterProbe>();
   private lastCaptureFrame = -1;
   private readonly failed = new Set<WaterPatch>();
 
@@ -167,6 +169,8 @@ export class WaterProbeCache {
             if (this.entries[entry].patch === a || this.entries[entry].patch === b)
               this.entries.splice(entry, 1)[0].probe.dispose();
           }
+          this.dropPending(a);
+          this.dropPending(b);
           merged = true;
           break outer;
         }
@@ -185,8 +189,14 @@ export class WaterProbeCache {
     patch.meshes = patch.meshes.filter((m) => m !== mesh);
     if (patch.meshes.length) return;
     this.failed.delete(patch);
+    this.dropPending(patch);
     const index = this.entries.findIndex((entry) => entry.patch === patch);
     if (index >= 0) this.entries.splice(index, 1)[0].probe.dispose();
+  }
+
+  private dropPending(patch: WaterPatch): void {
+    this.pending.get(patch)?.probe.dispose();
+    this.pending.delete(patch);
   }
 
   surfaceAt(position: { x: number; y: number; z: number }): { x: number; y: number; z: number } | null {
@@ -197,39 +207,52 @@ export class WaterProbeCache {
   }
 
   /**
-   * Called before main rendering: one capture per frame, with a fixed total
-   * budget, for a pool the load-time capture could not take (its world was not
-   * ready yet).
+   * Called before main rendering: one capture attempt per frame, with a fixed
+   * total budget, for a pool the load-time capture could not take.
    */
   update(camera: Camera): void {
     if (this.lastCaptureFrame === this.scene.getFrameId()) return;
-    if (this.captureNext(camera)) this.lastCaptureFrame = this.scene.getFrameId();
+    this.lastCaptureFrame = this.scene.getFrameId();
+    this.captureNext(camera);
   }
 
   /**
    * Capture every pool still without a room cubemap, up to the budget. Map
-   * loading calls this behind the loading screen, so the captures (each six
-   * renders of the static world) do not stall play when a pool first comes
-   * into view. Returns how many it captured.
+   * loading awaits this behind the loading screen, where the captures (each
+   * six renders of the static world, with shaders of their own to compile) do
+   * not stall play when a pool first comes into view. A capture waits for its
+   * shaders, up to `timeoutMs` in all; what is left over is captured in play.
+   * Returns how many it captured.
    */
-  captureAll(camera: Camera): number {
-    const before = this.entries.length;
-    // One attempt per pool: a target not ready to render leaves its pool pending
-    for (let attempt = new Set(this.patches.values()).size; attempt > 0; attempt--) {
-      if (!this.captureNext(camera)) break;
+  async captureAll(camera: Camera, timeoutMs = 3000): Promise<number> {
+    const deadline = performance.now() + timeoutMs;
+    let captured = 0;
+    for (;;) {
+      const result = this.captureNext(camera);
+      if (result) captured++;
+      else if (result === null) {
+        if (!this.nextPatch() || performance.now() > deadline) break;
+        await new Promise((resolve) => setTimeout(resolve, 16));
+      }
     }
-    return this.entries.length - before;
+    return captured;
   }
 
-  /** Capture one pending pool. False when none is pending, the budget is spent, or the world is not ready. */
-  private captureNext(camera: Camera): boolean {
-    const patch = Array.from(this.patches.values()).find(
-      (p) => !this.failed.has(p) && !this.entries.some((e) => e.patch === p),
-    );
-    if (!patch || this.entries.length >= MAX_PROBES) return false;
+  /** The next pool to capture, or null when none is left or the budget is spent. */
+  private nextPatch(): WaterPatch | null {
+    if (this.entries.length >= MAX_PROBES) return null;
+    for (const patch of this.patches.values()) {
+      if (!this.failed.has(patch) && !this.entries.some((e) => e.patch === patch)) return patch;
+    }
+    return null;
+  }
+
+  /** Capture one pending pool: true when captured, false when it failed, null when none can be captured now. */
+  private captureNext(camera: Camera): boolean | null {
+    const patch = this.nextPatch();
+    if (!patch) return null;
     const meshes = Array.from(this.staticMeshes).filter((m) => !m.isDisposed() && m.isEnabled());
-    if (!meshes.length || meshes.some((m) => !m.isReady(true) || (m.material && !m.material.isReady(m)))) return false;
-    let probe: ReflectionProbe | undefined;
+    if (!meshes.length || meshes.some((m) => !m.isReady(true) || (m.material && !m.material.isReady(m)))) return null;
     const visibility = meshes.map((m) => m.isVisible);
     const transientLights = this.scene.lights.filter((light) => light.metadata?.excludeFromWaterCapture);
     const lightEnabled = transientLights.map((light) => light.isEnabled());
@@ -240,73 +263,30 @@ export class WaterProbeCache {
       meshes.forEach((m) => {
         m.isVisible = true;
       });
-      const position = this.capturePosition(patch);
-      if (!position) throw new Error("No open probe position above this water patch");
-      // Capture in the scene's current colour space, without toggling its
-      // material variants. Preserve this encoding on the texture for sampling
-      // even if image processing is later enabled/disabled by the player.
-      probe = new ReflectionProbe(
-        `water-room-${this.entries.length}`,
-        PROBE_SIZE,
-        this.scene,
-        true,
-        false,
-        this.scene.imageProcessingConfiguration.applyByPostProcess && this.scene.imageProcessingConfiguration.isEnabled,
-      );
-      probe.position.copyFrom(position);
-      probe.refreshRate = 0;
-      probe.renderList = meshes;
-      const target = probe.cubeTexture;
-      target.activeCamera = camera;
-      target.renderParticles = false;
-      target.renderSprites = false;
-      target.forceLayerMaskCheck = true;
-      // Keep depth across map rendering groups, including transparent static trim.
-      for (let group = 0; group < 4; group++) probe.setRenderingAutoClearDepthStencil(group, false);
-      const entry: CachedWaterProbe = {
-        patch,
-        probe,
-        roomMin: position.subtractFromFloats(1024, 256, 1024),
-        roomMax: position.add(new Vector3(1024, 1024, 1024)),
-        ready: false,
-      };
-      // PVS is stored in isVisible. Override only the captured static list and
-      // restore it even if a shader/driver throws. No camera active-list dependency.
-      for (const [axis, direction] of [
-        ["x", new Vector3(1, 0, 0)],
-        ["y", new Vector3(0, 1, 0)],
-        ["z", new Vector3(0, 0, 1)],
-      ] as const) {
-        for (const sign of [-1, 1]) {
-          const ray = new Ray(position, direction.scale(sign), 2048);
-          const hit = this.scene.pickWithRay(ray, (m) => this.staticMeshes.has(m) && !m.infiniteDistance);
-          if (hit?.hit && hit.distance > 4)
-            (sign > 0 ? entry.roomMax : entry.roomMin)[axis] = position[axis] + sign * hit.distance;
-        }
+      // Shaders compile per render pass, and a probe's passes are its own:
+      // one not ready yet is kept and asked again
+      let entry = this.pending.get(patch);
+      if (!entry) {
+        entry = this.createEntry(patch, camera);
+        this.pending.set(patch, entry);
       }
-      // Interior islands are not the room boundary. Keep the proxy enclosing
-      // its entire water region so crossing that island's axis cannot abruptly
-      // switch from local projection to the infinite-distance fallback.
-      entry.roomMin.x = Math.min(entry.roomMin.x, patch.min.x - 1);
-      entry.roomMin.z = Math.min(entry.roomMin.z, patch.min.z - 1);
-      entry.roomMax.x = Math.max(entry.roomMax.x, patch.max.x + 1);
-      entry.roomMax.z = Math.max(entry.roomMax.z, patch.max.z + 1);
-      // A raised probe can see an island's top below it. The projection volume
-      // must still contain the actual water, not start at that island's height.
-      entry.roomMin.y = Math.min(entry.roomMin.y, patch.min.y - 1);
-      if (target.isReadyForRendering()) {
-        target.render(false);
-        entry.ready = true;
-        this.entries.push(entry);
-        devLog(
-          `[Water] Captured ${probe.name}: ${meshes.length} static meshes, ${PROBE_SIZE}px x 6; no recurring reflection pass`,
-        );
-      } else probe.dispose();
+      const target = entry.probe.cubeTexture;
+      entry.probe.renderList = meshes;
+      if (!target.isReadyForRendering()) return null;
+      target.render(false);
+      entry.ready = true;
+      this.pending.delete(patch);
+      this.entries.push(entry);
+      devLog(
+        `[Water] Captured ${entry.probe.name}: ${meshes.length} static meshes, ${PROBE_SIZE}px x 6; no recurring reflection pass`,
+      );
+      return true;
     } catch (error) {
-      probe?.dispose();
+      this.dropPending(patch);
       // Remember failure to avoid repeated expensive driver failures.
       this.failed.add(patch);
       console.warn("[Water] Room capture failed; retaining authored environment", error);
+      return false;
     } finally {
       transientLights.forEach((light, i) => {
         if (!light.isDisposed()) light.setEnabled(lightEnabled[i]);
@@ -315,7 +295,62 @@ export class WaterProbeCache {
         if (!m.isDisposed()) m.isVisible = visibility[i];
       });
     }
-    return true;
+  }
+
+  private createEntry(patch: WaterPatch, camera: Camera): CachedWaterProbe {
+    const position = this.capturePosition(patch);
+    if (!position) throw new Error("No open probe position above this water patch");
+    // Capture in the scene's current colour space, without toggling its
+    // material variants. Preserve this encoding on the texture for sampling
+    // even if image processing is later enabled/disabled by the player.
+    const probe = new ReflectionProbe(
+      `water-room-${this.entries.length + this.pending.size}`,
+      PROBE_SIZE,
+      this.scene,
+      true,
+      false,
+      this.scene.imageProcessingConfiguration.applyByPostProcess && this.scene.imageProcessingConfiguration.isEnabled,
+    );
+    probe.position.copyFrom(position);
+    probe.refreshRate = 0;
+    const target = probe.cubeTexture;
+    target.activeCamera = camera;
+    target.renderParticles = false;
+    target.renderSprites = false;
+    target.forceLayerMaskCheck = true;
+    // Keep depth across map rendering groups, including transparent static trim.
+    for (let group = 0; group < 4; group++) probe.setRenderingAutoClearDepthStencil(group, false);
+    const entry: CachedWaterProbe = {
+      patch,
+      probe,
+      roomMin: position.subtractFromFloats(1024, 256, 1024),
+      roomMax: position.add(new Vector3(1024, 1024, 1024)),
+      ready: false,
+    };
+    // The caller shows the PVS-hidden static world (isVisible) for these rays
+    for (const [axis, direction] of [
+      ["x", new Vector3(1, 0, 0)],
+      ["y", new Vector3(0, 1, 0)],
+      ["z", new Vector3(0, 0, 1)],
+    ] as const) {
+      for (const sign of [-1, 1]) {
+        const ray = new Ray(position, direction.scale(sign), 2048);
+        const hit = this.scene.pickWithRay(ray, (m) => this.staticMeshes.has(m) && !m.infiniteDistance);
+        if (hit?.hit && hit.distance > 4)
+          (sign > 0 ? entry.roomMax : entry.roomMin)[axis] = position[axis] + sign * hit.distance;
+      }
+    }
+    // Interior islands are not the room boundary. Keep the proxy enclosing
+    // its entire water region so crossing that island's axis cannot abruptly
+    // switch from local projection to the infinite-distance fallback.
+    entry.roomMin.x = Math.min(entry.roomMin.x, patch.min.x - 1);
+    entry.roomMin.z = Math.min(entry.roomMin.z, patch.min.z - 1);
+    entry.roomMax.x = Math.max(entry.roomMax.x, patch.max.x + 1);
+    entry.roomMax.z = Math.max(entry.roomMax.z, patch.max.z + 1);
+    // A raised probe can see an island's top below it. The projection volume
+    // must still contain the actual water, not start at that island's height.
+    entry.roomMin.y = Math.min(entry.roomMin.y, patch.min.y - 1);
+    return entry;
   }
 
   /** BSP water polygons can run UNDER a solid island. A triangle centroid is
@@ -396,7 +431,9 @@ export class WaterProbeCache {
 
   dispose(): void {
     for (const entry of this.entries) entry.probe.dispose();
+    for (const entry of this.pending.values()) entry.probe.dispose();
     this.entries.length = 0;
+    this.pending.clear();
     this.staticMeshes.clear();
     this.patches.clear();
     this.failed.clear();

@@ -422,7 +422,9 @@ that share vertices share a region. Sloped, multi-height or disconnected
 batches, and regions past the budget, use the authored or sky reflection
 instead, and a neutral cube stands in for missing assets. Captures contain the
 static map only, not players, weapons or effects; reload the map to capture
-again after changing scenery or lighting.
+again after changing scenery or lighting. Loading waits up to 3 s in all for
+the captures' shaders to compile; a capture still not ready after that is
+taken in play.
 
 `r_water_probe_height` lifts the capture point to see more of the room over dark
 retaining walls, keeping four units below the ceiling, while the projection

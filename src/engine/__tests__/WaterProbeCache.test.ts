@@ -201,7 +201,7 @@ it("clamps the lifted capture below an overhang and supports the waterline basel
     cache.dispose();
   }
 });
-it("captures every pool in one call for the loading screen, and gives up on a target not ready", async () => {
+it("captures every pool in one call for the loading screen, waiting for a target not ready", async () => {
   const camera = new FreeCamera("world", new Vector3(0, 80, -100), scene);
   const root = new Mesh("map", scene);
   const wall = CreateBox("wall", { size: 20 }, scene);
@@ -220,10 +220,15 @@ it("captures every pool in one call for the loading screen, and gives up on a ta
   await scene.whenReadyAsync();
   vi.spyOn(RenderTargetTexture.prototype, "render").mockImplementation(() => {});
   const ready = vi.spyOn(RenderTargetTexture.prototype, "isReadyForRendering").mockReturnValue(false);
-  expect(cache.captureAll(camera)).toBe(0);
-  ready.mockReturnValue(true);
-  expect(cache.captureAll(camera)).toBe(2);
+  expect(await cache.captureAll(camera, 50)).toBe(0);
+  // A target still compiling keeps its probe, whose passes have the shaders so far
+  expect(scene.reflectionProbes).toHaveLength(1);
+  cache.update(camera);
+  expect(scene.reflectionProbes).toHaveLength(1);
+  ready.mockReturnValueOnce(false).mockReturnValue(true);
+  expect(await cache.captureAll(camera)).toBe(2);
+  expect(scene.reflectionProbes).toHaveLength(2);
   expect(cache.entries.map((entry) => entry.ready)).toEqual([true, true]);
-  expect(cache.captureAll(camera)).toBe(0);
+  expect(await cache.captureAll(camera)).toBe(0);
   cache.dispose();
 });

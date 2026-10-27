@@ -723,7 +723,7 @@ export class MapLoader {
       if (camera && this.liquidSurfaces) {
         progress("Finalizing", "Capturing reflections");
         try {
-          const captured = this.liquidSurfaces.captureReflections(camera);
+          const captured = await this.liquidSurfaces.captureReflections(camera);
           if (captured) devLog(`[MapLoader] Captured ${captured} water reflection cubemap(s)`);
         } catch (e) {
           console.warn("[MapLoader] Reflection capture failed, water will capture in play:", e);
