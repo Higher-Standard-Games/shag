@@ -606,10 +606,7 @@ export class WeaponViewManager {
     // may register after this one. Just before the world camera renders,
     // every observer has run, so the beam leaves the barrel of this frame.
     this.beamObserver = scene.onBeforeCameraRenderObservable.add((rendering) => {
-      if (rendering === this.mainCamera) {
-        this.updateBeam();
-        getHitscanEffects().refreshRailStarts();
-      }
+      if (rendering === this.mainCamera) this.updateBeam();
     });
 
     devLog(`[WeaponViewManager] Initialized with weapon FOV ${this.lastWeaponFov}°`);

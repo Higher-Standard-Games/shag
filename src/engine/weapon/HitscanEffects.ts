@@ -28,7 +28,7 @@ import { ContentFlags, SurfaceFlags } from "../physics/ContentFlags";
 import { ImpactSparkRenderer } from "./impact/ImpactSparkRenderer";
 import { MuzzleFlashRenderer, type MuzzleFlashSpawn } from "./muzzle/MuzzleFlashRenderer";
 import { getPointLightPool, type PooledLightOwner } from "./PointLightPool";
-import { RailEffectRenderer, type RailStartFollower } from "./rail/RailEffectRenderer";
+import { RailEffectRenderer } from "./rail/RailEffectRenderer";
 import type { RailEffectSample } from "./rail/RailProfiles";
 import { StreakTracerRenderer } from "./tracer/StreakTracerRenderer";
 import { VoltaicEffectRenderer, type VoltaicRemoteStartResolver } from "./voltaic/VoltaicEffectRenderer";
@@ -694,14 +694,9 @@ export class HitscanEffects {
    * from the damage trace. `sample` fields are copied synchronously — callers
    * may reuse scratch vectors. Leaves a scorch mark on a world contact.
    */
-  /** Keep the local shooter's rails on the barrel; see RailEffectRenderer.refreshFollowedStarts. */
-  refreshRailStarts(): void {
-    this.railRenderer?.refreshFollowedStarts();
-  }
-
-  fireRail(sample: RailEffectSample, followStart?: RailStartFollower): void {
+  fireRail(sample: RailEffectSample): void {
     if (!this.scene || !this.railRenderer) return;
-    this.railRenderer.fireRail(sample, undefined, followStart);
+    this.railRenderer.fireRail(sample);
     if (sample.impactKind === "world" && sample.impactNormal) {
       this.spawnWallMark(sample.end, sample.impactNormal, sample.color, 1.0);
       sample.end.subtractToRef(sample.start, this.railImpactDirection);

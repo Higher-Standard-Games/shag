@@ -23,7 +23,7 @@ it lands.
 | WO-EB3 | Electrobolt | Ammo counter digits off the holo pane after the sight swap | Low (asset) | Done, awaiting playtest |
 | WO-VT2 | Voltaic | Hipfire beam appears only after a delay | Low | Done, awaiting playtest |
 | WO-VT3 | Voltaic | Beam does not always show in demos | Medium | Open |
-| WO-EB4 | Electrobolt | Hipfire rail's gun end leaves the barrel | Low | Done, awaiting playtest |
+| WO-EB4 | Electrobolt | Hipfire rail's gun end leaves the barrel | Low | Superseded by WO-EB5: the rail stays where fired |
 | WO-EB5 | Electrobolt | A second beam that does not follow the muzzle while strafing | Low | Done, awaiting playtest |
 | WO-DR1 | Dropped weapons | After a swap, the dropped gun later jumps to another place | Medium | Done, awaiting playtest |
 | WO-DR2 | Dropped weapons | A dropped gun falls through the floor (repeatable: washoi_dm11, Voltaic and Electrobolt) | Medium | Done, awaiting playtest |
@@ -271,10 +271,13 @@ units in front of the eye on the screen ray through the muzzle, right only
 for the camera it was computed with. WO-EB4 refreshed the start in the
 rail's per-frame update, which can run before the first-person controller
 moves the camera; a start one camera move behind, 5 units from the eye, lands
-far off the barrel on screen. Following starts are now refreshed and uploaded
-just before the world camera renders
-(`RailEffectRenderer.refreshFollowedStarts`, from the same
-`onBeforeCameraRender` hook that places the Voltaic beam).
+far off the barrel on screen. Refreshing the starts just before the world camera rendered fixed the
+flicker, but the playtest wanted the opposite of WO-EB4: the rail should leave
+the muzzle and then stay in the world where it was fired, not follow the
+player. The follower is gone. `handleElectroRail` takes the start once, at
+the shot, 32 units along the screen ray through the muzzle
+(`getMuzzleWorldPosition(32)`), far enough from the eye that the start
+stays on the barrel for the frame it was taken and out of the near plane.
 
 ## Dropped weapons (WO-DR1, WO-DR2)
 
@@ -310,6 +313,21 @@ under a floor at y −192, is likely under an overhang). Two around the Rocket
 Launcher never settle (wedged); not addressed. In the browser on
 washoi_dm11, a throw from the Voltaic spot landed where the headless server
 throw did, to the unit, and dropped guns came to rest lying on the floor.
+
+Feel, after playtesting (the replayed throw was less lively than Havok's):
+dropped weapons bounce. The shared throw takes an optional `bounce`, the
+share of falling speed kept on hitting the floor (`DROPPED_WEAPON_BOUNCE`
+0.35, with 70% of the horizontal speed); a landing that would rebound
+slower than 90 u/s stops instead. The server and the client both pass it
+for drops, so they still agree; map items pass none, so where they rest is
+unchanged. The model's spin follows the throw: a bounce halves it and jolts
+it a little, sliding rolls the gun with its speed while the spin dies away,
+and at rest it eases onto its side over about 0.2 s. On washoi_dm11 the
+headless test now finds 96 throws over the edge beside the Voltaic (the
+bounce carries farther), 10 that end below the y −192 floor (over the edge,
+then under its overhang) and 4 that are still creeping down a ramp by the
+Rocket Launcher at 7 u/s when the 5 s budget runs out; they rest at its
+foot within 10 s.
 
 ## Voltaic in demos (WO-VT3)
 

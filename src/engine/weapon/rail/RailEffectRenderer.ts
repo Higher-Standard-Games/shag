@@ -22,14 +22,10 @@ const NORMAL_DIRTY = 1 << 4;
 const BEAM_DIRTY = START_SEED_DIRTY | END_IMPACT_DIRTY | COLOR_LIFE_DIRTY | PARAMS_DIRTY;
 const IMPACT_DIRTY = BEAM_DIRTY | NORMAL_DIRTY;
 
-/** Where a rail's start is now: the shooter's muzzle, or null to leave it. */
-export type RailStartFollower = () => { x: number; y: number; z: number } | null;
-
 interface RailSlot {
   seed: number;
   spawnTime: number;
   duration: number;
-  followStart?: RailStartFollower;
 }
 
 function defaultClock(): number {
@@ -55,9 +51,8 @@ function createTemplateMesh(name: string, scene: Scene, data: RailTemplateData, 
  * mesh + a single impact mesh. Each fired shot occupies one slot until it fades
  * out (age ≥ duration); at capacity the oldest slot is recycled.
  *
- * Slots are index-addressed only, so there is no key→slot map. A rail's end
- * never moves; its start can follow the shooter's gun (`followStart`) for its
- * whole life, so the beam stays on the barrel while the gun moves. Removal swaps the last slot into the freed index
+ * Slots are index-addressed only — a rail is never updated after it spawns, so
+ * there is no key→slot map. Removal swaps the last slot into the freed index
  * (matching the beam/impact instance buffers with copyWithin) to keep the live
  * range packed at [0, count).
  */
@@ -173,13 +168,13 @@ export class RailEffectRenderer {
   }
 
   /** Spawn one instantaneous rail from muzzle (start) to impact (end). */
-  fireRail(sample: RailEffectSample, duration = RAIL_DURATION, followStart?: RailStartFollower): void {
+  fireRail(sample: RailEffectSample, duration = RAIL_DURATION): void {
     const now = this.clock();
     if (this.slots.length >= this.capacity) this.removeAt(this.oldestIndex());
 
     const index = this.slots.length;
     const seed = makeRailSeed("rail", ++this.activationCounter);
-    this.slots.push({ seed, spawnTime: now, duration, followStart });
+    this.slots.push({ seed, spawnTime: now, duration });
 
     const normal = sample.impactNormal;
     const fallbackX = sample.start.x - sample.end.x;
@@ -210,28 +205,6 @@ export class RailEffectRenderer {
     this.setRenderCount(this.slots.length);
     this.beamDirtyMask |= BEAM_DIRTY;
     this.impactDirtyMask |= IMPACT_DIRTY;
-  }
-
-  /**
-   * Move following rails' starts to where their followers are now, and upload
-   * them. Call just before the world camera renders: a muzzle point a few
-   * units from the eye that lags one camera move behind lands well off the
-   * barrel on screen.
-   */
-  refreshFollowedStarts(): void {
-    let moved = false;
-    for (let index = 0; index < this.slots.length; index++) {
-      const start = this.slots[index].followStart?.();
-      if (!start) continue;
-      const offset = index * 4;
-      this.startSeed[offset] = start.x;
-      this.startSeed[offset + 1] = start.y;
-      this.startSeed[offset + 2] = start.z;
-      moved = true;
-    }
-    if (!moved) return;
-    this.beamMesh.thinInstanceBufferUpdated("iStartSeed");
-    this.impactMesh.thinInstanceBufferUpdated("iStartSeed");
   }
 
   update(_deltaTime: number): void {
