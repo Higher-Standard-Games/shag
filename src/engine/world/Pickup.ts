@@ -40,6 +40,7 @@ import { type ModelAttachmentPoint, ModelLoader } from "../loader/model/ModelLoa
 import { disposeModelResources } from "../loader/model/ModelSourceCache";
 import { getCollisionManager } from "../physics";
 import { PhysicsSystem } from "../physics/PhysicsSystem";
+import { prepareWorldWeaponMaterials } from "../weapon/WeaponBarrels";
 import { describeModelRender } from "./ModelRenderAudit";
 import type { PickupVisual, PickupVisualFactory } from "./PickupVisual";
 
@@ -239,6 +240,7 @@ export class Pickup extends TransformNode {
         let leaderMesh: Mesh | null = null;
         const otherMeshes: Mesh[] = [];
 
+        prepareWorldWeaponMaterials(result.meshes);
         for (const m of result.meshes) {
           if (m instanceof Mesh) {
             // Cap lights to prevent shader uniform block overflow

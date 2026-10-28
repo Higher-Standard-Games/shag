@@ -54,7 +54,7 @@ import { AmmoCounterDisplay, parseAmmoCounter } from "./AmmoCounterDisplay";
 import { createBladeEnvironment } from "./BladeEnvironment";
 import { getHitscanEffects, serverPelletDirections } from "./HitscanEffects";
 import { getProjectileManager } from "./ProjectileManager";
-import { WeaponBarrels } from "./WeaponBarrels";
+import { drawAsAddedLight, drawsAddedLight, WeaponBarrels } from "./WeaponBarrels";
 import { WeaponBob } from "./WeaponBob";
 import { WeaponCharge } from "./WeaponCharge";
 import { WeaponHolsterAnim } from "./WeaponHolsterAnim";
@@ -606,7 +606,10 @@ export class WeaponViewManager {
     // may register after this one. Just before the world camera renders,
     // every observer has run, so the beam leaves the barrel of this frame.
     this.beamObserver = scene.onBeforeCameraRenderObservable.add((rendering) => {
-      if (rendering === this.mainCamera) this.updateBeam();
+      if (rendering === this.mainCamera) {
+        this.updateBeam();
+        getHitscanEffects().refreshRailStarts();
+      }
     });
 
     devLog(`[WeaponViewManager] Initialized with weapon FOV ${this.lastWeaponFov}°`);
@@ -851,13 +854,16 @@ export class WeaponViewManager {
           } else {
             // Warsow weapon materials are multi-pass, but the IQM→GLB conversion
             // baked every pass as an OPAQUE, scene-lit base texture. Fix them up by
-            // name (from the shipped *_glow / *_emit / *_glass tgas): the glow/emit
-            // passes are solid teal energy strips (no black/alpha), so render them
-            // SELF-LIT (emissive, unlit) so they read as glow instead of a dark
-            // scene-shaded panel; glass reads as transparent.
+            // name (from the shipped *_glow / *_emit / *_glass tgas): a glow is a
+            // gradient shining out of the weapon, drawn as added light; an emit
+            // pass is a solid energy strip, drawn SELF-LIT so it reads as glow
+            // instead of a dark scene-shaded panel; glass reads as transparent.
             const matName = (pbr.name || "").toLowerCase();
-            const isGlow = (matName.includes("_glow") || matName.includes("_emit")) && !!pbr.albedoTexture;
-            if (isGlow) {
+            const isGlow = matName.includes("_emit") && !!pbr.albedoTexture;
+            if (matName.endsWith("_glow")) {
+              // A gradient glowing out of the weapon: added light, no outline
+              drawAsAddedLight(pbr);
+            } else if (isGlow) {
               // Self-lit emissive strip, TRANSLUCENT so the barrel reads through
               // it — a glow, not a solid teal panel. Not additive (the texture's
               // near-white highlights blew out to white when accumulated) and
@@ -1522,7 +1528,7 @@ export class WeaponViewManager {
     const adjustedWidth = width / rootScale;
 
     for (const mesh of this.currentWeapon.meshes) {
-      mesh.renderOutline = enabled;
+      mesh.renderOutline = enabled && !drawsAddedLight(mesh);
       mesh.outlineWidth = adjustedWidth;
       mesh.outlineColor = color;
     }
@@ -1920,7 +1926,7 @@ export class WeaponViewManager {
     const recoilScale = def?.recoilScale ?? 1.0;
     const refireSeconds = def?.fireRate ? fireIntervalTicks(def) / DEFAULT_PHYSICS_TICK_RATE : undefined;
     this.weaponRecoil.fire(recoilScale, this.adsProgress, def?.adsRecoilScale, refireSeconds);
-    this.weaponBarrels.fire();
+    this.weaponBarrels.fire(refireSeconds);
 
     // Trigger slash animation for melee weapons (skip for charged projectile fire)
     if (this.currentWeaponDef?.meleeRadius && !opts?.isProjectileFire) {
@@ -2228,6 +2234,7 @@ export class WeaponViewManager {
    */
   public startReload(_duration: number): void {
     this.reloadAnim.start(_duration);
+    this.weaponBarrels.reload(_duration);
   }
 
   /**

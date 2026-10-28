@@ -104,6 +104,28 @@ describe("RailEffectRenderer lifecycle", () => {
     }
   });
 
+  it("keeps a following rail's start on the muzzle, and leaves other rails where they were fired", () => {
+    const engine = new NullEngine();
+    const scene = new Scene(engine);
+    new FreeCamera("camera", new Vector3(0, 10, -20), scene);
+    const renderer = new RailEffectRenderer(scene, () => 1);
+    const muzzle = new Vector3(1, 2, 3);
+
+    try {
+      renderer.fireRail(sampleAt(300));
+      renderer.fireRail(sampleAt(400), undefined, () => muzzle);
+      muzzle.set(4, 5, 6);
+      renderer.refreshFollowedStarts();
+      const starts = (renderer as unknown as { startSeed: Float32Array }).startSeed;
+      expect(Array.from(starts.slice(0, 3))).toEqual([0, 0, 0]);
+      expect(Array.from(starts.slice(4, 7))).toEqual([4, 5, 6]);
+    } finally {
+      renderer.dispose();
+      scene.dispose();
+      engine.dispose();
+    }
+  });
+
   it("clear() removes all live rails and disables the meshes", () => {
     const engine = new NullEngine();
     const scene = new Scene(engine);

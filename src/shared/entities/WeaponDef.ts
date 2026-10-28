@@ -288,14 +288,20 @@ export interface WeaponDef extends EntityDef {
     modelPath: string;
     /** Continuous spin speed (radians per second, 0 = no spin) */
     spinSpeed: number;
+    /** Spin speed while firing (radians per second); spinSpeed when absent */
+    firingSpinSpeed?: number;
+    /** Seconds to slow from firingSpinSpeed back to spinSpeed after the last shot */
+    spinDownSeconds?: number;
     /** Spin direction multiplier (1 or -1 for counter-rotation) */
     spinDirection?: number;
     /** Offset from weapon origin (x, y, z in model space) */
     offset?: { x: number; y: number; z: number };
     /** Spin axis: 'x' (default), 'y', or 'z' */
     spinAxis?: "x" | "y" | "z";
-    /** Degrees to rotate per shot instead of continuously spinning. */
+    /** Degrees to turn per shot, over the refire interval, instead of continuously spinning. */
     fireStepDegrees?: number;
+    /** Model units a sliding part (a bolt) moves back along the axis per shot and when reloading */
+    slideDistance?: number;
   }[];
 }
 
