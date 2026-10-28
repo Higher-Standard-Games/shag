@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Cvar } from "../../core/Cvar";
+import { fail } from "../Command";
 import { CommandRegistry } from "../CommandRegistry";
 import MapCommand from "../commands/MapCommand";
 import { clearGameplayMapLauncher, registerGameplayMapLauncher } from "../GameplayMapLauncher";
@@ -16,18 +17,30 @@ describe("MapCommand", () => {
     Cvar.set("developer", 0);
   });
 
-  it("is developer-only and is gated by CommandRegistry", async () => {
+  it("runs without developer mode", async () => {
     const registry = CommandRegistry.getInstance();
     registry.register(new MapCommand());
 
-    await expect(registry.execute("map wdm2")).resolves.toBe("Command 'map' requires developer mode");
+    const result = await registry.executeChecked("map wdm2");
+    expect(result.output).not.toContain("requires developer mode");
   });
 
-  it("returns a clear error when no gameplay launcher is registered", async () => {
+  it("fails clearly when no gameplay launcher is registered", async () => {
     const command = new MapCommand();
 
-    await expect(command.execute(["wdm2"])).resolves.toBe(
-      "No gameplay map launcher registered. Use bsp commands for map inspection.",
+    await expect(command.execute(["wdm2"])).resolves.toEqual(
+      fail("No gameplay map launcher registered. Use bsp commands for map inspection."),
+    );
+  });
+
+  it("fails with the lobby's reason when the launch is refused", async () => {
+    registerGameplayMapLauncher({
+      launch: vi.fn().mockRejectedValue(new Error("You already have a practice server running. Leave it first.")),
+      unload: vi.fn(),
+    });
+
+    await expect(new MapCommand().execute(["wdm2"])).resolves.toEqual(
+      fail("You already have a practice server running. Leave it first."),
     );
   });
 

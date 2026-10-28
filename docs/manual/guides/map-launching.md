@@ -11,7 +11,6 @@ SHAG has separate inspection and gameplay paths.
 ## Browser gameplay command
 
 ```text
-developer 1
 map washoi_dm2 duel
 ```
 
@@ -27,13 +26,32 @@ export interface GameplayMapLauncher {
 Application bootstrap registers the game adapter:
 
 ```ts
-// From src/main.ts
-import { registerGameplayMapLauncher } from './engine/console/GameplayMapLauncher';
-
-registerGameplayMapLauncher(fpsMapLauncher);
+// From src/games/fps/client/registerServices.ts
+registerGameplayMapLauncher(fpsModule.fpsMapLauncher);
 ```
 
-The FPS adapter uses the lobby/development-server flow and then initializes the network client. Without a registration, `map` reports that no gameplay launcher is available.
+The FPS adapter asks the lobby for a server (`dev:spawn_server`) and then initializes the network client. Without a registration, `map` reports that no gameplay launcher is available.
+
+## Practice and developer servers
+
+`map` needs no `developer 1`. What the lobby starts depends on where the
+request comes from:
+
+| Requested from | Server |
+| --- | --- |
+| The lobby's own machine (loopback) | A developer server: any installed map, any gametype, the gametype's player count, and `training_demo` recording |
+| Anywhere else | A practice server: one of the lobby's maps, for that player alone |
+
+A practice server takes only maps in a gametype's map pool. The requested
+gametype is used when its pool has the map, otherwise the first gametype whose
+pool does. It admits one player (`--max 1`) and no bots. A player has one
+practice server at a time, counted by account and by address, and starts at
+most three a minute from one address. Like every spawned server, it exits when
+its player leaves, or after two minutes if nobody joins.
+
+Neither kind has admission seats, so their results are never stored and never
+rated. A refusal (an unknown map, a second server, the rate limit) comes back
+as the command's error.
 
 ## Other map operations
 

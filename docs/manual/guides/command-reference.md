@@ -21,8 +21,8 @@ This page is organized by task rather than generated from source. Engine command
 
 | Command | Purpose |
 | --- | --- |
-| `map <name> [gametype]` **dev** | Browser gameplay launch through the registered launcher |
-| `map list\|current\|reload\|unload` **dev** | Gameplay-map operations |
+| `map <name> [gametype]` | A server of your own on a map, through the registered launcher; see [Map launching](./map-launching.md#practice-and-developer-servers) |
+| `map list\|current\|reload\|unload` | Gameplay-map operations |
 | `training_demo <map> [name] [gametype]` **dev** | Launch a map on a server that stays in warmup and records every tick of your play, for bots to learn a movement route from |
 | `training_demo stop` **dev** | Leave the training server; it saves `public/data/demos/training/<map>_<name>.shagdemo` |
 | `bsp load\|unload <name>` | Parse an indexed BSP for inspection, or drop it |

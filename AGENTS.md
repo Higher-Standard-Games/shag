@@ -466,8 +466,9 @@ mesh.metadata = { mapOwned: true };
 
 5. Quake coordinates are Z-up; Babylon is Y-up. Convert at the loader boundary
    (`q3ToBabylonVec3`), never with local axis swaps.
-6. Most debugging commands (`map`, `pk3`, `render`, `teleport`, `noclip`, ...)
-   need `developer 1` first; without it the console refuses them.
+6. Most debugging commands (`pk3`, `render`, `teleport`, `noclip`, ...) need
+   `developer 1` first; without it the console refuses them. `map` does not:
+   from another machine it starts a solo practice server.
 
 ## Documentation Pointers
 

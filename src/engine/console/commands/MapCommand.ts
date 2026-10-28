@@ -2,7 +2,7 @@
  * MapCommand - Map loading and management
  */
 
-import { Command, type CommandDef } from "../Command";
+import { Command, type CommandDef, type CommandOutput, fail } from "../Command";
 import { getGameplayMapLauncher } from "../GameplayMapLauncher";
 
 export default class MapCommand extends Command {
@@ -11,13 +11,12 @@ export default class MapCommand extends Command {
 
   readonly definition: CommandDef = {
     name: "map",
-    description: "Developer server-backed map launch",
+    description: "Play a map on a server of your own, alone",
     usage: "map <name> [gametype] or map <subcommand>",
-    developer: true,
     subcommands: [
       {
         name: "load",
-        description: "Launch a server-backed map",
+        description: "Start a server of your own on a map",
         args: [
           { name: "mapname", type: "string", required: true },
           { name: "gametype", type: "string", required: false },
@@ -30,7 +29,7 @@ export default class MapCommand extends Command {
     ],
   };
 
-  async execute(args: string[]): Promise<string | undefined> {
+  async execute(args: string[]): Promise<CommandOutput> {
     const subcommand = args[0]?.toLowerCase();
 
     // Import MapLoader dynamically
@@ -107,7 +106,7 @@ export default class MapCommand extends Command {
 
         return [
           "Map Commands:",
-          "  map <name> [gametype]      - Spawn a dedicated server via lobby and connect",
+          "  map <name> [gametype]      - Start a server of your own on a map and join it",
           "  map load <name> [gametype] - Same as above",
           "  map list        - List available maps",
           "  map current     - Show current map",
@@ -120,17 +119,23 @@ export default class MapCommand extends Command {
     }
   }
 
-  private async launchMap(mapName: string, gametype: string): Promise<string> {
+  private async launchMap(mapName: string, gametype: string): Promise<CommandOutput> {
     const launcher = getGameplayMapLauncher();
     if (!launcher) {
-      return "No gameplay map launcher registered. Use bsp commands for map inspection.";
+      return fail("No gameplay map launcher registered. Use bsp commands for map inspection.");
     }
 
     if (typeof window !== "undefined") {
       const { preparePublishedMap } = await import("../../editor/PublishedMapClient");
       await preparePublishedMap(mapName.toLowerCase());
     }
-    const result = await launcher.launch(mapName, gametype || "duel");
+    let result: Awaited<ReturnType<typeof launcher.launch>>;
+    try {
+      result = await launcher.launch(mapName, gametype || "duel");
+    } catch (error) {
+      // The lobby says why (no such map, one practice server at a time, ...)
+      return fail(error instanceof Error ? error.message : String(error));
+    }
     this.lastMapName = result.map;
     this.lastGametype = result.gametype;
 

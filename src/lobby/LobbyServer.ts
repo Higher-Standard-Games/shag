@@ -187,6 +187,8 @@ export function clientAddress(req: IncomingMessage): string {
 const ACCOUNT_CREATION_LIMIT = { limit: 30, windowMs: 60 * 60_000 };
 const KEY_FAILURE_LIMIT = { limit: 20, windowMs: 60_000 };
 const RENAME_LIMIT = { limit: 10, windowMs: 60_000 };
+/** Per player address: practice servers started (`map <name>` from a remote player). */
+const PRACTICE_SPAWN_LIMIT = { limit: 3, windowMs: 60_000 };
 /** Per account: synced settings reads and writes (clients debounce, so this is generous). */
 const SETTINGS_LIMIT = { limit: 30, windowMs: 60_000 };
 /** Players online at once when the operator sets no cap. Bots don't count. */
@@ -472,6 +474,8 @@ export class LobbyServer {
   private matchToLobby: Map<string, string> = new Map();
   /** Map dev-spawned matchId to the requesting player. */
   private devMatchToPlayer: Map<string, string> = new Map();
+  /** Running practice servers by matchId, with whose they are: one each. */
+  private practiceServers = new Map<string, { accountId: number | null; address: string }>();
 
   private readonly MAX_CHAT_HISTORY = 50;
 
@@ -506,6 +510,7 @@ export class LobbyServer {
   private readonly accountCreations = new RateLimiter(ACCOUNT_CREATION_LIMIT.limit, ACCOUNT_CREATION_LIMIT.windowMs);
   private readonly keyFailures = new RateLimiter(KEY_FAILURE_LIMIT.limit, KEY_FAILURE_LIMIT.windowMs);
   private readonly renames = new RateLimiter(RENAME_LIMIT.limit, RENAME_LIMIT.windowMs);
+  private readonly practiceSpawns = new RateLimiter(PRACTICE_SPAWN_LIMIT.limit, PRACTICE_SPAWN_LIMIT.windowMs);
   private readonly leaderboardReads = new RateLimiter(60, 60_000);
   private readonly featuredReads = new RateLimiter(60, 60_000);
   private readonly settingsRequests = new RateLimiter(SETTINGS_LIMIT.limit, SETTINGS_LIMIT.windowMs);
@@ -606,6 +611,7 @@ export class LobbyServer {
     this.matchToLobby.clear();
     this.matchRecords.clear();
     this.devMatchToPlayer.clear();
+    this.practiceServers.clear();
 
     if (this.ownsAccounts) this.accounts.close();
     if (this.ownsSettings) this.settings.close();
@@ -1707,6 +1713,13 @@ export class LobbyServer {
     }
   }
 
+  /**
+   * `map <name>`: a game server of the requester's own. From this machine it is
+   * a developer server: any map name, any gametype, a training demo. From
+   * anywhere else it is a practice server: one of the lobby's maps, for that
+   * player alone, one at a time, a few a minute. Neither has admission seats,
+   * so neither stores results or touches ratings.
+   */
   private async handleDevSpawnServer(
     player: ConnectedPlayer,
     requestId: string,
@@ -1714,53 +1727,69 @@ export class LobbyServer {
     requestedGametype: string,
     trainingDemo?: string,
   ): Promise<void> {
-    if (!isLoopbackAddress(player.address)) {
-      this.send(player, {
-        type: "dev:server_spawn_failed",
-        requestId,
-        error: "Developer server spawn is only allowed from localhost.",
-      });
-      return;
-    }
+    const refuse = (error: string) => this.send(player, { type: "dev:server_spawn_failed", requestId, error });
+    const practice = !isLoopbackAddress(player.address);
 
     const map = String(mapName || "")
       .trim()
       .toLowerCase();
     if (!/^[a-z0-9_-]+$/.test(map)) {
-      this.send(player, {
-        type: "dev:server_spawn_failed",
-        requestId,
-        error: `Invalid map name: ${mapName}`,
-      });
+      refuse(`Invalid map name: ${mapName}`);
       return;
     }
 
     // The name becomes part of a file name and a command-line argument.
-    if (trainingDemo !== undefined && !/^[a-z0-9_-]{1,40}$/i.test(trainingDemo)) {
-      this.send(player, {
-        type: "dev:server_spawn_failed",
-        requestId,
-        error: `Invalid training demo name: ${trainingDemo} (letters, digits, _ and -)`,
-      });
+    if (trainingDemo !== undefined && (practice || !/^[a-z0-9_-]{1,40}$/i.test(trainingDemo))) {
+      refuse(
+        practice
+          ? "Training demos are recorded from the lobby's own machine only."
+          : `Invalid training demo name: ${trainingDemo} (letters, digits, _ and -)`,
+      );
       return;
     }
 
-    const gametypeId = normalizeGametype(requestedGametype);
+    let gametypeId = normalizeGametype(requestedGametype);
     if (!gametypeId) {
-      this.send(player, {
-        type: "dev:server_spawn_failed",
-        requestId,
-        error: `Unknown gametype: ${requestedGametype}`,
-      });
+      refuse(`Unknown gametype: ${requestedGametype}`);
       return;
+    }
+
+    if (practice) {
+      // A map the lobby offers, in a gametype it is made for
+      const offering =
+        this.gametypes.find((g) => g.id === gametypeId && g.mapPool.includes(map)) ??
+        this.gametypes.find((g) => g.mapPool.includes(map));
+      if (!offering) {
+        refuse(`No such map: ${map}. Maps: ${[...new Set(this.gametypes.flatMap((g) => g.mapPool))].join(", ")}`);
+        return;
+      }
+      gametypeId = offering.id;
+      const own = [...this.practiceServers.values()].some(
+        (holder) =>
+          holder.address === player.address || (player.accountId !== null && holder.accountId === player.accountId),
+      );
+      if (own) {
+        refuse("You already have a practice server running. Leave it first.");
+        return;
+      }
+      if (!this.practiceSpawns.tryRecord(player.address)) {
+        refuse("Too many practice servers started. Try again in a minute.");
+        return;
+      }
     }
 
     const gametype =
       this.gametypes.find((g) => g.id === gametypeId) || GAMETYPE_SHELLS.find((g) => g.id === gametypeId);
-    const maxClients = gametype?.maxPlayers ?? 2;
+    const maxClients = practice ? 1 : (gametype?.maxPlayers ?? 2);
+    // Held from the request on, so a second request cannot start another
+    // while this one is still starting
+    const reservation = `pending:${requestId}:${player.id}`;
+    if (practice) this.practiceServers.set(reservation, { accountId: player.accountId, address: player.address });
 
     try {
-      console.log(`[LobbyServer] Dev spawn requested by ${player.name}: map=${map} gametype=${gametypeId}`);
+      console.log(
+        `[LobbyServer] ${practice ? "Practice" : "Dev"} spawn requested by ${player.name}: map=${map} gametype=${gametypeId}`,
+      );
       const server = await this.spawner.spawn({
         map,
         gametype: gametypeId,
@@ -1770,6 +1799,10 @@ export class LobbyServer {
       });
 
       this.devMatchToPlayer.set(server.matchId, player.id);
+      if (practice) {
+        this.practiceServers.delete(reservation);
+        this.practiceServers.set(server.matchId, { accountId: player.accountId, address: player.address });
+      }
 
       player.status = "in_match";
       this.broadcast({
@@ -1787,11 +1820,8 @@ export class LobbyServer {
         matchId: server.matchId,
       });
     } catch (err) {
-      this.send(player, {
-        type: "dev:server_spawn_failed",
-        requestId,
-        error: (err as Error).message,
-      });
+      this.practiceServers.delete(reservation);
+      refuse((err as Error).message);
     }
   }
 
@@ -2113,6 +2143,7 @@ export class LobbyServer {
     if (!lobbyId) {
       const playerId = this.devMatchToPlayer.get(matchId);
       this.devMatchToPlayer.delete(matchId);
+      this.practiceServers.delete(matchId);
       if (playerId) {
         const player = this.players.get(playerId);
         if (player) {

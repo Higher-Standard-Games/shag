@@ -39,8 +39,16 @@ function makeServer(spawn = vi.fn()) {
 
 /** The server's private handlers, which these tests call directly. */
 type ServerInternals = {
-  handleDevSpawnServer(player: unknown, requestId: string, map: string, gametype: string): Promise<void>;
+  handleDevSpawnServer(
+    player: unknown,
+    requestId: string,
+    map: string,
+    gametype: string,
+    trainingDemo?: string,
+  ): Promise<void>;
   handleMessage(player: unknown, message: unknown): void;
+  handleServerExit(matchId: string, code: number | null): void;
+  gametypes: { id: string; mapPool: string[]; maxPlayers: number }[];
 };
 const internals = (server: LobbyServer) => server as unknown as ServerInternals;
 
@@ -102,18 +110,15 @@ describe("LobbyServer dev spawn", () => {
     });
   });
 
-  it("rejects unknown gametypes and non-loopback clients", async () => {
+  it("rejects unknown gametypes", async () => {
     const spawn = vi.fn();
     const server = makeServer(spawn);
-    const unknown = makePlayer();
-    const remote = makePlayer({ address: "10.0.0.5" });
+    const { player, sent } = makePlayer();
 
-    await internals(server).handleDevSpawnServer(unknown.player, "req_3", "wdm2", "ctf");
-    await internals(server).handleDevSpawnServer(remote.player, "req_4", "wdm2", "duel");
+    await internals(server).handleDevSpawnServer(player, "req_3", "wdm2", "ctf");
 
     expect(spawn).not.toHaveBeenCalled();
-    expect(lastMessage(unknown.sent)).toMatchObject({ type: "dev:server_spawn_failed", requestId: "req_3" });
-    expect(lastMessage(remote.sent)).toMatchObject({ type: "dev:server_spawn_failed", requestId: "req_4" });
+    expect(lastMessage(sent)).toMatchObject({ type: "dev:server_spawn_failed", requestId: "req_3" });
   });
 
   it("requires authentication before accepting dev spawn messages", () => {
@@ -131,5 +136,94 @@ describe("LobbyServer dev spawn", () => {
       type: "lobby:error",
       error: "Not authenticated. Send auth message first.",
     });
+  });
+});
+
+describe("LobbyServer practice spawn", () => {
+  /** A lobby offering duel and S&D maps, spawning servers m_1, m_2, ... */
+  function practiceServer() {
+    let next = 0;
+    const spawn = vi.fn().mockImplementation(async () => ({ url: "ws://game:7777", matchId: `m_${++next}` }));
+    const server = makeServer(spawn);
+    internals(server).gametypes = [
+      { id: "duel", mapPool: ["washoi_dm2", "washoi_dm5"], maxPlayers: 2 },
+      { id: "snd", mapPool: ["washoi_snd1"], maxPlayers: 10 },
+    ];
+    return { server, spawn };
+  }
+  const remote = (overrides: Record<string, unknown> = {}) =>
+    makePlayer({ address: "203.0.113.7", accountId: 42, ...overrides });
+
+  it("gives a remote player a server of their own on one of the lobby's maps", async () => {
+    const { server, spawn } = practiceServer();
+    const { player, sent } = remote();
+
+    await internals(server).handleDevSpawnServer(player, "r1", "washoi_dm2", "duel");
+
+    expect(spawn).toHaveBeenCalledWith({ map: "washoi_dm2", gametype: "duel", maxClients: 1, shutdown: true });
+    expect(lastMessage(sent)).toMatchObject({ type: "dev:server_spawned", requestId: "r1", gametype: "duel" });
+  });
+
+  it("plays a map in a gametype it is made for, and refuses maps the lobby does not offer", async () => {
+    const { server, spawn } = practiceServer();
+    const { player, sent } = remote();
+
+    await internals(server).handleDevSpawnServer(player, "r1", "washoi_snd1", "duel");
+    expect(spawn).toHaveBeenLastCalledWith(expect.objectContaining({ map: "washoi_snd1", gametype: "snd" }));
+
+    const other = remote({ id: "p_2", address: "198.51.100.1", accountId: 7 });
+    await internals(server).handleDevSpawnServer(other.player, "r2", "secret_wip", "duel");
+    expect(spawn).toHaveBeenCalledTimes(1);
+    expect(lastMessage(other.sent)).toMatchObject({ type: "dev:server_spawn_failed", requestId: "r2" });
+    expect(String(lastMessage(other.sent)?.error)).toContain("washoi_dm2");
+    expect(lastMessage(sent)).toMatchObject({ type: "dev:server_spawned", requestId: "r1", gametype: "snd" });
+  });
+
+  it("allows one practice server per account and per address, also while one is starting", async () => {
+    let started: (value: unknown) => void = () => {};
+    const spawn = vi.fn().mockImplementation(() => new Promise((resolve) => (started = resolve)));
+    const server = makeServer(spawn);
+    internals(server).gametypes = [{ id: "duel", mapPool: ["washoi_dm2"], maxPlayers: 2 }];
+    const first = remote();
+    const sameAccount = remote({ id: "p_2", address: "198.51.100.1" });
+    const sameAddress = remote({ id: "p_3", accountId: 9 });
+
+    const starting = internals(server).handleDevSpawnServer(first.player, "r1", "washoi_dm2", "duel");
+    await internals(server).handleDevSpawnServer(sameAccount.player, "r2", "washoi_dm2", "duel");
+    await internals(server).handleDevSpawnServer(sameAddress.player, "r3", "washoi_dm2", "duel");
+    started({ url: "ws://game:7777", matchId: "m_1" });
+    await starting;
+
+    expect(spawn).toHaveBeenCalledTimes(1);
+    for (const refused of [sameAccount, sameAddress])
+      expect(lastMessage(refused.sent)).toMatchObject({ type: "dev:server_spawn_failed" });
+
+    // Once that server exits, the player may start another
+    internals(server).handleServerExit("m_1", 0);
+    const again = internals(server).handleDevSpawnServer(sameAccount.player, "r4", "washoi_dm2", "duel");
+    started({ url: "ws://game:7777", matchId: "m_2" });
+    await again;
+    expect(spawn).toHaveBeenCalledTimes(2);
+  });
+
+  it("starts at most three practice servers a minute from one address", async () => {
+    const { server, spawn } = practiceServer();
+    const { player, sent } = remote();
+    for (let i = 1; i <= 4; i++) {
+      await internals(server).handleDevSpawnServer(player, `r${i}`, "washoi_dm2", "duel");
+      internals(server).handleServerExit(`m_${i}`, 0);
+    }
+    expect(spawn).toHaveBeenCalledTimes(3);
+    expect(lastMessage(sent)).toMatchObject({ type: "dev:server_spawn_failed", requestId: "r4" });
+  });
+
+  it("records training demos from the lobby's machine only", async () => {
+    const { server, spawn } = practiceServer();
+    const { player, sent } = remote();
+
+    await internals(server).handleDevSpawnServer(player, "r1", "washoi_dm2", "duel", "my_demo");
+
+    expect(spawn).not.toHaveBeenCalled();
+    expect(lastMessage(sent)).toMatchObject({ type: "dev:server_spawn_failed", requestId: "r1" });
   });
 });
