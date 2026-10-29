@@ -186,12 +186,12 @@ or pass `-- --source-dir <directory>`. Regenerate the PK3 index after rebuilding
 The packager verifies PNG signatures, ZIP CRCs and unchanged image hashes.
 
 `washoi_textures.pk3` is the retained master source bank, listed in
-`config/pk3-packages.json`'s `ignoredPackages`. The five shipped maps have
+`config/pk3-packages.json`'s `ignoredPackages`. The seven shipped maps have
 `tex_<map>.pk3` dependency banks. Shared textures are deliberately duplicated;
 gameplay packages for weapons, player models, sound and effects remain separate.
 
 ```bash
-npm run tools:map-media -- --maps washoi_dm2,washoi_dm5,washoi_dm11,washoi_amphi1,washoi_snd1 --master-package washoi_textures.pk3 --output-dir .cache/map-media
+npm run tools:map-media -- --maps washoi_dm2,washoi_dm5,washoi_dm7,washoi_dm11,washoi_dm14,washoi_amphi1,washoi_snd1 --master-package washoi_textures.pk3 --output-dir .cache/map-media
 ```
 
 This builds `map_<name>.pk3` and `tex_<name>.pk3` in a staging directory.
@@ -202,7 +202,7 @@ this flag the tool reads the published ownership index. It uses the runtime BSP/
 bytes and shader conditionals/templates, and includes provenance manifests.
 It refuses to overwrite indexed input packages. `--audit-only` writes only the
 dependency report. Install reviewed packages into `public/data/` and regenerate
-the index before testing them. Install the five `tex_` banks; do not replace the
+the index before testing them. Install the seven `tex_` banks; do not replace the
 master with them. Existing map packages need replacement only if their content
 changed. `--combined` remains a development utility that deduplicates identical
 files/shaders and rejects conflicting definitions; its output is not deployed
