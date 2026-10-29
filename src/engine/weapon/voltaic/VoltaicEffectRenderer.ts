@@ -1,8 +1,10 @@
+import type { Camera } from "@babylonjs/core/Cameras/camera";
 import type { ShaderMaterial } from "@babylonjs/core/Materials/shaderMaterial";
 import { Vector2, Vector3, Vector4 } from "@babylonjs/core/Maths/math.vector";
 import { Mesh } from "@babylonjs/core/Meshes/mesh";
 import "@babylonjs/core/Meshes/thinInstanceMesh";
 import { VertexData } from "@babylonjs/core/Meshes/mesh.vertexData";
+import type { Observer } from "@babylonjs/core/Misc/observable";
 import type { Scene } from "@babylonjs/core/scene";
 import { DirtySlotRange } from "../../rendering/data/DirtySlotRange";
 import {
@@ -414,6 +416,7 @@ export class VoltaicEffectRenderer {
   private readonly normal = new Vector4();
   private readonly heroMaterials: ShaderMaterial[];
   private remoteStartResolver: VoltaicRemoteStartResolver | null = null;
+  private readonly startObserver: Observer<Camera>;
   private heroFiring = false;
   private heroVisible = false;
   private heroReleaseStarted = 0;
@@ -434,6 +437,16 @@ export class VoltaicEffectRenderer {
 
     this.remoteBatch = new VoltaicInstanceBatch("voltaic_world", scene, "world", 32);
     this.chainBatch = new VoltaicInstanceBatch("voltaic_chain", scene, "chain", 24);
+
+    // A beam leaves a muzzle that moves with its camera: the watched player's
+    // gun on screen moves with the spectator camera, which a before-render
+    // observer registered after ours may place. Just before the world camera
+    // renders, every observer has run, so the beam leaves this frame's barrel.
+    this.startObserver = scene.onBeforeCameraRenderObservable.add((camera) => {
+      if (camera !== (scene.activeCameras?.[0] ?? scene.activeCamera) || !this.remoteStartResolver) return;
+      this.remoteBatch.refreshStarts(this.remoteStartResolver);
+      this.remoteBatch.flush();
+    });
   }
 
   private now(): number {
@@ -521,7 +534,6 @@ export class VoltaicEffectRenderer {
     this.chainBatch.setFrame(now, this.viewport);
     this.remoteBatch.update(now);
     this.chainBatch.update(now);
-    if (this.remoteStartResolver) this.remoteBatch.refreshStarts(this.remoteStartResolver);
     this.remoteBatch.flush();
     this.chainBatch.flush();
 
@@ -558,6 +570,7 @@ export class VoltaicEffectRenderer {
 
   dispose(): void {
     this.clear();
+    this.scene.onBeforeCameraRenderObservable.remove(this.startObserver);
     this.remoteStartResolver = null;
     this.heroBeam.dispose();
     this.heroImpact.dispose();

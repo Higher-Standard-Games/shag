@@ -106,6 +106,16 @@ function isRenderableStage(stage: Q3ShaderStage): boolean {
   );
 }
 
+/** An additive image stage after a `material` stage, which a collapsed material draws as its glow. */
+function isAdditiveGlowStage(stage: Q3ShaderStage): boolean {
+  return Boolean(
+    (stage.map || stage.animMap?.frames.length) &&
+      !isLightmapStage(stage) &&
+      stage.blendFunc?.[0] === "GL_ONE" &&
+      stage.blendFunc?.[1] === "GL_ONE",
+  );
+}
+
 function hasFilterBlend(stage: Q3ShaderStage): boolean {
   return stage.blendFunc?.[0] === "GL_DST_COLOR" && stage.blendFunc?.[1] === "GL_ZERO";
 }
@@ -366,15 +376,7 @@ export class Q3ShaderRegistry {
     // Normalize structured material metadata before any stage-map fallback.
     if (materialStage?.material) {
       this.applyNormalizedMaterialToProps(props, this.normalizeMaterialDirective(materialStage.material));
-      const glow = activeStages
-        .slice(activeStages.indexOf(materialStage) + 1)
-        .find(
-          (stage) =>
-            (stage.map || stage.animMap?.frames.length) &&
-            !isLightmapStage(stage) &&
-            stage.blendFunc?.[0] === "GL_ONE" &&
-            stage.blendFunc?.[1] === "GL_ONE",
-        );
+      const glow = activeStages.slice(activeStages.indexOf(materialStage) + 1).find(isAdditiveGlowStage);
       if (glow && !props.glowTexture) {
         props.glowTexture = normalizeTextureReference(glow.map || glow.animMap!.frames[0]);
         props.glowTextureExplicitlyBlank = false;
@@ -532,8 +534,16 @@ export class Q3ShaderRegistry {
       return passes.sort((a, b) => a.at - b.at).map((pass) => pass.props);
     }
     const environmentBackground = stages[0]?.cubeMap || stages[0]?.tcGen?.mode === "environment";
+    // A collapsed material has one glow slot: additive stages beyond it, or any
+    // additive stage when the material names its own glow, draw as passes.
+    const materialIndex = stages.findIndex((stage) => stage.material);
+    const material = stages[materialIndex]?.material;
+    const additiveAfterMaterial = stages.slice(materialIndex + 1).filter(isAdditiveGlowStage).length;
+    const glowSlots = material && this.normalizeMaterialDirective(material).glow.value ? 0 : 1;
     if (
-      (!environmentBackground && stages.filter((stage) => stage.material).length < 2) ||
+      (!environmentBackground &&
+        stages.filter((stage) => stage.material).length < 2 &&
+        additiveAfterMaterial <= glowSlots) ||
       (!environmentBackground && !stages[0]?.material) ||
       !stages.every(
         (stage, index) =>

@@ -146,6 +146,26 @@ describe("Q3ShaderRegistry", () => {
     expect(props.alphaMode).toBe("blend");
     expect(props.tcGen).toBeUndefined();
   });
+  it("draws an additive stage as its own pass when the material already names a glow", () => {
+    const [shader] = parseShaderFile(`textures/qa/pillar_fx {
+      if deluxe
+      { material textures/qa/pillar.png $blankbumpimage - textures/qa/pillar_alpha.png }
+      endif
+      if ! deluxe
+      { map $lightmap }
+      { map textures/qa/pillar.png blendfunc filter }
+      { map textures/qa/pillar_alpha.png blendfunc add }
+      endif
+      { map textures/qa/stripes.png blendFunc add tcmod scroll 0 2 tcmod scale 1 10 }
+    }`);
+    injectShader(shader);
+    const passes = getRegistry().resolveMaterialPasses(shader.name, { deluxe: true });
+    expect(passes).toHaveLength(2);
+    expect(passes.map((pass) => pass.alphaMode)).toEqual(["opaque", "add"]);
+    expect(passes[0].glowTexture).toBe("textures/qa/pillar_alpha.png");
+    expect(passes[1].diffuseTexture).toBe("textures/qa/stripes.png");
+    expect(passes[1].tcMod?.map((mod) => mod.type)).toEqual(["scroll", "scale"]);
+  });
   it("resolves an animated additive sign without substituting its editor image", () => {
     const [shader] = parseShaderFile(`textures/qa/sign {
       qer_editorimage textures/qa/editor.png

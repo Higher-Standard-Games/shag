@@ -180,14 +180,15 @@ describe("VoltaicEffectRenderer lifecycle", () => {
   it("refreshes remote muzzle anchors, expires effects, and fades the hero deterministically", () => {
     const engine = new NullEngine();
     const scene = new Scene(engine);
-    new FreeCamera("camera", new Vector3(0, 10, -20), scene);
+    const camera = new FreeCamera("camera", new Vector3(0, 10, -20), scene);
     let now = 1;
     const renderer = new VoltaicEffectRenderer(scene, () => now);
     const color = new Color3(1, 0.7, 0.1);
+    const muzzle = new Vector3(25, 30, 35);
 
     try {
       renderer.setRemoteStartResolver((_key, _direction, result) => {
-        result.set(25, 30, 35);
+        result.copyFrom(muzzle);
         return true;
       });
       renderer.updateRemote(
@@ -208,8 +209,13 @@ describe("VoltaicEffectRenderer lifecycle", () => {
         impactKind: "none",
       });
       renderer.update(1 / 60);
+      // The muzzle moves after the effects update, as a spectator camera placed
+      // by a later before-render observer does; the beam leaves where it is
+      // when the world camera renders.
+      muzzle.set(40, 45, 50);
+      scene.onBeforeCameraRenderObservable.notifyObservers(camera);
 
-      expect(renderer.getDebugRemoteStart("enemy")?.asArray()).toEqual([25, 30, 35]);
+      expect(renderer.getDebugRemoteStart("enemy")?.asArray()).toEqual([40, 45, 50]);
       // Misses still retain the hero muzzle corona; endpoint pieces gate
       // themselves off in the shader.
       expect(scene.getMeshByName("voltaic_hero_impact")?.isEnabled()).toBe(true);
