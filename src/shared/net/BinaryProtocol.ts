@@ -22,7 +22,7 @@
  * - 0x04 = grounded state changed (1 byte: boolean) - CRITICAL for jump logic!
  * - 0x08 = rotation changed (8 bytes: 2 floats — yaw + pitch)
  * - 0x10 = movement state (1 byte: bit 0=crouching, bit 1=sliding, bit 2=wallJumping,
- *          bit 7=view follows). The view is 4 bytes for a player: their keys
+ *          bit 3=aiming down sights, bit 7=view follows). The view is 4 bytes for a player: their keys
  *          (bits 0-1 strafe, 2-3 forward: 0 none, 1 right/forward, 2
  *          left/back), slide phase and ledge grab phase (0-255 for 0-1), and
  *          the crouch view offset in quarter units (int8). It is what a
@@ -91,6 +91,8 @@ interface MovementStateShape {
   isCrouching: boolean;
   isSliding: boolean;
   wallJumpState: string;
+  /** Holding the sights up. A recording made before the server sent it never sets the bit. */
+  isAiming?: boolean;
   crouchViewOffset?: number;
   strafeInput?: number;
   forwardInput?: number;
@@ -477,12 +479,13 @@ export class BinaryProtocol {
         encoder.writeFloat32(rot.x); // pitch
       }
 
-      // Flag 0x10: Movement state (1 byte - bit 0=crouching, bit 1=sliding, bit 2=wallJumping)
+      // Flag 0x10: Movement state (1 byte - bit 0=crouching, bit 1=sliding, bit 2=wallJumping, bit 3=aiming)
       if (flags & 0x10) {
         let movFlags = 0;
         if (isCrouching) movFlags |= 1;
         if (isSliding) movFlags |= 2;
         if (isWallJumping) movFlags |= 4;
+        if (movState?.isAiming) movFlags |= 8;
         const view = movState?.strafeInput !== undefined;
         if (view) movFlags |= 0x80;
         encoder.writeUint8(movFlags);
@@ -637,12 +640,14 @@ export class BinaryProtocol {
       let isCrouching = false;
       let isSliding = false;
       let isWallJumping = false;
+      let isAiming = false;
       let view: Partial<MovementStateShape> = {};
       if (flags & 0x10) {
         const movFlags = decoder.readUint8();
         isCrouching = (movFlags & 1) !== 0;
         isSliding = (movFlags & 2) !== 0;
         isWallJumping = (movFlags & 4) !== 0;
+        isAiming = (movFlags & 8) !== 0;
         if (movFlags & 0x80) {
           const keys = decoder.readUint8();
           view = {
@@ -661,6 +666,7 @@ export class BinaryProtocol {
         isCrouching = baselineMovState?.isCrouching ?? false;
         isSliding = baselineMovState?.isSliding ?? false;
         isWallJumping = baselineMovState?.wallJumpState === "charging";
+        isAiming = baselineMovState?.isAiming ?? false;
       }
 
       // Create velocity component if we have data
@@ -687,6 +693,7 @@ export class BinaryProtocol {
           isCrouching,
           isSliding,
           wallJumpState: isWallJumping ? "charging" : "none",
+          isAiming,
           ...view,
           serialize: _noopSerialize,
           deserialize: _noopDeserialize,

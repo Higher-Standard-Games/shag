@@ -79,6 +79,13 @@ describe("watched view on the wire", () => {
     expect(old.strafeInput).toBeUndefined();
     expect(old.crouchViewOffset).toBeUndefined();
   });
+
+  it("carries whether the sights are up, and reads them as down when a recording never set the bit", () => {
+    const aiming = movementOf(BinaryProtocol.decodeSnapshot(BinaryProtocol.encodeSnapshot(player({ isAiming: true }))));
+    expect(aiming).toMatchObject({ isAiming: true, isCrouching: true });
+    const before = movementOf(BinaryProtocol.decodeSnapshot(BinaryProtocol.encodeSnapshot(player({}))));
+    expect(before.isAiming).toBe(false);
+  });
 });
 
 describe("first-person motion", () => {

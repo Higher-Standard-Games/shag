@@ -549,13 +549,17 @@ Entities:
     if 0x04: grounded (uint8)
     if 0x08: yaw, pitch (float32 × 2)
     if 0x10: movement (uint8: bit 0 crouching, 1 sliding, 2 wall-jumping,
-             7 view follows); if bit 7, the player's view (4 bytes):
+             3 aiming down sights (alt-fire held), 7 view follows);
+             if bit 7, the player's view (4 bytes):
                keys (uint8: bits 0-1 strafe, 2-3 forward; 0 none,
                      1 right/forward, 2 left/back)
                slidePhase, ledgeGrabPhase (uint8 each, 0-255 for 0-1)
                crouchViewOffset (int8, quarter units)
              What a watcher needs to rebuild that player's screen: the
-             strafe lean, the slide dip and ledge lift, the crouch eye.
+             strafe lean, the slide dip and ledge lift, the crouch eye,
+             and the sights. A recording made before bit 3 reads as not
+             aiming; demo playback takes the sights from the recorded
+             commands instead.
     if 0x20: weaponId (string), settled (uint8)
     if 0x40: powerup mask (uint8)
 

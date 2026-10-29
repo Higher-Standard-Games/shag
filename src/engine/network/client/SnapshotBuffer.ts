@@ -31,6 +31,8 @@ export interface EntitySnapshot {
   crouching: boolean;
   sliding: boolean;
   wallJumping: boolean;
+  /** Holding the sights up. Absent from a recording made before the server sent it. Stepped. */
+  aiming?: boolean;
   /** Recorded camera offset from the entity origin (0 standing, negative crouched). */
   crouchViewOffset?: number;
   /** Strafe keys: -1 left, 0 none, 1 right. Stepped, never interpolated. */
@@ -82,6 +84,8 @@ export interface InterpolatedEntity {
   crouching: boolean;
   sliding: boolean;
   wallJumping: boolean;
+  /** Holding the sights up. Absent from a recording made before the server sent it. Stepped. */
+  aiming?: boolean;
   /** Recorded camera offset from the entity origin (0 standing, negative crouched). */
   crouchViewOffset?: number;
   /** Strafe keys: -1 left, 0 none, 1 right. Stepped, never interpolated. */
@@ -134,6 +138,7 @@ function copyEntity(entity: EntitySnapshot, out: InterpolatedEntity | null): Int
   out.crouching = entity.crouching;
   out.sliding = entity.sliding;
   out.wallJumping = entity.wallJumping;
+  out.aiming = entity.aiming;
   out.crouchViewOffset = entity.crouchViewOffset;
   out.strafeInput = entity.strafeInput;
   out.forwardInput = entity.forwardInput;
@@ -412,7 +417,8 @@ export class SnapshotBuffer {
         // carrying wallJumping would change the animation, so it is its own change.
         out.wallJumping = undefined as unknown as boolean;
       }
-      // A watched view holds its last eye and keys through the extrapolation
+      // A watched view holds its last eye, keys and sights through the extrapolation
+      result.aiming = entity.aiming;
       result.crouchViewOffset = entity.crouchViewOffset;
       result.strafeInput = entity.strafeInput;
       result.forwardInput = entity.forwardInput;
@@ -553,6 +559,7 @@ export class SnapshotBuffer {
     result.crouching = near.crouching;
     result.sliding = near.sliding;
     result.wallJumping = near.wallJumping;
+    result.aiming = near.aiming;
     result.crouchViewOffset = lerpOptional(a.crouchViewOffset, b.crouchViewOffset, clampedT);
     result.slidePhase = lerpOptional(a.slidePhase, b.slidePhase, clampedT);
     result.ledgeGrabPhase = lerpOptional(a.ledgeGrabPhase, b.ledgeGrabPhase, clampedT);
