@@ -259,7 +259,9 @@ Headless map loading goes through the pk3 index (`src/engine/loader/pk3/NodePk3.
 
 Versions are semver. The 1.0 line runs through pre-releases: `1.0.0-alpha`,
 `1.0.0-alpha.2`, …, `1.0.0-beta`, `1.0.0-rc.1`, then `1.0.0`; after that the
-patch number counts up (`1.0.1`). `src/engine/version.txt` and `package.json`
+patch number counts up (`1.0.1`). A bugfix point release on a pre-release
+adds a number (`1.0.0-alpha.9.1`), with its own changelog, between that
+pre-release and the next. `src/engine/version.txt` and `package.json`
 (outer repo only) hold the version being developed, which the game shows in the
 lobby, and which names its changelog (`v1.0.0-alpha.md`) and tag (`v1.0.0-alpha`).
 

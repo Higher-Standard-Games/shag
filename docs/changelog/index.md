@@ -7,6 +7,7 @@ All notable changes to this project are documented in version-specific files.
 | Version | Date | Summary |
 |---------|------|---------|
 | [v1.0.0-alpha.10](./v1.0.0-alpha.10.md) | unreleased | Living changelog for the next alpha cycle |
+| [v1.0.0-alpha.9.1](./v1.0.0-alpha.9.1.md) | Oct 30, 2026 | Bugfix release: raw mouse input in Chrome and Edge, without Windows pointer acceleration |
 | [v1.0.0-alpha.9](./v1.0.0-alpha.9.md) | Oct 29, 2026 | New maps Washoi DM14 and DM7, bots aiming down sights, spectators seeing sights and the watched Voltaic beam from the gun, Escape and click while spectating, and shader fixes for additive layers and terrain rocks |
 | [v1.0.0-alpha.8](./v1.0.0-alpha.8.md) | Oct 28, 2026 | Weapon model tuning (Electrobolt sight and glow, Plasma Gun barrels, Grenade Launcher drum, Machinegun bolt), aimed Electrobolt fire, hints for new players, server-matched weapon drops and `map` for every player |
 | [v1.0.0-alpha.7](./v1.0.0-alpha.7.md) | Oct 27, 2026 | Fewer map draws through texture arrays, WebGPU render bundles and pipeline warm-up, smooth match starts on water maps, lighter HUD, ragdoll and skin updates, and less camera shake |
