@@ -155,7 +155,7 @@ which files moved. When merging a branch mid-cycle, mark its entries
 
 Only when the user asks to release:
 
-Versions are semver (see "Versions" in `AGENTS.md`). The *next* version of a
+Versions are semver (see "Versions" in `docs/reference/agent-reference.md`). The *next* version of a
 pre-release is the next pre-release number (`1.0.0-alpha` → `1.0.0-alpha.2`)
 unless the user names the next stage (`1.0.0-beta`, `1.0.0-rc.1`, `1.0.0`);
 after 1.0.0 it is the next patch (`1.0.1`). Below, `<version>` is the one being

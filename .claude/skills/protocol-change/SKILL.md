@@ -75,23 +75,28 @@ Work through all of them; search for a neighbouring field to find each spot.
   confirming every changed byte is the one you intended.
 - A test of the server-side derivation of the value.
 
-**Docs** (see the `docs-edit` skill)
+**Docs** (edit these directly; load `docs-edit` only to add a new page)
 - `docs/manual/guides/networking.md`: the snapshot format and message tables.
 - `docs/manual/guides/lobby-server.md` (Demo privacy) and
   `docs/manual/guides/headless-mode.md` (Demos) state the current demo version
   and what the reader accepts.
 - The living changelog.
+- Run `npm run docs:build`; it fails on a dead link.
 
 ## Verify
 
-1. The gates and the full regression set: this is networking code, so follow
-   the `regression-check` skill.
-2. Record a fresh demo and check the new data is in it:
-   `npm --prefix src/games/fps run demo:record -- --map washoi_dm2 --bots 2 --seconds 30`.
-3. Play that demo and an **older** recording in the browser (`browser-probe`
-   skill): both must play, the old one without the new detail.
-4. For live data, spectate a bot over a real server connection and confirm the
-   field arrives on every frame you expect.
+Run only the steps that apply. The old-recording decode test under **Tests**
+is the backwards-compatibility check; don't repeat it by hand.
 
-Report the new format version if there is one, the old-recording check, and
-the regression results.
+1. Always: the gates and the regression set from the `regression-check` skill.
+2. Only if `DEMO_VERSION` changed, or you edited demo playback
+   (`SnapshotBuffer.ts`, `DemoEntityTimeline.ts`, `DemoReader.ts`): record a
+   fresh demo with
+   `npm --prefix src/games/fps run demo:record -- --map washoi_dm2 --bots 2 --seconds 30`,
+   then play it and one **older** recording with the `browser-probe` demo
+   probe. Both must play, and the old one plays without the new detail.
+3. Only for a new message type, or data that is sent live but not recorded:
+   spectate a bot over a real server connection and confirm the field arrives.
+
+Report the new format version if there is one, which steps you ran or skipped
+and why, and the regression results.

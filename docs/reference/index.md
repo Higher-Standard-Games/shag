@@ -6,6 +6,7 @@ This directory is a source-oriented reference for the current engine. The mainta
 
 ## Start Here
 
+- [Agent Reference](./agent-reference.md) — API quick reference, directory map, command groups and release detail moved out of `AGENTS.md`
 - [Architecture](./ARCHITECTURE.md) — runtime composition, dependency boundaries, and service lifetimes
 - [Feature Matrix](./FEATURES.md) — implemented, experimental, extension-only, and unavailable features
 - [CLI Tools](./CLI_TOOLS.md) — exact package scripts and headless validation commands
