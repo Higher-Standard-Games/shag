@@ -10,6 +10,7 @@
 import type { FreeCamera } from "@babylonjs/core/Cameras/freeCamera";
 import { Cvar } from "../core/Cvar";
 import { devLog } from "../core/DevLog";
+import { requestRawPointerLock } from "../input/RawPointerLock";
 import { clearBrowserControlFailure, showBrowserControlFailure } from "../ui/BrowserControlFeedback";
 import type { CameraControllerConfig } from "./controllers/ICameraController";
 
@@ -134,14 +135,9 @@ export class CameraInputHandler {
       if (!this._isPointerLocked && this.canvas && !this.capturePending) {
         this.capturePending = true;
         const generation = ++this.captureGeneration;
-        try {
-          const request = this.canvas.requestPointerLock();
-          void request?.catch(() => {
-            if (generation === this.captureGeneration) this._onPointerLockError?.();
-          });
-        } catch {
-          this._onPointerLockError?.();
-        }
+        requestRawPointerLock(this.canvas).catch(() => {
+          if (generation === this.captureGeneration) this._onPointerLockError?.();
+        });
       }
     };
 

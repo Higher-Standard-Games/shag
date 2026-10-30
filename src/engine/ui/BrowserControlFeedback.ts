@@ -1,3 +1,4 @@
+import { requestRawPointerLock } from "../input/RawPointerLock";
 import { createRaisedKey, injectRaisedKeyStyles } from "./components/RaisedKey";
 
 /** One dismissible notice, with no global listeners or timers to retain. */
@@ -31,12 +32,7 @@ export function requestBrowserPointerLock(canvas: HTMLCanvasElement | null): voi
   if (!canvas || document.pointerLockElement === canvas) return;
   const failed = () =>
     showBrowserControlFailure("Your browser did not capture the mouse. Click the game to try again.", "pointer");
-  try {
-    const request = canvas.requestPointerLock();
-    void request?.catch(failed);
-  } catch {
-    failed();
-  }
+  requestRawPointerLock(canvas).catch(failed);
 }
 
 /** Supports promise-returning and legacy void browser APIs, and Electron. */

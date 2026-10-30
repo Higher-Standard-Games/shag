@@ -73,11 +73,12 @@ describe("pointer capture failure feedback", () => {
     handler.setCaptureEnabled(true);
   });
 
-  it("reports synchronous API failures without throwing from the click handler", () => {
+  it("reports synchronous API failures without throwing from the click handler", async () => {
     const canvas = setup(() => {
       throw new Error("Unsupported");
     });
     expect(() => canvas.click()).not.toThrow();
+    await new Promise((resolve) => setTimeout(resolve, 0));
     expect(notice()?.getAttribute("role")).toBe("alert");
   });
 });

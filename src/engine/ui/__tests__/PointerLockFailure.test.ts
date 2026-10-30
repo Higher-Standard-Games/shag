@@ -2,6 +2,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { requestBrowserPointerLock } from "../BrowserControlFeedback";
 
+/** Lets the capture request's promise settle, and its failure notice appear. */
+const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
+
 afterEach(() => {
   document.body.replaceChildren();
   Object.defineProperty(document, "pointerLockElement", { configurable: true, value: null });
@@ -15,13 +18,13 @@ describe("pointer-lock request failures", () => {
       .mockRejectedValueOnce(new Error("Document not focused"))
       .mockResolvedValue(undefined);
     requestBrowserPointerLock(canvas);
-    await Promise.resolve();
+    await settle();
     expect(document.getElementById("browser-control-feedback")?.textContent).toContain("Click the game to try again");
     requestBrowserPointerLock(canvas);
     expect(canvas.requestPointerLock).toHaveBeenCalledTimes(2);
   });
 
-  it("handles legacy void and throwing implementations", () => {
+  it("handles legacy void and throwing implementations", async () => {
     const canvas = document.createElement("canvas");
     canvas.requestPointerLock = vi.fn(() => undefined) as unknown as HTMLCanvasElement["requestPointerLock"];
     expect(() => requestBrowserPointerLock(canvas)).not.toThrow();
@@ -29,6 +32,7 @@ describe("pointer-lock request failures", () => {
       throw new Error("Unavailable");
     });
     requestBrowserPointerLock(canvas);
+    await settle();
     expect(document.getElementById("browser-control-feedback")?.getAttribute("role")).toBe("alert");
   });
 
