@@ -58,6 +58,8 @@ export interface MapLoadingView {
   progress(event: LoadingProgressEvent): void;
   /** The map finished; `waitingFor` names the holds still keeping the screen up. */
   complete(event: LoadingCompleteEvent, waitingFor: string[]): void;
+  /** A hold's owner reports how far its own work is, after the map has loaded (0–1). */
+  holdProgress?(label: string, fraction: number): void;
   /** Nothing holds the screen any more: it fades next. */
   ready(): void;
   destroy(): void;
@@ -377,7 +379,11 @@ export class MapLoadingOverlay {
   }
 
   /** A unique, idempotent lease. Old operations cannot release a replacement's hold. */
-  static acquire(name: string, operationId: string, onTimeout: () => void): { release(): void; pulse(): void } {
+  static acquire(
+    name: string,
+    operationId: string,
+    onTimeout: () => void,
+  ): { release(): void; pulse(): void; progress(fraction: number, label: string): void } {
     const instance = MapLoadingOverlay.getInstance();
     const key = `${name}:${operationId}:${++instance.leaseSequence}`;
     instance.requestedOperationId = operationId;
@@ -394,6 +400,12 @@ export class MapLoadingOverlay {
       },
       pulse() {
         if (!released) instance.addHold(key);
+      },
+      /** Pulse, and show the work's progress once the map itself has loaded. */
+      progress(fraction: number, label: string) {
+        if (released) return;
+        instance.addHold(key);
+        if (instance.state === "completing") instance.view?.holdProgress?.(label, Math.max(0, Math.min(1, fraction)));
       },
     };
   }

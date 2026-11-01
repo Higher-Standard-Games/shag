@@ -17,6 +17,7 @@ import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { Mesh } from "@babylonjs/core/Meshes/mesh";
 import { MeshBuilder } from "@babylonjs/core/Meshes/meshBuilder";
 import type { Scene } from "@babylonjs/core/scene";
+import { prepareMaterial } from "../loader/map/GpuPreparation";
 
 // ─── Slash Animation Parameters ───────────────────────────────────────
 
@@ -430,6 +431,31 @@ export class WeaponSlash {
     }
     trail.material.alpha = WeaponSlash.TRAIL_ALPHA;
     trail.mesh.material = trail.material;
+  }
+
+  /** Compile the trail's shader through the real ribbon, so the first swing finds it ready. */
+  async prepareShaders(scene: Scene, signal?: AbortSignal): Promise<void> {
+    const trail: TrailInstance = {
+      tipPoints: [new Vector3(0, 0, 0), new Vector3(1, 0, 0)],
+      handlePoints: [new Vector3(0, 1, 0), new Vector3(1, 1, 0)],
+      mesh: null,
+      capacity: 0,
+      positions: null,
+      uvs: null,
+      material: null,
+      fadeStart: 0,
+      active: false,
+    };
+    try {
+      this.buildTrailMesh(scene, trail);
+      if (trail.mesh && trail.material) {
+        trail.mesh.setEnabled(false);
+        await prepareMaterial(trail.material, trail.mesh, signal);
+      }
+    } finally {
+      trail.mesh?.dispose();
+      trail.material?.dispose(false, true);
+    }
   }
 
   /** Clean up all trails */

@@ -141,6 +141,27 @@ describe("TransferLoadingView on the loading overlay", () => {
     ]);
   });
 
+  it("shows a hold's own progress after the map, through the bar's last stretch", () => {
+    const lease = MapLoadingOverlay.acquire("fps:postload", "op", () => {});
+    // The lease claims the screen for its own load, so the load names it
+    EventBus.emit(LOADING_EVENTS.START, { type: "map", id: "wdm2", operationId: "op", meta: { displayName: "wdm2" } });
+    oneFrame();
+    // Before the map has loaded, the map's phases own the status
+    lease.progress(0.5, "Compiling shaders");
+    expect(screen()?.dataset.state).not.toBe("setting-up");
+    expect(text(".connecting-overlay__status") ?? "").not.toContain("COMPILING");
+    EventBus.emit(LOADING_EVENTS.COMPLETE, { type: "map", operationId: "op", success: true, duration: 2340 });
+
+    lease.progress(0.42, "Compiling shaders");
+    expect(screen()?.dataset.state).toBe("setting-up");
+    expect(text(".connecting-overlay__status")).toContain("COMPILING SHADERS 42%");
+    expect(share()).toBeCloseTo(0.9 + 0.1 * 0.42);
+
+    lease.release();
+    expect(screen()?.dataset.state).toBe("ready");
+    expect(share()).toBe(1);
+  });
+
   it("says the game is setting up while a hold keeps it down, then ready", () => {
     MapLoadingOverlay.hold("fps:postload");
     start();
