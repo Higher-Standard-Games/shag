@@ -38,6 +38,13 @@ describe("RenderingEngineFactory", () => {
     expect(WebGPUEngine.prototype.bindAttachments).toBeTypeOf("function");
   });
 
+  it("keeps compiled effects cached after their materials are disposed", async () => {
+    const { Effect } = await import("@babylonjs/core/Materials/effect");
+    Effect.PersistentMode = false;
+    await createRenderingEngine(canvas, "webgl2", factories());
+    expect(Effect.PersistentMode).toBe(true);
+  });
+
   it("resolves the persisted preference and honors session URL overrides", () => {
     expect(resolveRenderingBackend(false)).toBe("webgl2");
     expect(resolveRenderingBackend(true)).toBe("webgpu");

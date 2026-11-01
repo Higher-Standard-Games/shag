@@ -1,6 +1,7 @@
 import type { AbstractEngine } from "@babylonjs/core/Engines/abstractEngine";
 import { Engine } from "@babylonjs/core/Engines/engine";
 import { NullEngine } from "@babylonjs/core/Engines/nullEngine";
+import { Effect } from "@babylonjs/core/Materials/effect";
 
 export type RenderingBackend = "webgl2" | "webgpu";
 export type ActualRenderingBackend = RenderingBackend | "webgl1" | "null";
@@ -160,6 +161,12 @@ export async function createRenderingEngine(
   factories: RenderingEngineFactories = DEFAULT_FACTORIES,
   options: RenderingEngineOptions = {},
 ): Promise<RenderingEngineResult> {
+  // A compiled effect stays cached after the last material using it is gone.
+  // Weapon view models and player models are disposed and rebuilt with the
+  // same shaders all match; without this each rebuild compiles again, and a
+  // browser without KHR_parallel_shader_compile (Firefox) stalls the frame
+  // for 150-300 ms per program while it links.
+  Effect.PersistentMode = true;
   const webgl = (target: HTMLCanvasElement): RenderingEngineResult => {
     const engine = factories.createWebGL(target);
     return { engine, backend: getRenderingBackend(engine), canvas: target, nonCompatibilityMode: false };

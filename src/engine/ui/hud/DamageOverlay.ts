@@ -1,71 +1,64 @@
 /**
- * DamageOverlay — Fullscreen Canvas2D directional damage feedback
+ * DamageOverlay — fullscreen directional damage feedback
  *
- * When the local player takes damage, renders:
- *   1. Red vignette gradient on screen edges, weighted toward damage direction
- *   2. Randomly rotated semi-transparent red triangles scattered along borders,
- *      biased toward the damage source (~60% on that edge)
- *
- * Self-animating via requestAnimationFrame — no external update() caller needed.
+ * When the local player takes damage, a red vignette flashes and the screen
+ * edge facing the damage source glows strongest. Each layer is a static CSS
+ * gradient painted once; a hit only animates layer opacity, which the browser
+ * runs on its compositor. Nothing is drawn per frame, so a hit costs no main
+ * thread time while the flash fades.
  *
  * Usage:
  *   DamageOverlay.getInstance().show(damage, angleRad)
  */
 
-// ============================================================================
-// Constants
-// ============================================================================
-
 const FLASH_DURATION_MIN = 0.35; // seconds for low damage flash
 const FLASH_DURATION_MAX = 1.4; // seconds for high damage flash
 const VIGNETTE_MAX_ALPHA = 0.7; // max opacity of the red vignette
-const TRIANGLE_COUNT_MIN = 28; // min triangles per hit
-const TRIANGLE_COUNT_MAX = 60; // max triangles per hit (high damage)
-const TRIANGLE_SIZE_MIN = 12; // px — small scattered shards
-const TRIANGLE_SIZE_MAX = 50; // px — big bloody chunks
-const BIG_TRIANGLE_SIZE = 70; // px — extra-large blood splashes on high hits
-const BIG_TRIANGLE_CHANCE = 0.15; // 15% chance per triangle to be oversized
-const TRIANGLE_ALPHA_MIN = 0.35;
-const TRIANGLE_ALPHA_MAX = 0.95;
-const BORDER_DEPTH = 0.28; // how far triangles extend from edge (fraction of screen)
-const MAX_ACTIVE_FLASHES = 6; // cap simultaneous damage events
+const EDGE_MAX_ALPHA = 0.85; // max opacity of the edge facing the damage
+const EDGE_MIN_INTENSITY = 0.3; // a graze still shows its direction
+const EDGE_DEPTH = "28%"; // how far an edge glow reaches into the screen
 const HIGH_DAMAGE = 50; // damage ≥ this gets max effect
+// Opacity follows 1 - t², the ease-in quad
+const FADE_EASING = "cubic-bezier(0.11, 0, 0.5, 0)";
 
-// ============================================================================
-// Data types
-// ============================================================================
-
-interface Triangle {
-  edge: number; // 0=top, 1=right, 2=bottom, 3=left
-  edgePos: number; // normalized position along edge (0-1)
-  depthPos: number; // normalized depth into border (0-1)
-  rotation: number; // radians
-  size: number; // px
-  alpha: number; // base alpha (0-1)
-  redChannel: number; // 180-240
+interface Layer {
+  el: HTMLDivElement;
+  peak: number; // opacity at the start of the running fade
+  start: number; // performance.now() when the fade started
+  duration: number; // ms
+  animation: Animation | null;
 }
 
-interface DamageFlash {
-  angle: number; // radians, where damage came from
-  intensity: number; // 0-1
-  timeLeft: number; // countdown (seconds)
-  duration: number; // total duration for this flash
-  triangles: Triangle[];
-}
+/** Edge glows in screen-space angle order: 0 = right, PI/2 = bottom. */
+const EDGES: ReadonlyArray<{ angle: number; style: Partial<CSSStyleDeclaration> }> = [
+  {
+    angle: 0,
+    style: { top: "0", bottom: "0", right: "0", width: EDGE_DEPTH, background: gradient("to left") },
+  },
+  {
+    angle: Math.PI / 2,
+    style: { left: "0", right: "0", bottom: "0", height: EDGE_DEPTH, background: gradient("to top") },
+  },
+  {
+    angle: Math.PI,
+    style: { top: "0", bottom: "0", left: "0", width: EDGE_DEPTH, background: gradient("to right") },
+  },
+  {
+    angle: -Math.PI / 2,
+    style: { left: "0", right: "0", top: "0", height: EDGE_DEPTH, background: gradient("to bottom") },
+  },
+];
 
-// ============================================================================
-// DamageOverlay Singleton
-// ============================================================================
+function gradient(direction: string): string {
+  return `linear-gradient(${direction}, rgba(170, 10, 15, 1), rgba(160, 0, 0, 0.35) 45%, rgba(140, 0, 0, 0))`;
+}
 
 export class DamageOverlay {
   private static instance: DamageOverlay | null = null;
 
-  private canvas: HTMLCanvasElement;
-  private ctx: CanvasRenderingContext2D;
-  private flashes: DamageFlash[] = [];
-  private _rafId: number = 0;
-  private _lastTime: number = 0;
-  private _animating = false;
+  private root: HTMLDivElement;
+  private vignette: Layer;
+  private edges: Layer[];
 
   static getInstance(): DamageOverlay {
     if (!DamageOverlay.instance) {
@@ -75,27 +68,31 @@ export class DamageOverlay {
   }
 
   private constructor() {
-    this.canvas = document.createElement("canvas");
-    this.canvas.id = "damage-overlay";
-    Object.assign(this.canvas.style, {
+    this.root = document.createElement("div");
+    this.root.id = "damage-overlay";
+    Object.assign(this.root.style, {
       position: "fixed",
-      top: "0",
-      left: "0",
-      width: "100%",
-      height: "100%",
+      inset: "0",
       pointerEvents: "none",
       zIndex: "900",
-      // Shown only while a flash plays: an idle screen-sized canvas is still a
-      // layer the browser composites over the game every frame
-      display: "none",
+      overflow: "hidden",
     });
-    this.ctx = this.canvas.getContext("2d")!;
-    document.body.appendChild(this.canvas);
+    this.vignette = this.addLayer({
+      inset: "0",
+      background:
+        "radial-gradient(ellipse at center, rgba(180, 0, 0, 0) 40%, rgba(160, 0, 0, 0.3) 70%, rgba(140, 0, 0, 1) 100%)",
+    });
+    this.edges = EDGES.map((edge) => this.addLayer(edge.style));
+    document.body.appendChild(this.root);
   }
 
-  // ========================================================================
-  // API
-  // ========================================================================
+  private addLayer(style: Partial<CSSStyleDeclaration>): Layer {
+    const el = document.createElement("div");
+    // Opacity 0 and not animating: the browser leaves the layer out of the frame
+    Object.assign(el.style, { position: "absolute", opacity: "0" }, style);
+    this.root.appendChild(el);
+    return { el, peak: 0, start: 0, duration: 0, animation: null };
+  }
 
   /**
    * Show damage from a direction.
@@ -103,237 +100,43 @@ export class DamageOverlay {
    * @param angleRad - Direction in screen-space radians (0=right, PI/2=bottom)
    */
   show(damage: number, angleRad: number): void {
-    const intensity = Math.min(damage / HIGH_DAMAGE, 1.0);
+    const intensity = Math.min(Math.max(damage, 0) / HIGH_DAMAGE, 1.0);
+    // Small hits fade fast, big hits linger
+    const duration = (FLASH_DURATION_MIN + (FLASH_DURATION_MAX - FLASH_DURATION_MIN) * intensity) * 1000;
+    const now = performance.now();
 
-    // Duration scales with damage: small hits fade fast, big hits linger
-    const duration = FLASH_DURATION_MIN + (FLASH_DURATION_MAX - FLASH_DURATION_MIN) * intensity;
-
-    const count = Math.round(TRIANGLE_COUNT_MIN + (TRIANGLE_COUNT_MAX - TRIANGLE_COUNT_MIN) * intensity);
-    const triangles = this.generateTriangles(count, angleRad, intensity);
-
-    if (this.flashes.length >= MAX_ACTIVE_FLASHES) {
-      this.flashes.shift();
-    }
-
-    this.flashes.push({
-      angle: angleRad,
-      intensity,
-      timeLeft: duration,
-      duration,
-      triangles,
-    });
-
-    // Start self-animation loop if not already running
-    if (!this._animating) {
-      this.canvas.style.display = "";
-      this._lastTime = performance.now();
-      this._animating = true;
-      this._rafId = requestAnimationFrame(this._tick);
+    this.flash(this.vignette, VIGNETTE_MAX_ALPHA * intensity, duration, now);
+    const edgeIntensity = EDGE_MIN_INTENSITY + (1 - EDGE_MIN_INTENSITY) * intensity;
+    for (let i = 0; i < EDGES.length; i++) {
+      // 1 on the edge facing the damage, falling to 0 at right angles to it
+      const facing = Math.max(0, Math.cos(angleRad - EDGES[i].angle));
+      this.flash(this.edges[i], EDGE_MAX_ALPHA * edgeIntensity * facing, duration, now);
     }
   }
 
-  /**
-   * External update (optional — overlay is self-animating, but Game.ts can
-   * also call this for frame-perfect sync). No-op if nothing active.
-   */
-  update(_dt: number): void {
-    // Self-animating now handles everything via rAF.
-    // This method exists for compatibility but is intentionally empty.
+  /** Add `alpha` to what the layer still shows and fade from there. */
+  private flash(layer: Layer, alpha: number, duration: number, now: number): void {
+    if (alpha <= 0.01) return;
+    const remaining = Math.max(0, layer.start + layer.duration - now);
+    const progress = layer.duration > 0 ? Math.min(1, (now - layer.start) / layer.duration) : 1;
+    const current = layer.peak * (1 - progress * progress);
+
+    layer.peak = Math.min(1, current + alpha);
+    layer.start = now;
+    layer.duration = Math.max(duration, remaining);
+    layer.animation?.cancel();
+    layer.animation =
+      typeof layer.el.animate === "function"
+        ? layer.el.animate([{ opacity: layer.peak }, { opacity: 0 }], {
+            duration: layer.duration,
+            easing: FADE_EASING,
+          })
+        : null;
   }
 
   destroy(): void {
-    if (this._rafId) cancelAnimationFrame(this._rafId);
-    this._animating = false;
-    this.canvas.remove();
-    this.flashes = [];
+    for (const layer of [this.vignette, ...this.edges]) layer.animation?.cancel();
+    this.root.remove();
     DamageOverlay.instance = null;
-  }
-
-  // ========================================================================
-  // Self-Animation Loop
-  // ========================================================================
-
-  private _tick = (now: number): void => {
-    const dt = Math.min((now - this._lastTime) / 1000, 0.1); // cap at 100ms
-    this._lastTime = now;
-
-    // Resize canvas to match screen
-    const dpr = window.devicePixelRatio || 1;
-    const w = window.innerWidth;
-    const h = window.innerHeight;
-    if (this.canvas.width !== w * dpr || this.canvas.height !== h * dpr) {
-      this.canvas.width = w * dpr;
-      this.canvas.height = h * dpr;
-      this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    }
-
-    // Decay flashes
-    for (const flash of this.flashes) {
-      flash.timeLeft -= dt;
-    }
-    this.flashes = this.flashes.filter((f) => f.timeLeft > 0);
-
-    // Stop animation loop when no flashes remain
-    if (this.flashes.length === 0) {
-      this.ctx.clearRect(0, 0, w, h);
-      this.canvas.style.display = "none";
-      this._animating = false;
-      return;
-    }
-
-    // Clear and redraw
-    this.ctx.clearRect(0, 0, w, h);
-
-    for (const flash of this.flashes) {
-      const progress = 1.0 - flash.timeLeft / flash.duration;
-      // EaseOut curve: starts at 1.0, decays to 0.0
-      const fade = 1.0 - progress * progress;
-
-      this.drawVignette(w, h, flash, fade);
-      this.drawTriangles(w, h, flash, fade);
-    }
-
-    // Continue loop
-    this._rafId = requestAnimationFrame(this._tick);
-  };
-
-  // ========================================================================
-  // Triangle Generation
-  // ========================================================================
-
-  private generateTriangles(count: number, angleRad: number, intensity: number): Triangle[] {
-    const triangles: Triangle[] = [];
-    const edgeWeights = this.getEdgeWeights(angleRad);
-
-    for (let i = 0; i < count; i++) {
-      const edge = this.pickWeightedEdge(edgeWeights);
-
-      // High-damage hits spawn some oversized "blood splash" triangles
-      const isBig = intensity > 0.5 && Math.random() < BIG_TRIANGLE_CHANCE;
-      const size = isBig
-        ? BIG_TRIANGLE_SIZE * (0.7 + Math.random() * 0.3)
-        : TRIANGLE_SIZE_MIN + Math.random() * (TRIANGLE_SIZE_MAX - TRIANGLE_SIZE_MIN);
-
-      triangles.push({
-        edge,
-        edgePos: Math.random(),
-        depthPos: Math.random(),
-        rotation: Math.random() * Math.PI * 2,
-        size,
-        alpha: TRIANGLE_ALPHA_MIN + Math.random() * (TRIANGLE_ALPHA_MAX - TRIANGLE_ALPHA_MIN) * intensity,
-        redChannel: 140 + Math.floor(Math.random() * 80), // darker reds for bloodier look
-      });
-    }
-
-    return triangles;
-  }
-
-  private getEdgeWeights(angleRad: number): [number, number, number, number] {
-    const dx = Math.cos(angleRad);
-    const dy = Math.sin(angleRad);
-    const base = 0.08;
-    const right = base + Math.max(0, dx) * 0.5;
-    const left = base + Math.max(0, -dx) * 0.5;
-    const bottom = base + Math.max(0, dy) * 0.5;
-    const top = base + Math.max(0, -dy) * 0.5;
-    const total = top + right + bottom + left;
-    return [top / total, right / total, bottom / total, left / total];
-  }
-
-  private pickWeightedEdge(weights: [number, number, number, number]): number {
-    const r = Math.random();
-    let cumulative = 0;
-    for (let i = 0; i < 4; i++) {
-      cumulative += weights[i];
-      if (r <= cumulative) return i;
-    }
-    return 3;
-  }
-
-  // ========================================================================
-  // Rendering
-  // ========================================================================
-
-  private drawVignette(w: number, h: number, flash: DamageFlash, fade: number): void {
-    const ctx = this.ctx;
-    const alpha = VIGNETTE_MAX_ALPHA * flash.intensity * fade;
-
-    const cx = w / 2;
-    const cy = h / 2;
-    const innerRadius = Math.min(w, h) * 0.3;
-    const outerRadius = Math.max(w, h) * 0.75;
-
-    const grad = ctx.createRadialGradient(cx, cy, innerRadius, cx, cy, outerRadius);
-    grad.addColorStop(0, `rgba(180, 0, 0, 0)`);
-    grad.addColorStop(0.5, `rgba(160, 0, 0, ${alpha * 0.3})`);
-    grad.addColorStop(1, `rgba(140, 0, 0, ${alpha})`);
-
-    ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, w, h);
-
-    // Directional bloom on damage-facing edge
-    const dx = Math.cos(flash.angle);
-    const dy = Math.sin(flash.angle);
-    const bloomX = cx + dx * w * 0.4;
-    const bloomY = cy + dy * h * 0.4;
-    const bloomRadius = Math.max(w, h) * 0.5;
-
-    const bloomGrad = ctx.createRadialGradient(bloomX, bloomY, 0, bloomX, bloomY, bloomRadius);
-    bloomGrad.addColorStop(0, `rgba(200, 20, 20, ${alpha * 0.6})`);
-    bloomGrad.addColorStop(0.4, `rgba(180, 10, 10, ${alpha * 0.2})`);
-    bloomGrad.addColorStop(1, `rgba(140, 0, 0, 0)`);
-
-    ctx.fillStyle = bloomGrad;
-    ctx.fillRect(0, 0, w, h);
-  }
-
-  private drawTriangles(w: number, h: number, flash: DamageFlash, fade: number): void {
-    const ctx = this.ctx;
-    const borderW = w * BORDER_DEPTH;
-    const borderH = h * BORDER_DEPTH;
-
-    for (const tri of flash.triangles) {
-      let x: number, y: number;
-
-      switch (tri.edge) {
-        case 0: // top
-          x = tri.edgePos * w;
-          y = tri.depthPos * borderH;
-          break;
-        case 1: // right
-          x = w - tri.depthPos * borderW;
-          y = tri.edgePos * h;
-          break;
-        case 2: // bottom
-          x = tri.edgePos * w;
-          y = h - tri.depthPos * borderH;
-          break;
-        default:
-          x = tri.depthPos * borderW;
-          y = tri.edgePos * h;
-          break;
-      }
-
-      const alpha = tri.alpha * fade;
-      const s = tri.size;
-
-      ctx.save();
-      ctx.translate(x, y);
-      ctx.rotate(tri.rotation);
-      ctx.globalAlpha = alpha;
-
-      ctx.beginPath();
-      ctx.moveTo(0, -s * 0.6);
-      ctx.lineTo(-s * 0.5, s * 0.4);
-      ctx.lineTo(s * 0.5, s * 0.4);
-      ctx.closePath();
-
-      ctx.fillStyle = `rgb(${tri.redChannel}, 15, 20)`;
-      ctx.fill();
-
-      ctx.restore();
-    }
-
-    ctx.globalAlpha = 1.0;
   }
 }

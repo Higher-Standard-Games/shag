@@ -7,21 +7,34 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-it("takes its screen-sized canvas out of the page while no hit is showing", () => {
-  const frames: FrameRequestCallback[] = [];
-  vi.spyOn(window, "requestAnimationFrame").mockImplementation((cb) => frames.push(cb));
-  vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue({
-    setTransform() {},
-    clearRect() {},
-  } as never);
-  const overlay = DamageOverlay.getInstance();
-  const canvas = document.getElementById("damage-overlay") as HTMLCanvasElement;
-  expect(canvas.style.display).toBe("none");
+function layers(): HTMLElement[] {
+  return [...(document.getElementById("damage-overlay")?.children ?? [])] as HTMLElement[];
+}
 
-  overlay.show(0, 0);
-  expect(canvas.style.display).toBe("");
-  // The flash ends after its fade; a late frame finds nothing left to draw
-  (overlay as unknown as { flashes: unknown[] }).flashes = [];
-  frames.shift()?.(performance.now() + 5000);
-  expect(canvas.style.display).toBe("none");
+it("draws nothing per frame: a hit only starts opacity animations", () => {
+  const raf = vi.spyOn(window, "requestAnimationFrame");
+  const animations: Array<{ el: HTMLElement; frames: Keyframe[]; cancel: () => void }> = [];
+  HTMLElement.prototype.animate = function (this: HTMLElement, frames: Keyframe[]) {
+    const animation = { el: this, frames, cancel: vi.fn() };
+    animations.push(animation);
+    return animation as unknown as Animation;
+  } as never;
+
+  const overlay = DamageOverlay.getInstance();
+  // Idle layers sit at opacity 0, which the browser leaves out of the frame
+  expect(layers().every((layer) => layer.style.opacity === "0")).toBe(true);
+
+  overlay.show(50, 0); // full damage from the right
+  expect(raf).not.toHaveBeenCalled();
+  for (const a of animations) expect(a.frames.map((f) => Object.keys(f))).toEqual([["opacity"], ["opacity"]]);
+  // Vignette and the right edge; the left edge faces away and stays dark
+  expect(animations).toHaveLength(2);
+  expect(animations[1].el).toBe(layers()[1]);
+
+  // A second hit stacks onto what is still showing and replaces the fade
+  overlay.show(50, 0);
+  expect(animations[0].cancel).toHaveBeenCalled();
+  expect(Number(animations[2].frames[0].opacity)).toBeGreaterThan(Number(animations[0].frames[0].opacity));
+
+  delete (HTMLElement.prototype as { animate?: unknown }).animate;
 });
