@@ -2,6 +2,8 @@ import type { Material } from "@babylonjs/core/Materials/material";
 import type { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh";
 import type { Scene } from "@babylonjs/core/scene";
 import { waitForAsync } from "../../core/AsyncWait";
+import { applySafeMaxSimultaneousLights } from "../../lighting/DynamicLightSafety";
+import { isSceneRendererPolicyApplied } from "../../rendering/SceneRendererPolicy";
 
 /** Readiness observation owned by one load, without Babylon's uncancellable polling promises. */
 export function waitForGpuCondition(
@@ -79,6 +81,10 @@ export async function prepareMaterial(material: Material, mesh: AbstractMesh, si
   // readiness checks active until the replacement can actually draw.
   const wasFrozen = material.isFrozen;
   if (wasFrozen) material.unfreeze();
+  // The renderer policy reaches a new material on a deferred notification; a
+  // material compiled right after creation would build with the default light
+  // cap, a variant play never draws
+  if (isSceneRendererPolicyApplied(scene)) applySafeMaxSimultaneousLights(material);
   try {
     await waitForGpuCondition(
       scene,
