@@ -11,6 +11,7 @@
 
 import { Cvar } from "../../core/Cvar";
 import type { PlayerState } from "../PlayerState";
+import { BASE_SPEED } from "../SpeedConstants";
 import { createNeutralDelta, type ViewportDelta } from "../ViewportDelta";
 import { BaseViewportEffect } from "../ViewportEffect";
 
@@ -95,9 +96,9 @@ export class SpeedFOVEffect extends BaseViewportEffect {
     }
 
     // === NORMAL SPEED-BASED FOV ===
-    // SpeedFOV uses extended range: starts at 280, maxes at 800
+    // SpeedFOV uses extended range: starts at base ground speed, maxes at 800
     // This gives more FOV increase at high bunny hop speeds
-    const BASE = 280;
+    const BASE = BASE_SPEED;
     const MAX = 800; // Extended beyond other effects for dramatic high-speed feel
     const speed = state.horizontalSpeed;
     let speedRatio = 0;

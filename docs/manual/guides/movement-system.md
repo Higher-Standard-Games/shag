@@ -52,7 +52,7 @@ sv_aircontrol
 sv_autohop
 ```
 
-FPS ground speed is `sv_movementSpeed` (280 units per second) and sprinting
+FPS ground speed is `sv_movementSpeed` (320 units per second) and sprinting
 forward is `sv_runSpeed` (400); `sv_topspeed` and `sv_maxairspeed` cap
 movement. `cl_speed` belongs to the generic `CharacterController`, not to the
 FPS simulation. Fall damage, ledge grabs, wall jumps and the weapon-bob and ADS
