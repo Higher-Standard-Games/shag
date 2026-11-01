@@ -22,6 +22,7 @@ import type { Scene } from "@babylonjs/core/scene";
 import { generateSpreadDirections, mulberry32, yawPitchFromDirection } from "../../shared/SpreadUtils";
 import { devLog } from "../core/DevLog";
 import { applySafeMaxSimultaneousLights } from "../lighting/DynamicLightSafety";
+import { prepareMaterial } from "../loader/map/GpuPreparation";
 import type { TraceOptions } from "../physics/CollisionBackend";
 import { getCollisionManager } from "../physics/CollisionManager";
 import { ContentFlags, SurfaceFlags } from "../physics/ContentFlags";
@@ -561,27 +562,7 @@ export class HitscanEffects {
 
     const id = `pellet_${this.nextId++}`;
     const segFrac = 0.15; // segment covers 15% of total ray length
-
-    // Create a cone-shaped tracer (wide head, narrow tail) for dynamic shotgun blast feel
-    const mesh = MeshBuilder.CreateCylinder(
-      id,
-      {
-        height: 1,
-        diameterTop: 2.5, // wide head (leading edge)
-        diameterBottom: 0.3, // narrow tail
-        tessellation: 6,
-      },
-      this.scene,
-    );
-    mesh.isPickable = false;
-
-    const mat = new StandardMaterial(`${id}_mat`, this.scene);
-    mat.emissiveColor = color;
-    mat.disableLighting = true;
-    mat.alpha = 0.85;
-    mat.backFaceCulling = false;
-    applySafeMaxSimultaneousLights(mat);
-    mesh.material = mat;
+    const { mesh, mat } = this.createPellet(id, color, this.scene);
 
     const rayLength = endpoint.subtract(origin).length();
 
@@ -603,6 +584,43 @@ export class HitscanEffects {
       duration,
       segmentFraction: segFrac,
     });
+  }
+
+  /** A cone-shaped tracer (wide head, narrow tail) for a dynamic shotgun blast. */
+  private createPellet(id: string, color: Color3, scene: Scene): { mesh: Mesh; mat: StandardMaterial } {
+    const mesh = MeshBuilder.CreateCylinder(
+      id,
+      {
+        height: 1,
+        diameterTop: 2.5, // wide head (leading edge)
+        diameterBottom: 0.3, // narrow tail
+        tessellation: 6,
+      },
+      scene,
+    );
+    mesh.isPickable = false;
+
+    const mat = new StandardMaterial(`${id}_mat`, scene);
+    mat.emissiveColor = color;
+    mat.disableLighting = true;
+    mat.alpha = 0.85;
+    mat.backFaceCulling = false;
+    applySafeMaxSimultaneousLights(mat);
+    mesh.material = mat;
+    return { mesh, mat };
+  }
+
+  /** Compile the pellet tracer's shader, so the first shotgun blast finds it ready. */
+  async preparePelletShader(signal?: AbortSignal): Promise<void> {
+    if (!this.scene) return;
+    const { mesh, mat } = this.createPellet("pellet_warmup", Color3.White(), this.scene);
+    mesh.setEnabled(false);
+    try {
+      await prepareMaterial(mat, mesh, signal);
+    } finally {
+      mesh.dispose();
+      mat.dispose();
+    }
   }
 
   /**

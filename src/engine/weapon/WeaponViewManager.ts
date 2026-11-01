@@ -179,6 +179,11 @@ export class WeaponViewManager {
     }
   }
 
+  /** Compile the blade's slash-trail shader before the first swing needs it. */
+  public async prepareEffectShaders(signal?: AbortSignal): Promise<void> {
+    if (this.scene) await this.weaponSlash.prepareShaders(this.scene, signal);
+  }
+
   /** Consume the prepared view once; other joins retain normal reinitialization. */
   public usePreparedView(scene: Scene, camera: FreeCamera): boolean {
     const ready = this.preparedForJoin && this.isReady && this.scene === scene && this.mainCamera === camera;

@@ -73,7 +73,13 @@ Pickup imports have their own scene/generation ownership and bounded waits too.
 Clearing the map invalidates pending sources and disposes late results. Live
 matches and demo startup prepare player bodies and the same held/projectile
 media before their final presentation check. Required preparation failure
-reports an error rather than exposing an incomplete scene.
+reports an error rather than exposing an incomplete scene. The same step
+compiles the shaders of combat effects (the slash trail, shotgun pellets,
+damage numbers and teleport afterimage) through the code that draws them. These
+are optional: one that fails is reported in the console and compiles on first
+use instead of failing the load. While it runs, the loading screen shows
+"Compiling shaders" with a percentage; any loading-screen hold can report its
+progress this way once the map itself has loaded.
 
 Loading-screen holds are operation-owned leases. Releasing or cancelling an
 older match/demo cannot release a newer operation's hold. GPU readiness waits
@@ -83,7 +89,9 @@ Optional audio preparation has a deadline and can continue without pending
 sounds; a live join starts it concurrently with world loading.
 
 The map loading screen temporarily silences sound effects, including ambient
-loops and announcer channels, through the end of its fade. Music continues.
+loops and announcer channels, through the end of its fade. A live match silences
+them earlier, from the server's greeting: the server streams the match from
+then on, before the map load has started. Music continues.
 Saved sound levels and enabled settings are preserved; muted one-shots are
 dropped rather than played when loading finishes.
 

@@ -186,6 +186,12 @@ export class TransferLoadingView implements MapLoadingView {
     this.refreshSteps("active");
   }
 
+  holdProgress(label: string, fraction: number): void {
+    if (this.failed) return;
+    this.setStatus("setting-up", `${label.toUpperCase()} ${Math.floor(fraction * 100)}%`);
+    this.setBar(MAP_SHARE + (1 - MAP_SHARE) * fraction);
+  }
+
   ready(): void {
     if (this.failed) return;
     if (this.kickerEl) this.kickerEl.textContent = "ARENA READY";
