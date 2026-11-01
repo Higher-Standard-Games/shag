@@ -30,6 +30,7 @@ import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import type { Scene } from "@babylonjs/core/scene";
 import { devLog } from "../core/DevLog";
 import { addToDynamicLightCluster, removeFromDynamicLightCluster } from "../lighting/DynamicLightCluster";
+import { renderToggle } from "../rendering/RenderToggles";
 
 // Concurrent effect lights. Was 4 under the forward-light scarcity system;
 // clustered lighting removes the per-material cost, so the cap is just a
@@ -52,6 +53,8 @@ export class PointLightPool {
   private static instance: PointLightPool;
   private entries: PoolEntry[] = [];
   private initialized = false;
+  /** The scene the pool was built for, lights or none (dynamic lights off). */
+  private scene: Scene | null = null;
 
   private constructor() {}
 
@@ -75,8 +78,16 @@ export class PointLightPool {
     if (this.initialized) {
       // Same scene: nothing to do. New scene (map change): rebuild the pool
       // so the lights live in the active scene from load time.
-      if (this.entries.length > 0 && this.entries[0].light.getScene() === scene) return;
+      if (this.scene === scene) return;
       this.dispose();
+    }
+    this.scene = scene;
+    this.initialized = true;
+    // With dynamic lights off the pool stays empty: no lights, no gameplay
+    // cluster, and no cluster in any material's shader for this map
+    if (!renderToggle("r_dynamiclight")) {
+      devLog("[PointLightPool] Dynamic lights off (r_dynamiclight 0): no pool lights this map");
+      return;
     }
 
     for (let i = 0; i < POOL_SIZE; i++) {
@@ -95,7 +106,6 @@ export class PointLightPool {
       });
     }
 
-    this.initialized = true;
     devLog(`[PointLightPool] Initialized with ${POOL_SIZE} clustered lights (intensity-parked)`);
   }
 
@@ -113,6 +123,8 @@ export class PointLightPool {
     owner: PooledLightOwner | null = null,
     forceRecycle = true,
   ): PointLight | null {
+    // Turned off mid-map, the parked lights stay parked
+    if (this.entries.length === 0 || !renderToggle("r_dynamiclight")) return null;
     // Find a free entry
     let entry = this.entries.find((e) => !e.inUse);
 
@@ -185,6 +197,7 @@ export class PointLightPool {
     }
     this.entries = [];
     this.initialized = false;
+    this.scene = null;
   }
 }
 

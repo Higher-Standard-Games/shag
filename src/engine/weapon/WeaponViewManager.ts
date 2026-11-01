@@ -48,6 +48,7 @@ import { disposeModelResources } from "../loader/model/ModelSourceCache";
 import { PK3Loader } from "../loader/pk3/PK3Loader";
 import { PK3TextureLoader } from "../loader/pk3/PK3TextureLoader";
 import { MovementVars } from "../movement/MovementVars";
+import { renderToggle } from "../rendering/RenderToggles";
 import { installWeaponCameraCandidates } from "../rendering/WeaponCameraCandidates";
 import { ViewportEffectsManager } from "../viewport/ViewportEffectsManager";
 import { AmmoCounterDisplay, parseAmmoCounter } from "./AmmoCounterDisplay";
@@ -594,15 +595,20 @@ export class WeaponViewManager {
     // defines change → synchronous shader recompiles → first-shot hitch and
     // walls flickering invisible while their new effect compiles.
     if (this.muzzleFlashLight) this.muzzleFlashLight.dispose();
-    this.muzzleFlashLight = new PointLight("muzzleFlash", Vector3.Zero(), scene);
-    // Weapon layer only, from the start: before a weapon loads there is no
-    // mesh list to scope it to (updateMuzzleFlashLightScope).
-    this.muzzleFlashLight.includeOnlyWithLayerMask = WEAPON_LAYER_MASK;
-    this.muzzleFlashLight.intensity = 0;
-    this.muzzleFlashLight.range = WeaponViewManager.MUZZLE_FLASH_RANGE;
-    // Second-priority weapon light (below weaponLight, above transient projectile
-    // lights) so the flash reliably takes the weapon's second slot when firing (#2).
-    this.muzzleFlashLight.renderPriority = 500;
+    this.muzzleFlashLight = null;
+    // With dynamic lights off (r_dynamiclight 0) there is none for this view,
+    // and the weapon's shaders are built without it
+    if (renderToggle("r_dynamiclight")) {
+      this.muzzleFlashLight = new PointLight("muzzleFlash", Vector3.Zero(), scene);
+      // Weapon layer only, from the start: before a weapon loads there is no
+      // mesh list to scope it to (updateMuzzleFlashLightScope).
+      this.muzzleFlashLight.includeOnlyWithLayerMask = WEAPON_LAYER_MASK;
+      this.muzzleFlashLight.intensity = 0;
+      this.muzzleFlashLight.range = WeaponViewManager.MUZZLE_FLASH_RANGE;
+      // Second-priority weapon light (below weaponLight, above transient projectile
+      // lights) so the flash reliably takes the weapon's second slot when firing (#2).
+      this.muzzleFlashLight.renderPriority = 500;
+    }
 
     // Muzzle flashes ride the live barrel: the renderer re-samples this each
     // frame so a flash tracks the muzzle instead of hanging in world space where
@@ -1936,14 +1942,10 @@ export class WeaponViewManager {
       this.weaponSlash.trigger();
     }
 
-    // Update light (created eagerly in init(); fallback covers legacy init paths).
+    // Update light (created in init(), unless dynamic lights are off).
     // Intensity-only control — never setEnabled(), which would change material
     // defines and trigger shader recompilation (first-shot flicker bug).
-    if (!this.muzzleFlashLight) {
-      this.muzzleFlashLight = new PointLight("muzzleFlash", Vector3.Zero(), this.scene!);
-      this.muzzleFlashLight.includeOnlyWithLayerMask = WEAPON_LAYER_MASK;
-      this.updateMuzzleFlashLightScope();
-    }
+    if (!this.muzzleFlashLight) return;
 
     const color = flashDef?.color ?? { r: 1.0, g: 0.8, b: 0.3 };
     const range = flashDef?.range ?? WeaponViewManager.MUZZLE_FLASH_RANGE;

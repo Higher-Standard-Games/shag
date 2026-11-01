@@ -28,6 +28,7 @@ import { prepareMaterial } from "../loader/map/GpuPreparation";
 import type { TraceOptions } from "../physics/CollisionBackend";
 import { getCollisionManager } from "../physics/CollisionManager";
 import { ContentFlags, SurfaceFlags } from "../physics/ContentFlags";
+import { renderToggle } from "../rendering/RenderToggles";
 import { ImpactSparkRenderer } from "./impact/ImpactSparkRenderer";
 import { MuzzleFlashRenderer, type MuzzleFlashSpawn } from "./muzzle/MuzzleFlashRenderer";
 import { getPointLightPool, type PooledLightOwner } from "./PointLightPool";
@@ -1047,7 +1048,7 @@ export class HitscanEffects {
    * Flat plane oriented to the wall normal, fades out over WALL_MARK_DURATION.
    */
   private spawnWallMark(position: Vector3, normal: Vector3, color: Color3, size: number): void {
-    if (!this.scene) return;
+    if (!this.scene || !renderToggle("r_marks")) return;
 
     this.ensureWallMarkMaterial(color);
     if (!this.wallMarkColored && this.wallMarkMaterial) {

@@ -12,6 +12,8 @@ import {
   resolveRenderingBackend,
   resolveWebGPUNonCompatibilityMode,
 } from "../rendering/RenderingEngineFactory";
+import { installRenderScale } from "../rendering/RenderScale";
+import { RenderVars } from "../rendering/RenderVars";
 import { applySceneRendererPolicy } from "../rendering/SceneRendererPolicy";
 import { WorldFogController } from "../rendering/WorldFogController";
 
@@ -21,16 +23,20 @@ export async function createBrowserRenderer(canvas: HTMLCanvasElement, search: s
   // Persisted backend preferences do not override the default WebGL policy.
   return createRenderingEngine(canvas, resolveRenderingBackend(false, search), undefined, {
     nonCompatibilityMode: resolveWebGPUNonCompatibilityMode(search),
+    // A WebGL or WebGPU context fixes its antialiasing when made: r_msaa applies at the next start
+    antialias: (RenderVars.getInstance().get("r_msaa") ?? 1) >= 0.5,
   });
 }
 
 /** Install scene policy before the application creates cameras or materials. */
 export function createBrowserScene(engine: AbstractEngine): Scene {
   const scene = new Scene(engine);
+  installRenderScale(engine);
   scene.preventDefaultOnPointerDown = false;
   applySceneRendererPolicy(scene);
   gateSkinPreparation(scene);
-  WorldFogController.getInstance();
+  // r_fog exists before the first map, for the video presets in the menus
+  WorldFogController.getInstance().registerCvars();
   scene.clearColor = new Color4(0.1, 0.1, 0.1, 1);
   scene.ambientColor = new Color3(1, 1, 1);
   scene.collisionsEnabled = true;

@@ -26,12 +26,14 @@ export interface RenderingEngineResult {
 export interface RenderingEngineOptions {
   /** Request WebGPU non-compatibility mode. Ignored by every other backend. */
   nonCompatibilityMode?: boolean;
+  /** Multisample antialiasing (r_msaa); on unless false. A context keeps it for life. */
+  antialias?: boolean;
 }
 
 export interface RenderingEngineFactories {
-  createWebGL(canvas: HTMLCanvasElement): AbstractEngine;
+  createWebGL(canvas: HTMLCanvasElement, antialias?: boolean): AbstractEngine;
   isWebGPUSupported(): Promise<boolean>;
-  createWebGPU(canvas: HTMLCanvasElement): Promise<AbstractEngine>;
+  createWebGPU(canvas: HTMLCanvasElement, antialias?: boolean): Promise<AbstractEngine>;
   replaceCanvas?(canvas: HTMLCanvasElement): HTMLCanvasElement;
 }
 
@@ -92,7 +94,7 @@ async function isWebGPUSupported(): Promise<boolean> {
   return WebGPUEngine.IsSupportedAsync;
 }
 
-async function createWebGPUEngine(canvas: HTMLCanvasElement): Promise<AbstractEngine> {
+async function createWebGPUEngine(canvas: HTMLCanvasElement, antialias = true): Promise<AbstractEngine> {
   const [WebGPUEngine, glslangJs, glslangWasm, twgslJs, twgslWasm] = await Promise.all([
     loadWebGPUBackend(),
     import("@babylonjs/core/assets/glslang/glslang.js?url"),
@@ -102,7 +104,7 @@ async function createWebGPUEngine(canvas: HTMLCanvasElement): Promise<AbstractEn
   ]);
 
   const engine = new WebGPUEngine(canvas, {
-    antialias: true,
+    antialias,
     adaptToDeviceRatio: false,
     stencil: false,
     powerPreference: "high-performance",
@@ -118,7 +120,8 @@ async function createWebGPUEngine(canvas: HTMLCanvasElement): Promise<AbstractEn
 
 const DEFAULT_FACTORIES: RenderingEngineFactories = {
   // high-performance asks a dual-GPU laptop for its discrete GPU, as WebGPU does above
-  createWebGL: (canvas) => new Engine(canvas, true, { stencil: false, powerPreference: "high-performance" }),
+  createWebGL: (canvas, antialias = true) =>
+    new Engine(canvas, antialias, { stencil: false, powerPreference: "high-performance" }),
   isWebGPUSupported,
   createWebGPU: createWebGPUEngine,
 };
@@ -168,7 +171,7 @@ export async function createRenderingEngine(
   // for 150-300 ms per program while it links.
   Effect.PersistentMode = true;
   const webgl = (target: HTMLCanvasElement): RenderingEngineResult => {
-    const engine = factories.createWebGL(target);
+    const engine = factories.createWebGL(target, options.antialias ?? true);
     return { engine, backend: getRenderingBackend(engine), canvas: target, nonCompatibilityMode: false };
   };
   if (requestedBackend === "webgl2") {
@@ -182,7 +185,7 @@ export async function createRenderingEngine(
       fallbackReason = "WebGPU is not supported by this browser or GPU adapter";
     } else {
       stage = "initialization";
-      const engine = await factories.createWebGPU(canvas);
+      const engine = await factories.createWebGPU(canvas, options.antialias ?? true);
       if (options.nonCompatibilityMode) engine.compatibilityMode = false;
       return {
         engine,
