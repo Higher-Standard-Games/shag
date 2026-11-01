@@ -126,7 +126,13 @@ export type RenderVarName =
   | "r_daynight_lm_max"
   | "r_daynight_sun_intensity"
   | "r_daynight_moon_intensity"
-  | "r_daynight_sky_tint";
+  | "r_daynight_sky_tint"
+  | "r_renderscale"
+  | "r_msaa"
+  | "r_dynamiclight"
+  | "r_marks"
+  | "r_gibs"
+  | "r_teleport_ghost";
 
 // ==================== Constants ====================
 
@@ -607,7 +613,72 @@ const DEFAULT_VARS: Record<string, Omit<RenderVar, "name">> = {
     description: "Enable skybox tinting for day/night (0/1)",
     category: "lighting",
   },
+  // ── Frame-cost switches (the Ultralow video preset turns these down) ──
+  r_renderscale: {
+    value: 1,
+    defaultValue: 1,
+    min: 0.25,
+    max: 1,
+    description:
+      "Render resolution as a share of the window (0.25-1). Below 1 the world draws at fewer pixels and is stretched to fit; the HUD stays sharp.",
+    category: "display",
+  },
+  r_msaa: {
+    value: 1,
+    defaultValue: 1,
+    min: 0,
+    max: 1,
+    description: "Multisample antialiasing (0/1, restart required): smooth geometry edges at a fill-rate cost.",
+    category: "display",
+  },
+  r_dynamiclight: {
+    value: 1,
+    defaultValue: 1,
+    min: 0,
+    max: 1,
+    description:
+      "Dynamic lights (0/1): projectile, explosion, impact, charge and muzzle-flash lights. Off removes them from every material's shader at the next map load.",
+    category: "lighting",
+  },
+  r_marks: {
+    value: 1,
+    defaultValue: 1,
+    min: 0,
+    max: 1,
+    description: "Wall marks (0/1): bullet holes and scorches where shots hit.",
+    category: "display",
+  },
+  r_gibs: {
+    value: 1,
+    defaultValue: 1,
+    min: 0,
+    max: 1,
+    description: "Gibs (0/1): the shards a player breaks into on death.",
+    category: "display",
+  },
+  r_teleport_ghost: {
+    value: 1,
+    defaultValue: 1,
+    min: 0,
+    max: 1,
+    description: "Teleport afterimage (0/1): the silhouette left where a player teleported from.",
+    category: "display",
+  },
 };
+
+/** Vars that change no material: a change re-applies nothing to the scene. */
+const NOT_MATERIAL_VARS = new Set([
+  "r_deluxe",
+  "r_bsp_pbr",
+  "r_bsp_cellsize",
+  "r_picmip",
+  "r_renderscale",
+  "r_msaa",
+  "r_dynamiclight",
+  "r_marks",
+  "r_gibs",
+  "r_teleport_ghost",
+]);
 
 type RenderVarPostProcessBaseline = {
   bloomWeight: number;
@@ -666,7 +737,8 @@ export class RenderVars {
       // A 0..1 var is a switch only when its default is whole. Fractional ones
       // (god-ray density and decay, the day/night time, moon and lightmap
       // levels) were registered as ints, so every set rounded them to 0 or 1.
-      const fractional = fractionalWater || !Number.isInteger(def.defaultValue);
+      // r_renderscale defaults to a whole 1 but takes any share down to 0.25
+      const fractional = fractionalWater || name === "r_renderscale" || !Number.isInteger(def.defaultValue);
       const isInt = name === "r_anisotropy" || name === "r_picmip" || (def.max === 1 && !fractional);
 
       Cvar.register(name, def.value, {
@@ -951,7 +1023,7 @@ export class RenderVars {
   }
 
   private shouldApplyLive(name: string): boolean {
-    return name !== "r_deluxe" && name !== "r_bsp_pbr" && name !== "r_bsp_cellsize" && name !== "r_picmip";
+    return !NOT_MATERIAL_VARS.has(name);
   }
 
   /**

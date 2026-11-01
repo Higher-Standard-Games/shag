@@ -302,7 +302,10 @@ export class WorldIndicatorSystem {
     const viewport = this.camera.viewport.toGlobal(this.engine.getRenderWidth(), this.engine.getRenderHeight());
 
     const screenPos = Vector3.Project(pos, viewMatrix, projectionMatrix, viewport);
-    return { x: screenPos.x, y: screenPos.y };
+    // Render pixels to the CSS pixels the indicator is placed in: they differ
+    // below full render resolution (r_renderscale)
+    const level = this.engine.getHardwareScalingLevel();
+    return { x: screenPos.x * level, y: screenPos.y * level };
   }
 
   /**

@@ -137,6 +137,25 @@ it("compiles with the camera the scene renders through, not the none left betwee
   engine.dispose();
 });
 
+it("compiles a thin-instanced mesh's instanced variant, the one it draws with", async () => {
+  const engine = new NullEngine(),
+    scene = new Scene(engine);
+  const mesh = CreateBox("fixture", {}, scene),
+    material = new StandardMaterial("fixture", scene);
+  mesh.material = material;
+  const instanced: unknown[] = [];
+  vi.spyOn(material, "isReadyForSubMesh").mockImplementation((_mesh, _subMesh, useInstances) => {
+    instanced.push(useInstances);
+    return true;
+  });
+  await prepareMaterial(material, mesh);
+  Object.defineProperty(mesh, "hasThinInstances", { value: true });
+  await prepareMaterial(material, mesh);
+  expect(instanced).toEqual([false, true]);
+  scene.dispose();
+  engine.dispose();
+});
+
 it("detaches cancelled preparation while consuming a late rejection safely", async () => {
   const engine = new NullEngine(),
     scene = new Scene(engine);

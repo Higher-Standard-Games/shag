@@ -8,14 +8,32 @@
 | --- | --- |
 | Material | `r_deluxe`, `r_bsp_pbr`, `r_normalmap`, `r_glossmap`, `r_lightmap`, `r_emissive` |
 | Texture | `r_anisotropy`, `r_ktx2`, `r_picmip` |
-| Display | `r_webgpu`, `r_bsp_freeze`, `r_ssr`, `r_softhalos`, `r_glow`, `r_bloom`, `r_exposure`, `r_contrast` |
-| Lighting | `r_ambient`, `r_lightintensity`, `r_lightmapscale`, god-ray, area-light, and day/night groups |
+| Display | `r_webgpu`, `r_bsp_freeze`, `r_ssr`, `r_softhalos`, `r_glow`, `r_bloom`, `r_exposure`, `r_contrast`, `r_renderscale`, `r_msaa`, `r_marks`, `r_gibs`, `r_teleport_ghost` |
+| Lighting | `r_ambient`, `r_lightintensity`, `r_lightmapscale`, `r_dynamiclight`, god-ray, area-light, and day/night groups |
 | Debug | `r_wireframe`, `r_showtris`, `r_water_debug` |
 
 The defaults use bloom off (`r_bloom 0`) and 4× anisotropic filtering
 (`r_anisotropy 4`), matching Washoi's Balanced preset. Zero bloom intensity
 disables the bloom rendering pass. Full-resolution map textures remain the
 default (`r_picmip 0`). Saved settings take priority over defaults.
+
+### Frame-cost switches
+
+Washoi's Ultralow video preset turns these down; every other preset sets them
+back to full. Each is one switch, so any of them can also be set alone.
+
+| Variable | Default | Effect | Applies |
+| --- | --- | --- | --- |
+| `r_renderscale` | 1 | Render resolution as a share of the window (0.25-1), through Babylon's hardware scaling. The HUD is HTML and stays sharp | Live |
+| `r_msaa` | 1 | Multisample antialiasing. A WebGL or WebGPU context fixes it when created | Next start |
+| `r_dynamiclight` | 1 | Off, the point-light pool builds no lights, so no gameplay light cluster exists and no material's shader includes one; the charge glow and the first-person muzzle-flash light are skipped too. Turned off mid-map, lights stop at once and the shader saving follows at the next map | Next map |
+| `r_marks` | 1 | Wall marks | Live |
+| `r_gibs` | 1 | Gib bursts on death | Live |
+| `r_teleport_ghost` | 1 | The teleport afterimage; off, its ghost rigs are not even loaded | Live |
+
+Code reads the on/off switches through `renderToggle()` in
+`src/engine/rendering/RenderToggles.ts`, which counts a switch nobody
+registered (tests, headless tools) as on.
 
 Water has its own set inside those categories: `r_water` and `r_water_quality` select the tier, with `r_water_highlights`, `r_water_roughness`, `r_water_reflection`, `r_water_probe_height`, `r_water_blur`, `r_water_detail`, `r_water_contact`, `r_water_actors` and `r_underwater_distortion` shaping it. Day/night runs from `r_daynight` with its time, speed, length, lightmap range, sun/moon intensity and sky tint.
 

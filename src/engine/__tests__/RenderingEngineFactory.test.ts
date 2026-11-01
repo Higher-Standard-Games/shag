@@ -111,6 +111,16 @@ describe("RenderingEngineFactory", () => {
     expect(deps.createWebGPU).not.toHaveBeenCalled();
   });
 
+  it("passes the antialiasing choice (r_msaa) to whichever backend it creates", async () => {
+    const deps = factories();
+    await createRenderingEngine(canvas, "webgl2", deps, { antialias: false });
+    expect(deps.createWebGL).toHaveBeenCalledWith(canvas, false);
+    await createRenderingEngine(canvas, "webgpu", deps, { antialias: false });
+    expect(deps.createWebGPU).toHaveBeenCalledWith(canvas, false);
+    await createRenderingEngine(canvas, "webgl2", deps);
+    expect(deps.createWebGL).toHaveBeenLastCalledWith(canvas, true);
+  });
+
   it("falls back when WebGPU initialization throws", async () => {
     const deps = factories({ createWebGPU: vi.fn(async () => Promise.reject(new Error("adapter lost"))) });
     const result = await createRenderingEngine(canvas, "webgpu", deps);
@@ -119,7 +129,7 @@ describe("RenderingEngineFactory", () => {
     expect(result.fallbackReason).toContain("adapter lost");
     expect(deps.createWebGL).toHaveBeenCalledOnce();
     expect(result.canvas).not.toBe(canvas);
-    expect(deps.createWebGL).toHaveBeenCalledWith(result.canvas);
+    expect(deps.createWebGL).toHaveBeenCalledWith(result.canvas, true);
     expect(result.fallbackStage).toBe("initialization");
   });
 

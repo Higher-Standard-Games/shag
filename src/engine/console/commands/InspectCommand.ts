@@ -48,8 +48,9 @@ export default class InspectCommand extends Command {
 
     // Cast ray from center of screen
     const ray = scene.createPickingRay(
-      scene.getEngine().getRenderWidth() / 2,
-      scene.getEngine().getRenderHeight() / 2,
+      // The screen centre in the CSS pixels a picking ray takes
+      (scene.getEngine().getRenderWidth() / 2) * scene.getEngine().getHardwareScalingLevel(),
+      (scene.getEngine().getRenderHeight() / 2) * scene.getEngine().getHardwareScalingLevel(),
       null,
       camera,
     );
