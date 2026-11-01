@@ -14,7 +14,7 @@ import { Ray } from "@babylonjs/core/Culling/ray";
 import type { PointLight } from "@babylonjs/core/Lights/pointLight";
 import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
 import { Color3 } from "@babylonjs/core/Maths/math.color";
-import { Quaternion, Vector3 } from "@babylonjs/core/Maths/math.vector";
+import { Matrix, Quaternion, Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { Mesh } from "@babylonjs/core/Meshes/mesh";
 import { MeshBuilder } from "@babylonjs/core/Meshes/meshBuilder";
 import "@babylonjs/core/Meshes/thinInstanceMesh";
@@ -176,9 +176,9 @@ interface ActiveEffect {
 
 /** A traveling pellet tracer — short segment that slides along a ray */
 interface TravelingPellet {
-  id: string;
-  mesh: Mesh;
-  material: StandardMaterial;
+  /** Fixed at spawn: the pellet flies straight. */
+  rotation: Quaternion;
+  color: Color3;
   origin: Vector3;
   endpoint: Vector3;
   /** endpoint − origin, kept for the per-frame slide. */
@@ -188,6 +188,18 @@ interface TravelingPellet {
   duration: number;
   /** Fraction of ray length that the segment covers (0..1) */
   segmentFraction: number;
+}
+
+/** The rotation that turns a Babylon cylinder, which extends along local Y, along `direction`. */
+function cylinderRotation(direction: Vector3): Quaternion {
+  const dir = direction.normalizeToNew();
+  const up = Vector3.Up();
+  const dot = Vector3.Dot(up, dir);
+  // Already aligned with Y-up
+  if (dot > 0.9999) return Quaternion.Identity();
+  // Opposite to Y-up — rotate 180° around Z
+  if (dot < -0.9999) return Quaternion.RotationAxis(new Vector3(0, 0, 1), Math.PI);
+  return Quaternion.RotationAxis(Vector3.Cross(up, dir).normalize(), Math.acos(dot));
 }
 
 // ── Singleton ────────────────────────────────────────────────────────
@@ -245,7 +257,19 @@ export class HitscanEffects {
   private readonly wallMarkMatrices = new Float32Array(HitscanEffects.MAX_WALL_MARKS * 16);
   private readonly wallMarkColors = new Float32Array(HitscanEffects.MAX_WALL_MARKS * 4).fill(1);
   private wallMarksMoved = false;
+  /** The first real mark gives the shared material its colour; a warm-up does not. */
+  private wallMarkColored = false;
   private static readonly MAX_WALL_MARKS = 50;
+
+  /** Pellet tracers: thin instances of one cone, coloured per instance (alpha fades it). */
+  private pelletMesh: Mesh | null = null;
+  private pelletMaterial: StandardMaterial | null = null;
+  private readonly pelletMatrices = new Float32Array(HitscanEffects.MAX_PELLETS * 16);
+  private readonly pelletColors = new Float32Array(HitscanEffects.MAX_PELLETS * 4);
+  private readonly pelletPose = new Matrix();
+  private readonly pelletPosition = new Vector3();
+  private readonly pelletScaling = new Vector3(1, 1, 1);
+  private static readonly MAX_PELLETS = 256;
   private static readonly WALL_MARK_DURATION = 3.0; // seconds to full fade
 
   private constructor() {}
@@ -571,22 +595,16 @@ export class HitscanEffects {
   private spawnTravelingPellet(origin: Vector3, endpoint: Vector3, color: Color3, duration: number, now: number): void {
     if (!this.scene) return;
 
-    const id = `pellet_${this.nextId++}`;
     const segFrac = 0.15; // segment covers 15% of total ray length
-    const { mesh, mat } = this.createPellet(id, color, this.scene);
+    this.ensurePelletBatch(this.scene);
+    // The oldest pellet makes way rather than a blast losing pellets
+    if (this.travelingPellets.length >= HitscanEffects.MAX_PELLETS) this.travelingPellets.shift();
 
     const rayLength = endpoint.subtract(origin).length();
 
-    // Initially position at the start
-    const segLen = rayLength * segFrac;
-    const segStart = origin.clone();
-    const segEnd = origin.add(endpoint.subtract(origin).normalize().scale(segLen));
-    this.orientCylinder(mesh, segStart, segEnd);
-
     this.travelingPellets.push({
-      id,
-      mesh,
-      material: mat,
+      rotation: cylinderRotation(endpoint.subtract(origin)),
+      color: color.clone(),
       origin: origin.clone(),
       endpoint: endpoint.clone(),
       ray: endpoint.subtract(origin),
@@ -597,10 +615,11 @@ export class HitscanEffects {
     });
   }
 
-  /** A cone-shaped tracer (wide head, narrow tail) for a dynamic shotgun blast. */
-  private createPellet(id: string, color: Color3, scene: Scene): { mesh: Mesh; mat: StandardMaterial } {
+  /** The cone every pellet is an instance of (wide head, narrow tail), rebuilt for a new scene. */
+  private ensurePelletBatch(scene: Scene): void {
+    if (this.pelletMesh && !this.pelletMesh.isDisposed() && this.pelletMesh.getScene() === scene) return;
     const mesh = MeshBuilder.CreateCylinder(
-      id,
+      "pellet_batch",
       {
         height: 1,
         diameterTop: 2.5, // wide head (leading edge)
@@ -610,27 +629,47 @@ export class HitscanEffects {
       scene,
     );
     mesh.isPickable = false;
+    // Pellets cross the whole view: one cone's bounds would cull them
+    mesh.alwaysSelectAsActiveMesh = true;
 
-    const mat = new StandardMaterial(`${id}_mat`, scene);
-    mat.emissiveColor = color;
-    mat.disableLighting = true;
-    mat.alpha = 0.85;
-    mat.backFaceCulling = false;
-    applySafeMaxSimultaneousLights(mat);
-    mesh.material = mat;
-    return { mesh, mat };
+    if (!this.pelletMaterial || this.pelletMaterial.getScene() !== scene) {
+      // White emissive, tinted per instance: the instance colour multiplies it
+      const mat = new StandardMaterial("pellet_mat", scene);
+      mat.emissiveColor = Color3.White();
+      mat.diffuseColor = Color3.Black();
+      mat.disableLighting = true;
+      mat.alpha = 0.85;
+      mat.backFaceCulling = false;
+      applySafeMaxSimultaneousLights(mat);
+      this.pelletMaterial = mat;
+    }
+    mesh.material = this.pelletMaterial;
+    mesh.thinInstanceSetBuffer("matrix", this.pelletMatrices, 16, false);
+    mesh.thinInstanceSetBuffer("color", this.pelletColors, 4, false);
+    mesh.thinInstanceCount = 0;
+    mesh.setEnabled(false);
+    this.pelletMesh = mesh;
   }
 
-  /** Compile the pellet tracer's shader, so the first shotgun blast finds it ready. */
+  /**
+   * Compile the pellet and wall-mark batches' shaders, so the first blast and
+   * the first hole find them ready. A thin-instanced mesh compiles its own
+   * variant, and only while it has an instance, so each gets one for the check.
+   */
   async preparePelletShader(signal?: AbortSignal): Promise<void> {
     if (!this.scene) return;
-    const { mesh, mat } = this.createPellet("pellet_warmup", Color3.White(), this.scene);
-    mesh.setEnabled(false);
-    try {
-      await prepareMaterial(mat, mesh, signal);
-    } finally {
-      mesh.dispose();
-      mat.dispose();
+    this.ensurePelletBatch(this.scene);
+    this.ensureWallMarkMaterial(Color3.White());
+    this.ensureWallMarkBatch(this.scene);
+    for (const mesh of [this.pelletMesh, this.wallMarkMesh]) {
+      if (!mesh?.material) continue;
+      const count = mesh.thinInstanceCount;
+      mesh.thinInstanceCount = Math.max(1, count);
+      try {
+        await prepareMaterial(mesh.material, mesh, signal);
+      } finally {
+        mesh.thinInstanceCount = count;
+      }
     }
   }
 
@@ -783,38 +822,7 @@ export class HitscanEffects {
     }
 
     // Animate traveling pellet tracers
-    for (let i = this.travelingPellets.length - 1; i >= 0; i--) {
-      const tp = this.travelingPellets[i];
-      const age = now - tp.spawnTime;
-      const t = Math.min(1, age / tp.duration);
-
-      if (t >= 1) {
-        // Done traveling — dispose
-        tp.mesh.dispose();
-        tp.material.dispose();
-        this.travelingPellets.splice(i, 1);
-        continue;
-      }
-
-      // Slide segment along the ray: head moves from 0→1, tail follows
-      // Start with a minimum length to avoid zero-length cylinder
-      const headT = Math.max(0.02, t); // head position along ray (0..1)
-      const tailT = Math.max(0, headT - tp.segmentFraction);
-
-      // The pellet flies straight, so its rotation was set once at spawn;
-      // each frame only slides the segment and stretches it. (This ran for
-      // every pellet of every shotgun blast, allocating a dozen objects each.)
-      const midT = (tailT + headT) * 0.5;
-      const ray = tp.ray;
-      tp.mesh.position.set(tp.origin.x + ray.x * midT, tp.origin.y + ray.y * midT, tp.origin.z + ray.z * midT);
-      tp.mesh.scaling.y = tp.rayLength * (headT - tailT);
-
-      // Fade out over the last 30% of travel
-      const fadeStart = 0.7;
-      if (t > fadeStart) {
-        tp.material.alpha = 0.85 * (1 - (t - fadeStart) / (1 - fadeStart));
-      }
-    }
+    this.updatePellets(now);
 
     this.updateWallMarks(now);
 
@@ -853,11 +861,9 @@ export class HitscanEffects {
       getPointLightPool().release(fx.light ?? null);
     }
     this.effects = [];
-    for (const tp of this.travelingPellets) {
-      tp.mesh.dispose();
-      tp.material.dispose();
-    }
     this.travelingPellets = [];
+    this.pelletMesh?.dispose();
+    this.pelletMesh = null;
     // Bullet holes belong to the map and moment they were made; the shared
     // material stays for the next ones.
     this.wallMarks = [];
@@ -993,23 +999,7 @@ export class HitscanEffects {
 
     cyl.position = mid;
     cyl.scaling.y = dist;
-
-    // BJS cylinder extends along local Y — rotate so Y aligns with diff
-    const dir = diff.normalize();
-    const up = Vector3.Up();
-    const dot = Vector3.Dot(up, dir);
-
-    if (dot > 0.9999) {
-      // Already aligned with Y-up
-      cyl.rotationQuaternion = Quaternion.Identity();
-    } else if (dot < -0.9999) {
-      // Opposite to Y-up — rotate 180° around Z
-      cyl.rotationQuaternion = Quaternion.RotationAxis(new Vector3(0, 0, 1), Math.PI);
-    } else {
-      const cross = Vector3.Cross(up, dir).normalize();
-      const angle = Math.acos(dot);
-      cyl.rotationQuaternion = Quaternion.RotationAxis(cross, angle);
-    }
+    cyl.rotationQuaternion = cylinderRotation(diff);
   }
 
   /** Create a random direction within a cone using a provided RNG function */
@@ -1059,15 +1049,10 @@ export class HitscanEffects {
   private spawnWallMark(position: Vector3, normal: Vector3, color: Color3, size: number): void {
     if (!this.scene) return;
 
-    // Shared wall mark material — created once, reused by all marks
-    if (!this.wallMarkMaterial) {
-      this.wallMarkMaterial = new StandardMaterial("wallmark_shared_mat", this.scene);
-      this.wallMarkMaterial.emissiveColor = new Color3(color.r * 0.3, color.g * 0.3, color.b * 0.3);
-      this.wallMarkMaterial.diffuseColor = Color3.Black();
-      this.wallMarkMaterial.alpha = 0.7;
-      this.wallMarkMaterial.disableLighting = true;
-      this.wallMarkMaterial.backFaceCulling = false;
-      applySafeMaxSimultaneousLights(this.wallMarkMaterial);
+    this.ensureWallMarkMaterial(color);
+    if (!this.wallMarkColored && this.wallMarkMaterial) {
+      this.wallMarkMaterial.emissiveColor.set(color.r * 0.3, color.g * 0.3, color.b * 0.3);
+      this.wallMarkColored = true;
     }
     this.ensureWallMarkBatch(this.scene);
     const pose = this.wallMarkPose!;
@@ -1086,6 +1071,18 @@ export class HitscanEffects {
     this.updateWallMarks(this.now());
   }
 
+  /** Shared wall mark material — created once, reused by all marks. */
+  private ensureWallMarkMaterial(color: Color3): void {
+    if (this.wallMarkMaterial || !this.scene) return;
+    this.wallMarkMaterial = new StandardMaterial("wallmark_shared_mat", this.scene);
+    this.wallMarkMaterial.emissiveColor = new Color3(color.r * 0.3, color.g * 0.3, color.b * 0.3);
+    this.wallMarkMaterial.diffuseColor = Color3.Black();
+    this.wallMarkMaterial.alpha = 0.7;
+    this.wallMarkMaterial.disableLighting = true;
+    this.wallMarkMaterial.backFaceCulling = false;
+    applySafeMaxSimultaneousLights(this.wallMarkMaterial);
+  }
+
   /** The disc every mark is an instance of, rebuilt for a new scene. */
   private ensureWallMarkBatch(scene: Scene): void {
     if (this.wallMarkMesh && !this.wallMarkMesh.isDisposed() && this.wallMarkMesh.getScene() === scene) return;
@@ -1102,6 +1099,49 @@ export class HitscanEffects {
     this.wallMarkPose?.dispose();
     this.wallMarkPose = new TransformNode("wallmark_pose", scene);
     this.wallMarksMoved = true;
+  }
+
+  /** Slide each pellet's segment along its ray, fade its last 30%, and drop finished ones. */
+  private updatePellets(now: number): void {
+    const mesh = this.pelletMesh;
+    if (!mesh || mesh.isDisposed()) return;
+    let count = 0;
+    for (let i = 0; i < this.travelingPellets.length; i++) {
+      const tp = this.travelingPellets[i];
+      const t = Math.min(1, (now - tp.spawnTime) / tp.duration);
+      if (t >= 1) continue;
+      this.travelingPellets[count] = tp;
+
+      // Slide the segment along the ray: the head moves from 0 to 1 and the
+      // tail follows; a minimum length avoids a zero-length cone
+      const headT = Math.max(0.02, t);
+      const tailT = Math.max(0, headT - tp.segmentFraction);
+      const midT = (tailT + headT) * 0.5;
+      const ray = tp.ray;
+      this.pelletPosition.set(tp.origin.x + ray.x * midT, tp.origin.y + ray.y * midT, tp.origin.z + ray.z * midT);
+      this.pelletScaling.y = tp.rayLength * (headT - tailT);
+      Matrix.ComposeToRef(this.pelletScaling, tp.rotation, this.pelletPosition, this.pelletPose);
+      this.pelletPose.copyToArray(this.pelletMatrices, count * 16);
+
+      const fadeStart = 0.7;
+      this.pelletColors[count * 4] = tp.color.r;
+      this.pelletColors[count * 4 + 1] = tp.color.g;
+      this.pelletColors[count * 4 + 2] = tp.color.b;
+      this.pelletColors[count * 4 + 3] = t > fadeStart ? 1 - (t - fadeStart) / (1 - fadeStart) : 1;
+      count++;
+    }
+    this.travelingPellets.length = count;
+    if (count === 0) {
+      if (mesh.isEnabled()) {
+        mesh.thinInstanceCount = 0;
+        mesh.setEnabled(false);
+      }
+      return;
+    }
+    mesh.thinInstanceBufferUpdated("matrix");
+    mesh.thinInstanceBufferUpdated("color");
+    mesh.thinInstanceCount = count;
+    if (!mesh.isEnabled()) mesh.setEnabled(true);
   }
 
   /** Expire old marks and write the survivors' fade (and positions, when they changed). */

@@ -96,10 +96,12 @@ export async function prepareMaterial(material: Material, mesh: AbstractMesh, si
         if (lent) scene.activeCamera = lent;
         try {
           const subMeshes = mesh.subMeshes ?? [];
+          // A thin-instanced mesh always draws its INSTANCES variant: compile that one
+          const instanced = (mesh as AbstractMesh & { hasThinInstances?: boolean }).hasThinInstances === true;
           const ready =
             material._storeEffectOnSubMeshes && subMeshes.length
-              ? subMeshes.map((subMesh) => material.isReadyForSubMesh(mesh, subMesh, false)).every(Boolean)
-              : material.isReady(mesh);
+              ? subMeshes.map((subMesh) => material.isReadyForSubMesh(mesh, subMesh, instanced)).every(Boolean)
+              : material.isReady(mesh, instanced);
           for (const subMesh of subMeshes) {
             const effect = subMesh.effect;
             const error = effect?.getCompilationError();
