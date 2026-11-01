@@ -115,6 +115,28 @@ it("stops an unready material without leaving Babylon compilation polling or a c
   engine.dispose();
 });
 
+it("compiles with the camera the scene renders through, not the none left between frames", async () => {
+  const engine = new NullEngine(),
+    scene = new Scene(engine);
+  const camera = new FreeCamera("view", Vector3.Zero(), scene);
+  scene.activeCameras = [camera];
+  scene.activeCamera = null;
+  const mesh = CreateBox("fixture", {}, scene),
+    material = new StandardMaterial("fixture", scene);
+  mesh.material = material;
+  let seen: unknown;
+  vi.spyOn(material, "isReadyForSubMesh").mockImplementation(() => {
+    seen = scene.activeCamera;
+    return true;
+  });
+  await prepareMaterial(material, mesh);
+  // The variant play draws with has CAMERA_PERSPECTIVE, which needs an active camera
+  expect(seen).toBe(camera);
+  expect(scene.activeCamera).toBeNull();
+  scene.dispose();
+  engine.dispose();
+});
+
 it("detaches cancelled preparation while consuming a late rejection safely", async () => {
   const engine = new NullEngine(),
     scene = new Scene(engine);

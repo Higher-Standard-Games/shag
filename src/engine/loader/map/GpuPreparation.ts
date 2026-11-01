@@ -86,6 +86,14 @@ export async function prepareMaterial(material: Material, mesh: AbstractMesh, si
         if (mesh.isDisposed()) throw new Error(`Mesh disposed: ${mesh.name}`);
         const hotSwapping = material.allowShaderHotSwapping;
         material.allowShaderHotSwapping = false;
+        // Camera defines (CAMERA_PERSPECTIVE) are only set with an active camera.
+        // Between frames there is none, and a variant compiled without it is not
+        // the one play draws with; lend the camera the scene renders with. Its
+        // camera listeners (post-processing) resolve activeCameras[0] first, so
+        // lending exactly that one moves nothing.
+        const activeCamera = scene.activeCamera;
+        const lent = activeCamera ? null : (scene.activeCameras?.[0] ?? null);
+        if (lent) scene.activeCamera = lent;
         try {
           const subMeshes = mesh.subMeshes ?? [];
           const ready =
@@ -100,6 +108,7 @@ export async function prepareMaterial(material: Material, mesh: AbstractMesh, si
           return ready;
         } finally {
           material.allowShaderHotSwapping = hotSwapping;
+          if (lent) scene.activeCamera = null;
         }
       },
       `${material.name} on ${mesh.name}`,

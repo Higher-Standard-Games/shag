@@ -127,6 +127,12 @@ export const DEFAULT_POSITIONS: Record<string, WeaponPosition> = {
 
 // Layer mask for weapon-only rendering
 const WEAPON_LAYER_MASK = 0x10000000;
+/** Second layer bit carried only by blade view meshes, which bladeLight reaches. */
+const BLADE_LIGHT_LAYER = 0x40000000;
+
+function weaponLayerMask(weaponName: string): number {
+  return weaponName === "blade" ? WEAPON_LAYER_MASK | BLADE_LIGHT_LAYER : WEAPON_LAYER_MASK;
+}
 
 /** Underwater viewmodel drift — slow enough to read as buoyancy, not as sway. */
 const WEAPON_FLOAT_HZ = 0.35;
@@ -161,7 +167,9 @@ export class WeaponViewManager {
           throw new Error(`Could not prepare weapon ${id}`);
         await waitForPreparation(this.weaponDetailsReady, scene, `weapon details ${id}`, signal);
         for (const mesh of this.currentWeapon?.root.getChildMeshes() ?? []) {
-          if (mesh.material) await prepareMaterial(mesh.material, mesh, signal);
+          // A drawn mesh without a material of its own draws with the scene default
+          const material = mesh.material ?? (mesh.getTotalVertices() > 0 ? scene.defaultMaterial : null);
+          if (material) await prepareMaterial(material, mesh, signal);
         }
       }
       this.preparedForJoin = true;
@@ -564,10 +572,11 @@ export class WeaponViewManager {
     this.weaponLight.renderPriority = 1000;
 
     // Metallic surfaces need a specular source; hemispheric fill alone has none.
+    // Always enabled and scoped by layer: the blade has it from the first frame
+    // it is drawn, guns never do, so neither ever compiles a second variant.
     this.bladeLight = new DirectionalLight("bladeLight", new Vector3(0.3, -0.4, 1), scene);
     this.bladeLight.parent = this.weaponCamera;
-    this.bladeLight.includeOnlyWithLayerMask = WEAPON_LAYER_MASK;
-    this.bladeLight.setEnabled(false);
+    this.bladeLight.includeOnlyWithLayerMask = BLADE_LIGHT_LAYER;
     this.bladeLight.intensity = 3;
     this.bladeLight.renderPriority = 1100;
 
@@ -902,7 +911,7 @@ export class WeaponViewManager {
 
         // Ensure ALL meshes have weapon layer mask
         mesh.renderingGroupId = 1;
-        mesh.layerMask = WEAPON_LAYER_MASK;
+        mesh.layerMask = weaponLayerMask(weaponName);
       }
 
       // Resolve the normalized model's +X tip once; cloned sockets follow its pose.
@@ -1200,16 +1209,9 @@ export class WeaponViewManager {
     // - layerMask: only visible to weapon camera (separate FOV)
     for (const mesh of this.currentWeapon.meshes) {
       mesh.renderingGroupId = 1;
-      mesh.layerMask = WEAPON_LAYER_MASK;
+      mesh.layerMask = weaponLayerMask(weaponName);
     }
     this.updateMuzzleFlashLightScope();
-    if (this.bladeLight) {
-      this.bladeLight.includedOnlyMeshes = this.currentWeapon.meshes;
-      this.bladeLight.setEnabled(weaponName === "blade");
-      // Enabling a light appends it to mesh lists; rebuild in scene priority order
-      // so the specular source actually fits the material's limited light slots.
-      for (const mesh of this.currentWeapon.meshes) mesh._resyncLightSources();
-    }
 
     // Apply position — GLB weapons use their viewModel offsets,
     // MD3 weapons reset to default hip position
@@ -1330,7 +1332,6 @@ export class WeaponViewManager {
   }
 
   private clearCurrentWeapon(): void {
-    this.bladeLight?.setEnabled(false);
     this.disposeAmmoCounter();
     this.muzzleSocket = null;
     this.currentGlowTexture?.dispose();
