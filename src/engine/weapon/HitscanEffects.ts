@@ -17,6 +17,8 @@ import { Color3 } from "@babylonjs/core/Maths/math.color";
 import { Quaternion, Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { Mesh } from "@babylonjs/core/Meshes/mesh";
 import { MeshBuilder } from "@babylonjs/core/Meshes/meshBuilder";
+import "@babylonjs/core/Meshes/thinInstanceMesh";
+import { TransformNode } from "@babylonjs/core/Meshes/transformNode";
 import type { Observer } from "@babylonjs/core/Misc/observable";
 import type { Scene } from "@babylonjs/core/scene";
 import { generateSpreadDirections, mulberry32, yawPitchFromDirection } from "../../shared/SpreadUtils";
@@ -231,9 +233,18 @@ export class HitscanEffects {
   private localVoltaicHasDirection = false;
   private localVoltaicTruthAt = -Infinity;
 
-  /** Pooled wall marks (bullet holes / scorch marks) */
-  private wallMarks: { mesh: Mesh; spawnTime: number }[] = [];
+  /**
+   * Wall marks (bullet holes / scorch marks): thin instances of one disc, so
+   * fifty marks are one draw. Oldest first; the instance colour's alpha fades
+   * each mark, as a mesh's visibility did.
+   */
+  private wallMarks: { spawnTime: number; matrix: Float32Array }[] = [];
   private wallMarkMaterial: StandardMaterial | null = null; // Shared material for all wall marks
+  private wallMarkMesh: Mesh | null = null;
+  private wallMarkPose: TransformNode | null = null;
+  private readonly wallMarkMatrices = new Float32Array(HitscanEffects.MAX_WALL_MARKS * 16);
+  private readonly wallMarkColors = new Float32Array(HitscanEffects.MAX_WALL_MARKS * 4).fill(1);
+  private wallMarksMoved = false;
   private static readonly MAX_WALL_MARKS = 50;
   private static readonly WALL_MARK_DURATION = 3.0; // seconds to full fade
 
@@ -805,17 +816,7 @@ export class HitscanEffects {
       }
     }
 
-    // Fade wall marks
-    for (let i = this.wallMarks.length - 1; i >= 0; i--) {
-      const wm = this.wallMarks[i];
-      const age = now - wm.spawnTime;
-      if (age >= HitscanEffects.WALL_MARK_DURATION) {
-        wm.mesh.dispose();
-        this.wallMarks.splice(i, 1);
-      } else {
-        wm.mesh.visibility = 1 - age / HitscanEffects.WALL_MARK_DURATION;
-      }
-    }
+    this.updateWallMarks(now);
 
     // Remove expired effects (backwards swap-remove: O(n) instead of O(n²) findIndex+splice)
     for (let i = this.effects.length - 1; i >= 0; i--) {
@@ -859,8 +860,11 @@ export class HitscanEffects {
     this.travelingPellets = [];
     // Bullet holes belong to the map and moment they were made; the shared
     // material stays for the next ones.
-    for (const mark of this.wallMarks) mark.mesh.dispose();
     this.wallMarks = [];
+    this.wallMarkMesh?.dispose();
+    this.wallMarkMesh = null;
+    this.wallMarkPose?.dispose();
+    this.wallMarkPose = null;
     this.stopLightning();
     this.voltaicRenderer?.clear();
     this.railRenderer?.clear();
@@ -1055,25 +1059,7 @@ export class HitscanEffects {
   private spawnWallMark(position: Vector3, normal: Vector3, color: Color3, size: number): void {
     if (!this.scene) return;
 
-    // Enforce pool limit — remove oldest
-    while (this.wallMarks.length >= HitscanEffects.MAX_WALL_MARKS) {
-      const oldest = this.wallMarks.shift()!;
-      oldest.mesh.dispose();
-    }
-
-    const id = `wallmark_${this.nextId++}`;
-    const mesh = MeshBuilder.CreateDisc(id, { radius: size, tessellation: 3 }, this.scene);
-    mesh.isPickable = false;
-
-    // Position slightly off the wall to avoid z-fighting
-    mesh.position = position.add(normal.scale(0.05));
-
-    // Orient plane to face along the wall normal
-    const target = position.add(normal);
-    mesh.lookAt(target);
-
     // Shared wall mark material — created once, reused by all marks
-    // Individual marks control fade via mesh.visibility instead of material.alpha
     if (!this.wallMarkMaterial) {
       this.wallMarkMaterial = new StandardMaterial("wallmark_shared_mat", this.scene);
       this.wallMarkMaterial.emissiveColor = new Color3(color.r * 0.3, color.g * 0.3, color.b * 0.3);
@@ -1083,13 +1069,77 @@ export class HitscanEffects {
       this.wallMarkMaterial.backFaceCulling = false;
       applySafeMaxSimultaneousLights(this.wallMarkMaterial);
     }
-    mesh.material = this.wallMarkMaterial;
+    this.ensureWallMarkBatch(this.scene);
+    const pose = this.wallMarkPose!;
 
-    this.wallMarks.push({
-      mesh,
-      spawnTime: this.now(),
-    });
+    // Slightly off the wall to avoid z-fighting, facing along the wall normal
+    pose.position.copyFrom(position).addInPlace(normal.scale(0.05));
+    pose.scaling.setAll(size);
+    pose.lookAt(position.add(normal));
+    const matrix = new Float32Array(16);
+    pose.computeWorldMatrix(true).copyToArray(matrix);
+
+    // Enforce pool limit — remove oldest
+    while (this.wallMarks.length >= HitscanEffects.MAX_WALL_MARKS) this.wallMarks.shift();
+    this.wallMarks.push({ spawnTime: this.now(), matrix });
+    this.wallMarksMoved = true;
+    this.updateWallMarks(this.now());
   }
+
+  /** The disc every mark is an instance of, rebuilt for a new scene. */
+  private ensureWallMarkBatch(scene: Scene): void {
+    if (this.wallMarkMesh && !this.wallMarkMesh.isDisposed() && this.wallMarkMesh.getScene() === scene) return;
+    const mesh = MeshBuilder.CreateDisc("wallmark_batch", { radius: 1, tessellation: 3 }, scene);
+    mesh.isPickable = false;
+    // Marks lie all over the map: culling one disc's bounds would hide them
+    mesh.alwaysSelectAsActiveMesh = true;
+    mesh.material = this.wallMarkMaterial;
+    mesh.thinInstanceSetBuffer("matrix", this.wallMarkMatrices, 16, false);
+    mesh.thinInstanceSetBuffer("color", this.wallMarkColors, 4, false);
+    mesh.thinInstanceCount = 0;
+    mesh.setEnabled(false);
+    this.wallMarkMesh = mesh;
+    this.wallMarkPose?.dispose();
+    this.wallMarkPose = new TransformNode("wallmark_pose", scene);
+    this.wallMarksMoved = true;
+  }
+
+  /** Expire old marks and write the survivors' fade (and positions, when they changed). */
+  private updateWallMarks(now: number): void {
+    const mesh = this.wallMarkMesh;
+    if (!mesh || mesh.isDisposed()) return;
+    let expired = 0;
+    while (
+      expired < this.wallMarks.length &&
+      now - this.wallMarks[expired].spawnTime >= HitscanEffects.WALL_MARK_DURATION
+    )
+      expired++;
+    if (expired > 0) {
+      this.wallMarks.splice(0, expired);
+      this.wallMarksMoved = true;
+    }
+    const count = this.wallMarks.length;
+    if (count === 0) {
+      if (mesh.isEnabled()) {
+        mesh.thinInstanceCount = 0;
+        mesh.setEnabled(false);
+      }
+      this.wallMarksMoved = false;
+      return;
+    }
+    for (let i = 0; i < count; i++) {
+      this.wallMarkColors[i * 4 + 3] = 1 - (now - this.wallMarks[i].spawnTime) / HitscanEffects.WALL_MARK_DURATION;
+    }
+    if (this.wallMarksMoved) {
+      for (let i = 0; i < count; i++) this.wallMarkMatrices.set(this.wallMarks[i].matrix, i * 16);
+      mesh.thinInstanceBufferUpdated("matrix");
+      this.wallMarksMoved = false;
+    }
+    mesh.thinInstanceBufferUpdated("color");
+    mesh.thinInstanceCount = count;
+    if (!mesh.isEnabled()) mesh.setEnabled(true);
+  }
+
   /**
    * Third-person slash arc — ribbon at a remote player's fire position.
    * Creates a fan-shaped sweep using the fire origin + direction.
