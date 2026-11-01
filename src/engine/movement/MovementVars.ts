@@ -56,8 +56,8 @@ const DEFAULT_VARS: Record<string, Omit<MovementVar, "name">> = {
     developerOnly: false,
   },
   sv_movementSpeed: {
-    value: 280,
-    defaultValue: 280,
+    value: 320,
+    defaultValue: 320,
     min: 50,
     max: 2000,
     description: "Base player movement speed (units/sec)",

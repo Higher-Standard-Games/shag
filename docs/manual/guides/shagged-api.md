@@ -348,7 +348,7 @@ Example: two rooms joined by a corridor, with spawns and a weapon:
 
 - The player box is 32 × 32 units and 56 tall (32 crouched). Give corridors at least 96 × 96 of clear space; 128 is comfortable to fight in.
 - A step is at most 18 units. A standing jump rises about 51 units, but `report` counts a ledge as a hop only up to 45 units: keep hop ledges at 44 or lower, and use stairs, a jump pad or a teleporter above that.
-- Ground speed is 280 units per second (400 sprinting forward): a 1,024-unit room takes three to four seconds to cross.
+- Ground speed is 320 units per second (400 sprinting forward): a 1,024-unit room takes about three seconds to cross.
 
 **Geometry and compiling:**
 
