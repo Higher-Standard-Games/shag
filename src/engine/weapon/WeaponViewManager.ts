@@ -9,6 +9,7 @@ import { VertexBuffer } from "@babylonjs/core/Buffers/buffer";
 import type { Camera } from "@babylonjs/core/Cameras/camera";
 import { FreeCamera } from "@babylonjs/core/Cameras/freeCamera";
 import "@babylonjs/core/Culling/ray";
+import type { Ray } from "@babylonjs/core/Culling/ray";
 import { DirectionalLight } from "@babylonjs/core/Lights/directionalLight";
 import { HemisphericLight } from "@babylonjs/core/Lights/hemisphericLight";
 import { PointLight } from "@babylonjs/core/Lights/pointLight";
@@ -284,13 +285,7 @@ export class WeaponViewManager {
         viewport,
       );
       if (Number.isFinite(screen.x + screen.y + screen.z)) {
-        const ray = this.scene.createPickingRay(
-          screen.x,
-          screen.y,
-          WeaponViewManager.IDENTITY_MATRIX,
-          this.mainCamera,
-          false,
-        );
+        const ray = this.worldRayThrough(screen.x, screen.y);
         return this.mainCamera.globalPosition.add(ray.direction.scale(distance));
       }
     }
@@ -2062,14 +2057,26 @@ export class WeaponViewManager {
     screen.x += jitterX;
     screen.y += jitterY;
     if (!Number.isFinite(screen.x + screen.y + screen.z) || screen.z < 0 || screen.z > 1) return null;
-    const ray = this.scene.createPickingRay(
-      screen.x,
-      screen.y,
+    const ray = this.worldRayThrough(screen.x, screen.y);
+    return this.mainCamera.globalPosition.add(ray.direction.scale(5));
+  }
+
+  /**
+   * The world camera's ray through a point the weapon camera projected.
+   * Vector3.Project gives render pixels; createPickingRay takes CSS pixels and
+   * divides by the hardware scaling level, so below full render resolution
+   * (r_renderscale) the point is scaled back first, or the ray leaves toward
+   * the top-left of the screen and so do muzzle flashes and projectiles.
+   */
+  private worldRayThrough(renderX: number, renderY: number): Ray {
+    const level = this.scene!.getEngine().getHardwareScalingLevel();
+    return this.scene!.createPickingRay(
+      renderX * level,
+      renderY * level,
       WeaponViewManager.IDENTITY_MATRIX,
       this.mainCamera,
       false,
     );
-    return this.mainCamera.globalPosition.add(ray.direction.scale(5));
   }
 
   private updateMuzzleFlash(deltaTime: number): void {
