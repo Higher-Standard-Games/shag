@@ -174,8 +174,8 @@ Concrete Strike has six. Samplesize 8 would cut them to about a quarter.
 | `map_washoi_amphi2.pk3` | 13,458,873 | `6e54311b21e4b8c21336b8517a9b95a529cdc2e89fb4553263490f3a4456435e` |
 | `tex_washoi_amphi2.pk3` | 5,880,805 | `59f067c888c7e2b9acbc4bb118597ee8b011300bf5f0984347921b39e86ddde8` |
 | `map_washoi_snd6.pk3` | 51,265,975 | `c26ac2b11a7d8012394e708786aa7f8c1ee997797ae3ea2734f2f821513b898f` |
-| `map_washoi_dm12.pk3` | 18,502,247 | `360efe66c8234fd59efede32861a01d97ba9fd0fd8eba9208f92430491d9830a` |
-| `tex_washoi_dm12.pk3` | 5,478,740 | `ab539b4e37cdb8eec026868438066c65ef1c239782d21bab3c587241784ab981` |
+| `map_washoi_dm12.pk3` | 18,793,102 | `f86fafc71bacafe8bfefe3143ffddabefb9faa904a00181a321ca787b4857d32` |
+| `tex_washoi_dm12.pk3` | 5,478,745 | `7b06bda2e033396d1ce4e95fc55fb3cc305bfdf63a08b486e8e3967c7eb8bcd5` |
 | `tex_washoi_snd6.pk3` | 12,781,081 | `9af41869c3084d95614a3ce2672b44d7d12762c4ffab290af6b01d4296e3d43a` |
 | `washoi_textures.pk3` | 156,570,652 | `2f8f94baea067b3c14cb85a40c730d366834aad6489ec6cc2302811631834562` |
 | `tex_billboard.pk3` | 3,755,827 | `78143817610ef7344aa28e34c7b3ca86966defc34738b822a938dc663f918039` |
@@ -236,7 +236,20 @@ bank matches them byte for byte.
 
 It is compiled from warfork-maps `00bf74a` with `_lightmapImageSize 2048` and
 `gridsize 64 64 64` added: 63 seconds of MakeBSP and 11½ minutes of MakeLight,
-no missing model, 4 lightmap pages, 1,375 faces, 865 clusters. Warfork ships a
+no missing model, 4 lightmap pages, 1,375 faces, 865 clusters.
+
+The 9 solid models get `"collisiontype" "extrude"`, MakeBSP's per-polygon
+collision, which matches q3map2's clipping of a solid model's triangles; the 5
+ceiling supports also carry q3map2's extrude flag (8). With the default `object`
+hulls, the first build left `curved_ceilings_mega_to_ya`'s convex hull solid
+from z 322 to 386 over the `jump3` pad at (768 1280), where the model has no
+geometry: the pad's arc to (768 1280 472) stopped 54 units up and dropped the
+player back on the pad. With `extrude` the column is open, every pad's arc
+reaches its target, and the ceiling is solid only at its surface (z 318–322).
+The rebuild took 83 seconds of MakeBSP and 15 minutes of MakeLight.
+`q3collision.mjs --extrude-solid` reproduces the staged map. Amphi2's and
+Depot's solid models are plates, planks, a crate and a trapdoor, which convex
+hulls fit, and keep the default. Warfork ships a
 MakeBSP build as `data1_21pure/maps/wfdm12.bsp`; it is not used.
 
 The two teleporters are `misc_portal_surface` brushes in
