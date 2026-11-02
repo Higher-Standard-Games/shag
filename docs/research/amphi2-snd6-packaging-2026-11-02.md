@@ -174,7 +174,7 @@ Concrete Strike has six. Samplesize 8 would cut them to about a quarter.
 | `map_washoi_amphi2.pk3` | 13,458,873 | `6e54311b21e4b8c21336b8517a9b95a529cdc2e89fb4553263490f3a4456435e` |
 | `tex_washoi_amphi2.pk3` | 5,880,805 | `59f067c888c7e2b9acbc4bb118597ee8b011300bf5f0984347921b39e86ddde8` |
 | `map_washoi_snd6.pk3` | 51,265,975 | `c26ac2b11a7d8012394e708786aa7f8c1ee997797ae3ea2734f2f821513b898f` |
-| `map_washoi_dm12.pk3` | 16,523,763 | `bdba0503e20bb47285973ae43cce061fff3af10f34d73fe652a284ca441fc5e1` |
+| `map_washoi_dm12.pk3` | 18,502,247 | `360efe66c8234fd59efede32861a01d97ba9fd0fd8eba9208f92430491d9830a` |
 | `tex_washoi_dm12.pk3` | 5,478,740 | `ab539b4e37cdb8eec026868438066c65ef1c239782d21bab3c587241784ab981` |
 | `tex_washoi_snd6.pk3` | 12,781,081 | `9af41869c3084d95614a3ce2672b44d7d12762c4ffab290af6b01d4296e3d43a` |
 | `washoi_textures.pk3` | 156,570,652 | `2f8f94baea067b3c14cb85a40c730d366834aad6489ec6cc2302811631834562` |
@@ -252,8 +252,8 @@ The merge adds 36 files and 7 shader definitions without conflicts; 12 new
 textures are classified (4 colour, 4 normal, 2 gloss, 2 alpha). `noshader` and
 `textures/common/_miscmodelclip` are unresolved and draw nothing. Its board
 `wsw_adverts/tech_add_2_w_nolights` uses `textures/billboard/board_512_256_1`
-and draws black, as in Shepas. The levelshot is Warfork's
-`levelshots/wfdm12.png`.
+and draws black, as in Shepas. Its levelshot is the owner's 1920 × 1080
+`levelshots/washoi_dm12.png`.
 
 In the browser (headless Edge, WebGL2, `map washoi_dm12 ffa` through a scratch
 lobby) it loads in 21 seconds with every texture ready and no failed media
