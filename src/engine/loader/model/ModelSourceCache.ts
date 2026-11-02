@@ -89,6 +89,26 @@ export function bindLoaderLeftovers(
   loaderLeftovers.set(model, bound);
 }
 
+/** The animation groups bound to a model with `bindLoaderLeftovers`. */
+export function loaderAnimationGroups(model: Node): readonly AnimationGroup[] {
+  return loaderLeftovers.get(model)?.animationGroups ?? [];
+}
+
+const recyclers = new WeakMap<Node, () => boolean>();
+
+/**
+ * Let a model's owner take it back instead of losing it: `disposeModelResources`
+ * asks `recycle` first, and when it returns true the owner has parked the model
+ * for reuse and nothing of it is disposed. Null removes the recycler.
+ *
+ * A model can be disposed from several places (a player switching weapons,
+ * dying, leaving, a ragdoll expiring); this keeps one owner deciding.
+ */
+export function setModelRecycler(model: Node, recycle: (() => boolean) | null): void {
+  if (recycle) recyclers.set(model, recycle);
+  else recyclers.delete(model);
+}
+
 /**
  * Dispose a model's nodes, then whatever only they used.
  *
@@ -96,9 +116,11 @@ export function bindLoaderLeftovers(
  * clear may already have disposed some of them. A material is released only
  * when no remaining mesh renders with it, a texture only when no remaining
  * material samples it, and a skeleton only when no remaining mesh is skinned
- * by it. The scene's environment texture is never released.
+ * by it. The scene's environment texture is never released. A node whose
+ * recycler takes it back is left whole (`setModelRecycler`).
  */
 export function disposeModelResources(nodes: readonly (Node | null | undefined)[], owned: ModelResources = {}): void {
+  nodes = nodes.filter((node) => !node || node.isDisposed() || !recyclers.get(node)?.());
   let scene: Scene | null = null;
   const materials = new Set<Material>();
   const collectMaterial = (material: Material) => {

@@ -69,9 +69,15 @@ const MAX_ACTIVE_SPATIAL_SOUNDS = 48;
 const REFERENCE_DISTANCE = 125;
 const FAR_DISTANCE = 8000;
 
+/**
+ * A sound plays where it started; nothing attaches it to a moving node. Without
+ * `spatialAutoUpdate: false` Babylon gives every playing sound its own
+ * requestAnimationFrame loop that re-applies that fixed position each frame.
+ */
 function spatialOptions(position: Vector3, options: SpatialSfxPlayOptions) {
   return {
     spatialEnabled: true,
+    spatialAutoUpdate: false,
     spatialPosition: position,
     spatialDistanceModel: "inverse" as const,
     spatialMinDistance: REFERENCE_DISTANCE,
