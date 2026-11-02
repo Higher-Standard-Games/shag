@@ -91,12 +91,14 @@ it at startup and filters the pools against installed `map_*.pk3` packages in
 `public/data/`. Numbered SHAGGED packages such as `map_solamphi1_00008.pk3`
 also advertise their base map name, `solamphi1`.
 
-The Amphi pool contains `washoi_amphi1` from `map_washoi_amphi1.pk3`, with shared
-media in `washoi_textures.pk3`. Relay Yard (`solamphi1`) and the DA arenas
+The Amphi pool contains `washoi_amphi1` and `washoi_amphi2`, from
+`map_washoi_amphi1.pk3` and `map_washoi_amphi2.pk3`, with shared media in
+`washoi_textures.pk3`. Relay Yard (`solamphi1`) and the DA arenas
 are excluded. Restart the lobby after changing the configuration.
 
-The S&D pool contains only Concrete Strike (`washoi_snd1`), provided
-`map_washoi_snd1.pk3` is installed. Duel and FFA use Washoi DM2, DM5 and DM11.
+The S&D pool contains Concrete Strike (`washoi_snd1`) and Depot
+(`washoi_snd6`), each provided its `map_<name>.pk3` is installed. Duel uses Washoi DM2, DM5, DM11 and DM14; FFA uses the same
+four and DM7.
 The room's map vote keeps three card slots. With fewer offered maps, unused
 slots display disabled placeholders and cannot receive votes.
 

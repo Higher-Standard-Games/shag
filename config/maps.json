@@ -41,6 +41,12 @@
       "amphi"
     ]
   },
+  "washoi_amphi2": {
+    "displayName": "Washoi Amphi2",
+    "gametypes": [
+      "amphi"
+    ]
+  },
   "wda1": {
     "displayName": "Arena One",
     "gametypes": []
@@ -63,6 +69,12 @@
   },
   "washoi_snd1": {
     "displayName": "Concrete Strike",
+    "gametypes": [
+      "snd"
+    ]
+  },
+  "washoi_snd6": {
+    "displayName": "Depot",
     "gametypes": [
       "snd"
     ]
