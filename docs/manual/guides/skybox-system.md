@@ -72,6 +72,13 @@ see the BSP guide.
 
 Babylon and Quake sky-face naming use different viewing conventions. Keep the mapping centralized in `SkyboxLoader`; use the debug skybox before changing face order or rotations.
 
+Quake's faces cover these directions (Q3 axes, Z up), each image being the
+view in that direction: `rt` +X, `lf` −X, `bk` +Y, `ft` −Y, `up` +Z, `dn` −Z.
+A rendered sky can be checked against them: look along each axis with a 90°
+vertical field of view, and the middle square of the screen is that face,
+unmirrored. A map's `q3map_sun` usually points at its sun or moon, which gives
+a quick cross-check.
+
 ## Source of truth
 
 - `src/engine/loader/texture/SkyboxLoader.ts`
