@@ -823,6 +823,81 @@ models/items/armor/ga/ga
     });
   });
 
+  // ── Templates named anything, used anywhere in a body ──────
+  // Mirrors Warsow's decals.shader: `template_Dirt` is used on the last line,
+  // after the decal's own surface flags.
+  describe("template lines after a shader's own directives", () => {
+    const DIRT_SHADERS = `template_Dirt
+{
+\t{
+\t\tdetail
+\t\tmaterial textures/decals/dirt_$1.png
+\t\tblendfunc blend
+\t\talphagen vertex
+\t}
+}
+
+textures/decals/dirt_02
+{
+\tqer_editorimage textures/decals/dirt_02.png
+\tsurfaceparm nonsolid
+\tsurfaceparm trans
+\tpolygonOffset
+\tnopicmip
+
+\ttemplate template_Dirt 02
+}`;
+
+    it("expands a template whose name does not end in _template", () => {
+      const dirt = parseShaderFile(DIRT_SHADERS).find((s) => s.name === "textures/decals/dirt_02")!;
+      expect(dirt.stages).toHaveLength(1);
+      expect(dirt.stages[0].map).toBe("textures/decals/dirt_02.png");
+      expect(dirt.stages[0].blendFunc).toEqual(["GL_SRC_ALPHA", "GL_ONE_MINUS_SRC_ALPHA"]);
+      expect(dirt.stages[0].alphaGen).toEqual({ type: "vertex" });
+      expect(dirt.surfaceParms.has("trans")).toBe(true);
+      expect(dirt.polygonOffset).toBe(true);
+    });
+
+    it("ends a template's arguments with its line", () => {
+      const content = `glass_template
+{
+\t{
+\t\tmap $1
+\t\tblendfunc add
+\t}
+}
+textures/test/glass
+{
+\ttemplate glass_template textures/test/glass.tga
+\tcull none
+}`;
+      const glass = parseShaderFile(content).find((s) => s.name === "textures/test/glass")!;
+      expect(glass.stages[0].map).toBe("textures/test/glass.tga");
+      expect(glass.cull).toBe("none");
+    });
+
+    it("expands a template that uses a template", () => {
+      const content = `base_template
+{
+\t{
+\t\tmap $1
+\t}
+}
+lit_template
+{
+\tsurfaceparm nolightmap
+\ttemplate base_template $1
+}
+textures/test/lamp
+{
+\ttemplate lit_template textures/test/lamp.tga
+}`;
+      const lamp = parseShaderFile(content).find((s) => s.name === "textures/test/lamp")!;
+      expect(lamp.stages[0].map).toBe("textures/test/lamp.tga");
+      expect(lamp.surfaceParms.has("nolightmap")).toBe(true);
+    });
+  });
+
   describe("surface light (q3map_surfacelight / lightingIntensity)", () => {
     it("captures q3map_surfacelight strength", () => {
       const content = `textures/base/lamp

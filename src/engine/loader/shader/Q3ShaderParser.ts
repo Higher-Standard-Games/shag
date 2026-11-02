@@ -31,15 +31,24 @@ import type {
 import { DEFAULT_SKY_HEIGHT } from "./Q3ShaderTypes";
 
 /**
- * Template storage - maps template name to raw body tokens
+ * A shader body usable as a template: its tokens between the outer braces and
+ * the source line of each, since a `template` line's arguments end with it.
  */
 interface ShaderTemplate {
   name: string;
-  bodyTokens: string[]; // Tokens between { and } of template
+  bodyTokens: string[];
+  bodyLines: number[];
 }
 
-/** Global template storage (shared across all shader files) */
+/**
+ * Every shader body parsed so far, by lowercased name (shared across shader
+ * files). As in Warsow, `template <name> <args...>` may name any shader, not
+ * only one whose name ends in `_template`.
+ */
 const templates: Map<string, ShaderTemplate> = new Map();
+
+/** Templates that use templates expand this many levels deep. */
+const MAX_TEMPLATE_DEPTH = 4;
 
 /**
  * Parse multiple shaders from a .shader file content
@@ -47,10 +56,12 @@ const templates: Map<string, ShaderTemplate> = new Map();
  */
 export function parseShaderFile(content: string): Q3Shader[] {
   const shaders: Q3Shader[] = [];
-  const tokens = tokenize(content);
+  const lines: number[] = [];
+  const tokens = tokenize(content, lines);
+  const bodies: Array<{ name: string; start: number; end: number }> = [];
   let pos = 0;
 
-  // First pass: collect templates
+  // First pass: find each shader body and keep it as a possible template
   while (pos < tokens.length) {
     if (tokens[pos] === "{" || tokens[pos] === "}") {
       pos++;
@@ -63,80 +74,72 @@ export function parseShaderFile(content: string): Q3Shader[] {
     if (tokens[pos] !== "{") continue;
     pos++; // consume '{'
 
-    // Find matching closing brace and collect body tokens
-    const bodyStart = pos;
+    const start = pos;
     let braceDepth = 1;
     while (pos < tokens.length && braceDepth > 0) {
       if (tokens[pos] === "{") braceDepth++;
       else if (tokens[pos] === "}") braceDepth--;
       pos++;
     }
-    const bodyEnd = pos - 1; // exclude closing '}'
-
-    // Check if this is a template definition. Warsow uses BOTH "_Template" and
-    // "_template" casings (e.g. weaponIcon_HUD_Template vs armor_template,
-    // debris_template), so match case-insensitively and key the store lowercased.
-    if (name.toLowerCase().endsWith("_template")) {
-      const bodyTokens = tokens.slice(bodyStart, bodyEnd);
-      templates.set(name.toLowerCase(), { name, bodyTokens });
-    }
+    const end = pos - 1; // exclude closing '}'
+    bodies.push({ name, start, end });
+    templates.set(name.toLowerCase(), {
+      name,
+      bodyTokens: tokens.slice(start, end),
+      bodyLines: lines.slice(start, end),
+    });
   }
 
-  // Second pass: parse shaders and expand templates
-  pos = 0;
-  while (pos < tokens.length) {
-    if (tokens[pos] === "{" || tokens[pos] === "}") {
-      pos++;
-      continue;
-    }
-
-    const name = tokens[pos++];
-    if (!name || pos >= tokens.length) break;
-
-    if (tokens[pos] !== "{") continue;
-    pos++; // consume '{'
-
-    // Skip templates (already processed)
-    if (name.toLowerCase().endsWith("_template")) {
-      let braceDepth = 1;
-      while (pos < tokens.length && braceDepth > 0) {
-        if (tokens[pos] === "{") braceDepth++;
-        else if (tokens[pos] === "}") braceDepth--;
-        pos++;
-      }
-      continue;
-    }
-
-    // Check if body starts with 'template' directive
-    if (tokens[pos]?.toLowerCase() === "template") {
-      pos++; // consume 'template'
-      const templateName = tokens[pos++];
-
-      // Collect template parameters until we hit '}'
-      const params: string[] = [];
-      while (pos < tokens.length && tokens[pos] !== "}") {
-        params.push(tokens[pos++]);
-      }
-      pos++; // consume '}'
-
-      // Expand template (lookup case-insensitive — see template-collection note)
-      const template = templates.get(templateName.toLowerCase());
-      if (template) {
-        const expandedTokens = expandTemplate(template.bodyTokens, params);
-        const { shader } = parseShaderBody(name, expandedTokens, 0);
-        shaders.push(shader);
-      } else {
-        console.warn(`[Q3ShaderParser] Template not found: ${templateName}`);
-      }
-    } else {
-      // Regular shader body
-      const { shader, newPos } = parseShaderBody(name, tokens, pos);
-      shaders.push(shader);
-      pos = newPos;
-    }
+  // Second pass: parse shaders with their template lines expanded. Warsow's
+  // `_template` shaders exist only to be expanded and are not emitted.
+  for (const body of bodies) {
+    if (body.name.toLowerCase().endsWith("_template")) continue;
+    const expanded = expandTemplateLines(tokens.slice(body.start, body.end), lines.slice(body.start, body.end), 0);
+    expanded.tokens.push("}");
+    shaders.push(parseShaderBody(body.name, expanded.tokens, 0).shader);
   }
 
   return shaders;
+}
+
+/**
+ * Replace each shader-level `template <name> <args...>` line in a body with
+ * that template's body, its `$1`, `$2`... set to the arguments. The line may
+ * stand anywhere among the shader's own directives.
+ */
+function expandTemplateLines(
+  bodyTokens: string[],
+  bodyLines: number[],
+  depth: number,
+): { tokens: string[]; lines: number[] } {
+  const tokens: string[] = [];
+  const lines: number[] = [];
+  let braceDepth = 0;
+  for (let i = 0; i < bodyTokens.length; i++) {
+    const token = bodyTokens[i];
+    if (token === "{") braceDepth++;
+    else if (token === "}") braceDepth--;
+    if (braceDepth > 0 || token.toLowerCase() !== "template" || i + 1 >= bodyTokens.length) {
+      tokens.push(token);
+      lines.push(bodyLines[i]);
+      continue;
+    }
+    const line = bodyLines[i];
+    const templateName = bodyTokens[++i];
+    const params: string[] = [];
+    while (i + 1 < bodyTokens.length && bodyLines[i + 1] === line && !"{}".includes(bodyTokens[i + 1])) {
+      params.push(bodyTokens[++i]);
+    }
+    const template = templates.get(templateName.toLowerCase());
+    if (!template || depth >= MAX_TEMPLATE_DEPTH) {
+      console.warn(`[Q3ShaderParser] Template not found: ${templateName}`);
+      continue;
+    }
+    const inner = expandTemplateLines(expandTemplate(template.bodyTokens, params), template.bodyLines, depth + 1);
+    tokens.push(...inner.tokens);
+    lines.push(...inner.lines);
+  }
+  return { tokens, lines };
 }
 
 /**
@@ -155,18 +158,25 @@ function expandTemplate(bodyTokens: string[], params: string[]): string[] {
 
 /**
  * Tokenize shader file content
- * Handles comments (// and block comments), quotes, and braces
+ * Handles comments (// and block comments), quotes, and braces.
+ * `lines`, when given, receives each token's line number.
  */
-function tokenize(content: string): string[] {
+function tokenize(content: string, lines?: number[]): string[] {
   const tokens: string[] = [];
   let i = 0;
+  let line = 0;
   const len = content.length;
+  const push = (token: string) => {
+    tokens.push(token);
+    lines?.push(line);
+  };
 
   while (i < len) {
     const c = content[i];
 
     // Skip whitespace
     if (/\s/.test(c)) {
+      if (c === "\n") line++;
       i++;
       continue;
     }
@@ -180,14 +190,17 @@ function tokenize(content: string): string[] {
     // Block comment
     if (c === "/" && content[i + 1] === "*") {
       i += 2;
-      while (i < len - 1 && !(content[i] === "*" && content[i + 1] === "/")) i++;
+      while (i < len - 1 && !(content[i] === "*" && content[i + 1] === "/")) {
+        if (content[i] === "\n") line++;
+        i++;
+      }
       i += 2;
       continue;
     }
 
     // Braces are individual tokens
     if (c === "{" || c === "}") {
-      tokens.push(c);
+      push(c);
       i++;
       continue;
     }
@@ -200,7 +213,7 @@ function tokenize(content: string): string[] {
         str += content[i++];
       }
       i++; // skip closing quote
-      tokens.push(str);
+      push(str);
       continue;
     }
 
@@ -210,7 +223,7 @@ function tokenize(content: string): string[] {
       token += content[i++];
     }
     if (token) {
-      tokens.push(token);
+      push(token);
     }
   }
 

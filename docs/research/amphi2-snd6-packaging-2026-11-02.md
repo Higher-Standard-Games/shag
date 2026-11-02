@@ -90,16 +90,18 @@ solution through `SweepCollisionBackend`) reaches every target on both maps.
 ### Dirt decals drawn opaque
 
 Depot's tower showed its `textures/decals/dirt_02` decal as solid olive panels.
-The decal's script is `template template_Dirt 02` after its surface flags, and
-`Q3ShaderParser` expands a template only when it is the first line of a body and
-its name ends in `_template`; `template_Dirt` meets neither, so the decal had no
-stages and drew its image opaque. `dirt_02.tga` is olive (mean RGB 95, 101, 63)
-and mostly transparent (mean alpha 38). The master's three dirt decals
-(`dirt_01`, `dirt_02`, `dirt_scratch_02`) now carry the template's stage inline:
-`material textures/decals/dirt_<n>.png`, `blendfunc blend`, `alphagen vertex`.
-The parser parses them as one alpha-blended stage, and the browser shows the
-grime streaks over the plaster. The debris shaders' `debris_template` use is
-the parser's supported form and needed nothing.
+The decal's script is `template template_Dirt 02` after its surface flags.
+`Q3ShaderParser` expanded a template only when it was the first line of a body
+and its name ended in `_template`; `template_Dirt` met neither, so the decal had
+no stages and drew its image opaque. `dirt_02.tga` is olive (mean RGB 95, 101,
+63) and mostly transparent (mean alpha 38).
+
+The parser now follows Warsow: any shader can serve as a template, and a
+`template <name> <args...>` line expands where it stands among the shader's own
+directives, its arguments ending with the line (templates that use templates
+expand up to four levels). The master's dirt decals keep Warsow's text, and
+`dirt_02` parses as one alpha-blended stage: the browser shows the grime streaks
+over the plaster.
 
 ### KTX2 sidecars
 

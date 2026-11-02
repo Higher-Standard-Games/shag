@@ -56,7 +56,11 @@ The parser and BSP material path cover the compatibility features most maps depe
 - QFusion/Warsow `cubemap` sources are preserved as appearance hints for the
   unified liquid renderer, including inside `if textureCubeMap` blocks;
 - `map $cubemap` reflections captured at the surface (see
-  [Generated cubemaps](#generated-cubemaps-map-cubemap)).
+  [Generated cubemaps](#generated-cubemaps-map-cubemap));
+- Warsow templates: `template <name> <args...>` names any material and expands
+  its body where the line stands, `$1`, `$2`... set to the arguments on that
+  line (templates that use templates expand up to four levels). Materials whose
+  names end in `_template` are not emitted on their own.
 
 Custom material plugins declare unique class names and persistent feature
 defines. Every plugin composition and code-changing constructor option must
