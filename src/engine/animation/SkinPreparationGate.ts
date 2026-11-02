@@ -16,9 +16,13 @@ import type { Scene } from "@babylonjs/core/scene";
  * keeps the values of the last build and compares them on each call: equal
  * means the previous palette and texture are still exact, and `prepare()` is
  * not called. A skeleton with any unlinked bone (a ragdoll), a linked node that
- * uses Euler rotation, or `needInitialSkinMatrix` always prepares natively.
+ * uses Euler rotation, or `needInitialSkinMatrix` always prepares natively. A
+ * rig that keeps moving (a running player) skips most comparisons: they would
+ * find it changed anyway.
  */
 const VALUES_PER_BONE = 10;
+/** Changed builds in a row after which a rig builds this many times without comparing. */
+const MOVING_RUN = 8;
 
 /** Linked values against the last build, or a skeleton the gate leaves alone. */
 type Pose = "unchanged" | "changed" | "ungated";
@@ -34,6 +38,9 @@ export function gateSkeletonPreparation(skeleton: Skeleton): void {
   let built = false;
   let renderId = -1;
   let same = false;
+  /** Builds in a row that compared changed, and builds left to make without comparing. */
+  let changedRun = 0;
+  let uncompared = 0;
 
   const store = (index: number, value: number): void => {
     if (values[index] === value) return;
@@ -78,11 +85,27 @@ export function gateSkeletonPreparation(skeleton: Skeleton): void {
       if (renderId === current) return;
       renderId = current;
     }
+    // A rig that moved on every recent frame (a running player) builds without
+    // the comparison for a while; the stored values are then stale, so the next
+    // comparison counts as changed and builds once more
+    if (uncompared > 0) {
+      uncompared--;
+      built = false;
+      prepare.call(this, dontCheckFrameId);
+      return;
+    }
     const pose = compare();
-    if (pose === "unchanged") return;
+    if (pose === "unchanged") {
+      changedRun = 0;
+      return;
+    }
     prepare.call(this, dontCheckFrameId);
     // With every bone linked, the build that just ran used exactly the stored values
     built = pose === "changed";
+    if (pose === "changed" && ++changedRun >= MOVING_RUN) {
+      changedRun = 0;
+      uncompared = MOVING_RUN;
+    }
   };
 }
 

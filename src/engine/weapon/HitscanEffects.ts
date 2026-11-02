@@ -1139,9 +1139,11 @@ export class HitscanEffects {
       }
       return;
     }
-    mesh.thinInstanceBufferUpdated("matrix");
-    mesh.thinInstanceBufferUpdated("color");
+    // Count first: a matrix update sends the current count, so a new pellet
+    // drew with stale data for a frame
     mesh.thinInstanceCount = count;
+    mesh.thinInstancePartialBufferUpdate("matrix", count, 0);
+    mesh.thinInstancePartialBufferUpdate("color", count, 0);
     if (!mesh.isEnabled()) mesh.setEnabled(true);
   }
 
@@ -1171,13 +1173,13 @@ export class HitscanEffects {
     for (let i = 0; i < count; i++) {
       this.wallMarkColors[i * 4 + 3] = 1 - (now - this.wallMarks[i].spawnTime) / HitscanEffects.WALL_MARK_DURATION;
     }
+    mesh.thinInstanceCount = count;
     if (this.wallMarksMoved) {
       for (let i = 0; i < count; i++) this.wallMarkMatrices.set(this.wallMarks[i].matrix, i * 16);
-      mesh.thinInstanceBufferUpdated("matrix");
+      mesh.thinInstancePartialBufferUpdate("matrix", count, 0);
       this.wallMarksMoved = false;
     }
-    mesh.thinInstanceBufferUpdated("color");
-    mesh.thinInstanceCount = count;
+    mesh.thinInstancePartialBufferUpdate("color", count, 0);
     if (!mesh.isEnabled()) mesh.setEnabled(true);
   }
 
