@@ -85,29 +85,11 @@ const QF_FACE_SUFFIXES = ["_px", "_ny", "_nx", "_py", "_pz", "_nz"] as const;
 //
 // Coordinate conversion: Q3_Y → Babylon_Z, Q3_Z → Babylon_Y
 //
-// Q3 faces and their directions:
-//   rt(0) = looking toward +X (right)
-//   bk(1) = looking toward -Y (back in Q3)
-//   lf(2) = looking toward -X (left)
-//   ft(3) = looking toward +Y (front in Q3)
-//   up(4) = looking toward +Z (up in Q3)
-//   dn(5) = looking toward -Z (down in Q3)
-//
-// Babylon RawCubeTexture order: px, py, pz, nx, ny, nz
-//   px = face looking toward +X
-//   py = face looking toward +Y (up in Babylon)
-//   pz = face looking toward +Z (forward in Babylon)
-//   nx = face looking toward -X
-//   ny = face looking toward -Y (down in Babylon)
-//   nz = face looking toward -Z (back in Babylon)
-//
-// Mapping (Q3 face → Babylon face):
-//   Q3 rt(+X) → px (+X) - same axis
-//   Q3 ft(+Y in Q3 = +Z in Babylon) → pz
-//   Q3 up(+Z in Q3 = +Y in Babylon) → py
-//   Q3 lf(-X) → nx (-X) - same axis
-//   Q3 bk(-Y in Q3 = -Z in Babylon) → nz
-//   Q3 dn(-Z in Q3 = -Y in Babylon) → ny
+// Q3 faces and the Q3 directions they cover (tr_sky.c: side 2, +Y, samples
+// `bk`; side 3, -Y, samples `ft`). Each side image is the view in that
+// direction, Z up:
+//   rt(0) = +X    bk(1) = +Y    lf(2) = -X
+//   ft(3) = -Y    up(4) = +Z    dn(5) = -Z
 
 type FaceTransform =
   | "none"
@@ -119,29 +101,18 @@ type FaceTransform =
   | "rotate90CW_flipH"
   | "rotate90CCW_flipH";
 
-// Q3 index → Babylon face position
-// CORRECTED: Babylon RawCubeTexture order is actually: [nx, px, py, ny, nz, pz]
-// NOT [px, py, pz, nx, ny, nz] as commonly documented!
-//
-// From Q3 array: [rt, bk, lf, ft, up, dn] = indices [0, 1, 2, 3, 4, 5]
-//
-// Babylon slot → direction → Q3 face:
-// slot 0 (nx/-X/left)  ← Q3 lf (index 2)
-// slot 1 (px/+X/right) ← Q3 rt (index 0)
-// slot 2 (py/+Y/up)    ← Q3 up (index 4) - Q3 +Z maps to Babylon +Y
-// slot 3 (ny/-Y/down)  ← Q3 dn (index 5) - Q3 -Z maps to Babylon -Y
-// slot 4 (nz/-Z/back)  ← Q3 bk (index 1) - Q3 -Y maps to Babylon -Z
-// slot 5 (pz/+Z/front) ← Q3 ft (index 3) - Q3 +Y maps to Babylon +Z
-//
-// Handedness correction: Q3 is right-handed, Babylon is left-handed
-// This causes horizontal mirroring on most faces. DN (floor) confirmed correct with 'none'.
+// Q3 face (index into [rt, bk, lf, ft, up, dn]) and its transform for each
+// RawCubeTexture slot. Measured by rendering a sky at a 90° field of view
+// toward each axis and matching the view to the face images: Q3 +X shows
+// `rt`, -X `lf`, +Y `bk` and -Y `ft`, each unmirrored, and Depot's moon stands
+// where its `q3map_sun` (yaw 350°) puts the light.
 const Q3_TO_BABYLON_FACE_MAP: { index: number; transform: FaceTransform }[] = [
-  { index: 2, transform: "flipH" }, // slot 0: nx ← lf
-  { index: 0, transform: "flipH" }, // slot 1: px ← rt
-  { index: 4, transform: "rotate90CCW_flipH" }, // slot 2: py ← up (ceiling works!)
-  { index: 5, transform: "rotate90CW_flipH" }, // slot 3: ny ← dn (floor faces opposite, try opposite rotation)
-  { index: 1, transform: "flipH" }, // slot 4: nz ← bk
-  { index: 3, transform: "flipH" }, // slot 5: pz ← ft
+  { index: 0, transform: "none" }, // slot 0 ← rt
+  { index: 2, transform: "none" }, // slot 1 ← lf
+  { index: 4, transform: "rotate90CCW" }, // slot 2 ← up
+  { index: 5, transform: "rotate90CW" }, // slot 3 ← dn
+  { index: 1, transform: "none" }, // slot 4 ← bk
+  { index: 3, transform: "none" }, // slot 5 ← ft
 ];
 
 /**
@@ -253,8 +224,15 @@ export class SkyboxLoader {
     );
 
     // Reorder and transform faces from Q3 order to Babylon.js order
-    // Babylon RawCubeTexture actual order: nx, px, py, ny, nz, pz
-    const babylonFaceNames = ["nx(-X/left)", "px(+X/right)", "py(+Y/up)", "ny(-Y/down)", "nz(-Z/back)", "pz(+Z/front)"];
+    // Slots in Q3_TO_BABYLON_FACE_MAP order
+    const babylonFaceNames = [
+      "slot 0 (Q3 +X)",
+      "slot 1 (Q3 -X)",
+      "slot 2 (up)",
+      "slot 3 (down)",
+      "slot 4 (Q3 +Y)",
+      "slot 5 (Q3 -Y)",
+    ];
     const q3FaceNames = ["rt", "bk", "lf", "ft", "up", "dn"];
 
     devLog(`[SkyboxLoader] Face mapping (Q3 → Babylon):`);
@@ -1082,8 +1060,15 @@ export class SkyboxLoader {
     }
 
     // Reorder and transform faces from Q3 order to Babylon.js order
-    // Babylon RawCubeTexture actual order: nx, px, py, ny, nz, pz
-    const babylonFaceNames = ["nx(-X/left)", "px(+X/right)", "py(+Y/up)", "ny(-Y/down)", "nz(-Z/back)", "pz(+Z/front)"];
+    // Slots in Q3_TO_BABYLON_FACE_MAP order
+    const babylonFaceNames = [
+      "slot 0 (Q3 +X)",
+      "slot 1 (Q3 -X)",
+      "slot 2 (up)",
+      "slot 3 (down)",
+      "slot 4 (Q3 +Y)",
+      "slot 5 (Q3 -Y)",
+    ];
     const q3FaceNames = ["rt", "bk", "lf", "ft", "up", "dn"];
 
     devLog(`[SkyboxLoader] DEBUG Face mapping (Q3 → Babylon):`);
