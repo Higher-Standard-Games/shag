@@ -145,9 +145,13 @@ Concrete Strike has six. Samplesize 8 would cut them to about a quarter.
 
 ## Packages
 
-1. Each BSP is put in a staged `map_<release id>.pk3`; Depot's also carries
-   Warfork's `levelshots/wfbomb6.png` as `levelshots/washoi_snd6.png`. There is
-   no levelshot for wda5, so the UI shows its fallback.
+1. Each BSP is put in a staged `map_<release id>.pk3`. The owner's levelshots,
+   taken in Washoi, are `levelshots/washoi_amphi2.png` (2550 × 1308) and
+   `levelshots/washoi_snd6.png` (2556 × 1317) in those packages, replacing
+   Warfork's `wfbomb6.png` that Depot first carried; `npm run tools:manifest`
+   generates the 960-wide JPG previews. The PNGs are archived in
+   `archive/media/levelshots/`, the packages they replaced in its
+   `map-backups/`.
 2. `npm run tools:manifest -- --data-dir <stage>/pkgmedia`, then
    `npm run tools:map-media -- --data-dir <stage>/pkgmedia --maps <id> --lossless`.
    Nothing drawn is unresolved.
@@ -167,12 +171,12 @@ Concrete Strike has six. Samplesize 8 would cut them to about a quarter.
 
 | Package | Bytes | SHA-256 |
 | --- | ---: | --- |
-| `map_washoi_amphi2.pk3` | 12,723,593 | `913f3e5e443db1f2ab648b442822c131e539e7a109abcaa65623bcaddccf19d4` |
-| `tex_washoi_amphi2.pk3` | 5,885,784 | `14c8aba4fb4103e00d252a6f78684c688942762b4e2ee3006859b92ac769a564` |
-| `map_washoi_snd6.pk3` | 51,320,049 | `98333118f712cbb8852ef81da99af73f1504815fcb6b5a0b4caf7c8871bfdd98` |
-| `tex_washoi_snd6.pk3` | 12,781,058 | `59dfda24ec0c7332a057faecec61ebe0d40da18cf08aa6bf326b4a10b4f6dbba` |
-| `washoi_textures.pk3` | 152,240,424 | `c2ca8324fc5ccb7d1932eb441e3299f8b9713e8e3cdda58f9953f6e78ac26ba1` |
-| `tex_billboard.pk3` | 3,240,694 | `91e077472b7a43904fa1ae98a9c205111b8660f54df26d6b2528da8b47fc94d8` |
+| `map_washoi_amphi2.pk3` | 14,978,439 | `b3dadc26e7808fdc7645f48b755b2be234ac10522fdc4ec8a8741a82731fde88` |
+| `tex_washoi_amphi2.pk3` | 5,880,805 | `59f067c888c7e2b9acbc4bb118597ee8b011300bf5f0984347921b39e86ddde8` |
+| `map_washoi_snd6.pk3` | 52,626,530 | `cc9c9805b2793d4188bdd02e7900ade9bc54ea2de53f5f51a8ea3b67974eca14` |
+| `tex_washoi_snd6.pk3` | 12,781,081 | `9af41869c3084d95614a3ce2672b44d7d12762c4ffab290af6b01d4296e3d43a` |
+| `washoi_textures.pk3` | 152,292,680 | `c4bc8ed7eba048b0d8ba35fdd1ffeb01b00de6c479b94b22d7b401175dd35a83` |
+| `tex_billboard.pk3` | 3,280,781 | `c7f1e4cfb0c88b52bd1a6df14a2c616c2144646daa85d63a4bcf653896073a38` |
 
 `npm run tools:textures` was not run: the KTX-Software tools are not installed
 on this machine. The maps load their WebP textures without KTX2 sidecars.
