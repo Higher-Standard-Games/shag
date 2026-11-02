@@ -94,6 +94,19 @@ async function isWebGPUSupported(): Promise<boolean> {
   return WebGPUEngine.IsSupportedAsync;
 }
 
+/**
+ * Optional WebGPU features the game uses when the adapter has them. Block
+ * compression keeps KTX2 textures compressed on the GPU (BC on desktops, ASTC
+ * or ETC2 on phones) instead of transcoding them to RGBA8 at four times the
+ * memory and sampling bandwidth; WebGL2 gets the same formats from its
+ * extensions.
+ */
+export const WEBGPU_FEATURES: readonly GPUFeatureName[] = [
+  "texture-compression-bc",
+  "texture-compression-astc",
+  "texture-compression-etc2",
+];
+
 async function createWebGPUEngine(canvas: HTMLCanvasElement, antialias = true): Promise<AbstractEngine> {
   const [WebGPUEngine, glslangJs, glslangWasm, twgslJs, twgslWasm] = await Promise.all([
     loadWebGPUBackend(),
@@ -108,6 +121,9 @@ async function createWebGPUEngine(canvas: HTMLCanvasElement, antialias = true): 
     adaptToDeviceRatio: false,
     stencil: false,
     powerPreference: "high-performance",
+    // Babylon asks the device for no optional feature unless told to; it keeps
+    // the ones this adapter has.
+    deviceDescriptor: { requiredFeatures: [...WEBGPU_FEATURES] },
   });
 
   return initializeWebGPUWithCleanup(engine, () =>
