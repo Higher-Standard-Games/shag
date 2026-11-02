@@ -18,6 +18,7 @@ import { devLog } from "../core/DevLog";
 import { applySafeMaxSimultaneousLights } from "../lighting/DynamicLightSafety";
 import type { BspFile } from "./bsp/BspLoader";
 import { waitForPreparation } from "./map/GpuPreparation";
+import { cloneWithSourceBounds } from "./model/CloneBounds";
 import { resolveModelAsset } from "./model/ModelAsset";
 import {
   collectModelAttachmentPoints,
@@ -310,7 +311,7 @@ export class AssetPreloader {
       // Clone each mesh from the cached model
       for (const mesh of cached.meshes) {
         if (!mesh.clone || carriedByAnother(mesh)) continue;
-        const clonedMesh = mesh.clone(`${mesh.name}_clone`, clonedRoot);
+        const clonedMesh = cloneWithSourceBounds(() => mesh.clone(`${mesh.name}_clone`, clonedRoot));
         if (!clonedMesh) continue;
         // Sources are cached hidden, and a clone inherits that for its whole
         // subtree — not just the mesh named in the clone call. A child left

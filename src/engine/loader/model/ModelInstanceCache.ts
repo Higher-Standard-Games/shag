@@ -8,6 +8,7 @@ import { TransformNode } from "@babylonjs/core/Meshes/transformNode";
 import type { Observer } from "@babylonjs/core/Misc/observable";
 import type { Scene } from "@babylonjs/core/scene";
 import { cloneModelMaterial } from "../../rendering/MaterialCloneBatch";
+import { cloneWithSourceBounds } from "./CloneBounds";
 import type { ModelLoadResult } from "./ModelLoader";
 import { disposeModelResources, ModelSourceCache } from "./ModelSourceCache";
 
@@ -100,7 +101,9 @@ export class ModelInstanceCache {
       // Preserve authored names (tag_flash), parents, bone links and clip targets.
       // Clone materials separately: Babylon 9.17's container MultiMaterial clone
       // path mutates the source's subMaterials array.
-      entries = container.instantiateModelsToScene((name) => name, false, { doNotInstantiate: true });
+      entries = cloneWithSourceBounds(() =>
+        container.instantiateModelsToScene((name) => name, false, { doNotInstantiate: true }),
+      );
     } finally {
       container.meshes = [];
       container.transformNodes = [];
