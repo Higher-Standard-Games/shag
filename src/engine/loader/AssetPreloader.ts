@@ -127,6 +127,10 @@ export class AssetPreloader {
         }
       }
 
+      // Every weapon, placed or not: a player who spawned with one drops it
+      // when they die, and a first drop loaded and uploaded its model mid-fight.
+      for (const def of registry.getByType(EntityType.WEAPON)) if (def.modelPath) modelPaths.add(def.modelPath);
+
       if (modelPaths.size === 0) {
         devLog("[AssetPreloader] No pickup entities found in BSP");
         return 0;
