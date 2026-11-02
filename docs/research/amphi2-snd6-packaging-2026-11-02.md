@@ -146,10 +146,10 @@ Concrete Strike has six. Samplesize 8 would cut them to about a quarter.
 ## Packages
 
 1. Each BSP is put in a staged `map_<release id>.pk3`. The owner's levelshots,
-   taken in Washoi, are `levelshots/washoi_amphi2.png` (2550 × 1308) and
-   `levelshots/washoi_snd6.png` (2556 × 1317) in those packages, replacing
+   taken in Washoi and saved at 1920 × 1080, are `levelshots/washoi_amphi2.png`
+   and `levelshots/washoi_snd6.png` in those packages, replacing
    Warfork's `wfbomb6.png` that Depot first carried; `npm run tools:manifest`
-   generates the 960-wide JPG previews. The PNGs are archived in
+   generates the 960 × 540 JPG previews. The PNGs are archived in
    `archive/media/levelshots/`, the packages they replaced in its
    `map-backups/`.
 2. `npm run tools:manifest -- --data-dir <stage>/pkgmedia`, then
@@ -171,12 +171,12 @@ Concrete Strike has six. Samplesize 8 would cut them to about a quarter.
 
 | Package | Bytes | SHA-256 |
 | --- | ---: | --- |
-| `map_washoi_amphi2.pk3` | 14,978,439 | `b3dadc26e7808fdc7645f48b755b2be234ac10522fdc4ec8a8741a82731fde88` |
+| `map_washoi_amphi2.pk3` | 13,458,873 | `6e54311b21e4b8c21336b8517a9b95a529cdc2e89fb4553263490f3a4456435e` |
 | `tex_washoi_amphi2.pk3` | 5,880,805 | `59f067c888c7e2b9acbc4bb118597ee8b011300bf5f0984347921b39e86ddde8` |
-| `map_washoi_snd6.pk3` | 52,626,530 | `cc9c9805b2793d4188bdd02e7900ade9bc54ea2de53f5f51a8ea3b67974eca14` |
+| `map_washoi_snd6.pk3` | 51,265,975 | `c26ac2b11a7d8012394e708786aa7f8c1ee997797ae3ea2734f2f821513b898f` |
 | `tex_washoi_snd6.pk3` | 12,781,081 | `9af41869c3084d95614a3ce2672b44d7d12762c4ffab290af6b01d4296e3d43a` |
-| `washoi_textures.pk3` | 152,292,680 | `c4bc8ed7eba048b0d8ba35fdd1ffeb01b00de6c479b94b22d7b401175dd35a83` |
-| `tex_billboard.pk3` | 3,280,781 | `c7f1e4cfb0c88b52bd1a6df14a2c616c2144646daa85d63a4bcf653896073a38` |
+| `washoi_textures.pk3` | 155,101,739 | `9286ec3b6b4bbffffdd44defa7fd830f59ea415618b862e64f6e7dd136a6a286` |
+| `tex_billboard.pk3` | 3,755,827 | `78143817610ef7344aa28e34c7b3ca86966defc34738b822a938dc663f918039` |
 
 `npm run tools:textures` was not run: the KTX-Software tools are not installed
 on this machine. The maps load their WebP textures without KTX2 sidecars.
@@ -212,7 +212,7 @@ NODRAW (surface flags `0x204a0`) and draw nothing, as in Concrete Strike.
 a Washoi board (`assets/billboards/bigbill9.png`, saved as TGA at that path).
 `decals/poster01` and `decals/poster_bobot` are fully transparent placeholders.
 The merge adds 69 files and 17 shaders without conflicts; 28 new textures are
-classified. The levelshot is Warfork's `levelshots/wfbomb4.png`.
+classified. Its levelshot is the owner's 1920 × 1080 `levelshots/washoi_snd4.png`.
 
 In the browser every texture is ready and nothing fails to load. The
 `textures/billboard/board_512_256_1` board, which cycles the Washoi big boards
