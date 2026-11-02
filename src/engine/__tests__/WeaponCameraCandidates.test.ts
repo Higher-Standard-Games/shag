@@ -54,10 +54,12 @@ it("filters only registered camera layers, follows changed masks/providers and r
   trigger.layerMask = 1;
   trigger.actionManager = new ActionManager(scene);
   const original = scene.getActiveMeshCandidates;
+  // Every camera gets its own list of the enabled meshes, so compare contents.
+  const listed = (list: { data: unknown[]; length: number }) => list.data.slice(0, list.length);
   let enabled = true;
   const release = installWeaponCameraCandidates(scene, weapon, () => enabled);
   scene.activeCamera = world;
-  expect(scene.getActiveMeshCandidates()).toBe(original.call(scene));
+  expect(listed(scene.getActiveMeshCandidates())).toEqual(listed(original.call(scene)));
   scene.activeCamera = weapon;
   const candidates = scene.getActiveMeshCandidates();
   expect(candidates.data.slice(0, candidates.length)).toEqual([gun, trigger]);
@@ -65,11 +67,11 @@ it("filters only registered camera layers, follows changed masks/providers and r
   gun.layerMask = 1;
   expect(scene.getActiveMeshCandidates().data).toEqual([map, trigger]);
   enabled = false;
-  expect(scene.getActiveMeshCandidates()).toBe(original.call(scene));
+  expect(listed(scene.getActiveMeshCandidates())).toEqual(listed(original.call(scene)));
   enabled = true;
   const selector = scene.customLODSelector;
   scene.customLODSelector = (mesh) => mesh;
-  expect(scene.getActiveMeshCandidates()).toBe(original.call(scene));
+  expect(listed(scene.getActiveMeshCandidates())).toEqual(listed(original.call(scene)));
   scene.customLODSelector = selector;
   release();
   expect(scene.getActiveMeshCandidates).toBe(original);
