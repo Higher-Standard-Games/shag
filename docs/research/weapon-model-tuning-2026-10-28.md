@@ -235,6 +235,12 @@ WO-EB1 moved the pane down 0.25 but not the tag, so the digits floated off
 it. The swap now moves `tag_ammo` (and the digit tags under it) with the
 pane: 9.686 → 9.436 in y.
 
+The GLB's `AWeapon` animation also keys `tag_ammo`'s translation, with one
+keyframe still at y 9.686, and the playing animation overrides the node's rest
+position, so the digits stayed 0.25 above the pane in play. That keyframe is now
+9.436 too, matching the pane's centre (4.895, 9.430). The digit tags are keyed
+relative to `tag_ammo` and needed no change.
+
 ## Voltaic hipfire beam (WO-VT2)
 
 Fired from the hip, the local beam was drawn only after a 0.25 s
