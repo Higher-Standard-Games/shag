@@ -131,6 +131,13 @@
       "ffa"
     ]
   },
+  "washoi_dm12": {
+    "displayName": "Washoi DM12",
+    "gametypes": [
+      "duel",
+      "ffa"
+    ]
+  },
   "washoidm2": {
     "displayName": "Washoi DM2",
     "gametypes": []

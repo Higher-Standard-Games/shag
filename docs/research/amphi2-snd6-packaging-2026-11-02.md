@@ -167,15 +167,17 @@ Concrete Strike has six. Samplesize 8 would cut them to about a quarter.
    1 sky); every existing entry is kept as it was.
 6. `npm run tools:map-media -- --maps washoi_amphi2,washoi_snd6 --master-package washoi_textures.pk3`
    builds the WebP banks; the packages are installed in `public/data` and
-   `npm run tools:manifest` re-indexes (nine maps).
+   `npm run tools:manifest` re-indexes (nine maps; with Shepas and DM12, eleven).
 
 | Package | Bytes | SHA-256 |
 | --- | ---: | --- |
 | `map_washoi_amphi2.pk3` | 13,458,873 | `6e54311b21e4b8c21336b8517a9b95a529cdc2e89fb4553263490f3a4456435e` |
 | `tex_washoi_amphi2.pk3` | 5,880,805 | `59f067c888c7e2b9acbc4bb118597ee8b011300bf5f0984347921b39e86ddde8` |
 | `map_washoi_snd6.pk3` | 51,265,975 | `c26ac2b11a7d8012394e708786aa7f8c1ee997797ae3ea2734f2f821513b898f` |
+| `map_washoi_dm12.pk3` | 16,523,763 | `bdba0503e20bb47285973ae43cce061fff3af10f34d73fe652a284ca441fc5e1` |
+| `tex_washoi_dm12.pk3` | 5,478,740 | `ab539b4e37cdb8eec026868438066c65ef1c239782d21bab3c587241784ab981` |
 | `tex_washoi_snd6.pk3` | 12,781,081 | `9af41869c3084d95614a3ce2672b44d7d12762c4ffab290af6b01d4296e3d43a` |
-| `washoi_textures.pk3` | 155,101,739 | `9286ec3b6b4bbffffdd44defa7fd830f59ea415618b862e64f6e7dd136a6a286` |
+| `washoi_textures.pk3` | 156,570,652 | `2f8f94baea067b3c14cb85a40c730d366834aad6489ec6cc2302811631834562` |
 | `tex_billboard.pk3` | 3,755,827 | `78143817610ef7344aa28e34c7b3ca86966defc34738b822a938dc663f918039` |
 
 `npm run tools:textures` was not run: the KTX-Software tools are not installed
@@ -218,3 +220,41 @@ In the browser every texture is ready and nothing fails to load. The
 `textures/billboard/board_512_256_1` board, which cycles the Washoi big boards
 with `animClampMap`, draws black there (Depot uses it too); it is not yet
 investigated.
+
+## washoi_dm12 (Courtyard)
+
+`wswmaps/courtyard/wdm12.map` ("Courtyard") is a q3map2-era map Warfork
+converted to `.obj` models but not to MakeBSP collision: it has no
+`collisiontype` keys. Every `misc_model` without spawnflag 2 gets
+`"collisiontype" "none"` (165 of 174; the 9 solid ones are the curved
+ceilings and ceiling supports). Its 232 fullclip and 146 playerclip brushes do
+the rest. Dropping a player hull onto each crate model confirms it: 12 crates
+are held up by fullclip, and the 10 that are not stand behind a chain-link
+fence (near −188 −100 160) and a boarded-up doorway (y −680 to −910), out of
+reach. All 28 models it places are in warfork-maps, and the compile's model
+bank matches them byte for byte.
+
+It is compiled from warfork-maps `00bf74a` with `_lightmapImageSize 2048` and
+`gridsize 64 64 64` added: 63 seconds of MakeBSP and 11½ minutes of MakeLight,
+no missing model, 4 lightmap pages, 1,375 faces, 865 clusters. Warfork ships a
+MakeBSP build as `data1_21pure/maps/wfdm12.bsp`; it is not used.
+
+The two teleporters are `misc_portal_surface` brushes in
+`textures/russus/teleporter`, whose stages exist only under `if portalMaps`
+and `if ! portalMaps`, both drawing the view of a `misc_portal_camera`. The
+master replaces that definition with DM5's teleporter void
+(`env/televoid/void`, under the same `textureCubeMap` branches) and an
+additive `textures/world/sh/teleenergy` swirl. It keeps the original's
+`q3map_surfacelight 128` and light image, so the compiled lighting is
+unchanged.
+
+The merge adds 36 files and 7 shader definitions without conflicts; 12 new
+textures are classified (4 colour, 4 normal, 2 gloss, 2 alpha). `noshader` and
+`textures/common/_miscmodelclip` are unresolved and draw nothing. Its board
+`wsw_adverts/tech_add_2_w_nolights` uses `textures/billboard/board_512_256_1`
+and draws black, as in Shepas. The levelshot is Warfork's
+`levelshots/wfdm12.png`.
+
+In the browser (headless Edge, WebGL2, `map washoi_dm12 ffa` through a scratch
+lobby) it loads in 21 seconds with every texture ready and no failed media
+request.
