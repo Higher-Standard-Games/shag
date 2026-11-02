@@ -23,4 +23,5 @@ These documents capture the design process and technical research that went into
 | [TCMOD_ANIMATION_PLAN.md](./TCMOD_ANIMATION_PLAN.md) | tcMod animation implementation plan |
 | [engine-optimization.md](./engine-optimization.md) | Engine optimization notes |
 | [render-perf-audit-2026-11-02.md](./render-perf-audit-2026-11-02.md) | November 2026 rendering audit: optimization matrix, method and results |
+| [webgpu-perf-2026-11-03.md](./webgpu-perf-2026-11-03.md) | WebGPU performance: world bundle replay, compressed textures, method and findings |
 | [amphi2-snd6-packaging-2026-11-02.md](./amphi2-snd6-packaging-2026-11-02.md) | Compiling and packaging Octagon Obsession (washoi_amphi2), Depot (washoi_snd6), Shepas (washoi_snd4) and Courtyard (washoi_dm12) from the Warfork sources |
