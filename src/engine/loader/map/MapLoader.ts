@@ -834,6 +834,11 @@ export class MapLoader {
       const { BspManager } = await import("../bsp/BspManager");
       devLog(`[MapLoader] ${await BspManager.getInstance().enablePVS(scene)}`);
 
+      // After freezing and PVS: replay the static surfaces' recorded WebGPU bundles
+      const { installWorldBundleReplay } = await import("../../rendering/WorldBundleReplay");
+      const { getSinglePvsCamera } = await import("../../rendering/PvsMeshCandidates");
+      installWorldBundleReplay(scene, meshResult.worldMesh, () => getSinglePvsCamera(scene));
+
       // A sky portal draws the sky from its own camera, with its own PVS
       const portal = isHeadlessNullEngine ? null : parseSkyPortal(bsp.entities);
       const world = bsp.models[0];

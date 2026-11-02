@@ -5,6 +5,7 @@ import "@babylonjs/core/Engines/Extensions/engine.query";
 import { EngineInstrumentation } from "@babylonjs/core/Instrumentation/engineInstrumentation";
 import { SceneInstrumentation } from "@babylonjs/core/Instrumentation/sceneInstrumentation";
 import type { Scene } from "@babylonjs/core/scene";
+import { getWorldBundleReplay } from "./WorldBundleReplay";
 
 export interface PerformanceMetric {
   p50: number | null;
@@ -38,6 +39,12 @@ export interface RendererPerformanceReport {
   webgpuBundles: {
     created: number;
     reused: number;
+  } | null;
+  /** Static world surfaces replayed from recorded bundles, and drawn through Babylon, per frame. */
+  worldBundles?: {
+    surfaces: number;
+    replayed: number;
+    drawn: number;
   } | null;
 }
 
@@ -108,6 +115,8 @@ export async function captureRendererPerformance(
   const triangles: number[] = [];
   let bundleCreated = 0;
   let bundleReused = 0;
+  const replay = getWorldBundleReplay(scene);
+  const replayStart = replay?.stats();
 
   const observer = scene.onAfterRenderObservable.add(() => {
     frameTimeMs.push(sceneInstrumentation.frameTimeCounter.current);
@@ -134,6 +143,8 @@ export async function captureRendererPerformance(
     await new Promise<void>((resolve) => setTimeout(resolve, duration * 1000));
 
     const shaderCounter = engineInstrumentation.shaderCompilationTimeCounter;
+    const replayEnd = replay?.stats();
+    const replayFrames = replayEnd && replayStart ? Math.max(1, replayEnd.frames - replayStart.frames) : 1;
     return {
       backend: engine.isWebGPU ? "webgpu" : "webgl2",
       gpu: (engine as { getGlInfo?: () => { renderer?: string } }).getGlInfo?.().renderer || "unknown",
@@ -157,6 +168,14 @@ export async function captureRendererPerformance(
         totalMs: shaderCounter.total,
       },
       webgpuBundles: engine.isWebGPU ? { created: bundleCreated, reused: bundleReused } : null,
+      worldBundles:
+        replay && replayStart && replayEnd
+          ? {
+              surfaces: replay.surfaces,
+              replayed: (replayEnd.replayed - replayStart.replayed) / replayFrames,
+              drawn: (replayEnd.drawn - replayStart.drawn) / replayFrames,
+            }
+          : null,
     };
   } finally {
     scene.onAfterRenderObservable.remove(observer);
@@ -192,6 +211,12 @@ export function formatRendererPerformanceReport(report: RendererPerformanceRepor
 
   if (report.webgpuBundles) {
     lines.push(`  WebGPU bundles: ${report.webgpuBundles.created} created, ${report.webgpuBundles.reused} reused`);
+  }
+  if (report.worldBundles) {
+    const world = report.worldBundles;
+    lines.push(
+      `  World bundles: ${world.surfaces} static surfaces; per frame ${world.replayed.toFixed(1)} replayed, ${world.drawn.toFixed(1)} drawn`,
+    );
   }
 
   return lines.join("\n");
