@@ -6,7 +6,8 @@ All notable changes to this project are documented in version-specific files.
 
 | Version | Date | Summary |
 |---------|------|---------|
-| [v1.0.0-beta](./v1.0.0-beta.md) | unreleased | Living changelog for the first beta |
+| [v1.0.0-beta.2](./v1.0.0-beta.2.md) | unreleased | Living changelog for the next beta cycle |
+| [v1.0.0-beta](./v1.0.0-beta.md) | Nov 2, 2026 | First beta: new maps Amphi2, Depot, Shepas and Courtyard, bot routes for every pool map, smoother Firefox and faster rendering in fights, skies facing the right way, an Ultralow preset, a new soundtrack song and faster strafing |
 | [v1.0.0-alpha.9.1](./v1.0.0-alpha.9.1.md) | Oct 30, 2026 | Bugfix release: raw mouse input in Chrome and Edge, without Windows pointer acceleration |
 | [v1.0.0-alpha.9](./v1.0.0-alpha.9.md) | Oct 29, 2026 | New maps Washoi DM14 and DM7, bots aiming down sights, spectators seeing sights and the watched Voltaic beam from the gun, Escape and click while spectating, and shader fixes for additive layers and terrain rocks |
 | [v1.0.0-alpha.8](./v1.0.0-alpha.8.md) | Oct 28, 2026 | Weapon model tuning (Electrobolt sight and glow, Plasma Gun barrels, Grenade Launcher drum, Machinegun bolt), aimed Electrobolt fire, hints for new players, server-matched weapon drops and `map` for every player |
