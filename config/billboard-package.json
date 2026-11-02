@@ -13,7 +13,14 @@
     { "name": "bigver1", "extension": "tga", "width": 256, "height": 512, "maps": ["washoi_dm5"], "design": "Duel vertical poster" },
     { "name": "ver3", "extension": "png", "width": 256, "height": 1024, "maps": ["washoi_dm5"], "design": "Arena / Duel / FFA" },
     { "name": "dm2_neon", "extension": "png", "width": 512, "height": 128, "maps": ["washoi_dm2"], "design": "Gold Washoi neon", "destination": "textures/boqu/warsow_neon_gold2.png" },
-    { "name": "dm2_atrium", "extension": "png", "width": 912, "height": 912, "maps": ["washoi_dm2"], "design": "Washoi atrium badge", "destination": "textures/boqu/decals/wswdecal.png" }
+    { "name": "dm2_atrium", "extension": "png", "width": 912, "height": 912, "maps": ["washoi_dm2"], "design": "Washoi atrium badge", "destination": "textures/boqu/decals/wswdecal.png" },
+    { "name": "bulletsblue2", "extension": "png", "width": 512, "height": 256, "maps": ["washoi_amphi2"], "design": "Ammo / Lock and load" },
+    { "name": "neon1_tall", "extension": "png", "width": 128, "height": 1024, "maps": ["washoi_amphi2"], "design": "Washoi slim vertical neon" },
+    { "name": "amphi2_neon1", "extension": "png", "width": 64, "height": 512, "maps": ["washoi_amphi1", "washoi_amphi2"], "design": "Red WASHOI neon, frame 1", "destination": "textures/neon/jujitsu_sign1.png" },
+    { "name": "amphi2_neon2", "extension": "png", "width": 64, "height": 512, "maps": ["washoi_amphi1", "washoi_amphi2"], "design": "Red WASHOI neon, frame 2", "destination": "textures/neon/jujitsu_sign2.png" },
+    { "name": "amphi2_neon3", "extension": "png", "width": 64, "height": 512, "maps": ["washoi_amphi1", "washoi_amphi2"], "design": "Red WASHOI neon, frame 3", "destination": "textures/neon/jujitsu_sign3.png" },
+    { "name": "amphi2_neon4", "extension": "png", "width": 64, "height": 512, "maps": ["washoi_amphi1", "washoi_amphi2"], "design": "Red WASHOI neon, frame 4", "destination": "textures/neon/jujitsu_sign4.png" },
+    { "name": "amphi2_neon5", "extension": "png", "width": 64, "height": 512, "maps": ["washoi_amphi1", "washoi_amphi2"], "design": "Red WASHOI neon, frame 5", "destination": "textures/neon/jujitsu_sign5.png" }
   ],
   "retainedOverlays": ["textures/billboard/code.jpg", "textures/billboard/scanlinenoise.tga"]
 }

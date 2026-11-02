@@ -49,6 +49,74 @@ Both maps also get the worldspawn keys of Jal's dm7 and dm14 builds:
 `_lightmapImageSize 2048` and `gridsize 64 64 64`. The remaining `dev/vertical_*`
 faces in wbomb6 are hidden and draw nothing.
 
+### Model collision
+
+Both maps were made for q3map2, where a `misc_model` has collision only with
+spawnflag 2 (or a `q3map_clipModel` material, which no Warsow or Warfork model
+material has); the mapper's `fullclip` and `playerclip` brushes do the rest.
+MakeBSP makes every model solid by default, wrapping each in convex hulls. The
+first builds added 2,606 hull brushes to Depot, and one closed Amphi2's tower
+jump pad: the pipes crossing above the shaft became one hull, a
+slab at z 324–348 inside the pad's trigger. Maps Warfork's mappers have
+reworked for MakeBSP mark models `"collisiontype" "none"` (89 of 180 in
+wfbomb1, 117 of 183 in wfdm11); these two never had that pass.
+
+Each staged `misc_model` without spawnflag 2 now has `"collisiontype" "none"`:
+169 of 171 in wda5, 417 of 422 in wbomb6. That is q3map2's rule, so collision is
+the original's: Depot's clip brushes are the same 334 `fullclip` and 69
+`playerclip` brushes as Warsow's 2015 build, which made its crates and props
+solid. Flying a player hull along each jump pad's launch arc
+(`.cache/map-build-2026-11/padtrace.ts`, the movement code's AimAtTarget
+solution through `SweepCollisionBackend`) reaches every target on both maps.
+
+### Signs
+
+- **The Warfork board.** Warfork's `textures/billboard/bulletsblue2.png` is a
+  Warfork logo. It is now a Washoi ammo sign (`assets/billboards/bulletsblue2.png`),
+  drawn inside the part of the image the sign model shows (u 0.125–0.875,
+  v 0.25–0.75).
+- **The "WF" neon.** `textures/billboard/jujitsu_sign` animates
+  `textures/neon/jujitsu_sign1-5.png`, five frames that light one more red "WF"
+  each second. The frames now spell W, WA, WAS, WASH, then WASHOI in the same red
+  (`assets/billboards/amphi2_neon1-5.png`). Amphi1 uses the same sign.
+- **The slim neon advert.** `wsw_adverts/tech_add_1_b.ase`, squeezed by
+  `modelscale_vec 0.16 0.5 0.5`, shows only u 0.53–0.93 of
+  `textures/billboard/neon1`: the column where Warsow's art had its sign. The
+  Washoi `neon1` (DM5's, which maps it differently) was cut off there. Amphi2
+  places `wda5/wda5_washoi_neon.ase` instead: the same model, its sign naming
+  `textures/billboard/neon1_tall` with UVs spanning the whole image, a 128 × 1024
+  Washoi neon for its 36 × 292 unit face.
+
+### Dirt decals drawn opaque
+
+Depot's tower showed its `textures/decals/dirt_02` decal as solid olive panels.
+The decal's script is `template template_Dirt 02` after its surface flags, and
+`Q3ShaderParser` expands a template only when it is the first line of a body and
+its name ends in `_template`; `template_Dirt` meets neither, so the decal had no
+stages and drew its image opaque. `dirt_02.tga` is olive (mean RGB 95, 101, 63)
+and mostly transparent (mean alpha 38). The master's three dirt decals
+(`dirt_01`, `dirt_02`, `dirt_scratch_02`) now carry the template's stage inline:
+`material textures/decals/dirt_<n>.png`, `blendfunc blend`, `alphagen vertex`.
+The parser parses them as one alpha-blended stage, and the browser shows the
+grime streaks over the plaster. The debris shaders' `debris_template` use is
+the parser's supported form and needed nothing.
+
+### KTX2 sidecars
+
+`ktx2cache/` sidecars load before a bank's WebP. The cache held sidecars of
+Warsow's "WF" neon frames, so the new frames did not show: their five entries
+are removed from `ktx2cache/manifest.json` (originals in
+`archive/media/ktx2-stale/`). `npm run tools:textures:audit` reports 759 of
+1,030 sidecars current and 271 to encode, the new maps' textures among them;
+`npm run tools:textures` needs KTX-Software 5.x, which is not installed here.
+Until then those textures load as WebP.
+
+`scripts/render-billboards.ps1` draws `neon1_tall.png`;
+`scripts/render-amphi2-branding.ps1` draws the ammo sign and the five neon
+frames. All seven are entries in `config/billboard-package.json`, applied to the
+master with `npm run tools:branding`; `neon1_tall` and its shader were added to
+the master first, since that command replaces existing images only.
+
 ## Compile
 
 From the staged `toolchain/` directory, with forward-slash absolute paths:

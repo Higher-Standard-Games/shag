@@ -1,7 +1,9 @@
 # Washoi arena billboards
 
 These are replacement images for the nine advertising textures used by Washoi
-DM5 and DM11, plus DM2's gold neon sign and atrium badge. `washoi-logo.png` is a copy of the project's supplied
+DM5 and DM11, DM2's gold neon sign and atrium badge, and Amphi2's ammo sign,
+slim neon advert (`neon1_tall`) and red neon (`amphi2_neon1-5`, the five frames
+of `textures/neon/jujitsu_sign`, which Amphi1 shows too). `washoi-logo.png` is a copy of the project's supplied
 `public/data/washoi.png` branding. The original logo's rights remain unchanged.
 The panels combine that logo with typography and geometric backgrounds;
 they contain no upstream advertising artwork.
@@ -11,6 +13,7 @@ Edit the supplied PNGs directly, or regenerate the layout on Windows with:
 ```powershell
 powershell -File scripts/render-billboards.ps1
 powershell -File scripts/render-dm2-branding.ps1
+powershell -File scripts/render-amphi2-branding.ps1
 ```
 
 The renderer uses System.Drawing and Arial. The checked-in PNGs are the
