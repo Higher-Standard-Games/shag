@@ -419,8 +419,10 @@ export class SkyLightSystem {
       // Fixed direction (noon-ish but angled) for good normal map relief
       this.sunLight.direction = new Vector3(-0.5, -1, -0.2).normalize();
 
-      // 2. Moon Light: Off or very subtle fill
+      // 2. Moon Light: off. Disabled rather than dimmed: an enabled light at
+      // intensity 0 is still bound and evaluated by every lit material.
       this.moonLight.intensity = 0;
+      this.moonLight.setEnabled(false);
 
       // 3. Ambient Light: Neutral base for lightmapped geometry
       // Lightmaps multiply with this, so (0.5, 0.5, 0.5) might darken everything by half?
@@ -472,6 +474,7 @@ export class SkyLightSystem {
 
     // Apply moon light (inverse of sun)
     const moonIntensity = Math.max(0, 1 - sunIntensity * 2) * this.config.moonIntensity;
+    this.moonLight.setEnabled(true);
     this.moonLight.intensity = moonIntensity;
 
     // Moon position (opposite of sun)

@@ -12,7 +12,12 @@ interface Registration extends CandidateFilter {
 }
 const runtimes = new WeakMap<Scene, SceneMeshCandidateProvider>();
 
-/** Composes camera filters through one scene hook; callbacks preserve source order. */
+/**
+ * Composes camera filters through one scene hook; callbacks preserve source order.
+ * Disabled meshes are left out for every camera: model templates kept for
+ * cloning and parked pool members are most of the scene, and Babylon's own
+ * loop does vertex and readiness work on each before it tests enabled state.
+ */
 class SceneMeshCandidateProvider {
   private readonly original: Scene["getActiveMeshCandidates"];
   private readonly registrations = new Set<Registration>();
@@ -28,15 +33,11 @@ class SceneMeshCandidateProvider {
       buffer = { data: [], length: 0, filters: [] };
       this.buffers.set(camera, buffer);
     }
-    buffer.filters.length = 0;
+    const filters = buffer.filters;
+    filters.length = 0;
     for (const registration of this.registrations) {
       if ((!registration.camera || registration.camera === camera) && registration.enabled(camera))
-        buffer.filters.push(registration);
-    }
-    if (buffer.filters.length === 0) {
-      buffer.data.length = 0;
-      buffer.length = 0;
-      return source;
+        filters.push(registration);
     }
     let count = 0;
     for (let i = 0; i < source.length; i++) {
@@ -44,12 +45,8 @@ class SceneMeshCandidateProvider {
       // Babylon processes intersection actions before visibility/layer tests.
       let keep = true;
       if (!mesh.actionManager) {
-        for (const filter of buffer.filters) {
-          if (!filter.keep(mesh, camera)) {
-            keep = false;
-            break;
-          }
-        }
+        keep = mesh.isEnabled();
+        for (let f = 0; keep && f < filters.length; f++) keep = filters[f].keep(mesh, camera);
       }
       if (keep) buffer.data[count++] = mesh;
     }
