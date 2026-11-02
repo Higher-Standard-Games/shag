@@ -79,6 +79,12 @@
       "snd"
     ]
   },
+  "washoi_snd4": {
+    "displayName": "Shepas",
+    "gametypes": [
+      "snd"
+    ]
+  },
   "wfdm1": {
     "displayName": "Flew over (Warfork)",
     "gametypes": []

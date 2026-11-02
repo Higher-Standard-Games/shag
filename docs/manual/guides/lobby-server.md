@@ -96,8 +96,8 @@ The Amphi pool contains `washoi_amphi1` and `washoi_amphi2`, from
 `washoi_textures.pk3`. Relay Yard (`solamphi1`) and the DA arenas
 are excluded. Restart the lobby after changing the configuration.
 
-The S&D pool contains Concrete Strike (`washoi_snd1`) and Depot
-(`washoi_snd6`), each provided its `map_<name>.pk3` is installed. Duel uses Washoi DM2, DM5, DM11 and DM14; FFA uses the same
+The S&D pool contains Concrete Strike (`washoi_snd1`), Depot (`washoi_snd6`)
+and Shepas (`washoi_snd4`), each provided its `map_<name>.pk3` is installed. Duel uses Washoi DM2, DM5, DM11 and DM14; FFA uses the same
 four and DM7.
 The room's map vote keeps three card slots. With fewer offered maps, unused
 slots display disabled placeholders and cannot receive votes.

@@ -192,3 +192,29 @@ on this machine. The maps load their WebP textures without KTX2 sidecars.
 
 Not yet played: full Amphi rounds on wda5, S&D rounds on Depot (plant sites,
 spawns, the lift), and bots on either map.
+
+## washoi_snd4 (Shepas)
+
+`maps/wfbomb4.map` ("Shepas") is in warfork-maps' `maps/`, reworked for MakeBSP:
+44 of its 242 models carry `collisiontype`, so its collision is compiled as
+authored. Warfork's `data1_21pure/maps/wfbomb4.bsp` is a MakeBSP build of
+2026-09-18 with the same worldspawn keys, but the source changed after it: the
+sky (`sky/sky_test` → `sky/grimmnight`), `blx_wt3_grid` → `grates/simplegrid`,
+`wsw_city1/concret7` → `concrete/concret7`, and moved plant, barrier and
+container models. It is compiled here from warfork-maps `00bf74a`, with
+`_lightmapImageSize 2048` and `gridsize 64 64 64` as in Warfork's build: 69
+seconds of MakeBSP and about 7 minutes of MakeLight, no missing model or
+material, 6 lightmap pages (as Warfork's), 1,799 faces, 880 clusters.
+
+Its 393 curve patches compiled with `textures/common/_miscmodelclip` carry
+NODRAW (surface flags `0x204a0`) and draw nothing, as in Concrete Strike.
+`textures/billboard/bigbill9.tga` is a Warfork logo; the recipe replaces it with
+a Washoi board (`assets/billboards/bigbill9.png`, saved as TGA at that path).
+`decals/poster01` and `decals/poster_bobot` are fully transparent placeholders.
+The merge adds 69 files and 17 shaders without conflicts; 28 new textures are
+classified. The levelshot is Warfork's `levelshots/wfbomb4.png`.
+
+In the browser every texture is ready and nothing fails to load. The
+`textures/billboard/board_512_256_1` board, which cycles the Washoi big boards
+with `animClampMap`, draws black there (Depot uses it too); it is not yet
+investigated.

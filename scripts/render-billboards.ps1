@@ -59,6 +59,7 @@ Panel 'bigbill1.png' 1024 512 0 $false 'MOVE FAST. HIT HARD.' 'WASHOI.NET / ENTE
 Panel 'bigbill2.png' 1024 512 1 $false 'YOUR NEXT RIVAL IS WAITING.' 'WASHOI.NET / DUEL / FFA'
 Panel 'bigbill5.png' 1024 512 2 $false 'KEEP YOUR MOMENTUM.' 'WASHOI.NET / JUMP / SLIDE / REPEAT'
 Panel 'bigbill6.png' 1024 512 0 $false 'ONE MORE ROUND.' 'WASHOI.NET / ENTER THE ARENA'
+Panel 'bigbill9.png' 1024 512 2 $false 'PLANT IT. HOLD IT.' 'WASHOI.NET / SEARCH & DESTROY'
 Panel 'neon1.png' 256 1024 2 $true 'WASHOI' 'WASHOI.NET'
 Panel 'neon1_tall.png' 128 1024 2 $true 'WASHOI' 'WASHOI.NET'
 Panel 'small1.png' 512 128 1 $false 'TELEPORT' 'KEEP MOVING >>'
@@ -66,4 +67,4 @@ Panel 'small3.png' 1024 256 0 $false 'ARENA OPEN' 'WASHOI.NET / PLAY ALL NIGHT'
 Panel 'ver3.png' 256 1024 1 $true 'ARENA' 'DUEL / FFA'
 Panel 'bigver1.png' 256 512 0 $true 'DUEL' 'WASHOI.NET'
 $logo.Dispose()
-Write-Output "Rendered 10 billboard images to $out"
+Write-Output "Rendered 11 billboard images to $out"
