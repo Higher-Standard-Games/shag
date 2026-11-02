@@ -111,3 +111,73 @@ start the private Vite server (`browser-probe` skill), open
 `?renderer=webgpu`, play the demo, and for a toggle bench alternate
 `getWorldBundleReplay(scene).enabled` every 500 ms while timing
 `requestAnimationFrame`. `?worldbundles=0` turns the replay off for a session.
+
+## Whole-frame snapshot: the path to 2×
+
+Second round, same day. What remains after the world bundle replay is
+Babylon's per-mesh path for everything else: selection, binding and the bundle
+check for each moving or animated draw, the weapon camera's own pass, and the
+render-target passes. Only Babylon's FAST snapshot mode removes all of it: it
+records every render pass of a frame once and replays the bundles, skipping
+mesh selection and every bind.
+
+| Measurement (WebGPU, dm2 FFA demo, toggle bench) | Result |
+| --- | --- |
+| Whole frame replayed, nothing updated (ceiling, wrong picture) | ×4.7 (1.27 ms against 5.97 ms per frame) |
+| Prototype: culling off, skeletons prepared and moved meshes' matrices written each frame, a visibility signature forcing a normal frame and a re-record on any change | ×1.18–1.26 overall |
+| Same prototype, frames that replay | 1.28 ms against 4.0 ms for a normal frame: ×3.1, including 0.25 ms of skeleton and matrix updates for 44 meshes |
+| Frames that render normally or re-record | 36% |
+
+So the replayed frame is three times faster than today's, and the gain is
+lost to frames whose draw list changed. With culling off (the recording must
+contain everything that may come into view), the draw list changes in about
+half of all frames, from these sources (per second, dm2 FFA):
+
+| Source | Changes |
+| --- | ---: |
+| Effect batches changing instance count (explosion sparks, rays, fireballs, impact sparks, wall marks) | 94 |
+| Projectile meshes and trail ribbons shown and hidden | 23 |
+| View-weapon parts shown, hidden, created and disposed (weapon switches) | 15 |
+| Dropped weapons shown and hidden | 8 |
+| Tracers, transient fragments and flashes, teleport bursts | 7 |
+| Players and ragdolls created or disposed | under 1 |
+
+With culling on, 20% of frames change the list (PVS and frustum add map
+surfaces, players and items).
+
+### What a stable draw list needs
+
+1. **Instance counts through indirect draws.** A draw context with
+   `enableIndirectDraw` set records `drawIndexedIndirect`; writing the instance
+   count each frame (`setIndirectData`) changes what a replayed bundle draws
+   without a re-record. Covers every effect batch.
+2. **Hiding as data, not as a draw-list change.** Pooled meshes (projectiles,
+   trails, tracers, dropped weapons, effect pools) stay enabled and in the
+   recording; hiding writes a collapsed world matrix to their mesh uniform
+   buffer. This changes every game system's show/hide code.
+3. **No culling while recorded.** The whole map and every pooled object draw
+   each frame. The GPU then does the culling's work; on this GPU the frame is
+   CPU-bound with large headroom, but weaker GPUs pay for it. GPU-driven
+   culling (a compute pass writing the indirect counts per PVS cluster and
+   frustum) gives it back.
+4. **Per-frame data in place.** Skeletons (`prepare`), moved meshes (mesh
+   uniform buffer), and materials whose values change (muzzle flash, glow,
+   animated Quake stages, water, sky scroll) rebound into the recorded
+   `LeftOver` slot, as Babylon's snapshot helper does for morph targets. A
+   material that binds a different texture (animated texture maps) forces a
+   re-record.
+5. **A stable pass structure.** Passes that come and go (scene depth capture,
+   water targets, the weapon view's clears) shift Babylon's replay of bundle
+   lists by pass index: the prototype hit "attachment state not compatible"
+   errors. The controller must detect a changed pass sequence and re-record.
+
+### Other avenues considered
+
+- **Rendering in a worker (OffscreenCanvas).** Moves the same work to another
+  thread without reducing it; the scene graph, game state and Babylon would all
+  have to live in the worker. A real gain only comes from splitting game
+  simulation (demo or network decode, physics, prediction) from rendering, a
+  large rewrite with a smaller prize (about 0.3–0.5 ms a frame).
+- **Compute shaders.** Most useful as GPU-driven culling for the stable draw
+  list above, and for vertex animation textures (Babylon's baked vertex
+  animation) to take skeleton evaluation (about 0.2 ms a frame) off the CPU.
