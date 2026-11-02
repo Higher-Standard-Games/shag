@@ -22,3 +22,4 @@ These documents capture the design process and technical research that went into
 | [SKY_SHADER_PLAN.md](./SKY_SHADER_PLAN.md) | Sky shader implementation plan |
 | [TCMOD_ANIMATION_PLAN.md](./TCMOD_ANIMATION_PLAN.md) | tcMod animation implementation plan |
 | [engine-optimization.md](./engine-optimization.md) | Engine optimization notes |
+| [render-perf-audit-2026-11-02.md](./render-perf-audit-2026-11-02.md) | November 2026 rendering audit: optimization matrix, method and results |
