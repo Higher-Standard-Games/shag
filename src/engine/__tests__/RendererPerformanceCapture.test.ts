@@ -18,6 +18,8 @@ describe("RendererPerformanceCapture", () => {
     const metric = { p50: 1, p95: 2 };
     const report: RendererPerformanceReport = {
       backend: "webgl2",
+      gpu: "ANGLE (NVIDIA GeForce RTX 4070 SUPER)",
+      renderSize: "3440x1440",
       map: "wdm2",
       ktx2: true,
       durationSeconds: 5,
@@ -38,6 +40,7 @@ describe("RendererPerformanceCapture", () => {
 
     const output = formatRendererPerformanceReport(report);
     expect(output).toContain("Backend: webgl2; map: wdm2; KTX2: on");
+    expect(output).toContain("GPU: ANGLE (NVIDIA GeForce RTX 4070 SUPER); render size: 3440x1440");
     expect(output).toContain("GPU frame: unavailable");
     expect(output).toContain("2 compile(s), 3.50ms total");
   });

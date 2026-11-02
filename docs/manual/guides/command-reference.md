@@ -93,7 +93,7 @@ A name that already exists gets `_2`, `_3` and so on rather than being overwritt
 | `pp <effect> [value]` **dev** | Post-processing control |
 | `show_fps [0\|1\|on\|off]` | FPS counter (default on; saved preference) |
 | `cl_showspeed <0\|1>` | Movement speed readout (default on) |
-| `perf capture [seconds]` | Performance capture and summary |
+| `perf capture [seconds]` | Performance capture and summary: frame, CPU and GPU time, and the GPU the browser draws with |
 | `perf shaders [seconds]` | Lists the shaders compiled during the interval, each with the defines it differs by from its closest earlier version |
 | `export <all\|cvars\|camera\|fx>` | Copy current state as config text |
 | `settings export\|import\|list` | Copy/import cvars through the clipboard, or list modified values |

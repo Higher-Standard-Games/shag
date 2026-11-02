@@ -13,6 +13,10 @@ export interface PerformanceMetric {
 
 export interface RendererPerformanceReport {
   backend: "webgpu" | "webgl2";
+  /** The GPU the browser draws with, as it reports it: a laptop or desktop with two can pick either. */
+  gpu: string;
+  /** Pixels rendered per frame, after render scaling. */
+  renderSize: string;
   map: string;
   ktx2: boolean;
   durationSeconds: number;
@@ -132,6 +136,8 @@ export async function captureRendererPerformance(
     const shaderCounter = engineInstrumentation.shaderCompilationTimeCounter;
     return {
       backend: engine.isWebGPU ? "webgpu" : "webgl2",
+      gpu: (engine as { getGlInfo?: () => { renderer?: string } }).getGlInfo?.().renderer || "unknown",
+      renderSize: `${engine.getRenderWidth()}x${engine.getRenderHeight()}`,
       map: metadata.map || "none",
       ktx2: metadata.ktx2 ?? false,
       durationSeconds: duration,
@@ -170,6 +176,7 @@ export function formatRendererPerformanceReport(report: RendererPerformanceRepor
   const lines = [
     `Renderer capture: ${report.durationSeconds.toFixed(1)}s, ${report.frames} frames`,
     `  Backend: ${report.backend}; map: ${report.map}; KTX2: ${report.ktx2 ? "on" : "off"}`,
+    `  GPU: ${report.gpu}; render size: ${report.renderSize}`,
     `  Frame: ${formatMetric(report.frameTimeMs, "ms")}`,
     `  CPU render: ${formatMetric(report.cpuRenderMs, "ms")}`,
     `  GPU frame: ${formatMetric(report.gpuFrameMs, "ms")}`,
