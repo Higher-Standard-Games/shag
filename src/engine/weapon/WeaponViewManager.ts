@@ -49,6 +49,7 @@ import { disposeModelResources } from "../loader/model/ModelSourceCache";
 import { PK3Loader } from "../loader/pk3/PK3Loader";
 import { PK3TextureLoader } from "../loader/pk3/PK3TextureLoader";
 import { MovementVars } from "../movement/MovementVars";
+import { renderFrames } from "../rendering/PipelineWarmup";
 import { renderToggle } from "../rendering/RenderToggles";
 import { installWeaponCameraCandidates } from "../rendering/WeaponCameraCandidates";
 import { ViewportEffectsManager } from "../viewport/ViewportEffectsManager";
@@ -129,6 +130,10 @@ export const DEFAULT_POSITIONS: Record<string, WeaponPosition> = {
 
 // Layer mask for weapon-only rendering
 const WEAPON_LAYER_MASK = 0x10000000;
+/** Frames each weapon draws while preloading; the second catches state its first draw changed. */
+const WARM_DRAW_FRAMES = 2;
+/** Longest wait for one of them before the preload stops drawing and only compiles. */
+const WARM_DRAW_TIMEOUT_MS = 1000;
 /** Second layer bit carried only by blade view meshes, which bladeLight reaches. */
 const BLADE_LIGHT_LAYER = 0x40000000;
 
@@ -161,6 +166,9 @@ export class WeaponViewManager {
     if (!scene) throw new Error("Weapon view is not initialized");
     this.preparedForJoin = false;
     this.setVisible(false);
+    // Until a frame fails to arrive (a stopped render loop): then the rest
+    // are only compiled, and draw their first frame in play
+    let drawn = true;
     try {
       for (const id of new Set(weaponIds.map(resolveWeaponId))) {
         onProgress?.(id);
@@ -172,6 +180,15 @@ export class WeaponViewManager {
           // A drawn mesh without a material of its own draws with the scene default
           const material = mesh.material ?? (mesh.getTotalVertices() > 0 ? scene.defaultMaterial : null);
           if (material) await prepareMaterial(material, mesh, signal);
+        }
+        // Then draw it, behind the loading screen. Its first draw builds the
+        // render pipelines and the effect variant the weapon camera's lights
+        // select; left to the first switch in play, that stalled a frame by up
+        // to half a second (Firefox builds pipelines synchronously).
+        if (drawn) {
+          this.setVisible(true);
+          drawn = await renderFrames(scene, WARM_DRAW_FRAMES, signal, WARM_DRAW_TIMEOUT_MS);
+          this.setVisible(false);
         }
       }
       this.preparedForJoin = true;
