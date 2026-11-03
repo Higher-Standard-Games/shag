@@ -244,6 +244,45 @@ at all in the last six.
 | Frames replayed | 87% |
 | In-page toggle bench, snapshots on against off | ×1.51 (no-op control ×1.03) |
 
+### Material values in replayed frames (stage 4), November 3
+
+A listing of every draw's uniform slot over ten seconds of normal frames, on
+dm2, dm5, dm7, dm11, dm12, dm14, amphi1 and snd1, found what changes from frame
+to frame. All of it lives in per-draw slots; no shared material buffer
+changed:
+
+| Values | Where |
+| --- | --- |
+| `uTime`, `atmFogEye`, water's `uCameraPosition` and `uCameraForward` | Effect and water shader materials, decal blends |
+| `diffuseMatrix`, `emissiveMatrix`, `vDiffuseInfos` | Scrolling and pulsing Quake stages, plasma bolts, grenades |
+| `vDiffuseColor`, `vEmissiveColor` | Fades and tints: teleport ghosts, gib trails, pickups, the view weapons' glow |
+| `q3RampCamera`, `q3SoftView` | The Quake sprite plugins, which follow the camera |
+
+The controller learns these materials instead of listing them. In each frame
+Babylon draws itself, a recorded draw whose slot holds values other than the
+last such frame left there (the matrices replay writes anyway aside) marks
+its material. In replayed frames, each draw of a marked material that draws
+something now gets the material bound again through Babylon's own
+`bindForSubMesh`, aimed at the recorded slot and pass. Three details matter:
+
+- **The slot's CPU copy.** Babylon's draws compare a slot against its CPU
+  copy to skip uploads, and `update()` keeps that copy only while the buffer
+  has more than one slot. Writes from the controller update it themselves, or
+  the next normal frame could skip a needed upload.
+- **The scene's uniforms stay untouched.** A bind ends by writing the eye
+  position into the scene's uniforms. In a replayed frame that write started
+  a third scene buffer, and the weapon view, recorded against the second,
+  drew with the wrong camera. The binds run with that write switched off.
+- **Only draws that draw.** Effect batches switched off and outline passes
+  (which bind their own effect) are skipped: 7 binds in a typical dm2 frame
+  instead of 19.
+
+After this, the listing over replayed frames matches the one over normal
+frames, and paused-demo checks stay pixel-exact where the scene holds still.
+Where it animates, two replayed frames differ as much as two normal ones.
+The binds cost about 4% of a replayed frame (toggle bench ×1.04 without
+them); snapshots measured ×1.34 overall in the same session.
+
 ### What is left
 
 - **Frames that do not replay** (12%) cost a normal frame or more each and
@@ -253,6 +292,8 @@ at all in the last six.
   pooling in the game code, and buffer releases.
 - **The controller's own work** is about 0.5 ms a frame beyond what Babylon
   would do anyway, most of it the draw-list signature over every mesh.
-- **Stage 4**, material values in replayed frames (the gun's glow, muzzle
-  flash, player tints, water, animated Quake stages), and the checks on every
-  pool map, before snapshots can become the default.
+- **Texture changes in replayed frames.** A Quake stage that cycles images
+  (`animMap`) swaps the texture, which a recorded draw cannot follow; none
+  showed in the listing above, so none of the measured maps relies on one in
+  view.
+- **The checks on every pool map** before snapshots can become the default.

@@ -94,4 +94,26 @@ describe("Babylon internals the snapshot controller reads", () => {
     const sceneSource = source("scene.pure.js");
     expect(sceneSource).toContain("this._renderingManager.render(null, null, true, !fastSnapshotMode);");
   });
+
+  it("let a replayed frame write a draw's own uniform slot and bind its material there", () => {
+    const root = path.resolve("node_modules", "@babylonjs", "core");
+    const source = (file: string) => fs.readFileSync(path.join(root, file), "utf8");
+    const ubo = source("Materials/uniformBuffer.js");
+    // Slots keyed by draw context, each with a CPU copy draws compare against
+    expect(ubo).toContain("let idx = this._slotByOwner.get(owner);");
+    expect(ubo).toContain("const shadow = this._buffers[idx][1];");
+    // setDataBuffer pins the slot for the rest of the frame
+    expect(ubo).toContain("this._currentFrameId = this._engine.frameId;\n                return true;");
+    expect(source("Engines/webgpuEngine.pure.js")).toContain(
+      "webgpuPipelineContext.uniformBuffer._updateOwnerKeyed(this._currentDrawContext);",
+    );
+    // A bind picks its effect by the current render pass and may write the scene's uniforms
+    expect(source("Meshes/subMesh.pure.js")).toContain("(this._getDrawWrapper()?.effect ?? null)");
+    expect(source("Materials/material.pure.js")).toContain("this._scene.finalizeSceneUbo();");
+    expect(source("Materials/shaderMaterial.pure.js")).toContain("scene.finalizeSceneUbo();");
+    // The clustered light container refreshes its own uniforms under FAST snapshots
+    expect(source("Lights/Clustered/clusteredLightContainer.pure.js")).toContain(
+      "engine.snapshotRendering && engine.snapshotRenderingMode === 1",
+    );
+  });
 });

@@ -17,7 +17,9 @@
  *   matrices in their per-draw uniforms (outline passes, shader materials) get
  *   them written there, as Babylon's snapshot helper does for effect layers;
  *   lights get the uniforms Babylon writes while binding a material (the
- *   clustered light container refreshes its own in this mode);
+ *   clustered light container refreshes its own in this mode); and materials
+ *   learned to change between frames (effect time, scrolling stages, fades)
+ *   are bound again into their recorded draws' uniform slots;
  * - compares a signature of the draw list (enabled, visible meshes, their
  *   materials and instance buffers) at the end of every frame, and on any
  *   change draws the next frame normally and records the one after;
@@ -51,10 +53,12 @@ import type { Skeleton } from "@babylonjs/core/Bones/skeleton";
 import type { Camera } from "@babylonjs/core/Cameras/camera";
 import type { AbstractEngine } from "@babylonjs/core/Engines/abstractEngine";
 import type { Effect } from "@babylonjs/core/Materials/effect";
+import type { Material } from "@babylonjs/core/Materials/material";
 import { Color3 } from "@babylonjs/core/Maths/math.color";
 import { Matrix, type Vector3 } from "@babylonjs/core/Maths/math.vector";
 import type { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh";
 import type { Mesh } from "@babylonjs/core/Meshes/mesh";
+import type { SubMesh } from "@babylonjs/core/Meshes/subMesh";
 import type { Observer } from "@babylonjs/core/Misc/observable";
 import type { Node } from "@babylonjs/core/node";
 import type { Scene } from "@babylonjs/core/scene";
@@ -98,12 +102,42 @@ interface DrawContextLike {
 }
 interface LeftOverBuffer {
   _uniformLocations?: Record<string, number>;
+  _uniformSizes?: Record<string, number>;
+  /** Each draw context's slot, and every slot's buffer with its CPU copy. */
+  _slotByOwner?: Map<unknown, number>;
+  _buffers?: [unknown, Float32Array | undefined][];
+  _bufferIndex?: number;
+  _bufferData?: Float32Array;
   setDataBuffer(dataBuffer: unknown): boolean;
   update(): void;
 }
+
+/**
+ * Upload a slot written outside a draw, keeping its CPU copy equal to what
+ * the GPU holds: Babylon's draws compare against that copy to skip uploads,
+ * and `update()` keeps it only while the buffer has more than one slot.
+ */
+function flushSlot(leftOver: LeftOverBuffer): void {
+  leftOver.update();
+  const copy = leftOver._buffers?.[leftOver._bufferIndex ?? -1]?.[1];
+  if (copy && leftOver._bufferData) copy.set(leftOver._bufferData);
+}
+interface DrawWrapperLike {
+  effect?: { _pipelineContext?: { uniformBuffer?: LeftOverBuffer } } & SlotDraw["effect"];
+  drawContext?: { buffers: Record<string, unknown> };
+  materialContext?: unknown;
+  /** The material's defines for this pass; none when another renderer owns the pass's effect. */
+  defines?: unknown;
+}
+/** The engine state a material bind reads: the pass, and the effect and contexts it binds into. */
+interface BindingEngine {
+  currentRenderPassId: number;
+  _currentEffect: unknown;
+  _currentMaterialContext: unknown;
+  _currentDrawContext: unknown;
+}
 interface LightBuffer extends LeftOverBuffer {
   useUbo: boolean;
-  _buffers?: [unknown, unknown][];
   updateColor4(name: string, color: Color3, alpha: number): void;
 }
 /** Per-draw uniforms that follow the mesh or the camera, as Babylon's shader materials and outline passes set them. */
@@ -117,12 +151,18 @@ const MATRIX_UNIFORMS = [
   "cameraPosition",
 ] as const;
 type MatrixUniform = (typeof MATRIX_UNIFORMS)[number];
-/** A recorded draw whose per-draw uniforms hold matrices that change between frames. */
-interface MatrixDraw {
+/** A recorded draw with a uniform slot of its own, in one render pass. */
+interface SlotDraw {
   mesh: AbstractMesh;
+  subMesh: SubMesh;
+  /** The material when recorded: a change of material changes the draw list and ends the recording. */
+  material: Material | null;
+  pass: number;
+  wrapper: DrawWrapperLike;
   effect: { setMatrix(name: string, matrix: Matrix): void; setVector3(name: string, vector: Vector3): void };
   leftOver: LeftOverBuffer;
   slot: unknown;
+  /** The matrix uniforms among its uniforms. */
   uniforms: MatrixUniform[];
   /** Whether a world matrix is among them, so hiding collapses that instead of the camera. */
   hasWorld: boolean;
@@ -246,8 +286,16 @@ class SnapshotFrames implements SnapshotFramesHandle {
   /** The visibility each recorded mesh last wrote: a fade lives in the mesh uniforms too. */
   private readonly visibilities = new WeakMap<AbstractMesh, number>();
   private readonly skeletons = new Set<Skeleton>();
-  /** Recorded draws with world or camera matrices in their own uniforms; listed after each recording. */
-  private matrixDraws: MatrixDraw[] | null = null;
+  private draws: SlotDraw[] | null = null;
+  /** The draws among them with matrices in their slot. */
+  private matrixDraws: SlotDraw[] | null = null;
+  /** The draws among them of materials learned to change. */
+  private dynamicDraws: SlotDraw[] | null = null;
+  /** Materials seen changing values between frames: rebound in every replayed frame. */
+  private readonly dynamicMaterials = new WeakSet<Material>();
+  /** Each draw's slot values in the last frame Babylon drew, by draw context. */
+  private readonly slotValues = new WeakMap<object, Float32Array>();
+  private readonly layoutRanges = new WeakMap<LeftOverBuffer, number[]>();
   /** A recording ended and its hidden meshes are not collapsed yet. */
   private hiddenUnwritten = false;
   private readonly lightColor = new Color3();
@@ -409,6 +457,7 @@ class SnapshotFrames implements SnapshotFramesHandle {
     // The recording frame's forced state goes back before anything is compared
     const missing = this.forced.filter(({ mesh }) => !this.drawnForced.has(mesh)).map(({ mesh }) => mesh);
     if (this.forced.length) this.releaseForced();
+    if (this.kind !== "replay") this.learnMaterialValues();
     const signature = drawListSignature(this.scene.meshes, this.isInPlace, this.learnToggle);
     if (this.kind === "replay" || this.kind === "recording") {
       if (this.passMismatch) {
@@ -450,7 +499,9 @@ class SnapshotFrames implements SnapshotFramesHandle {
     this.recordNext = false;
     this.occupied.clear();
     this.drawnForced.clear();
+    this.draws = null;
     this.matrixDraws = null;
+    this.dynamicDraws = null;
     this.setCulling(false);
     this.onActive(true);
     this.engine.snapshotRendering = true;
@@ -535,12 +586,11 @@ class SnapshotFrames implements SnapshotFramesHandle {
    * world matrix there too (or a collapsed view-projection when it has none).
    */
   private writeDrawMatrices(): void {
-    if (!this.matrixDraws) this.matrixDraws = this.listMatrixDraws();
-    const cameras = this.scene.activeCameras?.length ? this.scene.activeCameras : [this.scene.activeCamera];
+    this.matrixDraws ??= this.slotDraws().filter((draw) => draw.uniforms.length);
     for (const draw of this.matrixDraws) {
       const mesh = draw.mesh;
       if (mesh.isDisposed()) continue;
-      const camera = cameras.find((c) => c && (c.layerMask & mesh.layerMask) !== 0) ?? cameras[0];
+      const camera = this.cameraOf(mesh);
       if (!camera || !draw.leftOver.setDataBuffer(draw.slot)) continue;
       const hidden = this.hiddenInPlace.has(mesh);
       const world = hidden ? COLLAPSED : mesh.getWorldMatrix();
@@ -557,38 +607,151 @@ class SnapshotFrames implements SnapshotFramesHandle {
           effect.setMatrix(name, world.multiplyToRef(camera.getTransformationMatrix(), this.product));
         } else effect.setVector3(name, camera.globalPosition);
       }
-      draw.leftOver.update();
+      flushSlot(draw.leftOver);
     }
   }
 
-  private listMatrixDraws(): MatrixDraw[] {
-    const draws: MatrixDraw[] = [];
+  /** The active camera that draws a mesh: the first whose layers include it. */
+  private cameraOf(mesh: AbstractMesh): Camera | null {
+    const cameras = this.scene.activeCameras?.length ? this.scene.activeCameras : [this.scene.activeCamera];
+    return cameras.find((c) => c && (c.layerMask & mesh.layerMask) !== 0) ?? cameras[0] ?? null;
+  }
+
+  /** The recorded draws with a uniform slot of their own; listed once after each recording. */
+  private slotDraws(): SlotDraw[] {
+    if (this.draws) return this.draws;
+    const draws: SlotDraw[] = [];
     for (const mesh of this.recorded) {
       for (const subMesh of mesh.subMeshes ?? []) {
-        for (const wrapper of (
-          subMesh as unknown as {
-            _drawWrappers: (
-              | {
-                  effect?: { _pipelineContext?: { uniformBuffer?: LeftOverBuffer } } & MatrixDraw["effect"];
-                  drawContext?: { buffers: Record<string, unknown> };
+        (subMesh as unknown as { _drawWrappers: (DrawWrapperLike | undefined)[] })._drawWrappers.forEach(
+          (wrapper, pass) => {
+            const effect = wrapper?.effect;
+            const leftOver = effect?._pipelineContext?.uniformBuffer;
+            const slot = wrapper?.drawContext?.buffers.LeftOver;
+            const names = leftOver?._uniformLocations;
+            if (!wrapper || !effect || !leftOver || !slot || !names) return;
+            const uniforms = MATRIX_UNIFORMS.filter((name) => name in names);
+            const hasWorld = uniforms.some((name) => name.startsWith("world"));
+            const material = subMesh.getMaterial(false);
+            draws.push({ mesh, subMesh, material, pass, wrapper, effect, leftOver, slot, uniforms, hasWorld });
+          },
+        );
+      }
+    }
+    this.draws = draws;
+    return draws;
+  }
+
+  /**
+   * Materials whose values change between frames (a scrolling stage, a fade,
+   * a shader's time), learned in the frames Babylon draws itself: a draw whose
+   * uniform slot holds other values than the last such frame left there,
+   * matrices aside, marks its material.
+   */
+  private learnMaterialValues(): void {
+    for (const mesh of this.recorded) {
+      if (mesh.isDisposed()) continue;
+      for (const subMesh of mesh.subMeshes ?? []) {
+        const material = subMesh.getMaterial(false);
+        if (!material || this.dynamicMaterials.has(material)) continue;
+        for (const wrapper of (subMesh as unknown as { _drawWrappers: (DrawWrapperLike | undefined)[] })
+          ._drawWrappers) {
+          const leftOver = wrapper?.effect?._pipelineContext?.uniformBuffer;
+          const context = wrapper?.drawContext;
+          const index = context && leftOver?._slotByOwner?.get(context);
+          const data = index === undefined || !leftOver ? undefined : leftOver._buffers?.[index]?.[1];
+          if (!context || !leftOver || !data) continue;
+          const last = this.slotValues.get(context);
+          if (last && last.length === data.length) {
+            const ranges = this.valueRanges(leftOver);
+            let changed = false;
+            for (let r = 0; r < ranges.length && !changed; r += 2) {
+              for (let i = ranges[r]; i < ranges[r + 1]; i++) {
+                if (last[i] !== data[i]) {
+                  changed = true;
+                  break;
                 }
-              | undefined
-            )[];
+              }
+            }
+            if (changed) {
+              this.dynamicMaterials.add(material);
+              this.dynamicDraws = null;
+              break;
+            }
+            last.set(data);
+          } else {
+            this.slotValues.set(context, data.slice());
           }
-        )._drawWrappers) {
-          const effect = wrapper?.effect;
-          const leftOver = effect?._pipelineContext?.uniformBuffer;
-          const slot = wrapper?.drawContext?.buffers.LeftOver;
-          const names = leftOver?._uniformLocations;
-          if (!effect || !leftOver || !slot || !names) continue;
-          const uniforms = MATRIX_UNIFORMS.filter((name) => name in names);
-          if (!uniforms.length) continue;
-          const hasWorld = uniforms.some((name) => name.startsWith("world"));
-          draws.push({ mesh, effect, leftOver, slot, uniforms, hasWorld });
         }
       }
     }
-    return draws;
+  }
+
+  /** Where a slot layout keeps values other than the matrices replayed frames write anyway, as [start, end) pairs. */
+  private valueRanges(leftOver: LeftOverBuffer): number[] {
+    let ranges = this.layoutRanges.get(leftOver);
+    if (!ranges) {
+      ranges = [];
+      const sizes = leftOver._uniformSizes ?? {};
+      for (const [name, location] of Object.entries(leftOver._uniformLocations ?? {})) {
+        if ((MATRIX_UNIFORMS as readonly string[]).includes(name)) continue;
+        ranges.push(location, location + (sizes[name] ?? 0));
+      }
+      this.layoutRanges.set(leftOver, ranges);
+    }
+    return ranges;
+  }
+
+  /**
+   * Draws of materials learned to change get the material bound again, into
+   * their recorded slot, as the draw's own pass would bind it. The scene's
+   * uniforms stay untouched (each camera's pass writes them; a write from here
+   * starts a scene buffer the recorded passes do not bind), the active camera
+   * stays the frame's first, and matrices are written afterwards per camera.
+   */
+  private writeMaterialValues(): void {
+    const engine = this.scene.getEngine() as unknown as BindingEngine;
+    const saved = {
+      pass: engine.currentRenderPassId,
+      effect: engine._currentEffect,
+      materialContext: engine._currentMaterialContext,
+      drawContext: engine._currentDrawContext,
+    };
+    if (!this.dynamicDraws) {
+      // Draws in a pass of the material's own: an outline pass binds its own effect
+      this.dynamicDraws = this.slotDraws().filter(
+        (draw) => draw.wrapper.defines && draw.material && this.dynamicMaterials.has(draw.material),
+      );
+    }
+    let bound = false;
+    for (const draw of this.dynamicDraws) {
+      const { mesh, material } = draw;
+      // Only draws that draw something now
+      if (!material || mesh.isDisposed() || this.hiddenInPlace.has(mesh)) continue;
+      if (!mesh.isEnabled() || !mesh.isVisible || mesh.visibility <= 0) continue;
+      const storage = instanceStorage(mesh);
+      if ((storage && storage.instancesCount < 1) || !draw.leftOver.setDataBuffer(draw.slot)) continue;
+      if (!bound) {
+        bound = true;
+        // The scene's uniforms are the passes' own: a bind must not write them
+        (this.scene as unknown as { finalizeSceneUbo(): unknown }).finalizeSceneUbo = () =>
+          this.scene.getSceneUniformBuffer();
+      }
+      engine.currentRenderPassId = draw.pass;
+      engine._currentEffect = draw.effect;
+      engine._currentMaterialContext = draw.wrapper.materialContext;
+      engine._currentDrawContext = draw.wrapper.drawContext;
+      this.scene.resetCachedMaterial();
+      material.bindForSubMesh(mesh.getWorldMatrix(), mesh as Mesh, draw.subMesh);
+      flushSlot(draw.leftOver);
+    }
+    if (!bound) return;
+    delete (this.scene as unknown as { finalizeSceneUbo?: unknown }).finalizeSceneUbo;
+    engine.currentRenderPassId = saved.pass;
+    engine._currentEffect = saved.effect;
+    engine._currentMaterialContext = saved.materialContext;
+    engine._currentDrawContext = saved.drawContext;
+    this.scene.resetCachedMaterial();
   }
 
   /** Hidden-in-place meshes: a collapsed world matrix while hidden, the real one when shown. */
@@ -691,7 +854,9 @@ class SnapshotFrames implements SnapshotFramesHandle {
       this.visibilities.set(mesh, visibility);
       mesh.transferToEffect(world);
     }
-    // After the loop: per-draw matrices read this frame's world matrices
+    // After the loop: binds and per-draw matrices read this frame's world
+    // matrices, and the matrices go last (a bind writes the frame's first camera)
+    this.writeMaterialValues();
     this.writeDrawMatrices();
     this.writeLights();
   }
