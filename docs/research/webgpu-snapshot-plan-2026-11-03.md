@@ -204,6 +204,46 @@ Measured on the dm2 FFA demo during a slow machine period (normal WebGPU at
 | In-page toggle bench, snapshots on against off | ×1.28 (no-op control ×0.97–1.00) |
 | Paused-frame pixels | Match normal rendering, except the plasma gun's animated glow (stage 4) |
 
+### Motion in replayed frames, November 3
+
+Playtesting showed players, projectiles and beams freezing. A motion check
+(pause a demo, seek a few frames forward so things move while the draw list
+holds, then compare a replayed frame with a normal one of the same state)
+found four sources of stale data. All four were in Babylon's per-draw or
+per-frame state, not in the meshes' world matrices, which were already right:
+
+- **Per-draw matrices.** Outline passes and shader materials keep `world`,
+  `view`, `projection`, `viewProjection`, `worldView`, `worldViewProjection`
+  and `cameraPosition` in each draw's own uniform slot, which only a material
+  bind writes. Replayed frames now write them into the recorded slot, with
+  the camera that sees the mesh's layer. A mesh hidden in place gets a
+  collapsed world matrix there too.
+- **Lights.** Babylon writes a light's direction, position and colour while
+  binding a material. The blade's light is parented to the weapon camera, so
+  its lighting stayed at the recording frame's angle. Replayed frames now
+  write every enabled light's uniforms into each of its buffers. The
+  clustered light container refreshes its own in FAST mode.
+- **Collapsing at the end of a recording.** Meshes hidden in place were
+  collapsed right after the recording frame drew them. That second write in
+  one frame goes to a new uniform buffer, so the recorded draws kept the real
+  matrix, and a plasma trail that had just ended stayed on screen. The
+  collapse now happens at the start of the next frame.
+- **Hidden meshes in per-draw slots.** These were skipped instead of
+  collapsed, leaving pooled shader-material meshes drawn where they were last
+  shown.
+
+After the fixes, replayed frames match normal frames pixel for pixel in every
+paused window checked on the dm2 and dm11 demos. Where the paused scene still
+animates (the plasma gun's spinning barrels, effects), two replayed frames
+differ as much as two normal frames do. One rare case may remain: the plasma
+trail reproduction showed once in eleven runs after the collapse fix, and not
+at all in the last six.
+
+| Measurement (dm2 FFA demo) | Result |
+| --- | --- |
+| Frames replayed | 87% |
+| In-page toggle bench, snapshots on against off | ×1.51 (no-op control ×1.03) |
+
 ### What is left
 
 - **Frames that do not replay** (12%) cost a normal frame or more each and

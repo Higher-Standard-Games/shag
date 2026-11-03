@@ -13,7 +13,11 @@
  *   it costs without snapshots;
  * - before each replayed frame writes what changes in place: skeletons, the
  *   world matrix of every recorded mesh that moved, and the sky's
- *   camera-following matrix;
+ *   camera-following matrix; draws that keep their own world or camera
+ *   matrices in their per-draw uniforms (outline passes, shader materials) get
+ *   them written there, as Babylon's snapshot helper does for effect layers;
+ *   lights get the uniforms Babylon writes while binding a material (the
+ *   clustered light container refreshes its own in this mode);
  * - compares a signature of the draw list (enabled, visible meshes, their
  *   materials and instance buffers) at the end of every frame, and on any
  *   change draws the next frame normally and records the one after;
@@ -46,7 +50,9 @@
 import type { Skeleton } from "@babylonjs/core/Bones/skeleton";
 import type { Camera } from "@babylonjs/core/Cameras/camera";
 import type { AbstractEngine } from "@babylonjs/core/Engines/abstractEngine";
-import { Matrix } from "@babylonjs/core/Maths/math.vector";
+import type { Effect } from "@babylonjs/core/Materials/effect";
+import { Color3 } from "@babylonjs/core/Maths/math.color";
+import { Matrix, type Vector3 } from "@babylonjs/core/Maths/math.vector";
 import type { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh";
 import type { Mesh } from "@babylonjs/core/Meshes/mesh";
 import type { Observer } from "@babylonjs/core/Misc/observable";
@@ -89,6 +95,37 @@ interface DrawContextLike {
   enableIndirectDraw: boolean;
   indirectDrawBuffer?: unknown;
   setIndirectData(indexOrVertexCount: number, instanceCount: number, firstIndexOrVertex: number, force?: boolean): void;
+}
+interface LeftOverBuffer {
+  _uniformLocations?: Record<string, number>;
+  setDataBuffer(dataBuffer: unknown): boolean;
+  update(): void;
+}
+interface LightBuffer extends LeftOverBuffer {
+  useUbo: boolean;
+  _buffers?: [unknown, unknown][];
+  updateColor4(name: string, color: Color3, alpha: number): void;
+}
+/** Per-draw uniforms that follow the mesh or the camera, as Babylon's shader materials and outline passes set them. */
+const MATRIX_UNIFORMS = [
+  "world",
+  "view",
+  "projection",
+  "viewProjection",
+  "worldView",
+  "worldViewProjection",
+  "cameraPosition",
+] as const;
+type MatrixUniform = (typeof MATRIX_UNIFORMS)[number];
+/** A recorded draw whose per-draw uniforms hold matrices that change between frames. */
+interface MatrixDraw {
+  mesh: AbstractMesh;
+  effect: { setMatrix(name: string, matrix: Matrix): void; setVector3(name: string, vector: Vector3): void };
+  leftOver: LeftOverBuffer;
+  slot: unknown;
+  uniforms: MatrixUniform[];
+  /** Whether a world matrix is among them, so hiding collapses that instead of the camera. */
+  hasWorld: boolean;
 }
 interface ThinInstanceStorage {
   instancesCount: number;
@@ -209,6 +246,12 @@ class SnapshotFrames implements SnapshotFramesHandle {
   /** The visibility each recorded mesh last wrote: a fade lives in the mesh uniforms too. */
   private readonly visibilities = new WeakMap<AbstractMesh, number>();
   private readonly skeletons = new Set<Skeleton>();
+  /** Recorded draws with world or camera matrices in their own uniforms; listed after each recording. */
+  private matrixDraws: MatrixDraw[] | null = null;
+  /** A recording ended and its hidden meshes are not collapsed yet. */
+  private hiddenUnwritten = false;
+  private readonly lightColor = new Color3();
+  private readonly product = new Matrix();
   private readonly watched = new WeakSet<AbstractMesh>();
   /** Forced meshes that drew while recording; one that did not forces a new recording. */
   private readonly drawnForced = new Set<AbstractMesh>();
@@ -407,6 +450,7 @@ class SnapshotFrames implements SnapshotFramesHandle {
     this.recordNext = false;
     this.occupied.clear();
     this.drawnForced.clear();
+    this.matrixDraws = null;
     this.setCulling(false);
     this.onActive(true);
     this.engine.snapshotRendering = true;
@@ -478,7 +522,73 @@ class SnapshotFrames implements SnapshotFramesHandle {
     }
     this.forced = [];
     this.writeInstanceCounts(true);
-    this.writeHidden(true);
+    // Collapsed at the start of the next frame: a second write to a mesh's
+    // uniforms in the recording frame goes to a new buffer, not the one the
+    // recorded draw binds
+    this.hiddenUnwritten = true;
+  }
+
+  /**
+   * Draws that take world or camera matrices as loose uniforms, in a slot of
+   * their own: outline passes and shader materials. The camera is the active
+   * camera that sees the mesh's layer. A mesh hidden in place gets a collapsed
+   * world matrix there too (or a collapsed view-projection when it has none).
+   */
+  private writeDrawMatrices(): void {
+    if (!this.matrixDraws) this.matrixDraws = this.listMatrixDraws();
+    const cameras = this.scene.activeCameras?.length ? this.scene.activeCameras : [this.scene.activeCamera];
+    for (const draw of this.matrixDraws) {
+      const mesh = draw.mesh;
+      if (mesh.isDisposed()) continue;
+      const camera = cameras.find((c) => c && (c.layerMask & mesh.layerMask) !== 0) ?? cameras[0];
+      if (!camera || !draw.leftOver.setDataBuffer(draw.slot)) continue;
+      const hidden = this.hiddenInPlace.has(mesh);
+      const world = hidden ? COLLAPSED : mesh.getWorldMatrix();
+      const effect = draw.effect;
+      for (const name of draw.uniforms) {
+        if (name === "world") effect.setMatrix(name, world);
+        else if (name === "view") effect.setMatrix(name, camera.getViewMatrix());
+        else if (name === "projection") effect.setMatrix(name, camera.getProjectionMatrix());
+        else if (name === "viewProjection") {
+          effect.setMatrix(name, hidden && !draw.hasWorld ? COLLAPSED : camera.getTransformationMatrix());
+        } else if (name === "worldView") {
+          effect.setMatrix(name, world.multiplyToRef(camera.getViewMatrix(), this.product));
+        } else if (name === "worldViewProjection") {
+          effect.setMatrix(name, world.multiplyToRef(camera.getTransformationMatrix(), this.product));
+        } else effect.setVector3(name, camera.globalPosition);
+      }
+      draw.leftOver.update();
+    }
+  }
+
+  private listMatrixDraws(): MatrixDraw[] {
+    const draws: MatrixDraw[] = [];
+    for (const mesh of this.recorded) {
+      for (const subMesh of mesh.subMeshes ?? []) {
+        for (const wrapper of (
+          subMesh as unknown as {
+            _drawWrappers: (
+              | {
+                  effect?: { _pipelineContext?: { uniformBuffer?: LeftOverBuffer } } & MatrixDraw["effect"];
+                  drawContext?: { buffers: Record<string, unknown> };
+                }
+              | undefined
+            )[];
+          }
+        )._drawWrappers) {
+          const effect = wrapper?.effect;
+          const leftOver = effect?._pipelineContext?.uniformBuffer;
+          const slot = wrapper?.drawContext?.buffers.LeftOver;
+          const names = leftOver?._uniformLocations;
+          if (!effect || !leftOver || !slot || !names) continue;
+          const uniforms = MATRIX_UNIFORMS.filter((name) => name in names);
+          if (!uniforms.length) continue;
+          const hasWorld = uniforms.some((name) => name.startsWith("world"));
+          draws.push({ mesh, effect, leftOver, slot, uniforms, hasWorld });
+        }
+      }
+    }
+    return draws;
   }
 
   /** Hidden-in-place meshes: a collapsed world matrix while hidden, the real one when shown. */
@@ -568,7 +678,8 @@ class SnapshotFrames implements SnapshotFramesHandle {
     }
     for (const skeleton of this.skeletons) skeleton.prepare();
     this.writeInstanceCounts(false);
-    this.writeHidden(false);
+    this.writeHidden(this.hiddenUnwritten);
+    this.hiddenUnwritten = false;
     for (const mesh of this.recorded) {
       if (this.hiddenInPlace.has(mesh) || (mesh.isWorldMatrixFrozen && !mesh.infiniteDistance)) continue;
       const world = mesh.computeWorldMatrix(mesh.infiniteDistance);
@@ -579,6 +690,33 @@ class SnapshotFrames implements SnapshotFramesHandle {
       this.worldFlags.set(mesh, flag);
       this.visibilities.set(mesh, visibility);
       mesh.transferToEffect(world);
+    }
+    // After the loop: per-draw matrices read this frame's world matrices
+    this.writeDrawMatrices();
+    this.writeLights();
+  }
+
+  /**
+   * What Babylon writes into a light's uniforms while binding a material:
+   * direction or position, and the scaled colours. A light bound by materials
+   * with and without specular in one frame has a buffer for each, so every
+   * buffer gets them. The effect argument is only read without uniform buffers.
+   */
+  private writeLights(): void {
+    for (const light of this.scene.lights) {
+      if (!light.isEnabled() || light.getClassName() === "ClusteredLightContainer") continue;
+      const ubo = (light as unknown as { _uniformBuffer?: LightBuffer })._uniformBuffer;
+      if (!ubo?.useUbo || !ubo._buffers) continue;
+      const intensity = light.getScaledIntensity();
+      for (const [buffer] of ubo._buffers) {
+        if (!ubo.setDataBuffer(buffer)) continue;
+        light.transferToEffect(null as unknown as Effect, "");
+        light.diffuse.scaleToRef(intensity, this.lightColor);
+        ubo.updateColor4("vLightDiffuse", this.lightColor, light.range);
+        light.specular.scaleToRef(intensity, this.lightColor);
+        ubo.updateColor4("vLightSpecular", this.lightColor, light.radius);
+        ubo.update();
+      }
     }
   }
 
