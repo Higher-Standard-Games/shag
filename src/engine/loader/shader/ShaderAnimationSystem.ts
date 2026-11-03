@@ -12,6 +12,7 @@ import type { Color3 } from "@babylonjs/core/Maths/math.color";
 import type { Observer } from "@babylonjs/core/Misc/observable";
 import type { Scene } from "@babylonjs/core/scene";
 import { devLog } from "../../core/DevLog";
+import { createFlipbook, type Flipbook } from "../../rendering/TextureArrays";
 import type { AlphaGen, RgbGen, TcMod } from "./Q3ShaderTypes";
 
 import { createTcState, evaluateWaveFunc, stepTcModsInto, type TcState } from "./Q3StageEvaluation";
@@ -32,6 +33,12 @@ export interface AnimatedStage {
   alphaGen?: AlphaGen;
   baseColor?: Color3; // Original color for wave modulation
   colorTarget?: "diffuse" | "emissive";
+  /** The texture the frames are shown through, once made; null where they are swapped instead. */
+  flipbook?: Flipbook | null;
+}
+
+function disposeFlipbooks(entry: AnimatedMaterialEntry): void {
+  for (const stage of entry.stages) stage.flipbook?.dispose();
 }
 
 /** Entry for a material with animation */
@@ -104,6 +111,7 @@ export class ShaderAnimationSystem {
       this.scene.onBeforeRenderObservable.remove(this.renderObserver);
       this.renderObserver = null;
     }
+    for (const entry of this.entries.values()) disposeFlipbooks(entry);
     this.entries.clear();
     this.scene = null;
     this.totalTime = 0;
@@ -184,7 +192,10 @@ export class ShaderAnimationSystem {
    * Unregister a material
    */
   unregisterMaterial(id: string): void {
-    if (this.entries.delete(id)) {
+    const entry = this.entries.get(id);
+    if (entry) {
+      disposeFlipbooks(entry);
+      this.entries.delete(id);
       devLog(`[ShaderAnimationSystem] Unregistered: ${id}`);
     }
   }
@@ -194,6 +205,7 @@ export class ShaderAnimationSystem {
    */
   clear(): void {
     const count = this.entries.size;
+    for (const entry of this.entries.values()) disposeFlipbooks(entry);
     this.entries.clear();
     this.totalTime = 0;
     devLog(`[ShaderAnimationSystem] Cleared ${count} entries`);
@@ -272,20 +284,12 @@ export class ShaderAnimationSystem {
     for (const stage of entry.stages) {
       if (stage.frames?.textures.length) {
         const index = Math.floor(this.totalTime * stage.frames.frequency) % stage.frames.textures.length;
-        const texture = stage.frames.textures[index];
-        const material = entry.material;
-        if (stage.colorTarget === "emissive") {
-          if (
-            "diffuseTexture" in material &&
-            material.diffuseTexture === stage.texture &&
-            material.diffuseTexture !== texture
-          )
-            material.diffuseTexture = texture;
-          if (material.emissiveTexture !== texture) material.emissiveTexture = texture;
-        } else if ("diffuseTexture" in material) {
-          if (material.diffuseTexture !== texture) material.diffuseTexture = texture;
-        } else if (material.albedoTexture !== texture) material.albedoTexture = texture;
-        stage.texture = texture;
+        if (stage.flipbook === undefined) stage.flipbook = this.flipbookFor(entry, stage);
+        if (stage.flipbook) {
+          stage.flipbook.show(index);
+        } else {
+          this.showTexture(entry.material, stage, stage.frames.textures[index]);
+        }
       }
       // Apply tcMods
       this.applyTcMods(stage, deltaTime);
@@ -318,6 +322,39 @@ export class ShaderAnimationSystem {
         entry.material.alpha = Math.max(0, Math.min(1, waveValue));
       }
     }
+  }
+
+  /** Put `texture` in the material slots the stage's texture is in, and make it the stage's. */
+  private showTexture(material: StandardMaterial | PBRMaterial, stage: AnimatedStage, texture: Texture): void {
+    if (stage.colorTarget === "emissive") {
+      if (
+        "diffuseTexture" in material &&
+        material.diffuseTexture === stage.texture &&
+        material.diffuseTexture !== texture
+      )
+        material.diffuseTexture = texture;
+      if (material.emissiveTexture !== texture) material.emissiveTexture = texture;
+    } else if ("diffuseTexture" in material) {
+      if (material.diffuseTexture !== texture) material.diffuseTexture = texture;
+    } else if (material.albedoTexture !== texture) material.albedoTexture = texture;
+    stage.texture = texture;
+  }
+
+  /**
+   * One texture the stage's frames are copied into (WebGPU), so the material
+   * binds the same texture whichever frame is up: a draw replayed from a
+   * snapshot recording then shows the frame of the moment. Undefined while a
+   * frame is still loading, to try again; null where it cannot be made, and
+   * the frames are swapped into the material instead.
+   */
+  private flipbookFor(entry: AnimatedMaterialEntry, stage: AnimatedStage): Flipbook | null | undefined {
+    const frames = stage.frames?.textures ?? [];
+    const scene = entry.material.getScene();
+    if (!scene.getEngine().isWebGPU) return null;
+    if (frames.some((frame) => !frame.isReady())) return undefined;
+    const flipbook = createFlipbook(frames, scene, `${entry.id} frames`);
+    if (flipbook) this.showTexture(entry.material, stage, flipbook.texture);
+    return flipbook;
   }
 
   private fixedScaleEntryIsCurrent(entry: AnimatedMaterialEntry): boolean {

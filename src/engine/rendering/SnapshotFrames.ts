@@ -214,6 +214,16 @@ export interface SnapshotFramesHandle {
   dispose(): void;
 }
 
+/**
+ * Whether the frame being drawn replays a snapshot recording. Such a frame
+ * selects, binds and draws no mesh of its own, so mesh draw hooks and the
+ * active-mesh list say nothing about what is in view.
+ */
+export function replaysSnapshot(engine: AbstractEngine): boolean {
+  const snapshots = engine as unknown as SnapshotEngine;
+  return snapshots.snapshotRendering && snapshots.snapshotRenderingMode === FAST;
+}
+
 /** Whether the session address turns whole-frame snapshots on (`?snapshot=1`). */
 export function snapshotFramesRequested(search = ""): boolean {
   return new URLSearchParams(search).get("snapshot") === "1";

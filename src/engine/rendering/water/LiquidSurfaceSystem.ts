@@ -36,6 +36,7 @@ import type { Observer } from "@babylonjs/core/Misc/observable";
 import "@babylonjs/core/Rendering/boundingBoxRenderer";
 import type { Scene } from "@babylonjs/core/scene";
 import RenderVars from "../RenderVars";
+import { replaysSnapshot } from "../SnapshotFrames";
 import {
   createUnifiedWaterMaterial,
   disposeWaterNoise,
@@ -130,6 +131,8 @@ export class LiquidSurfaceSystem {
   private drawHooked = false;
   /** Consecutive frames with no water drawn, for the stop hysteresis. */
   private dryFrames = 0;
+  /** The last answer from frames that drew their own meshes. */
+  private lastVisible = true;
   /** Draw observers on the claimed meshes, removed on dispose. */
   private readonly drawObservers: Array<{ mesh: Mesh; observer: Observer<Mesh> }> = [];
 
@@ -555,7 +558,14 @@ export class LiquidSurfaceSystem {
     // no claimed mesh could be hooked. Assume visible rather than start the
     // effect switched off with no way to recover.
     if (!this.drawHooked) return true;
+    // A replayed snapshot frame runs no draw hooks; its draws are the ones
+    // recorded in a frame that did, so that frame's answer still holds.
+    if (replaysSnapshot(this.scene.getEngine())) return this.lastVisible;
+    this.lastVisible = this.drawnRecently();
+    return this.lastVisible;
+  }
 
+  private drawnRecently(): boolean {
     const drawn = this.waterDrawn;
     this.waterDrawn = false;
 

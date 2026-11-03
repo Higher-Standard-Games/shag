@@ -389,6 +389,34 @@ Firefox also shows a rare fully blank frame around recordings during playback
 (about one in a thousand screenshots); every frame caught on its own renders
 completely, so this is still open.
 
+### Pool-map sweep, November 4
+
+A sweep played a demo on every pool map (dm2, dm5, dm7, dm11, dm12, dm14,
+amphi1, amphi2, snd1, snd4, snd6) with snapshots on. For 25 seconds of play
+it counted replayed frames that drew a visible map surface collapsed, ghost
+frames and errors. Then it paused at a quarter, half and three quarters of
+the demo and compared a replayed frame, a recording frame and a normal frame
+of the same moment, with the shader clock stopped. No map had a collapsed
+surface or an error, and 71–96% of frames replayed. Two maps drew differently
+in replay:
+
+- **dm12, jump pad.** Its stage cycles images (`animMap`). A recorded draw
+  keeps the texture it was recorded with, so the pad stood still on one image.
+  Under WebGPU such a stage now draws from one texture whose content is copied
+  from the current image on the GPU each time the image changes, so the
+  binding never changes. Stages whose images differ in size or format keep
+  swapping the texture.
+- **amphi1, slime.** The water decides whether any liquid is in view from
+  draw hooks, which no replayed frame runs. After ten replayed frames it
+  concluded there was none, switched off its depth and refraction passes and
+  drew the slime without depth: a patch averaged RGB 64/156/49 in replay
+  against 97/171/73 in a normal frame. Replayed frames now keep the answer of
+  the last frame that drew its own meshes; the same patch reads 98/172/74.
+
+The other differences, on dm14 and in amphi1's pickups and slime ripples,
+move with time: dm14's went away with the shader clock stopped, and amphi1's
+follow clocks the sweep does not stop (pickup bobbing, the water's own time).
+
 ### What is left
 
 - **Cheaper recordings**: let a recording add a draw's cached bundle without
@@ -403,8 +431,3 @@ completely, so this is still open.
   pooling in the game code, and buffer releases.
 - **The controller's own work** is about 0.5 ms a frame beyond what Babylon
   would do anyway, most of it the draw-list signature over every mesh.
-- **Texture changes in replayed frames.** A Quake stage that cycles images
-  (`animMap`) swaps the texture, which a recorded draw cannot follow; none
-  showed in the listing above, so none of the measured maps relies on one in
-  view.
-- **The checks on every pool map** before snapshots can become the default.

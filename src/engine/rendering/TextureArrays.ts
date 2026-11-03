@@ -1,6 +1,7 @@
 import type { AbstractEngine } from "@babylonjs/core/Engines/abstractEngine";
 import { BaseTexture } from "@babylonjs/core/Materials/Textures/baseTexture";
 import type { InternalTexture } from "@babylonjs/core/Materials/Textures/internalTexture";
+import { Texture } from "@babylonjs/core/Materials/Textures/texture";
 import type { Scene } from "@babylonjs/core/scene";
 
 /**
@@ -280,4 +281,104 @@ function copyWebGL(engine: AbstractEngine, sources: InternalTexture[]): Internal
   webgl._bindTextureDirectly(target, null);
   internal.isReady = true;
   return internal;
+}
+
+/** A texture that shows one of its frames at a time. */
+export interface Flipbook {
+  readonly texture: Texture;
+  /** Copy frame `index` into the texture on the GPU; nothing when it is showing already. */
+  show(index: number): void;
+  dispose(): void;
+}
+
+/**
+ * One texture that shows same-shaped `frames` in turn, each copied into it on
+ * the GPU when shown. A material keeps binding the same texture whichever
+ * frame is up, so a draw replayed from a recording (WebGPU snapshots) shows
+ * the frame of the moment; swapping the material's texture would leave the
+ * recorded draw on the frame it was recorded with. The texture samples as the
+ * first frame does, its transform included. WebGPU only: null on other
+ * backends, before every frame is ready, or when the frames differ in shape.
+ */
+export function createFlipbook(frames: Texture[], scene: Scene, name: string): Flipbook | null {
+  const engine = scene.getEngine();
+  if (!engine.isWebGPU || frames.length === 0) return null;
+  const shape = textureArrayShape(frames[0], engine);
+  if (!shape || frames.some((frame) => textureArrayShape(frame, engine) !== shape)) return null;
+  const sources = frames.map((frame) => frame.getInternalTexture()!);
+  const first = sources[0];
+  const levels = webgpuLevels(first);
+  const internal = engine.createRawTexture(
+    null,
+    first.width,
+    first.height,
+    first.format,
+    levels > 1,
+    first.invertY,
+    first.samplingMode,
+    null,
+    first.type,
+    0,
+    false,
+    levels,
+  );
+  const destination = underlying(internal);
+  if (!destination || sources.some((source) => !underlying(source))) {
+    internal.dispose();
+    return null;
+  }
+  const sample = frames[0];
+  const texture = new Texture(null, scene);
+  texture._texture = internal;
+  texture.name = name;
+  texture.wrapU = sample.wrapU;
+  texture.wrapV = sample.wrapV;
+  texture.uScale = sample.uScale;
+  texture.vScale = sample.vScale;
+  texture.uOffset = sample.uOffset;
+  texture.vOffset = sample.vOffset;
+  texture.wAng = sample.wAng;
+  texture.coordinatesIndex = sample.coordinatesIndex;
+  texture.coordinatesMode = sample.coordinatesMode;
+  texture.anisotropicFilteringLevel = sample.anisotropicFilteringLevel;
+  texture.gammaSpace = sample.gammaSpace;
+  texture.hasAlpha = sample.hasAlpha;
+  texture.level = sample.level;
+  const gpu = engine as unknown as WebGPUCopyEngine;
+  const compressed = COMPRESSED_FORMATS.has(first.format);
+  let showing = -1;
+  let disposed = false;
+  const show = (index: number) => {
+    if (index === showing || disposed) return;
+    const source = underlying(sources[index]);
+    if (!source) return;
+    showing = index;
+    const encoder = gpu._device.createCommandEncoder();
+    for (let level = 0; level < levels; level++) {
+      let width = Math.max(1, first.width >> level);
+      let height = Math.max(1, first.height >> level);
+      // Compressed copies cover whole 4x4 blocks
+      if (compressed) {
+        width = Math.ceil(width / 4) * 4;
+        height = Math.ceil(height / 4) * 4;
+      }
+      encoder.copyTextureToTexture(
+        { texture: source, mipLevel: level },
+        { texture: destination, mipLevel: level },
+        { width, height, depthOrArrayLayers: 1 },
+      );
+    }
+    gpu._device.queue.submit([encoder.finish()]);
+  };
+  // Uploads still queued for the frames go first
+  gpu.flushFramebuffer?.();
+  show(0);
+  return {
+    texture,
+    show,
+    dispose: () => {
+      disposed = true;
+      texture.dispose();
+    },
+  };
 }
