@@ -23,8 +23,8 @@
  * - compares a signature of the draw list (enabled, visible meshes, their
  *   materials and instance buffers) before a recorded or replayed frame draws,
  *   after every other per-camera observer, and on a change draws that frame
- *   normally; a normal frame whose signature matches the one before it starts
- *   a recording in the next;
+ *   normally; once the signature has held still for a frame (longer after a
+ *   recording that replayed only a frame or two) the next frame records;
  * - keeps instanced effect batches in the recording whatever their count:
  *   they record indirect draws, and each replayed frame writes the current
  *   instance count, 0 for a batch the game has switched off;
@@ -68,6 +68,12 @@ import { devLog } from "../core/DevLog";
 
 /** Babylon's SNAPSHOTRENDERING_FAST. */
 const FAST = 1;
+/** Replayed frames below which a recording did not pay for itself. */
+const SHORT_REPLAY = 3;
+/** Replayed frames from which recordings start again after one stable frame. */
+const LONG_REPLAY = 30;
+/** The most stable normal frames a recording waits for. */
+const MAX_STABLE_WAIT = 8;
 /** Draws a normal frame compares for changing material values. */
 const LEARNED_DRAWS_PER_FRAME = 256;
 /** The world matrix of a mesh hidden in place: every vertex at the origin, nothing drawn. */
@@ -81,6 +87,7 @@ interface PassWrapper {
 }
 interface Recorder {
   record: boolean;
+  _record: boolean;
   play: boolean;
   _allBundleLists: unknown[];
   _playBundleListIndex: number;
@@ -98,6 +105,7 @@ interface SnapshotEngine {
   _device?: GPUDevice;
   _bufferManager?: { releaseBuffer(buffer: unknown): boolean };
   _textureHelper?: { releaseTexture(texture: unknown): void };
+  _draw?: (...args: unknown[]) => unknown;
 }
 interface DrawContextLike {
   enableIndirectDraw: boolean;
@@ -309,6 +317,11 @@ class SnapshotFrames implements SnapshotFramesHandle {
   private readonly slotValues = new WeakMap<object, Float32Array>();
   private readonly layoutRanges = new WeakMap<LeftOverBuffer, number[]>();
   private learnCursor = 0;
+  /** Normal frames the draw list has held still, and how many a recording waits for. */
+  private stableFrames = 0;
+  private stableNeeded = 1;
+  /** Frames replayed since the last recording. */
+  private replayRun = LONG_REPLAY;
   /** The engine frame of the last recording: its draws flushed their slots then. */
   private recordingFrame = -1;
   /** Recorded meshes drawn at full detail in the recording frame, whatever their distance. */
@@ -420,6 +433,26 @@ class SnapshotFrames implements SnapshotFramesHandle {
         textures.releaseTexture = release;
       });
     }
+    // A recording keeps each draw's own bundle instead of encoding the draw
+    // again: Babylon's recorder stores the pass's bundle list as it stands at
+    // the end of the pass, and a draw outside recording adds its cached bundle
+    // to that list (encoding one first when it has none or it went stale).
+    // Re-encoding every draw made a recording frame cost twice a normal one.
+    const draw = engine._draw;
+    if (draw && recorder) {
+      engine._draw = function (this: SnapshotEngine, ...args: unknown[]) {
+        if (!recorder._record) return draw.apply(this, args);
+        recorder._record = false;
+        try {
+          return draw.apply(this, args);
+        } finally {
+          recorder._record = true;
+        }
+      };
+      this.removals.push(() => {
+        engine._draw = draw;
+      });
+    }
     this.worldDispose = world.onDisposeObservable.addOnce(() => this.dispose());
     scene.onDisposeObservable.addOnce(() => this.dispose());
   }
@@ -474,7 +507,9 @@ class SnapshotFrames implements SnapshotFramesHandle {
     // The recording frame's forced state goes back before anything is compared
     const missing = this.forced.filter(({ mesh }) => !this.drawnForced.has(mesh)).map(({ mesh }) => mesh);
     if (this.forced.length || this.fullDetail.length) this.releaseForced();
-    if (this.kind !== "replay") this.learnMaterialValues();
+    // Normal frames only: a recording frame is the slowest frame there is
+    if (this.kind === "normal") this.learnMaterialValues();
+    if (this.kind === "replay") this.replayRun++;
     if (this.kind === "replay" || this.kind === "recording") {
       // The draw list was compared before the frame drew; a change after that
       // is found before the next one draws
@@ -496,9 +531,17 @@ class SnapshotFrames implements SnapshotFramesHandle {
       this.lastSignature = this.recordedSignature;
       return;
     }
-    // A normal frame: record the next one once the draw list held still for a frame.
+    // A normal frame: record the next one once the draw list held still long enough.
     const signature = drawListSignature(this.scene.meshes, this.isInPlace, this.learnToggle);
-    if (signature === this.lastSignature) {
+    this.stableFrames = signature === this.lastSignature ? this.stableFrames + 1 : 0;
+    if (this.stableFrames >= this.stableNeeded) {
+      // A recording costs about two normal frames; one that replayed only a
+      // frame or two (a fight changing what is drawn every few frames) cost
+      // more than it saved, so the next waits longer for the draws to settle
+      if (this.replayRun < SHORT_REPLAY) this.stableNeeded = Math.min(this.stableNeeded * 2, MAX_STABLE_WAIT);
+      else if (this.replayRun >= LONG_REPLAY) this.stableNeeded = 1;
+      this.replayRun = 0;
+      this.stableFrames = 0;
       this.passKeys = [];
       this.recordedSignature = signature;
       this.recorded = this.scene.meshes.filter(

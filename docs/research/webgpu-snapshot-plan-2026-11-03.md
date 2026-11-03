@@ -337,10 +337,43 @@ bind. A batch forced from no instances to one collapses the same way. The
 recording frame then matches the normal frame, apart from things that
 animate between the two screenshots (spinning pickups, gun barrels).
 
+### Fewer and cheaper recordings, November 3
+
+- **Recordings keep each draw's own bundle.** In record mode Babylon encodes
+  every draw again into the recording's encoder. The recorder only stores the
+  pass's bundle list at the end of the pass, so `_draw` now runs its normal
+  path during a recording (the record flag hidden for that call), which adds
+  the draw's cached bundle to the list. Recordings fell from about 20 to
+  17 ms on dm11.
+- **The end of a recording frame does less.** Material learning runs in
+  normal frames only, and the list of recorded slot draws is built in the
+  first replayed frame (slots keep the recording frame's flush stamp until
+  something draws again).
+- **Recordings that do not pay are spaced out.** After a recording that
+  replayed fewer than 3 frames, the next waits for a longer stable stretch
+  (doubling, up to 8 frames); a run of 30 resets it.
+- **Pickup and teleport bursts are pooled** in the game code. A pickup keeps
+  one collection burst and plays it again; teleport starbursts come from a
+  pool like the ghosts do. Both created meshes and materials per use, and
+  each use re-recorded twice (on creation and on disposal).
+
+After a minute of the dm11 FFA demo, draw-list changes fall to about 1.5 a
+second and recordings to 2.6 a second. Replay runs have a median of 32
+frames. Snapshots run at 177 fps against 94 fps without.
+
+A recording frame still draws about three times what a normal frame does
+(477 active meshes against 151): 130 world surfaces, about 200 shown pool
+members (mostly weapon parts, a dozen meshes per held or dropped weapon), 75
+hidden ones, and the rest visible but out of view. Each goes through
+Babylon's per-mesh path, material bind included.
+
 ### What is left
 
-- **Cheaper recordings**: the world's surface bundles added into the
-  recording instead of drawing every surface again.
+- **Cheaper recordings**: let a recording add a draw's cached bundle without
+  running Babylon's per-mesh path, as the world bundle replay does for map
+  surfaces, for meshes whose bindings are current.
+- **Player models** are disposed on death and created on respawn, a few
+  draw-list changes per death.
 - **Frames that do not replay** (12%) cost a normal frame or more each and
   are about 0.6 ms of the average frame. Their causes: meshes created and
   disposed in play (gun model clones on weapon switches, transient fragments
