@@ -302,6 +302,8 @@ class SnapshotFrames implements SnapshotFramesHandle {
     count: number;
     /** Its world matrix, when a zero one stands in for this frame. */
     world: Matrix | null;
+    /** Its owner froze its world matrix: refrozen on its own matrix after the frame. */
+    frozen: boolean;
   }[] = [];
   /** The visibility each recorded mesh last wrote: a fade lives in the mesh uniforms too. */
   private readonly visibilities = new WeakMap<AbstractMesh, number>();
@@ -581,7 +583,9 @@ class SnapshotFrames implements SnapshotFramesHandle {
 
   /** Meshes that keep being shown and hidden stay in the recording from now on. */
   private readonly learnToggle = (mesh: AbstractMesh, shown: boolean): void => {
-    if (this.inPlace.has(mesh) || this.unrecordable.has(mesh)) return;
+    // Map surfaces are in every recording already; PVS showing and hiding
+    // them as the camera moves is not a change to collapse them for
+    if (this.inPlace.has(mesh) || this.unrecordable.has(mesh) || this.worldMeshes.has(mesh)) return;
     const flips = this.flips.get(mesh);
     if (!flips) {
       this.flips.set(mesh, { shown, count: 0 });
@@ -631,11 +635,12 @@ class SnapshotFrames implements SnapshotFramesHandle {
       // frame's first write to its uniforms, so the matrix it draws with is
       // a frozen zero (for a batch, its instances collapse with it)
       let world: Matrix | null = null;
-      if (hidden && !mesh.isWorldMatrixFrozen) {
+      const frozen = mesh.isWorldMatrixFrozen;
+      if (hidden) {
         world = mesh.getWorldMatrix();
         mesh.freezeWorldMatrix(Matrix.Zero());
       }
-      this.forced.push({ mesh, enabled, visible, visibility, count, world });
+      this.forced.push({ mesh, enabled, visible, visibility, count, world, frozen });
       if (!enabled) mesh.setEnabled(true);
       if (!visible) mesh.isVisible = true;
       if (visibility <= 0) mesh.visibility = 1;
@@ -646,9 +651,12 @@ class SnapshotFrames implements SnapshotFramesHandle {
   private releaseForced(): void {
     for (const mesh of this.fullDetail) delete (mesh as unknown as { getLOD?: unknown }).getLOD;
     this.fullDetail = [];
-    for (const { mesh, enabled, visible, visibility, count, world } of this.forced) {
+    for (const { mesh, enabled, visible, visibility, count, world, frozen } of this.forced) {
       if (mesh.isDisposed()) continue;
-      if (world) {
+      if (world && frozen) {
+        // Frozen by its owner: frozen again on its own matrix
+        mesh.freezeWorldMatrix(world);
+      } else if (world) {
         // Its own matrix object back, recomputed from its transform
         (mesh as unknown as { _worldMatrix: Matrix })._worldMatrix = world;
         mesh.unfreezeWorldMatrix();
@@ -871,6 +879,8 @@ class SnapshotFrames implements SnapshotFramesHandle {
       } else {
         this.hiddenInPlace.delete(mesh);
         this.worldFlags.delete(mesh);
+        // The world loop rewrites the others; a frozen matrix it skips
+        if (mesh.isWorldMatrixFrozen && !mesh.infiniteDistance) mesh.transferToEffect(mesh.getWorldMatrix());
       }
     }
   }

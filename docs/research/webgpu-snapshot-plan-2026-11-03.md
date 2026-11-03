@@ -367,6 +367,28 @@ members (mostly weapon parts, a dozen meshes per held or dropped weapon), 75
 hidden ones, and the rest visible but out of view. Each goes through
 Babylon's per-mesh path, material bind included.
 
+### Missing walls, November 4
+
+Playtesting (Opera, Firefox) showed walls and a teleporter missing for a
+moment, with the rooms behind them visible. The PVS culler hides map
+surfaces by toggling `isVisible` as the camera moves between clusters, and
+the controller learned those toggles like a pooled mesh's: after two, a
+surface became hidden in place. When PVS hid it, its world matrix was
+collapsed; when PVS showed it again, the per-frame world loop skipped it
+because map surfaces have frozen world matrices, so it stayed collapsed until
+the next recording bound it again. On the dm2 demo, 11% of replayed frames had
+a visible map surface drawn collapsed.
+
+Map surfaces are no longer learned (they are in every recording already). A
+hidden-in-place mesh with a frozen world matrix gets its matrix written back
+when it is shown, and collapses in recording frames like the others, frozen
+again on its own matrix afterwards. On the same demo, no replayed frame has a
+collapsed visible map surface.
+
+Firefox also shows a rare fully blank frame around recordings during playback
+(about one in a thousand screenshots); every frame caught on its own renders
+completely, so this is still open.
+
 ### What is left
 
 - **Cheaper recordings**: let a recording add a draw's cached bundle without
