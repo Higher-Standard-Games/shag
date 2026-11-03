@@ -43,6 +43,7 @@
  * `?snapshot=1` in the page address turns snapshots on.
  */
 
+import type { Skeleton } from "@babylonjs/core/Bones/skeleton";
 import type { Camera } from "@babylonjs/core/Cameras/camera";
 import type { AbstractEngine } from "@babylonjs/core/Engines/abstractEngine";
 import { Matrix } from "@babylonjs/core/Maths/math.vector";
@@ -154,13 +155,18 @@ export function instanceStorage(mesh: AbstractMesh): ThinInstanceStorage | null 
 export function drawListSignature(
   meshes: readonly AbstractMesh[],
   inPlace: (mesh: AbstractMesh) => boolean = () => false,
+  visit?: (mesh: AbstractMesh, shown: boolean) => void,
 ): number {
   let hash = 0;
   let count = 0;
   for (const mesh of meshes) {
-    const batch = instanceStorage(mesh);
     if (!mesh.subMeshes?.length) continue;
-    if (!batch && !inPlace(mesh) && (!mesh.isEnabled() || !mesh.isVisible || mesh.visibility <= 0)) continue;
+    const batch = instanceStorage(mesh);
+    if (!batch) {
+      const shown = mesh.isEnabled() && mesh.isVisible && mesh.visibility > 0;
+      visit?.(mesh, shown);
+      if (!shown && !inPlace(mesh)) continue;
+    }
     const material = mesh.material;
     const wrappers = (
       mesh.subMeshes[0] as unknown as { _drawWrappers: ({ _wasPreviouslyReady?: boolean } | undefined)[] }
@@ -202,6 +208,7 @@ class SnapshotFrames implements SnapshotFramesHandle {
   }[] = [];
   /** The visibility each recorded mesh last wrote: a fade lives in the mesh uniforms too. */
   private readonly visibilities = new WeakMap<AbstractMesh, number>();
+  private readonly skeletons = new Set<Skeleton>();
   private readonly watched = new WeakSet<AbstractMesh>();
   /** Forced meshes that drew while recording; one that did not forces a new recording. */
   private readonly drawnForced = new Set<AbstractMesh>();
@@ -359,8 +366,7 @@ class SnapshotFrames implements SnapshotFramesHandle {
     // The recording frame's forced state goes back before anything is compared
     const missing = this.forced.filter(({ mesh }) => !this.drawnForced.has(mesh)).map(({ mesh }) => mesh);
     if (this.forced.length) this.releaseForced();
-    this.learnToggles();
-    const signature = drawListSignature(this.scene.meshes, this.isInPlace);
+    const signature = drawListSignature(this.scene.meshes, this.isInPlace, this.learnToggle);
     if (this.kind === "replay" || this.kind === "recording") {
       if (this.passMismatch) {
         this.passMismatch = false;
@@ -415,20 +421,16 @@ class SnapshotFrames implements SnapshotFramesHandle {
   }
 
   /** Meshes that keep being shown and hidden stay in the recording from now on. */
-  private learnToggles(): void {
-    for (const mesh of this.scene.meshes) {
-      if (!mesh.subMeshes?.length || this.inPlace.has(mesh) || this.unrecordable.has(mesh) || instanceStorage(mesh))
-        continue;
-      const shown = mesh.isEnabled() && mesh.isVisible && mesh.visibility > 0;
-      const flips = this.flips.get(mesh);
-      if (!flips) {
-        this.flips.set(mesh, { shown, count: 0 });
-      } else if (flips.shown !== shown) {
-        flips.shown = shown;
-        if (++flips.count >= 2) this.inPlace.add(mesh);
-      }
+  private readonly learnToggle = (mesh: AbstractMesh, shown: boolean): void => {
+    if (this.inPlace.has(mesh) || this.unrecordable.has(mesh)) return;
+    const flips = this.flips.get(mesh);
+    if (!flips) {
+      this.flips.set(mesh, { shown, count: 0 });
+    } else if (flips.shown !== shown) {
+      flips.shown = shown;
+      if (++flips.count >= 2) this.inPlace.add(mesh);
     }
-  }
+  };
 
   /**
    * Babylon draws neither a hidden or disabled mesh nor a batch with no
@@ -513,9 +515,12 @@ class SnapshotFrames implements SnapshotFramesHandle {
     }
   }
 
-  private get groups(): ({ _empty: boolean } | undefined)[] {
-    return (this.scene.renderingManager as unknown as { _renderingGroups: ({ _empty: boolean } | undefined)[] })
-      ._renderingGroups;
+  private get groups(): ({ _empty: boolean; prepare(): void } | undefined)[] {
+    return (
+      this.scene.renderingManager as unknown as {
+        _renderingGroups: ({ _empty: boolean; prepare(): void } | undefined)[];
+      }
+    )._renderingGroups;
   }
 
   private noteGroups(): void {
@@ -531,14 +536,18 @@ class SnapshotFrames implements SnapshotFramesHandle {
   /**
    * Groups are shared by every camera and a replayed frame never resets them,
    * so each camera sets all of them: the groups it drew while recording are
-   * occupied, the rest empty.
+   * occupied, the rest empty. Their lists are emptied either way: a group
+   * still holding the recording frame's submeshes would bind every one of them
+   * again, only to have the engine skip the draw.
    */
   private markGroups(): void {
     const camera = this.scene.activeCamera;
     if (!camera || !this.engine._snapshotRendering?.play) return;
     const occupied = this.occupied.get(camera) ?? [];
     this.groups.forEach((group, index) => {
-      if (group) group._empty = !occupied.includes(index);
+      if (!group) return;
+      group.prepare();
+      group._empty = !occupied.includes(index);
     });
   }
 
@@ -552,7 +561,12 @@ class SnapshotFrames implements SnapshotFramesHandle {
       this.forceRecorded();
       return;
     }
-    for (const skeleton of this.scene.skeletons) skeleton.prepare(true);
+    // Only the skeletons of skinned meshes that draw, as Babylon's own selection does
+    this.skeletons.clear();
+    for (const mesh of this.recorded) {
+      if (mesh.skeleton && !this.hiddenInPlace.has(mesh) && mesh.isEnabled()) this.skeletons.add(mesh.skeleton);
+    }
+    for (const skeleton of this.skeletons) skeleton.prepare();
     this.writeInstanceCounts(false);
     this.writeHidden(false);
     for (const mesh of this.recorded) {

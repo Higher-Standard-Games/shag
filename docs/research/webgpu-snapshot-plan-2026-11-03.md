@@ -156,3 +156,63 @@ measured separately.
 - **A custom renderer replacing Babylon.** The snapshot path keeps Babylon's
   materials, shaders and loaders and removes its per-frame cost, which is the
   part that matters.
+
+## Progress
+
+All of this runs only with `?snapshot=1`; without it the game renders as
+before.
+
+### Stages 1–3, November 3
+
+`src/engine/rendering/SnapshotFrames.ts` holds the controller. What the first
+measurements taught, in the order they came up:
+
+- **A recording must start with a frame.** The last pass of a frame ends
+  after `onAfterRender`, so a recording switched on there began one pass late;
+  it now starts in the next frame's `onBeforeRender`.
+- **A replayed frame runs different passes unless helped.** Babylon notifies a
+  rendering group only when it has meshes, and in FAST replay every group is
+  empty, so the weapon view's group depth clears and the scene depth capture's
+  group hook never ran. The controller notes each camera's occupied groups
+  while recording and marks them occupied (with their lists emptied) in
+  replayed frames. Groups are shared by the cameras and never reset in FAST
+  mode, so every camera sets every group.
+- **Pass keys come from the ending pass's label.** The engine's current
+  target already describes the next pass when `endRenderPass` runs.
+- **Effect batches draw indirectly.** Forced on in the recording frame, their
+  count is written each replayed frame; this removed most re-records.
+- **Hidden in place, learned.** A mesh shown and hidden twice is forced into
+  recordings and collapsed while hidden. A mesh hidden by a disabled ancestor
+  is not forced: enabling a pool root showed every model template under it.
+- **Released buffers and textures stop the replay.** A player outline's
+  uniform slot was released without any mesh, material or texture disposal
+  and destroyed after the frame, and the next replayed frame failed WebGPU
+  validation. Releases happen in about 2% of frames.
+- **Culling stays on outside the recording frame.** With it off in every
+  non-replayed frame, those frames cost three times a normal frame.
+- **Only drawn skeletons are prepared, unforced.** Forcing every skeleton,
+  templates included, cost 0.5 ms a frame.
+
+Measured on the dm2 FFA demo during a slow machine period (normal WebGPU at
+100–180 fps instead of 250–300):
+
+| Measurement | Result |
+| --- | --- |
+| Frames replayed | 88% |
+| Draw-list changes | about 6 a second |
+| Main-thread time per frame (CPU profile, back to back) | 6.78 ms against 9.50 ms: ×1.40 |
+| In-page toggle bench, snapshots on against off | ×1.28 (no-op control ×0.97–1.00) |
+| Paused-frame pixels | Match normal rendering, except the plasma gun's animated glow (stage 4) |
+
+### What is left
+
+- **Frames that do not replay** (12%) cost a normal frame or more each and
+  are about 0.6 ms of the average frame. Their causes: meshes created and
+  disposed in play (gun model clones on weapon switches, transient fragments
+  and flashes, teleport bursts, new gib batches, ammo counters), which need
+  pooling in the game code, and buffer releases.
+- **The controller's own work** is about 0.5 ms a frame beyond what Babylon
+  would do anyway, most of it the draw-list signature over every mesh.
+- **Stage 4**, material values in replayed frames (the gun's glow, muzzle
+  flash, player tints, water, animated Quake stages), and the checks on every
+  pool map, before snapshots can become the default.
