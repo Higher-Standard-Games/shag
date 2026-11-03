@@ -367,7 +367,7 @@ members (mostly weapon parts, a dozen meshes per held or dropped weapon), 75
 hidden ones, and the rest visible but out of view. Each goes through
 Babylon's per-mesh path, material bind included.
 
-### Missing walls, November 4
+### Missing walls, November 3
 
 Playtesting (Opera, Firefox) showed walls and a teleporter missing for a
 moment, with the rooms behind them visible. The PVS culler hides map
@@ -389,7 +389,7 @@ Firefox also shows a rare fully blank frame around recordings during playback
 (about one in a thousand screenshots); every frame caught on its own renders
 completely, so this is still open.
 
-### Pool-map sweep, November 4
+### Pool-map sweep, November 3
 
 A sweep played a demo on every pool map (dm2, dm5, dm7, dm11, dm12, dm14,
 amphi1, amphi2, snd1, snd4, snd6) with snapshots on. For 25 seconds of play
