@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   createRenderingEngine,
   initializeWebGPUWithCleanup,
+  isHardwareAdapter,
   loadWebGPUBackend,
   type RenderingEngineFactories,
   resolveRenderingBackend,
@@ -50,6 +51,15 @@ describe("RenderingEngineFactory", () => {
     expect(resolveRenderingBackend(true)).toBe("webgpu");
     expect(resolveRenderingBackend(false, "?renderer=webgpu")).toBe("webgpu");
     expect(resolveRenderingBackend(true, "?renderer=webgl2")).toBe("webgl2");
+  });
+
+  it("counts a software WebGPU adapter as no WebGPU", () => {
+    const adapter = (fields: object) => fields as unknown as GPUAdapter;
+    expect(isHardwareAdapter(null)).toBe(false);
+    expect(isHardwareAdapter(adapter({ isFallbackAdapter: false }))).toBe(true);
+    expect(isHardwareAdapter(adapter({ isFallbackAdapter: true }))).toBe(false);
+    expect(isHardwareAdapter(adapter({ info: { isFallbackAdapter: true } }))).toBe(false);
+    expect(isHardwareAdapter(adapter({ info: { isFallbackAdapter: false } }))).toBe(true);
   });
 
   it("registers the compute shader particle platform weather uses on WebGPU", async () => {

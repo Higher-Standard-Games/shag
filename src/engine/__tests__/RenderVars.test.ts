@@ -152,7 +152,7 @@ describe("RenderVars", () => {
       expect(names).toContain("r_ambient");
       expect(names).toContain("r_emissive");
       expect(names).toContain("r_anisotropy");
-      expect(names).toContain("r_webgpu");
+      expect(names).toContain("r_renderer");
       expect(names).toContain("r_wireframe");
 
       // Post-processing
@@ -169,7 +169,7 @@ describe("RenderVars", () => {
       expect(rv.get("r_glossmap")).toBe(1.0);
       expect(rv.get("r_lightmap")).toBe(1.0);
       expect(rv.get("r_anisotropy")).toBe(4);
-      expect(rv.get("r_webgpu")).toBe(0);
+      expect(rv.get("r_renderer")).toBe(1);
       expect(rv.get("r_wireframe")).toBe(0);
       expect(rv.get("r_water_quality")).toBe(2);
       expect(rv.getVar("r_water_quality")!.defaultValue).toBe(2);
@@ -284,10 +284,10 @@ describe("RenderVars", () => {
       expect(rv.get("r_wireframe")).toBe(1);
     });
 
-    it("rounds restart-only r_webgpu to integer", () => {
+    it("rounds restart-only r_renderer to integer", () => {
       const rv = getRV();
-      rv.set("r_webgpu", 0.2);
-      expect(rv.get("r_webgpu")).toBe(0);
+      rv.set("r_renderer", 0.2);
+      expect(rv.get("r_renderer")).toBe(0);
     });
 
     it("rounds r_ktx2 to integer", () => {

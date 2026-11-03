@@ -8,7 +8,7 @@
 | --- | --- |
 | Material | `r_deluxe`, `r_bsp_pbr`, `r_normalmap`, `r_glossmap`, `r_lightmap`, `r_emissive` |
 | Texture | `r_anisotropy`, `r_ktx2`, `r_picmip` |
-| Display | `r_webgpu`, `r_bsp_freeze`, `r_ssr`, `r_softhalos`, `r_glow`, `r_bloom`, `r_exposure`, `r_contrast`, `r_renderscale`, `r_msaa`, `r_marks`, `r_gibs`, `r_teleport_ghost` |
+| Display | `r_renderer`, `r_bsp_freeze`, `r_ssr`, `r_softhalos`, `r_glow`, `r_bloom`, `r_exposure`, `r_contrast`, `r_renderscale`, `r_msaa`, `r_marks`, `r_gibs`, `r_teleport_ghost` |
 | Lighting | `r_ambient`, `r_lightintensity`, `r_lightmapscale`, `r_dynamiclight`, god-ray, area-light, and day/night groups |
 | Debug | `r_wireframe`, `r_showtris`, `r_water_debug` |
 
@@ -19,9 +19,10 @@ default (`r_picmip 0`). Saved settings take priority over defaults.
 
 ### Renderer
 
-`r_webgpu` (default 0) picks the renderer at the next start: 0 is WebGL2, 1 is
-WebGPU, which falls back to WebGL2 where the browser has no WebGPU. Washoi
-shows it as **Video → Advanced → Renderer**. `?renderer=webgl2` or
+`r_renderer` (default 1) picks the renderer at the next start: 0 is WebGL2, 1 is
+WebGPU. WebGPU falls back to WebGL2 when the browser has no WebGPU, when the
+only adapter is a software (fallback) one, or when the device fails to start;
+the console logs the reason. Washoi shows it as **Video → Advanced → Renderer**. `?renderer=webgl2` or
 `?renderer=webgpu` in the page address overrides it for one session without
 changing the saved value. Under WebGPU, whole-frame snapshots are on unless the
 address says `?snapshot=0`.

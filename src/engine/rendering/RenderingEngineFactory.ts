@@ -91,7 +91,19 @@ export async function loadWebGPUBackend() {
 
 async function isWebGPUSupported(): Promise<boolean> {
   const WebGPUEngine = await loadWebGPUBackend();
-  return WebGPUEngine.IsSupportedAsync;
+  if (!(await WebGPUEngine.IsSupportedAsync)) return false;
+  const adapter = await navigator.gpu.requestAdapter({ powerPreference: "high-performance" });
+  return isHardwareAdapter(adapter);
+}
+
+/**
+ * Whether WebGPU would draw on the GPU. A fallback adapter is a software
+ * renderer on the CPU, where WebGL2 on the GPU is faster.
+ */
+export function isHardwareAdapter(adapter: GPUAdapter | null): boolean {
+  if (!adapter) return false;
+  const info = (adapter as { info?: { isFallbackAdapter?: boolean } }).info;
+  return !(info?.isFallbackAdapter ?? adapter.isFallbackAdapter);
 }
 
 /**

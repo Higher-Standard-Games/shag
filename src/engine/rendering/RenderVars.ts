@@ -73,7 +73,7 @@ export type RenderVarName =
   | "r_emissive"
   | "r_anisotropy"
   | "r_ktx2"
-  | "r_webgpu"
+  | "r_renderer"
   | "r_bsp_freeze"
   | "r_bsp_cellsize"
   | "r_godrays"
@@ -220,13 +220,13 @@ const DEFAULT_VARS: Record<string, Omit<RenderVar, "name">> = {
     description: "Prefer generated KTX2 texture sidecars when available (0/1). Applies on next texture load.",
     category: "texture",
   },
-  r_webgpu: {
-    value: 0,
-    defaultValue: 0,
+  r_renderer: {
+    value: 1,
+    defaultValue: 1,
     min: 0,
     max: 1,
     description:
-      "Renderer at the next start (0 WebGL2, 1 WebGPU; WebGL2 where the browser has no WebGPU). ?renderer=webgl2 or ?renderer=webgpu overrides it for a session.",
+      "Renderer at the next start (0 WebGL2, 1 WebGPU; WebGL2 where the browser or GPU has no WebGPU). ?renderer=webgl2 or ?renderer=webgpu overrides it for a session.",
     category: "display",
   },
   r_bsp_freeze: {
@@ -858,7 +858,7 @@ export class RenderVars {
       name === "r_picmip" ||
       name === "r_ktx2" ||
       name === "r_wireframe" ||
-      name === "r_webgpu" ||
+      name === "r_renderer" ||
       name === "r_bsp_freeze" ||
       name === "r_bsp_cellsize"
     ) {
