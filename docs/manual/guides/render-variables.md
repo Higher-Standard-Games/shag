@@ -17,6 +17,15 @@ The defaults use bloom off (`r_bloom 0`) and 4× anisotropic filtering
 disables the bloom rendering pass. Full-resolution map textures remain the
 default (`r_picmip 0`). Saved settings take priority over defaults.
 
+### Renderer
+
+`r_webgpu` (default 0) picks the renderer at the next start: 0 is WebGL2, 1 is
+WebGPU, which falls back to WebGL2 where the browser has no WebGPU. Washoi
+shows it as **Video → Advanced → Renderer**. `?renderer=webgl2` or
+`?renderer=webgpu` in the page address overrides it for one session without
+changing the saved value. Under WebGPU, whole-frame snapshots are on unless the
+address says `?snapshot=0`.
+
 ### Frame-cost switches
 
 Washoi's Ultralow video preset turns these down; every other preset sets them

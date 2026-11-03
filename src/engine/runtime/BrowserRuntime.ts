@@ -19,9 +19,9 @@ import { WorldFogController } from "../rendering/WorldFogController";
 
 /** Create a renderer using the engine's supported backend/fallback policy. */
 export async function createBrowserRenderer(canvas: HTMLCanvasElement, search: string) {
-  // WebGPU is an explicit URL opt-in while renderer parity is under validation.
-  // Persisted backend preferences do not override the default WebGL policy.
-  return createRenderingEngine(canvas, resolveRenderingBackend(false, search), undefined, {
+  // r_webgpu picks the backend at start; ?renderer= overrides it for the session
+  const webgpu = (RenderVars.getInstance().get("r_webgpu") ?? 0) >= 0.5;
+  return createRenderingEngine(canvas, resolveRenderingBackend(webgpu, search), undefined, {
     nonCompatibilityMode: resolveWebGPUNonCompatibilityMode(search),
     // A WebGL or WebGPU context fixes its antialiasing when made: r_msaa applies at the next start
     antialias: (RenderVars.getInstance().get("r_msaa") ?? 1) >= 0.5,

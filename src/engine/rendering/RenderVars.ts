@@ -226,7 +226,7 @@ const DEFAULT_VARS: Record<string, Omit<RenderVar, "name">> = {
     min: 0,
     max: 1,
     description:
-      "Experimental WebGPU renderer (restart required). Use ?renderer=webgpu while the compatibility gate is open.",
+      "Renderer at the next start (0 WebGL2, 1 WebGPU; WebGL2 where the browser has no WebGPU). ?renderer=webgl2 or ?renderer=webgpu overrides it for a session.",
     category: "display",
   },
   r_bsp_freeze: {
