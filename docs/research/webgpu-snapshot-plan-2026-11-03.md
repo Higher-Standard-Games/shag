@@ -283,8 +283,47 @@ Where it animates, two replayed frames differ as much as two normal ones.
 The binds cost about 4% of a replayed frame (toggle bench ×1.04 without
 them); snapshots measured ×1.34 overall in the same session.
 
+### Ghosts and frame pacing, November 3
+
+Playtesting on dm11 with four bots showed sprites and projectiles lingering
+for a frame after they should be gone, and frame rate swinging down to
+40 fps. A per-frame log on the dm11 FFA demo found four causes:
+
+- **The draw list was compared after the frame drew.** A projectile hidden in
+  the game's update was replayed once more where it was. The comparison now
+  runs before the first camera draws, after every other per-camera observer
+  (the controller moves its own to the end each frame), and a changed frame
+  draws normally. Ghost frames fell from about 6 a second to 0.5.
+- **Weapon parts with a distance level of detail** (sights, glass, glow
+  strips past 400 to 700 units) could not be forced into a recording made from
+  far away. The controller then gave up on them for the session, and every
+  weapon switch afterwards forced a new recording. Recordings now draw recorded
+  meshes at full detail; in replayed frames those parts draw at any distance.
+- **Learning material values cost 3.2 ms** in every normal frame. It now
+  compares 256 draws a frame, carrying on where it stopped: 0.46 ms.
+- **Slot draws included passes the recording does not hold**, such as a
+  water reflection probe's six faces, which render once. Rebinding those cost
+  dm11 about 40 binds a frame. Only draws flushed in the recording frame are
+  listed now. Rebinding fell from 1.24 to 0.58 ms.
+
+| dm11 FFA demo | Snapshots off | Snapshots on |
+| --- | --- | --- |
+| Frames per second | 109.7 | 171.8 |
+| Replayed frame | | 4.8 ms |
+| Normal frame | 9.1 ms | 12.0 ms |
+| Recording frame | | 20.2 ms |
+| p95 / p99 frame | 14.6 / 19.3 ms | 13.7 / 23.7 ms |
+
+The recordings are now the slow frames: about 5 a second, at twice a normal
+frame. Their draw phase is about 10 ms against 3 ms in a normal frame,
+because culling is off and the world's surfaces are drawn one by one: the world
+bundle replay stays off while recording, and its refresh path fails when it
+draws inside a snapshot recording.
+
 ### What is left
 
+- **Cheaper recordings**: the world's surface bundles added into the
+  recording instead of drawing every surface again.
 - **Frames that do not replay** (12%) cost a normal frame or more each and
   are about 0.6 ms of the average frame. Their causes: meshes created and
   disposed in play (gun model clones on weapon switches, transient fragments

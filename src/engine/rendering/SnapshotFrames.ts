@@ -21,8 +21,10 @@
  *   learned to change between frames (effect time, scrolling stages, fades)
  *   are bound again into their recorded draws' uniform slots;
  * - compares a signature of the draw list (enabled, visible meshes, their
- *   materials and instance buffers) at the end of every frame, and on any
- *   change draws the next frame normally and records the one after;
+ *   materials and instance buffers) before a recorded or replayed frame draws,
+ *   after every other per-camera observer, and on a change draws that frame
+ *   normally; a normal frame whose signature matches the one before it starts
+ *   a recording in the next;
  * - keeps instanced effect batches in the recording whatever their count:
  *   they record indirect draws, and each replayed frame writes the current
  *   instance count, 0 for a batch the game has switched off;
@@ -66,6 +68,8 @@ import { devLog } from "../core/DevLog";
 
 /** Babylon's SNAPSHOTRENDERING_FAST. */
 const FAST = 1;
+/** Draws a normal frame compares for changing material values. */
+const LEARNED_DRAWS_PER_FRAME = 256;
 /** The world matrix of a mesh hidden in place: every vertex at the origin, nothing drawn. */
 const COLLAPSED = Matrix.Zero();
 
@@ -108,6 +112,8 @@ interface LeftOverBuffer {
   _buffers?: [unknown, Float32Array | undefined][];
   _bufferIndex?: number;
   _bufferData?: Float32Array;
+  /** The engine frame each slot was last flushed in. */
+  _slotFrameId?: number[];
   setDataBuffer(dataBuffer: unknown): boolean;
   update(): void;
 }
@@ -164,6 +170,10 @@ interface SlotDraw {
   slot: unknown;
   /** The matrix uniforms among its uniforms. */
   uniforms: MatrixUniform[];
+  /** Where its other values are, as [start, end) pairs. */
+  ranges: number[];
+  /** Its slot in the uniform buffer, once looked up. */
+  slotIndex?: number;
   /** Whether a world matrix is among them, so hiding collapses that instead of the camera. */
   hasWorld: boolean;
 }
@@ -296,6 +306,11 @@ class SnapshotFrames implements SnapshotFramesHandle {
   /** Each draw's slot values in the last frame Babylon drew, by draw context. */
   private readonly slotValues = new WeakMap<object, Float32Array>();
   private readonly layoutRanges = new WeakMap<LeftOverBuffer, number[]>();
+  private learnCursor = 0;
+  /** The engine frame of the last recording: its draws flushed their slots then. */
+  private recordingFrame = -1;
+  /** Recorded meshes drawn at full detail in the recording frame, whatever their distance. */
+  private fullDetail: AbstractMesh[] = [];
   /** A recording ended and its hidden meshes are not collapsed yet. */
   private hiddenUnwritten = false;
   private readonly lightColor = new Color3();
@@ -438,7 +453,7 @@ class SnapshotFrames implements SnapshotFramesHandle {
     this.kind = "normal";
     this.recordNext = false;
     this.lastSignature = 0;
-    if (this.forced.length) this.releaseForced();
+    if (this.forced.length || this.fullDetail.length) this.releaseForced();
     this.cullingAfterRecording();
     if (forSession) {
       devLog(`[Snapshots] Off for this session: ${cause}`);
@@ -456,15 +471,14 @@ class SnapshotFrames implements SnapshotFramesHandle {
     this.lastFrameEnd = now;
     // The recording frame's forced state goes back before anything is compared
     const missing = this.forced.filter(({ mesh }) => !this.drawnForced.has(mesh)).map(({ mesh }) => mesh);
-    if (this.forced.length) this.releaseForced();
+    if (this.forced.length || this.fullDetail.length) this.releaseForced();
     if (this.kind !== "replay") this.learnMaterialValues();
-    const signature = drawListSignature(this.scene.meshes, this.isInPlace, this.learnToggle);
     if (this.kind === "replay" || this.kind === "recording") {
+      // The draw list was compared before the frame drew; a change after that
+      // is found before the next one draws
       if (this.passMismatch) {
         this.passMismatch = false;
         this.stop("pass sequence");
-      } else if (signature !== this.recordedSignature) {
-        this.stop("draw list");
       } else if (this.kind === "recording" && missing.length) {
         // A mesh Babylon would not draw even forced (another camera's layer, a
         // pool root): normal tracking from now on, or every recording fails
@@ -477,10 +491,11 @@ class SnapshotFrames implements SnapshotFramesHandle {
         this.kind = "replay";
       }
       this.cullingAfterRecording();
-      this.lastSignature = signature;
+      this.lastSignature = this.recordedSignature;
       return;
     }
     // A normal frame: record the next one once the draw list held still for a frame.
+    const signature = drawListSignature(this.scene.meshes, this.isInPlace, this.learnToggle);
     if (signature === this.lastSignature) {
       this.passKeys = [];
       this.recordedSignature = signature;
@@ -495,7 +510,11 @@ class SnapshotFrames implements SnapshotFramesHandle {
   }
 
   private startOfFrame(): void {
-    if (!this.recordNext || !this.active) return;
+    if (!this.active) return;
+    // The frame's writes come after every other per-camera observer: the game
+    // places beams and fills effect batches there too
+    this.scene.onBeforeCameraRenderObservable.makeObserverBottomPriority(this.cameraStart);
+    if (!this.recordNext) return;
     this.recordNext = false;
     this.occupied.clear();
     this.drawnForced.clear();
@@ -540,6 +559,12 @@ class SnapshotFrames implements SnapshotFramesHandle {
     const engine = this.engine as unknown as { _currentDrawContext?: DrawContextLike };
     this.forced = [];
     for (const mesh of this.recorded) {
+      // A level of detail with no mesh (small weapon parts at range) would
+      // leave the part out of the recording wherever the camera goes later
+      if ((mesh as Mesh).hasLODLevels) {
+        (mesh as unknown as { getLOD(): AbstractMesh }).getLOD = () => mesh;
+        this.fullDetail.push(mesh);
+      }
       const storage = instanceStorage(mesh);
       if ((!storage && !this.inPlace.has(mesh)) || this.unrecordable.has(mesh)) continue;
       if (!this.watched.has(mesh)) {
@@ -564,6 +589,8 @@ class SnapshotFrames implements SnapshotFramesHandle {
   }
 
   private releaseForced(): void {
+    for (const mesh of this.fullDetail) delete (mesh as unknown as { getLOD?: unknown }).getLOD;
+    this.fullDetail = [];
     for (const { mesh, enabled, visible, visibility, count } of this.forced) {
       if (mesh.isDisposed()) continue;
       if (visibility <= 0) mesh.visibility = visibility;
@@ -630,10 +657,28 @@ class SnapshotFrames implements SnapshotFramesHandle {
             const slot = wrapper?.drawContext?.buffers.LeftOver;
             const names = leftOver?._uniformLocations;
             if (!wrapper || !effect || !leftOver || !slot || !names) return;
+            // Only passes the recording holds: a mesh keeps the wrappers of
+            // passes that drew it once (a reflection probe's six faces)
+            const slotIndex = leftOver._slotByOwner?.get(wrapper.drawContext);
+            if (slotIndex === undefined || leftOver._slotFrameId?.[slotIndex] !== this.recordingFrame) return;
             const uniforms = MATRIX_UNIFORMS.filter((name) => name in names);
             const hasWorld = uniforms.some((name) => name.startsWith("world"));
             const material = subMesh.getMaterial(false);
-            draws.push({ mesh, subMesh, material, pass, wrapper, effect, leftOver, slot, uniforms, hasWorld });
+            const ranges = this.valueRanges(leftOver);
+            draws.push({
+              mesh,
+              subMesh,
+              material,
+              pass,
+              wrapper,
+              effect,
+              leftOver,
+              slot,
+              uniforms,
+              hasWorld,
+              ranges,
+              slotIndex,
+            });
           },
         );
       }
@@ -646,43 +691,43 @@ class SnapshotFrames implements SnapshotFramesHandle {
    * Materials whose values change between frames (a scrolling stage, a fade,
    * a shader's time), learned in the frames Babylon draws itself: a draw whose
    * uniform slot holds other values than the last such frame left there,
-   * matrices aside, marks its material.
+   * matrices aside, marks its material. Each frame compares a share of the
+   * draws, carrying on where the last one stopped: a value that changes keeps
+   * changing, and comparing every draw cost a normal frame about 3 ms.
    */
   private learnMaterialValues(): void {
-    for (const mesh of this.recorded) {
-      if (mesh.isDisposed()) continue;
-      for (const subMesh of mesh.subMeshes ?? []) {
-        const material = subMesh.getMaterial(false);
-        if (!material || this.dynamicMaterials.has(material)) continue;
-        for (const wrapper of (subMesh as unknown as { _drawWrappers: (DrawWrapperLike | undefined)[] })
-          ._drawWrappers) {
-          const leftOver = wrapper?.effect?._pipelineContext?.uniformBuffer;
-          const context = wrapper?.drawContext;
-          const index = context && leftOver?._slotByOwner?.get(context);
-          const data = index === undefined || !leftOver ? undefined : leftOver._buffers?.[index]?.[1];
-          if (!context || !leftOver || !data) continue;
-          const last = this.slotValues.get(context);
-          if (last && last.length === data.length) {
-            const ranges = this.valueRanges(leftOver);
-            let changed = false;
-            for (let r = 0; r < ranges.length && !changed; r += 2) {
-              for (let i = ranges[r]; i < ranges[r + 1]; i++) {
-                if (last[i] !== data[i]) {
-                  changed = true;
-                  break;
-                }
-              }
-            }
-            if (changed) {
-              this.dynamicMaterials.add(material);
-              this.dynamicDraws = null;
-              break;
-            }
-            last.set(data);
-          } else {
-            this.slotValues.set(context, data.slice());
+    const draws = this.slotDraws();
+    let budget = LEARNED_DRAWS_PER_FRAME;
+    for (let k = 0; k < draws.length && budget > 0; k++) {
+      this.learnCursor = (this.learnCursor + 1) % draws.length;
+      const draw = draws[this.learnCursor];
+      const { material, leftOver } = draw;
+      if (!material || this.dynamicMaterials.has(material) || draw.mesh.isDisposed()) continue;
+      budget--;
+      const context = draw.wrapper.drawContext;
+      draw.slotIndex ??= leftOver._slotByOwner?.get(context);
+      const data = draw.slotIndex === undefined ? undefined : leftOver._buffers?.[draw.slotIndex]?.[1];
+      if (!context || !data) continue;
+      const last = this.slotValues.get(context);
+      if (!last || last.length !== data.length) {
+        this.slotValues.set(context, data.slice());
+        continue;
+      }
+      const ranges = draw.ranges;
+      let changed = false;
+      for (let r = 0; r < ranges.length && !changed; r += 2) {
+        for (let i = ranges[r]; i < ranges[r + 1]; i++) {
+          if (last[i] !== data[i]) {
+            changed = true;
+            break;
           }
         }
+      }
+      if (changed) {
+        this.dynamicMaterials.add(material);
+        this.dynamicDraws = null;
+      } else {
+        last.set(data);
       }
     }
   }
@@ -830,7 +875,15 @@ class SnapshotFrames implements SnapshotFramesHandle {
     const frame = this.scene.getFrameId();
     if (frame === this.updatedFrame) return;
     this.updatedFrame = frame;
+    // Every update of the frame has run and nothing has drawn: a frame whose
+    // draws differ from the recording's draws normally instead of showing what
+    // just left (or missing what just came)
+    if (drawListSignature(this.scene.meshes, this.isInPlace, this.learnToggle) !== this.recordedSignature) {
+      this.stop("draw list");
+      return;
+    }
     if (this.kind === "recording") {
+      this.recordingFrame = (this.scene.getEngine() as unknown as { frameId: number }).frameId;
       this.forceRecorded();
       return;
     }
