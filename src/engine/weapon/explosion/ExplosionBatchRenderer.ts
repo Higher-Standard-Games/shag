@@ -39,7 +39,9 @@ const FLOATS = EXPLOSION_INSTANCE_ATTRIBUTES.length * 4;
 /**
  * One thin-instanced layer. Slots are written once at spawn and never touched
  * again, since the shader animates them; expiry swaps the last slot into the
- * freed index.
+ * freed index. Only the live slots from the lowest one changed since the last
+ * upload go to the GPU: sparks expire every few frames, and the buffers are
+ * sized for a full layer.
  */
 class LayerBatch {
   readonly mesh: Mesh;
@@ -47,7 +49,8 @@ class LayerBatch {
   private readonly capacity: number;
   private readonly expiry: number[] = [];
   private readonly data: Float32Array[];
-  private dirty = false;
+  /** The lowest slot written since the last upload; `Infinity` when none. */
+  private changedFrom = Number.POSITIVE_INFINITY;
 
   constructor(scene: Scene, layer: ExplosionLayer, shape: VertexData, capacity: number, alphaIndex: number) {
     this.capacity = capacity;
@@ -87,10 +90,10 @@ class LayerBatch {
     if (index !== last) {
       this.expiry[index] = this.expiry[last];
       for (const buffer of this.data) buffer.copyWithin(index * 4, last * 4, last * 4 + 4);
+      this.changedFrom = Math.min(this.changedFrom, index);
     }
     this.expiry.pop();
     this.setCount(this.expiry.length);
-    this.dirty = true;
   }
 
   /** Write one instance from `values` (iA..iE, four floats each). */
@@ -107,7 +110,7 @@ class LayerBatch {
       for (let c = 0; c < 4; c++) buffer[index * 4 + c] = values[a * 4 + c];
     }
     this.setCount(this.expiry.length);
-    this.dirty = true;
+    this.changedFrom = Math.min(this.changedFrom, index);
   }
 
   update(now: number): void {
@@ -115,9 +118,12 @@ class LayerBatch {
     this.material.setFloat("uTime", now);
     const imageProcessing = this.mesh.getScene().imageProcessingConfiguration;
     this.material.setFloat("uLinearOutput", imageProcessing.applyByPostProcess ? 1 : 0);
-    if (!this.dirty || this.expiry.length === 0) return;
-    for (const name of EXPLOSION_INSTANCE_ATTRIBUTES) this.mesh.thinInstanceBufferUpdated(name);
-    this.dirty = false;
+    const from = this.changedFrom;
+    const count = this.expiry.length;
+    this.changedFrom = Number.POSITIVE_INFINITY;
+    if (from >= count) return;
+    for (const name of EXPLOSION_INSTANCE_ATTRIBUTES)
+      this.mesh.thinInstancePartialBufferUpdate(name, count - from, from);
   }
 
   async prewarm(): Promise<void> {
@@ -131,7 +137,7 @@ class LayerBatch {
 
   clear(): void {
     this.expiry.length = 0;
-    this.dirty = false;
+    this.changedFrom = Number.POSITIVE_INFINITY;
     this.setCount(0);
   }
 

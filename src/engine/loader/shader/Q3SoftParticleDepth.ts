@@ -82,6 +82,9 @@ export class Q3SoftParticleDepth {
    */
   private readonly reach: number[] = [];
   private readonly meshBounds: number[] = [];
+  /** The meshes drawn with a soft material, rebuilt when a material's mesh list changes. */
+  private softMeshes: AbstractMesh[] = [];
+  private softMeshesStale = true;
   readonly fallback: RawTexture;
   private readonly observer;
 
@@ -93,20 +96,57 @@ export class Q3SoftParticleDepth {
       providers.set(scene, provider);
     }
     provider.materials.add(material);
-    // Babylon keeps a material's meshMap current through every mesh's material
-    // setter and disposal once the map exists; seed it with meshes assigned
-    // before this point. An instance takes its source's material and is not listed.
-    if (!material.meshMap) {
-      material.meshMap = {};
-      for (const mesh of scene.meshes) {
-        if (mesh.material === material && !isInstance(mesh)) material.meshMap[mesh.uniqueId] = mesh;
-      }
-    }
+    provider.watchMeshMap(material);
     material.onDisposeObservable.addOnce(() => {
       provider.materials.delete(material);
+      provider.softMeshesStale = true;
       if (!provider.materials.size) provider.dispose();
     });
     return provider;
+  }
+
+  /**
+   * Babylon keeps a material's meshMap current through every mesh's material
+   * setter and disposal once the map exists. Seed it with the meshes assigned
+   * before this point (an instance takes its source's material and is not
+   * listed), and note each later write, so the soft mesh list is rebuilt only
+   * when it changes.
+   */
+  private watchMeshMap(material: Material): void {
+    const map: Record<number, AbstractMesh | undefined> = material.meshMap ?? {};
+    if (!material.meshMap) {
+      for (const mesh of this.scene.meshes) {
+        if (mesh.material === material && !isInstance(mesh)) map[mesh.uniqueId] = mesh;
+      }
+    }
+    const stale = () => {
+      this.softMeshesStale = true;
+      return true;
+    };
+    material.meshMap = new Proxy(map, {
+      set: (target, key, value) => {
+        Reflect.set(target, key, value);
+        return stale();
+      },
+      deleteProperty: (target, key) => {
+        Reflect.deleteProperty(target, key);
+        return stale();
+      },
+    });
+    this.softMeshesStale = true;
+  }
+
+  private collectSoftMeshes(): void {
+    this.softMeshes = [];
+    for (const material of this.materials) {
+      const meshes = material.meshMap;
+      if (!meshes) continue;
+      for (const id in meshes) {
+        const mesh = meshes[id];
+        if (mesh) this.softMeshes.push(mesh);
+      }
+    }
+    this.softMeshesStale = false;
   }
 
   private constructor(private readonly scene: Scene) {
@@ -122,19 +162,14 @@ export class Q3SoftParticleDepth {
       this.setRendering(false);
       return;
     }
-    // The meshes drawn with a soft material, from each material's own list
-    // instead of a pass over every mesh in the scene
-    for (const material of this.materials) {
-      const meshes = material.meshMap;
-      if (!meshes) continue;
-      for (const id in meshes) {
-        const mesh = meshes[id];
-        // A mesh using the material for one render pass only is listed too
-        if (!mesh || mesh.material !== material) continue;
-        this.addReach(mesh, camera);
-        const instances = (mesh as Mesh).instances;
-        if (instances) for (const instance of instances) this.addReach(instance, camera);
-      }
+    if (this.softMeshesStale) this.collectSoftMeshes();
+    for (const mesh of this.softMeshes) {
+      // A mesh using the material for one render pass only is listed too
+      const material = mesh.material;
+      if (!material || !this.materials.has(material)) continue;
+      this.addReach(mesh, camera);
+      const instances = (mesh as Mesh).instances;
+      if (instances) for (const instance of instances) this.addReach(instance, camera);
     }
     if (!this.reach.length || this.unavailable) {
       this.setRendering(false);

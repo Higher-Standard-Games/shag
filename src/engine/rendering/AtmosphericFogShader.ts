@@ -36,41 +36,61 @@ export function atmFogFilterGlsl(color: string, worldPos: string): string {
   return `${color}.rgb = mix(${color}.rgb, vec3(1.0), atmFogEvaluate(${worldPos}, atmFogEye).a);`;
 }
 
-/** The fog values, in the order of ATM_FOG_UNIFORMS, for a shader to set. */
-export function atmFogUniformValues(controller: WorldFogController | null): number[][] {
+/**
+ * The fog values into `out`, four per uniform in the order of
+ * ATM_FOG_UNIFORMS, for a shader to set. Returns `out`.
+ */
+export function atmFogUniformValues(
+  controller: WorldFogController | null,
+  out: Float32Array = new Float32Array(ATM_FOG_UNIFORMS.length * 4),
+): Float32Array {
   const fog = controller?.isDrawing() ? controller.getActive() : null;
-  if (!fog)
-    return [
-      [0, 0, 0, 0],
-      [0, 0, 0, 0],
-      [0, 0, 0, 0],
-      [0, 0, 0, 0],
-      [0, 0, 0, 1],
-      [0, 0, 0, 0],
-    ];
+  if (!fog) {
+    out.fill(0);
+    out[19] = 1; // the sun exponent
+    return out;
+  }
   const { height, sun, sky } = fog;
-  return [
-    [fog.color[0], fog.color[1], fog.color[2], 1],
-    [fog.minDist, controller?.getSkyHeight() ?? 0, 0, fog.density],
-    [height?.clear ?? 0, height?.full ?? 0, height ? 1 / (height.full - height.clear) : 0, height ? 1 : 0],
-    [sky?.horizonBias ?? 0, sky?.horizonScale ?? 0, sky?.zenithFalloff ?? 1, sky ? 1 : 0],
-    [sun?.color[0] ?? 0, sun?.color[1] ?? 0, sun?.color[2] ?? 0, sun?.exponent ?? 1],
-    [sun?.dir[0] ?? 0, sun?.dir[1] ?? 0, sun?.dir[2] ?? 0, sun?.intensity ?? 0],
-  ];
+  const skyHeight = controller?.getSkyHeight() ?? 0;
+  out[0] = fog.color[0];
+  out[1] = fog.color[1];
+  out[2] = fog.color[2];
+  out[3] = 1;
+  out[4] = fog.minDist;
+  out[5] = skyHeight;
+  out[6] = 0;
+  out[7] = fog.density;
+  out[8] = height?.clear ?? 0;
+  out[9] = height?.full ?? 0;
+  out[10] = height ? 1 / (height.full - height.clear) : 0;
+  out[11] = height ? 1 : 0;
+  out[12] = sky?.horizonBias ?? 0;
+  out[13] = sky?.horizonScale ?? 0;
+  out[14] = sky?.zenithFalloff ?? 1;
+  out[15] = sky ? 1 : 0;
+  out[16] = sun?.color[0] ?? 0;
+  out[17] = sun?.color[1] ?? 0;
+  out[18] = sun?.color[2] ?? 0;
+  out[19] = sun?.exponent ?? 1;
+  out[20] = sun?.dir[0] ?? 0;
+  out[21] = sun?.dir[1] ?? 0;
+  out[22] = sun?.dir[2] ?? 0;
+  out[23] = sun?.intensity ?? 0;
+  return out;
 }
 
 /** Keep a ShaderMaterial's world fog uniforms current on every bind, for the camera drawing it. */
 export function bindAtmosphericFog(material: ShaderMaterial): void {
   const controller = WorldFogController.getInstance();
+  const values = new Float32Array(ATM_FOG_UNIFORMS.length * 4);
   material.onBindObservable.add((mesh) => {
     const effect = material.getEffect();
     if (!effect) return;
     // A surface whose shader says `nofog` stays clear, as with Babylon's own fog
-    const values = mesh.applyFog ? atmFogUniformValues(controller) : atmFogUniformValues(null);
-    ATM_FOG_UNIFORMS.forEach((name, i) => {
-      const [x, y, z, w] = values[i];
-      effect.setFloat4(name, x, y, z, w);
-    });
+    atmFogUniformValues(mesh.applyFog ? controller : null, values);
+    for (let i = 0; i < ATM_FOG_UNIFORMS.length; i++) {
+      effect.setFloat4(ATM_FOG_UNIFORMS[i], values[i * 4], values[i * 4 + 1], values[i * 4 + 2], values[i * 4 + 3]);
+    }
     const eye = material.getScene().activeCamera?.globalPosition;
     effect.setFloat3("atmFogEye", eye?.x ?? 0, eye?.y ?? 0, eye?.z ?? 0);
   });

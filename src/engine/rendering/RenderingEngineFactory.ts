@@ -2,6 +2,7 @@ import type { AbstractEngine } from "@babylonjs/core/Engines/abstractEngine";
 import { Engine } from "@babylonjs/core/Engines/engine";
 import { NullEngine } from "@babylonjs/core/Engines/nullEngine";
 import { Effect } from "@babylonjs/core/Materials/effect";
+import { installStableWebGPULabels } from "./WebGPULabels";
 
 export type RenderingBackend = "webgl2" | "webgpu";
 export type ActualRenderingBackend = RenderingBackend | "webgl1" | "null";
@@ -120,6 +121,7 @@ export const WEBGPU_FEATURES: readonly GPUFeatureName[] = [
 ];
 
 async function createWebGPUEngine(canvas: HTMLCanvasElement, antialias = true): Promise<AbstractEngine> {
+  installStableWebGPULabels();
   const [WebGPUEngine, glslangJs, glslangWasm, twgslJs, twgslWasm] = await Promise.all([
     loadWebGPUBackend(),
     import("@babylonjs/core/assets/glslang/glslang.js?url"),

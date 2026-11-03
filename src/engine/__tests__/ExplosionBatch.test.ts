@@ -6,6 +6,7 @@
 import { NullEngine } from "@babylonjs/core/Engines/nullEngine";
 import { PointLight } from "@babylonjs/core/Lights/pointLight";
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
+import type { Mesh } from "@babylonjs/core/Meshes/mesh";
 import { Scene } from "@babylonjs/core/scene";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
@@ -49,6 +50,32 @@ const advance = (ms: number) => {
 };
 
 describe("batched explosions", () => {
+  it("uploads only the live slots that changed", () => {
+    const sparks = scene.meshes.find((mesh) => mesh.name === "explosion_spark") as Mesh;
+    const upload = vi.spyOn(sparks, "thinInstancePartialBufferUpdate");
+    const effect = getExplosionEffect();
+    effect.spawn(new Vector3(0, 0, 0), ROCKET_EXPLOSION);
+    advance(1);
+    expect(upload).toHaveBeenCalled();
+    expect(upload.mock.calls.every(([, length, from]) => length === SPARKS_PER_EXPLOSION && from === 0)).toBe(true);
+    upload.mockClear();
+    advance(1);
+    expect(upload).not.toHaveBeenCalled();
+
+    // A later burst; when the first one's sparks expire, the second's move down into their slots
+    advance(50);
+    effect.spawn(new Vector3(64, 0, 0), ROCKET_EXPLOSION);
+    advance(1);
+    upload.mockClear();
+    while (effect.getDebugCounts().spark > SPARKS_PER_EXPLOSION) advance(5);
+    expect(upload.mock.calls.every(([, length, from]) => length === SPARKS_PER_EXPLOSION && from === 0)).toBe(true);
+    upload.mockClear();
+
+    // The last burst expiring leaves nothing live to upload
+    while (effect.getDebugCounts().spark > 0) advance(5);
+    expect(upload).not.toHaveBeenCalled();
+  });
+
   it("adds instances, not meshes, materials or particle systems", () => {
     const meshes = scene.meshes.length;
     const materials = scene.materials.length;

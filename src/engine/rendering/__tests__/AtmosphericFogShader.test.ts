@@ -16,14 +16,16 @@ afterEach(() => controller.setMap(null, null));
 
 describe("atmFogUniformValues", () => {
   it("is all zero weight without fog, or for a surface that opts out", () => {
-    expect(atmFogUniformValues(controller)[0][3]).toBe(0);
+    expect(atmFogUniformValues(controller)[3]).toBe(0);
     controller.setMap(new Scene(new NullEngine()), parseWorldFog({ fog: "10000 1 0.5 0 700" }));
-    expect(atmFogUniformValues(null)[0][3]).toBe(0);
+    expect(atmFogUniformValues(null)[3]).toBe(0);
   });
 
   it("carries colour, start, sky height and density when fog is drawn", () => {
     controller.setMap(new Scene(new NullEngine()), parseWorldFog({ fog: "10000 1 0.5 0 700" }), 1500);
-    const [color, dist] = atmFogUniformValues(controller);
+    const values = atmFogUniformValues(controller);
+    const color = Array.from(values.subarray(0, 4));
+    const dist = values.subarray(4, 8);
     expect(color).toEqual([1, 0.5, 0, 1]);
     expect(dist[0]).toBe(700);
     expect(dist[1]).toBe(1500);
