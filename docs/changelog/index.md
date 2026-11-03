@@ -6,7 +6,8 @@ All notable changes to this project are documented in version-specific files.
 
 | Version | Date | Summary |
 |---------|------|---------|
-| [v1.0.0-beta.2](./v1.0.0-beta.2.md) | unreleased | Living changelog for the next beta cycle |
+| [v1.0.0-beta.3](./v1.0.0-beta.3.md) | unreleased | Living changelog for the next beta cycle |
+| [v1.0.0-beta.2](./v1.0.0-beta.2.md) | Nov 3, 2026 | Faster WebGPU: the static map replays its recorded draws (18–25% more frames on recorded fights), KTX2 textures stay compressed on WebGPU, and projectile trails make less garbage |
 | [v1.0.0-beta](./v1.0.0-beta.md) | Nov 2, 2026 | First beta: new maps Amphi2, Depot, Shepas and Courtyard, bot routes for every pool map, smoother Firefox and faster rendering in fights, skies facing the right way, an Ultralow preset, a new soundtrack song and faster strafing |
 | [v1.0.0-alpha.9.1](./v1.0.0-alpha.9.1.md) | Oct 30, 2026 | Bugfix release: raw mouse input in Chrome and Edge, without Windows pointer acceleration |
 | [v1.0.0-alpha.9](./v1.0.0-alpha.9.md) | Oct 29, 2026 | New maps Washoi DM14 and DM7, bots aiming down sights, spectators seeing sights and the watched Voltaic beam from the gun, Escape and click while spectating, and shader fixes for additive layers and terrain rocks |
