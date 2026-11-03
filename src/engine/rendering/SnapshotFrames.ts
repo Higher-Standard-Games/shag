@@ -292,6 +292,8 @@ class SnapshotFrames implements SnapshotFramesHandle {
     visible: boolean;
     visibility: number;
     count: number;
+    /** Its world matrix, when a zero one stands in for this frame. */
+    world: Matrix | null;
   }[] = [];
   /** The visibility each recorded mesh last wrote: a fade lives in the mesh uniforms too. */
   private readonly visibilities = new WeakMap<AbstractMesh, number>();
@@ -580,7 +582,17 @@ class SnapshotFrames implements SnapshotFramesHandle {
       const visible = mesh.isVisible;
       const visibility = mesh.visibility;
       const count = storage?.instancesCount ?? 0;
-      this.forced.push({ mesh, enabled, visible, visibility, count });
+      const hidden = !enabled || !visible || visibility <= 0 || (storage !== null && count < 1);
+      // Drawn so the recording holds it, but collapsed: a forced mesh would
+      // otherwise show where it last was for this one frame. This must be the
+      // frame's first write to its uniforms, so the matrix it draws with is
+      // a frozen zero (for a batch, its instances collapse with it)
+      let world: Matrix | null = null;
+      if (hidden && !mesh.isWorldMatrixFrozen) {
+        world = mesh.getWorldMatrix();
+        mesh.freezeWorldMatrix(Matrix.Zero());
+      }
+      this.forced.push({ mesh, enabled, visible, visibility, count, world });
       if (!enabled) mesh.setEnabled(true);
       if (!visible) mesh.isVisible = true;
       if (visibility <= 0) mesh.visibility = 1;
@@ -591,8 +603,13 @@ class SnapshotFrames implements SnapshotFramesHandle {
   private releaseForced(): void {
     for (const mesh of this.fullDetail) delete (mesh as unknown as { getLOD?: unknown }).getLOD;
     this.fullDetail = [];
-    for (const { mesh, enabled, visible, visibility, count } of this.forced) {
+    for (const { mesh, enabled, visible, visibility, count, world } of this.forced) {
       if (mesh.isDisposed()) continue;
+      if (world) {
+        // Its own matrix object back, recomputed from its transform
+        (mesh as unknown as { _worldMatrix: Matrix })._worldMatrix = world;
+        mesh.unfreezeWorldMatrix();
+      }
       if (visibility <= 0) mesh.visibility = visibility;
       if (instanceStorage(mesh) && count < 1) (mesh as Mesh).thinInstanceCount = count;
       if (!visible) mesh.isVisible = false;

@@ -320,6 +320,23 @@ because culling is off and the world's surfaces are drawn one by one: the world
 bundle replay stays off while recording, and its refresh path fails when it
 draws inside a snapshot recording.
 
+### Recording frames showed hidden objects, November 3
+
+Trails and hit sprites still flickered at their last position every few
+frames: in each recording frame. A recording forces every hidden-in-place
+mesh to draw, and Babylon drew it with its real world matrix, on screen, for
+that frame. Stopping the render loop right after a recording frame and
+comparing it with a normal frame of the same paused demo showed two stale
+plasma trails across the screen.
+
+A forced mesh that is hidden now draws in the recording frame with a frozen
+zero world matrix (its own matrix object goes back and is recomputed after
+the frame). It has to be Babylon's own first write of the frame, because a
+later write in the same frame goes to a buffer the recorded draw does not
+bind. A batch forced from no instances to one collapses the same way. The
+recording frame then matches the normal frame, apart from things that
+animate between the two screenshots (spinning pickups, gun barrels).
+
 ### What is left
 
 - **Cheaper recordings**: the world's surface bundles added into the
