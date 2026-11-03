@@ -187,6 +187,13 @@ export class ProjectileManager {
    */
   private idleShots = new Map<string, IdleShot[]>();
   private static readonly MAX_IDLE_SHOTS = 24;
+  /**
+   * Where a shot's fade-in ends: just short of 1. Below full visibility an
+   * opaque mesh draws in the transparent queue, so a shot stays in one queue
+   * from spawn to end; reaching 1 would move it, and each move changes the
+   * draw list that WebGPU snapshots replay.
+   */
+  private static readonly FADED_IN = 0.999;
 
   private constructor() {}
 
@@ -879,10 +886,10 @@ export class ProjectileManager {
         continue;
       }
 
-      // Fade-in effect: 0 -> 1 over 100ms
+      // Fade-in effect: 0 -> FADED_IN over 100ms
       const fadeInDuration = 0.1; // 100ms
-      if (proj.fadeMeshes.length > 0 && proj.fadeMeshes[0].visibility < 1) {
-        const visibility = Math.min(1, age / fadeInDuration);
+      if (proj.fadeMeshes.length > 0 && proj.fadeMeshes[0].visibility < ProjectileManager.FADED_IN) {
+        const visibility = Math.min(ProjectileManager.FADED_IN, age / fadeInDuration);
         for (const mesh of proj.fadeMeshes) mesh.visibility = visibility;
       }
 

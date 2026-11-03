@@ -170,11 +170,11 @@ describe("projectile visibility", () => {
     const first = fire();
     now = 500;
     manager.update(0.5);
-    expect(opacityOf(first)).toEqual([1]);
+    expect(opacityOf(first)[0]).toBeCloseTo(1, 2);
 
     const second = fire();
 
-    expect(opacityOf(first)).toEqual([1]);
+    expect(opacityOf(first)[0]).toBeCloseTo(1, 2);
     expect(opacityOf(second)).toEqual([0]);
   });
 
@@ -191,7 +191,7 @@ describe("projectile visibility", () => {
     vi.spyOn(engine, "getDeltaTime").mockReturnValue(500);
     scene.onBeforeRenderObservable.notifyObservers(scene);
 
-    expect(opacityOf(shot)).toEqual([1]);
+    expect(opacityOf(shot)[0]).toBeCloseTo(1, 2);
     expect(scene.getMeshByName(`${shot}_trail`)).not.toBeNull();
   });
 

@@ -57,7 +57,7 @@ import { AmmoCounterDisplay, parseAmmoCounter } from "./AmmoCounterDisplay";
 import { createBladeEnvironment } from "./BladeEnvironment";
 import { getHitscanEffects, serverPelletDirections } from "./HitscanEffects";
 import { getProjectileManager } from "./ProjectileManager";
-import { drawAsAddedLight, drawsAddedLight, WeaponBarrels } from "./WeaponBarrels";
+import { type BarrelInstance, drawAsAddedLight, drawsAddedLight, WeaponBarrels } from "./WeaponBarrels";
 import { WeaponBob } from "./WeaponBob";
 import { WeaponCharge } from "./WeaponCharge";
 import { WeaponHolsterAnim } from "./WeaponHolsterAnim";
@@ -147,6 +147,23 @@ const WEAPON_FLOAT_HZ = 0.35;
 const WEAPON_FLOAT_AMPLITUDE = 0.55;
 /** Constant droop, so the weapon also hangs a little heavier in the water. */
 const WEAPON_FLOAT_SAG = 0.35;
+
+/** A GLB view weapon put away on a switch, with what was built for it. */
+interface ParkedView {
+  weapon: MD3LoadResult;
+  resources: ModelLoadResult;
+  muzzleSocket: TransformNode | null;
+  ammoCounter: AmmoCounterDisplay | null;
+  barrels: BarrelInstance[];
+}
+
+function disposeParkedView(parked: ParkedView): void {
+  parked.ammoCounter?.dispose();
+  for (const barrel of parked.barrels) {
+    disposeModelResources([barrel.root, barrel.resources?.root], barrel.resources ?? {});
+  }
+  disposeModelResources([parked.weapon.root], parked.resources);
+}
 
 export class WeaponViewManager {
   private static instance: WeaponViewManager;
@@ -391,6 +408,18 @@ export class WeaponViewManager {
   private glbSources: ModelInstanceCache | null = null;
   private currentGlbResources: ModelLoadResult | null = null;
   private muzzleSocket: TransformNode | null = null;
+  /**
+   * GLB view weapons put away on a switch, whole (model, muzzle socket,
+   * barrels, ammo counter), by weapon and model, for the next switch to the
+   * same weapon: building one took about 10 ms and its frames another 45 ms,
+   * and every model disposed and rebuilt changed the frame's draw list.
+   */
+  private readonly parkedViews = new Map<string, ParkedView>();
+  /** The current GLB view weapon's key in `parkedViews`, and the load generation it came from. */
+  private currentParkKey: string | null = null;
+  private currentWeaponGen = -1;
+  /** The load generation whose barrels and ammo counter have finished loading. */
+  private detailsLoadedFor = -1;
   /** Additive emissive glow map for the current weapon (WO-EB1), disposed on swap. */
   private currentGlowTexture: Texture | null = null;
   private currentWeaponDef: WeaponDef | null = null; // Entity definition for current weapon
@@ -722,6 +751,12 @@ export class WeaponViewManager {
     }
 
     this.clearCurrentWeapon();
+    const parkKey = JSON.stringify([weaponName, modelPath]);
+    if (this.takeParkedView(parkKey)) {
+      this.currentWeaponGen = loadGen;
+      this.detailsLoadedFor = loadGen;
+      return true;
+    }
 
     try {
       const scene = this.scene!;
@@ -804,7 +839,11 @@ export class WeaponViewManager {
 
       // Build the on-weapon ammo counter if this model is authored for one.
       details.push(this.setupAmmoCounter(weaponName, modelPath, glbRoot, loadGen).catch(() => {}));
-      this.weaponDetailsReady = Promise.all(details);
+      this.currentParkKey = parkKey;
+      this.currentWeaponGen = loadGen;
+      this.weaponDetailsReady = Promise.all(details).then(() => {
+        this.detailsLoadedFor = Math.max(this.detailsLoadedFor, loadGen);
+      });
 
       return this._loadGeneration === loadGen;
     } catch (e) {
@@ -1354,7 +1393,56 @@ export class WeaponViewManager {
     this.clearCurrentWeapon();
   }
 
+  /** Put the current GLB view weapon away for later, if it finished loading; false when it cannot be. */
+  private parkCurrentWeapon(): boolean {
+    const key = this.currentParkKey;
+    const weapon = this.currentWeapon;
+    const resources = this.currentGlbResources;
+    this.currentParkKey = null;
+    if (!key || !weapon || !resources || this.detailsLoadedFor !== this.currentWeaponGen) return false;
+    if (weapon.root.isDisposed() || this.parkedViews.has(key)) return false;
+    weapon.root.setEnabled(false);
+    this.parkedViews.set(key, {
+      weapon,
+      resources,
+      muzzleSocket: this.muzzleSocket,
+      ammoCounter: this.ammoCounter,
+      barrels: this.weaponBarrels.takeBarrels(),
+    });
+    this.ammoCounter = null;
+    this.muzzleSocket = null;
+    this.currentWeapon = null;
+    this.currentGlbResources = null;
+    return true;
+  }
+
+  /** Make a parked view weapon the current one; false when there is none still whole. */
+  private takeParkedView(key: string): boolean {
+    const parked = this.parkedViews.get(key);
+    if (!parked) return false;
+    this.parkedViews.delete(key);
+    // A map unload disposes every scene node, parked weapons included
+    if (parked.weapon.root.isDisposed()) {
+      disposeParkedView(parked);
+      return false;
+    }
+    this.currentWeapon = parked.weapon;
+    this.currentGlbResources = parked.resources;
+    this.muzzleSocket = parked.muzzleSocket;
+    this.ammoCounter = parked.ammoCounter;
+    this.ammoCounter?.setAmmo(this.displayedAmmo);
+    this.weaponBarrels.restoreBarrels(parked.barrels);
+    this.currentParkKey = key;
+    return true;
+  }
+
+  private disposeParkedViews(): void {
+    for (const parked of this.parkedViews.values()) disposeParkedView(parked);
+    this.parkedViews.clear();
+  }
+
   private clearCurrentWeapon(): void {
+    if (this.parkCurrentWeapon()) return;
     this.disposeAmmoCounter();
     this.muzzleSocket = null;
     this.currentGlowTexture?.dispose();
@@ -1402,6 +1490,7 @@ export class WeaponViewManager {
     this._loadGeneration++;
     this.weaponSlash.dispose();
     this.clear();
+    this.disposeParkedViews();
     this.weaponBarrels.releaseSources();
     this.glbSources?.dispose();
     this.glbSources = null;

@@ -70,7 +70,7 @@ export function slideCycle(t: number): number {
   return 1 - forward * forward * (3 - 2 * forward);
 }
 
-interface BarrelInstance {
+export interface BarrelInstance {
   root: TransformNode;
   /** Idle speed */
   spinSpeed: number;
@@ -283,6 +283,23 @@ export class WeaponBarrels {
     ++this.generation;
     for (const b of this.barrels) disposeModelResources([b.root, b.resources?.root], b.resources ?? {});
     this.barrels = [];
+  }
+
+  /**
+   * Hand over the loaded barrels, still attached to their weapon, for it to
+   * keep while it is put away; loads still running for them stop.
+   */
+  takeBarrels(): BarrelInstance[] {
+    ++this.generation;
+    const barrels = this.barrels;
+    this.barrels = [];
+    return barrels;
+  }
+
+  /** Take back barrels handed over by `takeBarrels`, in place of any loaded since. */
+  restoreBarrels(barrels: BarrelInstance[]): void {
+    this.dispose();
+    this.barrels = barrels;
   }
 
   /** A switch retires clones; only view teardown/re-init retires sources. */

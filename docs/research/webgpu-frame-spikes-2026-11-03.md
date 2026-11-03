@@ -74,6 +74,31 @@ A run between the two, with only the label and soft-particle changes, came
 out slower than both (245 fps), with the owner's browser open on the same GPU;
 the long frames are the reliable part of the comparison, the averages less so.
 
+## Recordings in fights
+
+With the spikes gone, the worst frames were recording frames (20 to 34 ms in
+fights, against 2 ms for a replayed one). The controller's stops over the
+whole demo, in one session so that learning carries over: 957, from 168 in the
+first minute to about 75 a minute later. 545 were draw-list changes and 412
+disposals (buffers, meshes, textures, materials).
+
+- **Projectile fade-in, 161 of the draw-list changes.** A rocket or grenade
+  fades in over 100 ms through its visibility; below 1 an opaque mesh draws in
+  the transparent queue, so reaching 1 moved it back, a change for every shot.
+  The fade now ends at 0.999. Stops over the demo fell to 771.
+- **View weapon switches, most of the disposals.** Every switch disposed the
+  view model (with its barrels and ammo counter) and built the next from its
+  cached source: 303 view meshes and 65 ammo counters disposed over the demo.
+  A switch took 10 ms and added 45 ms over the eight frames after it. The view
+  now parks each weapon whole once its barrels and ammo counter have loaded,
+  and the next switch to it brings it out again: 2.6 ms, and 9 ms over the
+  frames after it (25 switches measured in 150 s of the demo).
+
+Still disposed per use, from the same tally: third-person weapons and barrels
+(120 plasma gun barrel meshes with their own materials), blade slash trails
+(80 meshes, a material and a texture each), player models, hitboxes and
+ragdolls (about 45 each, one per death).
+
 ## What is left
 
 - **Recording frames** are now the worst frames: 20 to 34 ms when a fight
