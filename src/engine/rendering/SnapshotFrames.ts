@@ -8,13 +8,22 @@
  * draws in the same passes, so this controller:
  *
  * - records with culling off (PVS paused, frustum clipping skipped), so moving
- *   the camera never changes what the recording holds;
+ *   the camera never changes what the recording holds; the other frames keep
+ *   it, and the world bundle replay, so a frame that cannot replay costs what
+ *   it costs without snapshots;
  * - before each replayed frame writes what changes in place: skeletons, the
  *   world matrix of every recorded mesh that moved, and the sky's
  *   camera-following matrix;
  * - compares a signature of the draw list (enabled, visible meshes, their
- *   materials, effects and instance counts) at the end of every frame, and on
- *   any change draws the next frame normally and records the one after;
+ *   materials and instance buffers) at the end of every frame, and on any
+ *   change draws the next frame normally and records the one after;
+ * - keeps instanced effect batches in the recording whatever their count:
+ *   they record indirect draws, and each replayed frame writes the current
+ *   instance count, 0 for a batch the game has switched off;
+ * - learns which meshes keep being shown and hidden (pooled projectiles,
+ *   trails, dropped weapons, players) and keeps them in the recording too:
+ *   a hidden one draws with a collapsed world matrix, so showing and hiding
+ *   it no longer changes the draw list;
  * - marks the rendering groups each camera drew while recording as occupied
  *   in replayed frames: Babylon clears depth before a group, and runs its
  *   hooks, only for a group with something in it, and in a replayed frame
@@ -22,8 +31,10 @@
  * - checks every replayed pass against the pass the recording made at that
  *   position, so a pass that appears or disappears (a clear, a mipmap pass)
  *   is caught, and stops replaying until the next recording;
- * - stops at once when a mesh, geometry, material or texture is disposed, and
- *   for the session on a device validation error.
+ * - stops at once when a mesh, geometry, material or texture is disposed or
+ *   Babylon releases a GPU buffer or texture (a recording may hold it; Babylon
+ *   destroys it after the frame is submitted), and for the session on a
+ *   device validation error.
  *
  * Snapshots start only between frames: a recording begun mid-frame would hold
  * the later passes at the wrong positions. Stopping is safe at any point; the
@@ -34,7 +45,9 @@
 
 import type { Camera } from "@babylonjs/core/Cameras/camera";
 import type { AbstractEngine } from "@babylonjs/core/Engines/abstractEngine";
+import { Matrix } from "@babylonjs/core/Maths/math.vector";
 import type { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh";
+import type { Mesh } from "@babylonjs/core/Meshes/mesh";
 import type { Observer } from "@babylonjs/core/Misc/observable";
 import type { Node } from "@babylonjs/core/node";
 import type { Scene } from "@babylonjs/core/scene";
@@ -42,6 +55,8 @@ import { devLog } from "../core/DevLog";
 
 /** Babylon's SNAPSHOTRENDERING_FAST. */
 const FAST = 1;
+/** The world matrix of a mesh hidden in place: every vertex at the origin, nothing drawn. */
+const COLLAPSED = Matrix.Zero();
 
 interface PassWrapper {
   renderPassDescriptor?: {
@@ -66,6 +81,17 @@ interface SnapshotEngine {
   _mainRenderPassWrapper?: PassWrapper;
   _rttRenderPassWrapper?: PassWrapper;
   _device?: GPUDevice;
+  _bufferManager?: { releaseBuffer(buffer: unknown): boolean };
+  _textureHelper?: { releaseTexture(texture: unknown): void };
+}
+interface DrawContextLike {
+  enableIndirectDraw: boolean;
+  indirectDrawBuffer?: unknown;
+  setIndirectData(indexOrVertexCount: number, instanceCount: number, firstIndexOrVertex: number, force?: boolean): void;
+}
+interface ThinInstanceStorage {
+  instancesCount: number;
+  matrixBuffer?: { getBuffer(): { uniqueId?: number } | null } | null;
 }
 interface PvsLike {
   isEnabled(): boolean;
@@ -80,6 +106,8 @@ export interface SnapshotFrameStats {
   replay: number;
   /** Why the draw list was found changed, by cause. */
   changes: Record<string, number>;
+  /** Milliseconds spent in frames of each kind, frame end to frame end. */
+  ms: Record<SnapshotFrameKind, number>;
 }
 
 export interface SnapshotFramesHandle {
@@ -108,29 +136,46 @@ export function supportsSnapshotFrames(engine: AbstractEngine): boolean {
   );
 }
 
+/** An instanced batch: thin instances in a matrix buffer of fixed capacity. */
+export function instanceStorage(mesh: AbstractMesh): ThinInstanceStorage | null {
+  const storage = (mesh as unknown as { _thinInstanceDataStorage?: ThinInstanceStorage })._thinInstanceDataStorage;
+  return storage?.matrixBuffer && mesh.subMeshes?.length ? storage : null;
+}
+
 /**
  * A number that changes when anything that decides the frame's draws changes:
- * which meshes draw, with which material, how many instances, and whether a
+ * which meshes draw, with which material and instance buffer, and whether a
  * material was marked for rebinding (`Material.markDirty` clears a draw
  * wrapper's readiness, which is how frozen materials take light changes).
+ * An instanced batch counts whatever its count and enabled state: replayed
+ * frames draw it indirectly with the count of the moment. So does a mesh
+ * `inPlace` accepts, which replayed frames hide with a collapsed matrix.
  */
-export function drawListSignature(meshes: readonly AbstractMesh[]): number {
+export function drawListSignature(
+  meshes: readonly AbstractMesh[],
+  inPlace: (mesh: AbstractMesh) => boolean = () => false,
+): number {
   let hash = 0;
   let count = 0;
   for (const mesh of meshes) {
-    if (!mesh.subMeshes?.length || !mesh.isEnabled() || !mesh.isVisible || mesh.visibility <= 0) continue;
+    const batch = instanceStorage(mesh);
+    if (!mesh.subMeshes?.length) continue;
+    if (!batch && !inPlace(mesh) && (!mesh.isEnabled() || !mesh.isVisible || mesh.visibility <= 0)) continue;
     const material = mesh.material;
     const wrappers = (
       mesh.subMeshes[0] as unknown as { _drawWrappers: ({ _wasPreviouslyReady?: boolean } | undefined)[] }
     )._drawWrappers;
     let unready = 0;
     for (const wrapper of wrappers) if (wrapper && !wrapper._wasPreviouslyReady) unready++;
-    const instances = (mesh as { thinInstanceCount?: number }).thinInstanceCount ?? 0;
+    const instances = batch ? (batch.matrixBuffer?.getBuffer()?.uniqueId ?? 0) : 0;
     hash = (Math.imul(hash, 31) + mesh.uniqueId) | 0;
     hash = (Math.imul(hash, 31) + (material?.uniqueId ?? -1)) | 0;
     hash = (Math.imul(hash, 31) + unready) | 0;
     hash = (Math.imul(hash, 31) + instances) | 0;
     hash = (Math.imul(hash, 31) + mesh.renderingGroupId) | 0;
+    // Below full visibility an opaque mesh moves to the transparent queue
+    const fading = mesh.visibility < 1 && !material?.needAlphaBlending();
+    hash = (Math.imul(hash, 31) + (fading ? 1 : 0)) | 0;
     count++;
   }
   return (Math.imul(hash, 31) + count) | 0;
@@ -147,7 +192,36 @@ class SnapshotFrames implements SnapshotFramesHandle {
   private updatedFrame = -1;
   private readonly worldFlags = new WeakMap<AbstractMesh, number>();
   private recorded: AbstractMesh[] = [];
-  private readonly counters: SnapshotFrameStats = { normal: 0, recording: 0, replay: 0, changes: {} };
+  /** Meshes forced into the recording frame, with the state to put back. */
+  private forced: {
+    mesh: AbstractMesh;
+    enabled: boolean;
+    visible: boolean;
+    visibility: number;
+    count: number;
+  }[] = [];
+  /** The visibility each recorded mesh last wrote: a fade lives in the mesh uniforms too. */
+  private readonly visibilities = new WeakMap<AbstractMesh, number>();
+  private readonly watched = new WeakSet<AbstractMesh>();
+  /** Forced meshes that drew while recording; one that did not forces a new recording. */
+  private readonly drawnForced = new Set<AbstractMesh>();
+  /** How often each mesh was shown or hidden; two changes make it hidden in place. */
+  private readonly flips = new WeakMap<AbstractMesh, { shown: boolean; count: number }>();
+  private readonly inPlace = new WeakSet<AbstractMesh>();
+  private readonly hiddenInPlace = new WeakSet<AbstractMesh>();
+  /** Map surfaces: always in the recording, hidden by PVS only while culling runs. */
+  private readonly worldMeshes: Set<AbstractMesh>;
+  private readonly isInPlace = (mesh: AbstractMesh) => this.inPlace.has(mesh) || this.worldMeshes.has(mesh);
+  /** Meshes that were forced into a recording and still did not draw: never forced again. */
+  private readonly unrecordable = new WeakSet<AbstractMesh>();
+  private readonly counters: SnapshotFrameStats = {
+    normal: 0,
+    recording: 0,
+    replay: 0,
+    changes: {},
+    ms: { normal: 0, recording: 0, replay: 0 },
+  };
+  private lastFrameEnd = 0;
   private readonly frameEnd: Observer<Scene>;
   private readonly frameStart: Observer<Scene>;
   private recordNext = false;
@@ -174,8 +248,6 @@ class SnapshotFrames implements SnapshotFramesHandle {
     if (enabled === this.on || !this.active) return;
     this.on = enabled;
     if (!enabled) this.stop("switched off");
-    this.setCulling(!enabled);
-    this.onActive(enabled);
   }
 
   constructor(
@@ -190,7 +262,7 @@ class SnapshotFrames implements SnapshotFramesHandle {
     this.originalEndRenderPass = recorder.endRenderPass;
     recorder.endRenderPass = (pass: unknown) => this.guardPass(recorder, pass);
     this.savedSkipFrustum = scene.skipFrustumClipping;
-    this.setCulling(false);
+    this.worldMeshes = new Set([world, ...world.getChildMeshes()]);
     this.frameEnd = scene.onAfterRenderObservable.add(() => this.endOfFrame());
     // The frame's last pass ends after onAfterRender: a recording starts with the next frame.
     this.frameStart = scene.onBeforeRenderObservable.add(() => this.startOfFrame());
@@ -211,9 +283,30 @@ class SnapshotFrames implements SnapshotFramesHandle {
       () => scene.onTextureRemovedObservable.remove(texture),
     );
     engine._device?.addEventListener("uncapturederror", this.onDeviceError);
+    const buffers = engine._bufferManager;
+    const textures = engine._textureHelper;
+    if (buffers) {
+      const release = buffers.releaseBuffer;
+      buffers.releaseBuffer = (buffer: unknown) => {
+        if (this.kind !== "normal") this.stop("buffer released");
+        return release.call(buffers, buffer);
+      };
+      this.removals.push(() => {
+        buffers.releaseBuffer = release;
+      });
+    }
+    if (textures) {
+      const release = textures.releaseTexture;
+      textures.releaseTexture = (texture: unknown) => {
+        if (this.kind !== "normal") this.stop("texture released");
+        release.call(textures, texture);
+      };
+      this.removals.push(() => {
+        textures.releaseTexture = release;
+      });
+    }
     this.worldDispose = world.onDisposeObservable.addOnce(() => this.dispose());
     scene.onDisposeObservable.addOnce(() => this.dispose());
-    onActive(true);
   }
 
   private get engine(): SnapshotEngine {
@@ -225,7 +318,7 @@ class SnapshotFrames implements SnapshotFramesHandle {
   }
 
   stats(): SnapshotFrameStats {
-    return { ...this.counters, changes: { ...this.counters.changes } };
+    return { ...this.counters, changes: { ...this.counters.changes }, ms: { ...this.counters.ms } };
   }
 
   /** The recording needs everything that may come into view. */
@@ -247,6 +340,8 @@ class SnapshotFrames implements SnapshotFramesHandle {
     this.kind = "normal";
     this.recordNext = false;
     this.lastSignature = 0;
+    if (this.forced.length) this.releaseForced();
+    this.cullingAfterRecording();
     if (forSession) {
       devLog(`[Snapshots] Off for this session: ${cause}`);
       this.stopped = true;
@@ -258,16 +353,32 @@ class SnapshotFrames implements SnapshotFramesHandle {
   private endOfFrame(): void {
     if (!this.active || !this.on) return;
     this.counters[this.kind]++;
-    const signature = drawListSignature(this.scene.meshes);
+    const now = performance.now();
+    if (this.lastFrameEnd) this.counters.ms[this.kind] += now - this.lastFrameEnd;
+    this.lastFrameEnd = now;
+    // The recording frame's forced state goes back before anything is compared
+    const missing = this.forced.filter(({ mesh }) => !this.drawnForced.has(mesh)).map(({ mesh }) => mesh);
+    if (this.forced.length) this.releaseForced();
+    this.learnToggles();
+    const signature = drawListSignature(this.scene.meshes, this.isInPlace);
     if (this.kind === "replay" || this.kind === "recording") {
       if (this.passMismatch) {
         this.passMismatch = false;
         this.stop("pass sequence");
       } else if (signature !== this.recordedSignature) {
         this.stop("draw list");
+      } else if (this.kind === "recording" && missing.length) {
+        // A mesh Babylon would not draw even forced (another camera's layer, a
+        // pool root): normal tracking from now on, or every recording fails
+        for (const mesh of missing) {
+          this.unrecordable.add(mesh);
+          this.inPlace.delete(mesh);
+        }
+        this.stop("forced mesh not recorded");
       } else if (this.kind === "recording") {
         this.kind = "replay";
       }
+      this.cullingAfterRecording();
       this.lastSignature = signature;
       return;
     }
@@ -275,7 +386,11 @@ class SnapshotFrames implements SnapshotFramesHandle {
     if (signature === this.lastSignature) {
       this.passKeys = [];
       this.recordedSignature = signature;
-      this.recorded = this.scene.meshes.filter((mesh) => mesh.subMeshes?.length && mesh.isEnabled() && mesh.isVisible);
+      this.recorded = this.scene.meshes.filter(
+        (mesh) =>
+          mesh.subMeshes?.length &&
+          (instanceStorage(mesh) || this.inPlace.has(mesh) || (mesh.isEnabled() && mesh.isVisible)),
+      );
       this.recordNext = true;
     }
     this.lastSignature = signature;
@@ -285,8 +400,117 @@ class SnapshotFrames implements SnapshotFramesHandle {
     if (!this.recordNext || !this.active) return;
     this.recordNext = false;
     this.occupied.clear();
+    this.drawnForced.clear();
+    this.setCulling(false);
+    this.onActive(true);
     this.engine.snapshotRendering = true;
     this.kind = "recording";
+  }
+
+  /** Culling and the world replay come back after the recording frame. */
+  private cullingAfterRecording(): void {
+    if (this.scene.skipFrustumClipping === this.savedSkipFrustum) return;
+    this.setCulling(true);
+    this.onActive(false);
+  }
+
+  /** Meshes that keep being shown and hidden stay in the recording from now on. */
+  private learnToggles(): void {
+    for (const mesh of this.scene.meshes) {
+      if (!mesh.subMeshes?.length || this.inPlace.has(mesh) || this.unrecordable.has(mesh) || instanceStorage(mesh))
+        continue;
+      const shown = mesh.isEnabled() && mesh.isVisible && mesh.visibility > 0;
+      const flips = this.flips.get(mesh);
+      if (!flips) {
+        this.flips.set(mesh, { shown, count: 0 });
+      } else if (flips.shown !== shown) {
+        flips.shown = shown;
+        if (++flips.count >= 2) this.inPlace.add(mesh);
+      }
+    }
+  }
+
+  /**
+   * Babylon draws neither a hidden or disabled mesh nor a batch with no
+   * instances, so in the recording frame every batch and every mesh hidden in
+   * place draws, a batch with at least one instance through an indirect draw.
+   * A mesh hidden by a disabled ancestor is left out: enabling the ancestor
+   * would show its other children too (model templates share pool roots). Their real state goes back, and into the GPU data,
+   * before the frame is submitted. This runs at the recording frame's first
+   * camera, after the game's own updates have set each mesh for the frame.
+   */
+  private forceRecorded(): void {
+    const engine = this.engine as unknown as { _currentDrawContext?: DrawContextLike };
+    this.forced = [];
+    for (const mesh of this.recorded) {
+      const storage = instanceStorage(mesh);
+      if ((!storage && !this.inPlace.has(mesh)) || this.unrecordable.has(mesh)) continue;
+      if (!this.watched.has(mesh)) {
+        this.watched.add(mesh);
+        (mesh as Mesh).onBeforeDrawObservable.add(() => {
+          const context = engine._currentDrawContext;
+          if (instanceStorage(mesh) && context && !context.enableIndirectDraw) context.enableIndirectDraw = true;
+          if (this.engine._snapshotRendering?.record) this.drawnForced.add(mesh);
+        });
+      }
+      if (mesh.parent && !mesh.parent.isEnabled()) continue;
+      const enabled = mesh.isEnabled(false);
+      const visible = mesh.isVisible;
+      const visibility = mesh.visibility;
+      const count = storage?.instancesCount ?? 0;
+      this.forced.push({ mesh, enabled, visible, visibility, count });
+      if (!enabled) mesh.setEnabled(true);
+      if (!visible) mesh.isVisible = true;
+      if (visibility <= 0) mesh.visibility = 1;
+      if (storage && count < 1) (mesh as Mesh).thinInstanceCount = 1;
+    }
+  }
+
+  private releaseForced(): void {
+    for (const { mesh, enabled, visible, visibility, count } of this.forced) {
+      if (mesh.isDisposed()) continue;
+      if (visibility <= 0) mesh.visibility = visibility;
+      if (instanceStorage(mesh) && count < 1) (mesh as Mesh).thinInstanceCount = count;
+      if (!visible) mesh.isVisible = false;
+      if (!enabled) mesh.setEnabled(false);
+    }
+    this.forced = [];
+    this.writeInstanceCounts(true);
+    this.writeHidden(true);
+  }
+
+  /** Hidden-in-place meshes: a collapsed world matrix while hidden, the real one when shown. */
+  private writeHidden(force: boolean): void {
+    for (const mesh of this.recorded) {
+      if (!this.inPlace.has(mesh) || mesh.isDisposed()) continue;
+      const hidden = !mesh.isEnabled() || !mesh.isVisible || mesh.visibility <= 0;
+      if (!force && hidden === this.hiddenInPlace.has(mesh)) continue;
+      if (hidden) {
+        this.hiddenInPlace.add(mesh);
+        mesh.transferToEffect(COLLAPSED);
+      } else {
+        this.hiddenInPlace.delete(mesh);
+        this.worldFlags.delete(mesh);
+      }
+    }
+  }
+
+  /** Each recorded batch's current count into its indirect draws: 0 when switched off. */
+  private writeInstanceCounts(force: boolean): void {
+    for (const mesh of this.recorded) {
+      const storage = instanceStorage(mesh);
+      if (!storage) continue;
+      const count = mesh.isEnabled() && mesh.isVisible ? storage.instancesCount : 0;
+      for (const subMesh of mesh.subMeshes) {
+        for (const wrapper of (
+          subMesh as unknown as { _drawWrappers: ({ drawContext?: DrawContextLike } | undefined)[] }
+        )._drawWrappers) {
+          const context = wrapper?.drawContext;
+          if (context?.indirectDrawBuffer)
+            context.setIndirectData(subMesh.indexCount, count, subMesh.indexStart, force);
+        }
+      }
+    }
   }
 
   private get groups(): ({ _empty: boolean } | undefined)[] {
@@ -318,19 +542,28 @@ class SnapshotFrames implements SnapshotFramesHandle {
     });
   }
 
-  /** Before the first camera of a replayed frame: what moved since the recording. */
+  /** Before the first camera of a frame: batches into a recording, or what moved into a replay. */
   private writeFrameData(): void {
-    if (this.kind !== "replay") return;
+    if (this.kind === "normal") return;
     const frame = this.scene.getFrameId();
     if (frame === this.updatedFrame) return;
     this.updatedFrame = frame;
+    if (this.kind === "recording") {
+      this.forceRecorded();
+      return;
+    }
     for (const skeleton of this.scene.skeletons) skeleton.prepare(true);
+    this.writeInstanceCounts(false);
+    this.writeHidden(false);
     for (const mesh of this.recorded) {
-      if (mesh.isWorldMatrixFrozen && !mesh.infiniteDistance) continue;
+      if (this.hiddenInPlace.has(mesh) || (mesh.isWorldMatrixFrozen && !mesh.infiniteDistance)) continue;
       const world = mesh.computeWorldMatrix(mesh.infiniteDistance);
       const flag = world.updateFlag;
-      if (!mesh.infiniteDistance && !mesh.skeleton && this.worldFlags.get(mesh) === flag) continue;
+      const visibility = mesh.visibility;
+      const same = this.worldFlags.get(mesh) === flag && this.visibilities.get(mesh) === visibility;
+      if (!mesh.infiniteDistance && !mesh.skeleton && same) continue;
       this.worldFlags.set(mesh, flag);
+      this.visibilities.set(mesh, visibility);
       mesh.transferToEffect(world);
     }
   }
