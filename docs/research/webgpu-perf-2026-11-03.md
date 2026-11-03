@@ -114,6 +114,8 @@ start the private Vite server (`browser-probe` skill), open
 
 ## Whole-frame snapshot: the path to 2×
 
+The staged plan that follows from this is [webgpu-snapshot-plan-2026-11-03.md](webgpu-snapshot-plan-2026-11-03.md).
+
 Second round, same day. What remains after the world bundle replay is
 Babylon's per-mesh path for everything else: selection, binding and the bundle
 check for each moving or animated draw, the weapon camera's own pass, and the
