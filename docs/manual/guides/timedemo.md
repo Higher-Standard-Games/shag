@@ -115,6 +115,11 @@ repetitions of each with the same fixture/profile and export each report.
 Render bundles are WebGPU's default; `ncm=0` turns them off for that session only
 and does not change saved settings.
 
+On top of render bundles, WebGPU records whole frames and replays them while the
+scene's draw list holds (whole-frame snapshots). To measure them, compare
+`?renderer=webgpu` against `?renderer=webgpu&snapshot=0`, which turns them off for
+the session. `ncm=0` turns them off as well.
+
 Under `ncm=1`, each sample's `bundles` records created/reused bundle submission
 counts for that engine frame. Run and phase summaries include totals, counts per
 frame, creation share (`created / (created + reused)`) and the percentage of

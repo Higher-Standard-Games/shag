@@ -838,7 +838,7 @@ export class MapLoader {
       const { installWorldBundleReplay } = await import("../../rendering/WorldBundleReplay");
       const { getSinglePvsCamera } = await import("../../rendering/PvsMeshCandidates");
       const worldBundles = installWorldBundleReplay(scene, meshResult.worldMesh, () => getSinglePvsCamera(scene));
-      // Whole-frame snapshots (?snapshot=1) replay the world too; the world replay steps aside
+      // Whole-frame snapshots replay the world too; the world replay steps aside
       const { installSnapshotFrames } = await import("../../rendering/SnapshotFrames");
       installSnapshotFrames(
         scene,

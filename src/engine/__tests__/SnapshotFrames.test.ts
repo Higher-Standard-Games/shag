@@ -57,9 +57,10 @@ describe("drawListSignature", () => {
 });
 
 describe("whole-frame snapshots", () => {
-  it("start only on request and on an engine that records bundles", () => {
+  it("start unless the session turns them off, on an engine that records bundles", () => {
     expect(snapshotFramesRequested("?snapshot=1")).toBe(true);
-    expect(snapshotFramesRequested("?renderer=webgpu")).toBe(false);
+    expect(snapshotFramesRequested("?renderer=webgpu")).toBe(true);
+    expect(snapshotFramesRequested("?renderer=webgpu&snapshot=0")).toBe(false);
     expect(supportsSnapshotFrames(engine as unknown as AbstractEngine)).toBe(false);
     const world = MeshBuilder.CreateBox("world", {}, scene);
     expect(

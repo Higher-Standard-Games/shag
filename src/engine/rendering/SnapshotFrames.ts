@@ -48,7 +48,8 @@
  * the later passes at the wrong positions. Stopping is safe at any point; the
  * rest of the frame draws normally.
  *
- * `?snapshot=1` in the page address turns snapshots on.
+ * Snapshots run wherever the engine supports them (WebGPU with render
+ * bundles); `?snapshot=0` in the page address turns them off for the session.
  */
 
 import type { Skeleton } from "@babylonjs/core/Bones/skeleton";
@@ -224,9 +225,9 @@ export function replaysSnapshot(engine: AbstractEngine): boolean {
   return snapshots.snapshotRendering && snapshots.snapshotRenderingMode === FAST;
 }
 
-/** Whether the session address turns whole-frame snapshots on (`?snapshot=1`). */
+/** Whether the session address leaves whole-frame snapshots on (all but `?snapshot=0`). */
 export function snapshotFramesRequested(search = ""): boolean {
-  return new URLSearchParams(search).get("snapshot") === "1";
+  return new URLSearchParams(search).get("snapshot") !== "0";
 }
 
 /** Whether the engine records WebGPU bundles in a way snapshots can replay. */
