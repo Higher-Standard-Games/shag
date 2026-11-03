@@ -31,6 +31,7 @@ import { EffectRenderer, EffectWrapper } from "@babylonjs/core/Materials/effectR
 import { ShaderLanguage } from "@babylonjs/core/Materials/shaderLanguage";
 import type { InternalTexture } from "@babylonjs/core/Materials/Textures/internalTexture";
 import { RenderTargetTexture } from "@babylonjs/core/Materials/Textures/renderTargetTexture";
+import type { Observer } from "@babylonjs/core/Misc/observable";
 import type { RenderingGroup } from "@babylonjs/core/Rendering/renderingGroup";
 import type { Scene } from "@babylonjs/core/scene";
 
@@ -131,7 +132,16 @@ export class SceneDepthCapture {
 
   private constructor(private readonly scene: Scene) {
     scene.onDisposeObservable.addOnce(() => this.dispose());
+    // A replayed snapshot frame draws no rendering group, so the group hook never
+    // fires. Its main pass is still open after the draw phase, with nothing drawn
+    // yet: ending it there replays the recorded opaque half, then the capture,
+    // then the transparent half, in the order they were recorded.
+    this.replayObserver = scene.onAfterDrawPhaseObservable.add(() => {
+      const recorder = (this.engine as unknown as { _snapshotRendering?: { play?: boolean } })._snapshotRendering;
+      if (recorder?.play && this.capturedFrame !== this.engine.frameId) this.capture();
+    });
   }
+  private readonly replayObserver: Observer<Scene>;
 
   private get engine(): WebGLEngine {
     return this.scene.getEngine() as WebGLEngine;
@@ -388,6 +398,7 @@ export class SceneDepthCapture {
   }
 
   private dispose(): void {
+    this.scene.onAfterDrawPhaseObservable.remove(this.replayObserver);
     this.unhook();
     this.releaseTargets();
     this.effect?.dispose();

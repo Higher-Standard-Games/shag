@@ -837,7 +837,17 @@ export class MapLoader {
       // After freezing and PVS: replay the static surfaces' recorded WebGPU bundles
       const { installWorldBundleReplay } = await import("../../rendering/WorldBundleReplay");
       const { getSinglePvsCamera } = await import("../../rendering/PvsMeshCandidates");
-      installWorldBundleReplay(scene, meshResult.worldMesh, () => getSinglePvsCamera(scene));
+      const worldBundles = installWorldBundleReplay(scene, meshResult.worldMesh, () => getSinglePvsCamera(scene));
+      // Whole-frame snapshots (?snapshot=1) replay the world too; the world replay steps aside
+      const { installSnapshotFrames } = await import("../../rendering/SnapshotFrames");
+      installSnapshotFrames(
+        scene,
+        meshResult.worldMesh,
+        () => BspManager.getInstance().getPvsCuller(),
+        (active) => {
+          if (worldBundles) worldBundles.enabled = !active;
+        },
+      );
 
       // A sky portal draws the sky from its own camera, with its own PVS
       const portal = isHeadlessNullEngine ? null : parseSkyPortal(bsp.entities);
