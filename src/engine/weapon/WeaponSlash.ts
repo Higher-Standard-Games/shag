@@ -151,6 +151,11 @@ function writeSlashRibbon(trail: TrailInstance): void {
   }
 }
 
+function disposeTrail(trail: TrailInstance): void {
+  trail.mesh?.dispose();
+  trail.material?.dispose(false, true);
+}
+
 /** At rest: one shared, frozen answer instead of a new object every frame. */
 const NO_SLASH_OFFSETS: Readonly<SlashAnimOffsets> = Object.freeze({
   xOffset: 0,
@@ -164,6 +169,8 @@ const NO_SLASH_OFFSETS: Readonly<SlashAnimOffsets> = Object.freeze({
 export class WeaponSlash {
   private static readonly TRAIL_FADE_MS = 800;
   private static readonly TRAIL_ALPHA = 0.22;
+  /** Finished trails kept for later swings; a quick series overlaps a few fading ones. */
+  private static readonly MAX_IDLE_TRAILS = 4;
 
   // Slash animation state
   private slashActive = false;
@@ -173,6 +180,12 @@ export class WeaponSlash {
 
   // Trail instances
   private trails: TrailInstance[] = [];
+  /**
+   * Finished trails, whole (mesh, material, feather texture, buffers) and
+   * disabled, for the next swing: a mesh, material and texture made and
+   * disposed per swing changed the frame's draw list three times over.
+   */
+  private idleTrails: TrailInstance[] = [];
   private trailWasActive = false;
   private readonly _forward = new Vector3();
   private readonly _up = new Vector3();
@@ -285,17 +298,7 @@ export class WeaponSlash {
           trail.fadeStart = now;
         }
       }
-      this.trails.push({
-        tipPoints: [],
-        handlePoints: [],
-        mesh: null,
-        capacity: 0,
-        positions: null,
-        uvs: null,
-        material: null,
-        fadeStart: 0,
-        active: true,
-      });
+      this.trails.push(this.takeTrail());
     }
     this.trailWasActive = isSlashing;
 
@@ -350,9 +353,8 @@ export class WeaponSlash {
       if (trail.fadeStart > 0) {
         const fadeProgress = (now - trail.fadeStart) / WeaponSlash.TRAIL_FADE_MS;
         if (fadeProgress >= 1.0) {
-          if (trail.mesh) trail.mesh.dispose();
-          if (trail.material) trail.material.dispose(false, true);
           this.trails.splice(i, 1);
+          this.retireTrail(trail);
         } else {
           if (trail.material) {
             trail.material.alpha = WeaponSlash.TRAIL_ALPHA * (1.0 - fadeProgress);
@@ -360,6 +362,44 @@ export class WeaponSlash {
         }
       }
     }
+  }
+
+  /** An idle trail still whole, emptied for a new swing, or a new one. */
+  private takeTrail(): TrailInstance {
+    for (let trail = this.idleTrails.pop(); trail; trail = this.idleTrails.pop()) {
+      // A map unload disposes scene meshes and materials, idle ones included
+      const material = trail.material;
+      if (trail.mesh?.isDisposed() || (material && !material.getScene().materials.includes(material))) {
+        disposeTrail(trail);
+        continue;
+      }
+      trail.tipPoints.length = 0;
+      trail.handlePoints.length = 0;
+      trail.fadeStart = 0;
+      trail.active = true;
+      return trail;
+    }
+    return {
+      tipPoints: [],
+      handlePoints: [],
+      mesh: null,
+      capacity: 0,
+      positions: null,
+      uvs: null,
+      material: null,
+      fadeStart: 0,
+      active: true,
+    };
+  }
+
+  private retireTrail(trail: TrailInstance): void {
+    trail.active = false;
+    if (!trail.mesh || this.idleTrails.length >= WeaponSlash.MAX_IDLE_TRAILS) {
+      disposeTrail(trail);
+      return;
+    }
+    trail.mesh.setEnabled(false);
+    this.idleTrails.push(trail);
   }
 
   /** Build/rebuild ribbon mesh for a trail instance */
@@ -431,9 +471,13 @@ export class WeaponSlash {
     }
     trail.material.alpha = WeaponSlash.TRAIL_ALPHA;
     trail.mesh.material = trail.material;
+    if (!trail.mesh.isEnabled()) trail.mesh.setEnabled(true);
   }
 
-  /** Compile the trail's shader through the real ribbon, so the first swing finds it ready. */
+  /**
+   * Compile the trail's shader through the real ribbon, so the first swing
+   * finds it ready; the ribbon is then the first idle trail.
+   */
   async prepareShaders(scene: Scene, signal?: AbortSignal): Promise<void> {
     const trail: TrailInstance = {
       tipPoints: [new Vector3(0, 0, 0), new Vector3(1, 0, 0)],
@@ -446,24 +490,25 @@ export class WeaponSlash {
       fadeStart: 0,
       active: false,
     };
+    let kept = false;
     try {
       this.buildTrailMesh(scene, trail);
       if (trail.mesh && trail.material) {
         trail.mesh.setEnabled(false);
         await prepareMaterial(trail.material, trail.mesh, signal);
+        this.retireTrail(trail);
+        kept = true;
       }
     } finally {
-      trail.mesh?.dispose();
-      trail.material?.dispose(false, true);
+      if (!kept) disposeTrail(trail);
     }
   }
 
   /** Clean up all trails */
   dispose(): void {
-    for (const trail of this.trails) {
-      if (trail.mesh) trail.mesh.dispose();
-      if (trail.material) trail.material.dispose(false, true);
-    }
+    for (const trail of this.trails) disposeTrail(trail);
+    for (const trail of this.idleTrails) disposeTrail(trail);
     this.trails = [];
+    this.idleTrails = [];
   }
 }

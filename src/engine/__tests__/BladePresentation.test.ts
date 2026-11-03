@@ -16,7 +16,7 @@ const grid = vi.hoisted(() => vi.fn());
 vi.mock("../loader/bsp/BspManager", () => ({ BspManager: { getInstance: () => ({ getLightingInto: grid }) } }));
 afterEach(() => vi.restoreAllMocks());
 
-it("feathers the low-opacity swing and retires its texture when the trail expires", () => {
+it("feathers the low-opacity swing, keeps the expired trail for the next one and retires its texture on disposal", () => {
   const engine = new NullEngine();
   const scene = new Scene(engine);
   const slash = new WeaponSlash();
@@ -38,6 +38,20 @@ it("feathers the low-opacity swing and retires its texture when the trail expire
     slash.updateTrail(scene, camera);
     time.mockReturnValue(1900);
     slash.updateTrail(scene, camera);
+    const ribbon = scene.getMeshByName("slashTrail");
+    expect(ribbon?.isEnabled()).toBe(false);
+
+    // The next swing draws with the same ribbon and material
+    time.mockReturnValue(2000);
+    slash.trigger();
+    slash.updateTrail(scene, camera);
+    time.mockReturnValue(2100);
+    slash.updateTrail(scene, camera);
+    expect(scene.meshes.filter((mesh) => mesh.name === "slashTrail")).toEqual([ribbon]);
+    expect(ribbon?.isEnabled()).toBe(true);
+    expect(scene.materials.filter((m) => m.name === "slashTrailMat")).toEqual([material]);
+
+    slash.dispose();
     expect(scene.getMaterialByName("slashTrailMat")).toBeNull();
     expect(scene.textures.some((texture) => texture.name === "slashTrailFeather")).toBe(false);
   } finally {
