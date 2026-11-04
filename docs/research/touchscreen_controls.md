@@ -383,13 +383,14 @@ without any visible touch UI, testable on desktop.
    event and `in_touch`. `body.touch-device` and the boot screen's "Tap to
    start" now follow the primary pointer, so a touch laptop no longer gets
    them.
-2. **A "playing" state independent of pointer lock.** Give
-   `CameraInputHandler` an `inPlay` state (pointer locked **or** touch play
-   active) and a public `applyLookDelta(dx, dy)`, holding the existing
-   sensitivity, ADS, invert, clamp and `rotationApplier` code. Mouse look
-   calls it, and so will touch look. Move the fifteen pointer-lock checks to
-   `inPlay`; the pause menu opens on leaving play, from Esc or the touch menu
-   button.
+2. **A "playing" state independent of pointer lock. Done** on
+   `feature/touch-controls`. `src/engine/input/PlayCapture.ts` holds it
+   (`inPlay`, `PLAY_CHANGE`, `enterPlay`, `leavePlay`, touch play), and
+   `CameraInputHandler` has `inPlay` and `applyLookDelta(dx, dy, sensitivity)`.
+   Fire, aim, the crosshair, the match menu, chat, pickup prompts, joining and
+   Resume use it; spectator clicks, the editor, free flight and the console
+   stay on pointer lock. A touch on the canvas starts touch play from its
+   `pointerdown`: touches there cancel their default, so no click follows.
 3. **Stick input into movement.** Add an optional
    `moveAxis?: { forward: number; right: number }` to `PlayerInputState`.
    `Game.sendInput()` builds the world direction from it when present (the same

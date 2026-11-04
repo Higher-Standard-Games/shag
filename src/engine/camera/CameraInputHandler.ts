@@ -1,8 +1,9 @@
 /**
  * CameraInputHandler - Shared input handler logic for camera controllers.
  *
- * Encapsulates the common pointer lock, mouse look, and key prevention
- * boilerplate that both FPSController and FreeflyController duplicate.
+ * Encapsulates the common capture (pointer lock, or touch play on a touch
+ * screen; see PlayCapture), look, and key prevention boilerplate that both
+ * FPSController and FreeflyController duplicate.
  * Each controller uses this utility via composition, keeping their
  * own update() and gameplay-specific input handling independent.
  */
@@ -10,6 +11,8 @@
 import type { FreeCamera } from "@babylonjs/core/Cameras/freeCamera";
 import { Cvar } from "../core/Cvar";
 import { devLog } from "../core/DevLog";
+import { InputDevice } from "../input/InputDevice";
+import { inPlay, PLAY_CHANGE, setTouchPlay } from "../input/PlayCapture";
 import { requestRawPointerLock } from "../input/RawPointerLock";
 import { clearBrowserControlFailure, showBrowserControlFailure } from "../ui/BrowserControlFeedback";
 import type { CameraControllerConfig } from "./controllers/ICameraController";
@@ -20,9 +23,9 @@ export interface MouseLookState {
 }
 
 export interface PointerLockCallbacks {
-  /** Called when pointer lock is acquired */
+  /** Called when play starts: pointer lock, or touch play */
   onLocked?: () => void;
-  /** Called when pointer lock is released — controller should zero out keys */
+  /** Called when play ends — controller should zero out keys */
   onUnlocked?: () => void;
 }
 
@@ -52,6 +55,9 @@ export class CameraInputHandler {
   private _onCanvasClick: ((e: MouseEvent) => void) | null = null;
   private _onPointerLockChange: (() => void) | null = null;
   private _onPointerLockError: (() => void) | null = null;
+  private _inPlay = false;
+  private _onPlayChange: (() => void) | null = null;
+  private _onCanvasTouch: ((e: PointerEvent) => void) | null = null;
   private captureGeneration = 0;
   private capturePending = false;
   private _onMouseMove: ((e: MouseEvent) => void) | null = null;
@@ -76,6 +82,11 @@ export class CameraInputHandler {
 
   get isPointerLocked(): boolean {
     return this._isPointerLocked;
+  }
+
+  /** In play: the pointer is locked, or touch play holds the input. */
+  get inPlay(): boolean {
+    return this._inPlay;
   }
 
   get mouseRotationX(): number {
@@ -132,6 +143,11 @@ export class CameraInputHandler {
       // Post-game "open up": the cursor is deliberately free (chat + return
       // button) — don't re-capture on a stray world click while look is frozen.
       if (this._lookFrozen || !this.captureEnabled) return;
+      // Touch controls forced on a mouse (in_touch 1): the click starts touch play
+      if (InputDevice.getInstance().current === "touch") {
+        setTouchPlay(true);
+        return;
+      }
       if (!this._isPointerLocked && this.canvas && !this.capturePending) {
         this.capturePending = true;
         const generation = ++this.captureGeneration;
@@ -141,16 +157,32 @@ export class CameraInputHandler {
       }
     };
 
+    // A tap starts touch play. Touches on the canvas cancel their default, so
+    // the browser sends no click for them: the touch's own pointer event is it.
+    this._onCanvasTouch = (e: PointerEvent) => {
+      if (e.pointerType !== "touch" || e.target !== this.canvas) return;
+      if (this._lookFrozen || !this.captureEnabled) return;
+      setTouchPlay(true);
+    };
+
     // Pointer lock state change
     this._onPointerLockChange = () => {
       this.capturePending = false;
       this._isPointerLocked = document.pointerLockElement === this.canvas;
-      if (this._isPointerLocked) {
-        clearBrowserControlFailure("pointer");
-        devLog(`[${this.controllerName}] Mouse captured - WASD to move, ESC to release`);
+      if (this._isPointerLocked) clearBrowserControlFailure("pointer");
+    };
+
+    // Play starts and ends with pointer lock or touch play alike
+    this._inPlay = inPlay();
+    this._onPlayChange = () => {
+      const playing = inPlay();
+      if (playing === this._inPlay) return;
+      this._inPlay = playing;
+      if (playing) {
+        devLog(`[${this.controllerName}] In play`);
         this.callbacks.onLocked?.();
       } else {
-        devLog(`[${this.controllerName}] Mouse released - Click to capture`);
+        devLog(`[${this.controllerName}] Out of play - click or tap to resume`);
         this.callbacks.onUnlocked?.();
       }
     };
@@ -164,35 +196,10 @@ export class CameraInputHandler {
 
     // Mouse look (only when pointer is locked)
     this._onMouseMove = (e: MouseEvent) => {
-      if (!this._isPointerLocked || !this.camera) return;
-      if (this._lookFrozen) return; // post-game screen: aim is locked, pointer lock stays held
-
+      if (!this._isPointerLocked) return;
       const baseSensitivity = this.config.mouseSensitivity || 0.002;
       const sensitivityMultiplier = Cvar.getNumber("m_sensitivity") ?? 1.0;
-      let sensitivity = baseSensitivity * sensitivityMultiplier;
-
-      // Apply controller-specific modifier (e.g. ADS reduction)
-      if (this.mouseLookModifier) {
-        sensitivity = this.mouseLookModifier(sensitivity);
-      }
-
-      const invertYCvar = Cvar.getBool("m_invertY");
-      const invertY = this.config.invertY || invertYCvar ? -1 : 1;
-
-      // Update tracked rotation
-      this._mouseRotationY += e.movementX * sensitivity;
-      this._mouseRotationX += e.movementY * sensitivity * invertY;
-
-      // Clamp vertical rotation
-      this._mouseRotationX = Math.max(-Math.PI / 2 + 0.1, Math.min(Math.PI / 2 - 0.1, this._mouseRotationX));
-
-      // Apply rotation — custom applier or direct to camera
-      if (this.rotationApplier) {
-        this.rotationApplier(this._mouseRotationX, this._mouseRotationY);
-      } else if (this.camera) {
-        this.camera.rotation.x = this._mouseRotationX;
-        this.camera.rotation.y = this._mouseRotationY;
-      }
+      this.applyLookDelta(e.movementX, e.movementY, baseSensitivity * sensitivityMultiplier);
     };
 
     // Key prevention (Space + any extras)
@@ -219,7 +226,9 @@ export class CameraInputHandler {
 
     // Attach listeners
     canvas.addEventListener("click", this._onCanvasClick);
+    canvas.addEventListener("pointerdown", this._onCanvasTouch);
     document.addEventListener("pointerlockchange", this._onPointerLockChange);
+    document.addEventListener(PLAY_CHANGE, this._onPlayChange);
     document.addEventListener("pointerlockerror", this._onPointerLockError);
     document.addEventListener("mousemove", this._onMouseMove);
     document.addEventListener("keydown", this._onKeyDown);
@@ -228,7 +237,30 @@ export class CameraInputHandler {
   }
 
   /**
-   * Remove all event listeners and release pointer lock.
+   * Turn the view by `dx`, `dy` (pointer units) at `sensitivity` radians per
+   * unit, through the controller's modifier (ADS), invert, and the pitch clamp.
+   * Mouse look calls it; touch look calls it with its own sensitivity.
+   */
+  applyLookDelta(dx: number, dy: number, sensitivity: number): void {
+    if (!this.camera || this._lookFrozen) return; // post-game screen: aim is locked
+    if (this.mouseLookModifier) sensitivity = this.mouseLookModifier(sensitivity);
+    const invertY = this.config.invertY || Cvar.getBool("m_invertY") ? -1 : 1;
+
+    this._mouseRotationY += dx * sensitivity;
+    this._mouseRotationX += dy * sensitivity * invertY;
+    this._mouseRotationX = Math.max(-Math.PI / 2 + 0.1, Math.min(Math.PI / 2 - 0.1, this._mouseRotationX));
+
+    // Custom applier, or straight to the camera
+    if (this.rotationApplier) {
+      this.rotationApplier(this._mouseRotationX, this._mouseRotationY);
+    } else {
+      this.camera.rotation.x = this._mouseRotationX;
+      this.camera.rotation.y = this._mouseRotationY;
+    }
+  }
+
+  /**
+   * Remove all event listeners and end play.
    */
   teardown(): void {
     this.captureGeneration++;
@@ -236,9 +268,13 @@ export class CameraInputHandler {
     if (this._isPointerLocked) {
       document.exitPointerLock();
     }
+    setTouchPlay(false);
+    if (this._onPlayChange) document.removeEventListener(PLAY_CHANGE, this._onPlayChange);
+    this._onPlayChange = null;
 
     if (this.canvas) {
       if (this._onCanvasClick) this.canvas.removeEventListener("click", this._onCanvasClick);
+      if (this._onCanvasTouch) this.canvas.removeEventListener("pointerdown", this._onCanvasTouch);
       if (this._onContextMenu) this.canvas.removeEventListener("contextmenu", this._onContextMenu);
     }
     if (this._onPointerLockChange) document.removeEventListener("pointerlockchange", this._onPointerLockChange);
@@ -248,6 +284,7 @@ export class CameraInputHandler {
     if (this._onKeyUp) document.removeEventListener("keyup", this._onKeyUp);
 
     this._onCanvasClick = null;
+    this._onCanvasTouch = null;
     this._onPointerLockChange = null;
     this._onPointerLockError = null;
     this._onMouseMove = null;
@@ -255,6 +292,7 @@ export class CameraInputHandler {
     this._onKeyUp = null;
     this._onContextMenu = null;
     this._isPointerLocked = false;
+    this._inPlay = false;
     this.canvas = null;
     this.camera = null;
   }

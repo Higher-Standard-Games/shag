@@ -106,10 +106,25 @@ and Shift for triple speed. No FPS actions are registered by that fallback.
 Register a game's adapter before attaching its cameras; a different mapping
 is selected on the next attach.
 
-Held controls reset when the page loses focus, the tab becomes hidden or mouse
-capture is released. Returning and capturing again requires fresh presses;
-saved bindings are preserved. Mouse releases outside the canvas and cancelled
-touches are handled too.
+Held controls reset when the page loses focus, the tab becomes hidden or play
+ends. Returning to play requires fresh presses; saved bindings are preserved.
+Mouse releases outside the canvas and cancelled touches are handled too.
+
+### Play on a touch screen
+
+Mobile browsers have no pointer lock, so "in play" is its own state
+(`src/engine/input/PlayCapture.ts`): `inPlay()` is true while the pointer is
+locked or while touch play is held. Gameplay code reads `inPlay()` and listens
+for `PLAY_CHANGE` on the document instead of reading pointer lock; the
+crosshair, the match menu, chat and pickup prompts follow it. `enterPlay(canvas)`
+starts touch play when `InputDevice` reports touch and locks the pointer
+otherwise, and `leavePlay()` ends either. A touch on the game canvas starts
+touch play, and switching to keyboard and mouse ends it, since the mouse plays
+through pointer lock.
+
+`CameraInputHandler.applyLookDelta(dx, dy, sensitivity)` turns the view through
+the controller's look modifier (ADS), invert and the pitch clamp. Mouse look
+calls it with `m_sensitivity`; touch look will call it with its own.
 
 If the browser denies mouse capture, a dismissible notice explains how to retry.
 Fullscreen failures also show feedback, through Settings or Alt+Enter; the

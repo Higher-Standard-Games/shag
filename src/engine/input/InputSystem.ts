@@ -44,6 +44,7 @@ import type {
   RawInputState,
   TouchPoint,
 } from "./InputTypes";
+import { inPlay, PLAY_CHANGE, startPlayCapture, stopPlayCapture } from "./PlayCapture";
 
 // ==================== Default Engine Actions ====================
 
@@ -211,10 +212,15 @@ export class InputSystem {
   };
   private pointerLocked = false;
   private boundPointerLockChange = () => {
-    const locked = document.pointerLockElement === this.canvas;
-    if (this.pointerLocked && !locked) this.releaseHeldInput();
-    this.pointerLocked = locked;
+    this.pointerLocked = document.pointerLockElement === this.canvas;
     this.updateKeyboardLock();
+  };
+  // Leaving play (Esc, or the touch menu) lets go of everything held
+  private playing = false;
+  private boundPlayChange = () => {
+    const playing = inPlay();
+    if (this.playing && !playing) this.releaseHeldInput();
+    this.playing = playing;
   };
 
   // Babylon render-loop observers — stored so dispose() can detach them
@@ -266,6 +272,9 @@ export class InputSystem {
     this.pointerLocked = document.pointerLockElement === canvas;
     this.windowFocused = document.hasFocus();
     InputDevice.getInstance().start();
+    startPlayCapture();
+    this.playing = inPlay();
+    document.addEventListener(PLAY_CHANGE, this.boundPlayChange);
 
     // Add event listeners
     document.addEventListener("keydown", this.boundKeyDown);
@@ -945,6 +954,8 @@ export class InputSystem {
   dispose(): void {
     this.keyboardLock.dispose();
     InputDevice.getInstance().stop();
+    document.removeEventListener(PLAY_CHANGE, this.boundPlayChange);
+    stopPlayCapture();
     if (this.canvas) {
       document.removeEventListener("keydown", this.boundKeyDown);
       document.removeEventListener("keyup", this.boundKeyUp);
