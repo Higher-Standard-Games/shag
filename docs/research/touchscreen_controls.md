@@ -443,10 +443,23 @@ without any visible touch UI, testable on desktop.
    gets the final turn in radians (after ADS scaling and invert). Targets come
    from `RemotePlayerRenderer.getAimTargets()`: rendered, alive and not allied,
    at the hitbox centre. A point trace through the world (the sweep backend)
-   rules out anyone behind a wall. Mouse look never passes a shape. The server
-   side, which marks assisted input, is still open.
-9. **Gyro (optional)**: `devicemotion` `rotationRate` added through
-   `applyLookDelta`, only while fire or aim is held, by default.
+   rules out anyone behind a wall. Mouse look never passes a shape.
+   **Keeping it to touch players** (owner's choice, 2026-11-04: the cheap
+   options, no separate pools). The server cannot verify a device, and a
+   modified client could cheat far beyond the assist, so the aim is to keep the
+   assist honest and visible: it helps only drags from trusted touch events
+   (not script-made ones, not the gyro); the client claims
+   `InputButtons.ASSISTED_AIM` on every command while the device is touch; the
+   roster carries it (`standings[].assisted`) and the scoreboard shows a
+   controller icon before the name (keyboard otherwise); Telemetry counts the
+   claim's share and switches per client for anti-cheat review
+   (`docs/research/ANTICHEAT_FEATURES.md` §2.8).
+9. **Gyro while shooting. Done** on `feature/touch-controls`. While FIRE or the
+   seam is held, the phone's rotation rate (`devicemotion`) turns the view one
+   degree per degree, with a 0.8°/s dead zone for tremor; `gyroTurn` maps the
+   device axes for either landscape orientation. An iPhone asks for permission
+   on the first real tap. `in_gyro` (on) and `in_gyrosens` (1). The axis signs
+   follow the device-motion spec and still need checking on a real phone.
 
 ### Things to watch
 

@@ -686,6 +686,15 @@ Server sends gameplay data to clients via snapshot events:
 
 **Client-side:** `HUDState` singleton aggregates all events into a queryable state object (health, armor, scoreboard, kill feed, damage numbers).
 
+Input button bit 13 (`InputButtons.ASSISTED_AIM`, alias `ACTION2`) is the
+client's claim that the player aims with touch or a controller, which the game's
+aim assist helps. The server cannot verify it: it puts it on the roster
+(`standings[].assisted`) for the scoreboard's icon, and counts it in the
+per-client telemetry (`assisted=` share and `assistSwitches=` in the
+`SHAG_DEBUG=telemetry` log) so accuracy and flick outliers can be read against
+it. Like `AUTO_ADS`, it uses a spare bit of the existing mask and changes no
+packet or demo layout; a recording made without it reads as keyboard and mouse.
+
 ### Match state
 
 The `match_state` event carries a `MatchStateSnapshot`
@@ -693,6 +702,8 @@ The `match_state` event carries a `MatchStateSnapshot`
 ready counts, scores, teams and standings. Optional fields an older server or
 recording may lack:
 
+- `standings[].assisted`: `true` for a player whose newest command claims
+  touch or a controller (`ASSISTED_AIM`); absent for keyboard and mouse.
 - `timeElapsed`: seconds played in the live phase (the match, or the round in
   round modes), running on through overtime. The client's count-up clock
   (`cl_invertClock 1`) uses it and falls back to the countdown when it is

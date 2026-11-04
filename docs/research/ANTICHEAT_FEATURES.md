@@ -266,6 +266,14 @@ Each is a feature with: **what it catches**, **cost**, **false-positive risk**, 
   hit; score straightness / overshoot / settle time. Too-perfect or bimodal paths flag.
 - **Cost:** low-med (reuses the angle stream WO-12 already samples). **FP risk:** med — calibrate
   from human demos (§3). **Phase:** D.
+- **Aim assist changes the baseline.** Touch players (and controller players, later) get a slight
+  aim assist: friction over a target and a pull of at most a quarter of their own turn
+  (`docs/research/touchscreen_controls.md`, "Aim assist"). Their commands carry the
+  `ASSISTED_AIM` claim, and Telemetry counts its share and how often it switches per client
+  (`assisted=`, `assistSwitches=`). Calibrate this signal per claim: assisted aim legitimately
+  sticks more, so sticky, assist-shaped tracking from a client claiming keyboard and mouse is the
+  tell, and a claim that flips mid-match is worth a look on its own. The claim itself is
+  unverifiable (§0); it only decides which baseline a player is measured against.
 
 > **Not worth building:** client memory/integrity checks, screenshot/streamproof, "signature"
 > detection of known cheat binaries (OSS → recompile defeats it), CAPTCHAs, hardware bans (trivially

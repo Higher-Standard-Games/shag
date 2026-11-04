@@ -24,7 +24,13 @@ export const InputButtons = {
   /** ADS requested by primary fire, rather than the player's aim button. */
   AUTO_ADS: 1 << 12,
 
-  // ACTION1 aliases AUTO_ADS; games using automatic aim reserve that bit.
+  /**
+   * Aiming with touch or a controller, which aim assist may help. The client's
+   * own claim: the server shows it and can weigh it, but cannot verify it.
+   */
+  ASSISTED_AIM: 1 << 13,
+
+  // ACTION1 aliases AUTO_ADS and ACTION2 ASSISTED_AIM; games using those reserve the bits.
   ACTION1: 1 << 12,
   ACTION2: 1 << 13,
   ACTION3: 1 << 14,
