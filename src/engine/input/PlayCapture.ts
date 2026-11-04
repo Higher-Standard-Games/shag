@@ -9,9 +9,11 @@
  * through pointer lock.
  */
 
+import { background } from "../core/AsyncErrors";
 import { EventBus } from "../core/EventBus";
 import { requestBrowserPointerLock } from "../ui/BrowserControlFeedback";
 import { INPUT_DEVICE_CHANGED, InputDevice, type InputDeviceKind } from "./InputDevice";
+import { enterTouchFullscreen } from "./TouchFullscreen";
 
 /** Dispatched on the document whenever `inPlay()` may have changed. */
 export const PLAY_CHANGE = "shag:playchange";
@@ -37,10 +39,17 @@ export function setTouchPlay(on: boolean): void {
   announce();
 }
 
-/** Start play: touch play on a touch screen, otherwise lock the pointer to `canvas`. */
+/**
+ * Start play: touch play on a touch screen, otherwise lock the pointer to
+ * `canvas`. From a tap (Resume), touch play also goes back to fullscreen.
+ */
 export function enterPlay(canvas: HTMLCanvasElement | null): void {
-  if (InputDevice.getInstance().current === "touch") setTouchPlay(true);
-  else requestBrowserPointerLock(canvas);
+  if (InputDevice.getInstance().current === "touch") {
+    background(enterTouchFullscreen(), "PlayCapture");
+    setTouchPlay(true);
+  } else {
+    requestBrowserPointerLock(canvas);
+  }
 }
 
 /** End play, whichever kind it is. */

@@ -423,11 +423,15 @@ without any visible touch UI, testable on desktop.
    menu button hides it. Checked in headless Edge with touch emulation on a
    phone-sized landscape view: move, look, edge spin, fire, ready and menu.
    Not on screen: **Use** (F, picking up a dropped weapon).
-6. **Fullscreen, orientation, rotate overlay.** The flow in
-   [section 2](#2-fullscreen-and-landscape): fullscreen and the landscape lock
-   from `LoadingScreen.start()` and from the touch pause menu's Resume, the
-   portrait overlay and the safe-area padding. This stage can ship before the
-   controls; it is small and visible straight away.
+6. **Fullscreen, orientation, rotate overlay. Done** on
+   `feature/touch-controls`. `src/engine/input/TouchFullscreen.ts` enters
+   fullscreen and then locks landscape, quietly where refused. It runs from
+   the boot screen's tap on a touch device (`LoadingScreen.start()`) and from
+   `enterPlay` in touch play (Resume). A touch's `pointerdown` does not count
+   as a user activation, only its release or click does, so the game canvas's
+   own tap cannot ask for fullscreen. In portrait the touch layer shows "turn
+   your device sideways" and ignores touches. Checked in headless Edge: the
+   boot tap entered fullscreen. The orientation lock needs a real phone.
 7. **Settings rows and layout editor**, in `ControlsPage.ts` and `SettingsModel.ts`.
 8. **Aim assist** in the touch look path, as described under
    [Aim assist](#aim-assist), with unit tests for friction, pull and the

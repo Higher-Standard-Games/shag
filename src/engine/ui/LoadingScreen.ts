@@ -25,6 +25,7 @@ import { MENU_PLAYLIST } from "../audio/MenuPlaylist";
 import { devLog } from "../core/DevLog";
 import { EngineVersion } from "../core/EngineVersion";
 import { primaryDevice } from "../input/InputDevice";
+import { enterTouchFullscreen } from "../input/TouchFullscreen";
 import { buildTwinLight, buildTwinRail, TWIN_ROOT_CLASS, type TwinRail } from "./components/LobbyTwin";
 import { LoadingAnimation } from "./LoadingAnimation";
 import { SHAG_PALETTE } from "./LoadingPalettes";
@@ -322,6 +323,8 @@ export class LoadingScreen {
 
     // Unlock browser audio context
     AudioManager.getInstance().unlockAudio();
+    // On a phone or tablet the same tap takes the game fullscreen and landscape
+    if (primaryDevice() === "touch") background(enterTouchFullscreen(), "LoadingScreen");
     background(AudioManager.getInstance().loadPlaylist(MENU_PLAYLIST), "LoadingScreen");
 
     this.kickerEl.textContent = "Starting";
