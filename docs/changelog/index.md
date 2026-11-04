@@ -6,7 +6,8 @@ All notable changes to this project are documented in version-specific files.
 
 | Version | Date | Summary |
 |---------|------|---------|
-| [v1.0.0-beta.5](./v1.0.0-beta.5.md) | unreleased | Living changelog for the next beta cycle |
+| [v1.0.0-beta.6](./v1.0.0-beta.6.md) | unreleased | Living changelog for the next beta cycle |
+| [v1.0.0-beta.5](./v1.0.0-beta.5.md) | Nov 4, 2026 | Touch controls with aim assist and gyro while firing, input devices shown on the scoreboard, and native-client lobby, demos, downloads and match settings |
 | [v1.0.0-beta.4](./v1.0.0-beta.4.md) | Nov 4, 2026 | Fights stay smooth on WebGPU: no garbage-collection stalls or explosion re-uploads (frames over 50 ms on a full duel from 11 to none), weapons, players and pickups reused instead of rebuilt, no shaders compiled mid-match; health bubbles taken at full health, a splashing blade blast, and gentler, separate explosion and hit shake |
 | [v1.0.0-beta.3](./v1.0.0-beta.3.md) | Nov 3, 2026 | WebGPU is the default renderer, falling back to WebGL2, and replays whole recorded frames (177 against 94 fps on a dm11 FFA demo); first weapon pickups and hits no longer stall, a Renderer setting, and screen shake can be turned off |
 | [v1.0.0-beta.2](./v1.0.0-beta.2.md) | Nov 3, 2026 | Faster WebGPU: the static map replays its recorded draws (18–25% more frames on recorded fights), KTX2 textures stay compressed on WebGPU, and projectile trails make less garbage |
