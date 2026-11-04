@@ -177,15 +177,15 @@ same code, so no whole-demo number is given for this change.
 
 The remaining disposals were deaths: per life a body (rig, clips, materials)
 and a hitbox outline (a line mesh with a material of its own) were disposed
-and built again.  now keeps up to two bodies per player
-id (, and  for the ragdoll, which
-holds a body without its manager), and the renderer keeps one hitbox outline
-per player. A kept body is hidden part by part, its anchor enabled, so a
+and built again. `PlayerModelManager` now keeps up to two bodies per player
+id (`releaseInstance`, and `releasePlayerModel` for the ragdoll, which holds a
+body without its manager), and the renderer keeps one hitbox outline per
+player. A kept body is hidden part by part, its anchor enabled, so a
 recording draws it collapsed.
 
 Babylon's ragdoll changes a body in ways a reused one must undo:
- unlinks every bone from its transform node and
- does not link them back, and our ragdoll empties the body's clip
+`Ragdoll.ragdoll()` unlinks every bone from its transform node and `dispose()`
+does not link them back, and our ragdoll empties the body's clip
 list, renames its root mesh and makes its parts unpickable. Each body records
 its bone nodes, clips, name and pickability when it is made, and release puts
 them back.
