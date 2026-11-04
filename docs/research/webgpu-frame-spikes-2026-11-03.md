@@ -136,6 +136,26 @@ against the nearest one compiled at load found two causes:
 
 Effects compiled during the first 5:45 of play: 7 before, none after.
 
+## Where the night ended
+
+The same demo, whole, with every change above:
+
+| | Start | End |
+|---|---|---|
+| Average fps | 289 | 423 |
+| Median frame | 3.1 ms | 2.2 ms |
+| p99 frame | 16.9 ms | 6.1 ms |
+| p99.9 frame | 28.2 ms | 13.9 ms |
+| Frames over 25 ms | 328 | 10 |
+| Frames over 50 ms | 11 | 0 |
+| Worst frame | 165 ms | 39 ms |
+| Recording frames | 2716 | 779 |
+| Pipelines built in play | 3 | 2 |
+
+The worst frames left are recording frames (21 to 34 ms) and a collection or
+GPU wait (39 ms). One run before this one, with the owner's machine busier,
+came out at 346 fps; the long frames held in both.
+
 ## What is left
 
 - **Recording frames** are now the worst frames: 20 to 34 ms when a fight
