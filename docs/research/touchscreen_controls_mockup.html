@@ -124,15 +124,16 @@ canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block
 .btn.on { border-color: var(--gold); color: var(--gold); }
 /* The right thumb's cluster, placed in screen heights from the bottom-right corner so it
    keeps its shape on any phone width. The thumb comes up from the bottom corner, so AIM sits
-   at FIRE's right, a little below its middle, and the weapon keys arc just above them. */
+   at FIRE's right, a little below its middle; the other keys ring FIRE loosely: weapon keys
+   above, RELOAD left, CROUCH and JUMP below. */
 .btn-fire { width: 27.3cqh; height: 27.3cqh; right: 30.9cqh; bottom: 28.6cqh; border-width: 3px; border-color: hsla(320, 100%, 60%, calc(var(--ctl-alpha) + 0.2)); color: hsl(320, 100%, 75%); }
 .btn-fire.down { background: hsla(320, 100%, 60%, 0.32); border-color: var(--magenta); }
 .btn-ads { width: 15.6cqh; height: 15.6cqh; right: 14.2cqh; bottom: 28.3cqh; }
-.btn-jump { width: 19.5cqh; height: 19.5cqh; right: 4.6cqh; bottom: 6.5cqh; }
-.btn-crouch { width: 16.3cqh; height: 16.3cqh; right: 62cqh; bottom: 6.5cqh; }
+.btn-jump { width: 19.5cqh; height: 19.5cqh; right: 24.2cqh; bottom: 9.9cqh; }
+.btn-crouch { width: 16.3cqh; height: 16.3cqh; right: 50.7cqh; bottom: 13.6cqh; }
 .btn-reload { width: 13.7cqh; height: 13.7cqh; right: 60.7cqh; bottom: 32.1cqh; }
 .btn-fire .cap, .btn-ads .cap, .btn-jump .cap, .btn-crouch .cap, .btn-reload .cap { font-size: 2.2cqh; bottom: -3.8cqh; }
-.btn-ads .cap { bottom: auto; top: -3.8cqh; }
+.btn-ads .cap, .btn-fire .cap { bottom: auto; top: -3.8cqh; }
 /* A thumb is one touch point, so resting it across FIRE and AIM presses only one of them.
    The seam between them is its own spot that presses both. */
 .btn-seam { width: 9.8cqh; height: 9.8cqh; right: 25.6cqh; bottom: 33.5cqh; border-radius: 2.1cqh; transform: rotate(45deg); border-color: hsla(320, 100%, 60%, calc(var(--ctl-alpha) + 0.15)); background: linear-gradient(135deg, hsla(42, 95%, 92%, calc(var(--ctl-alpha) * 0.35)), hsla(320, 100%, 60%, calc(var(--ctl-alpha) * 0.45))); box-shadow: none; }
@@ -234,7 +235,7 @@ code { font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; font-siz
       <div class="btn btn-blade" data-btn="blade" aria-label="Blade">BL</div>
       <div class="btn btn-reload" data-btn="reload" aria-label="Reload"><svg viewBox="0 0 24 24"><path d="M19 12a7 7 0 1 1-2.05-4.95"/><path d="M19 4v4h-4"/></svg><span class="cap">RELOAD</span></div>
       <div class="btn btn-ads" data-btn="ads" aria-label="Aim, tap to toggle"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="7"/><path d="M12 2v5M12 17v5M2 12h5M17 12h5"/></svg><span class="cap" id="ads-cap">AIM</span></div>
-      <div class="btn btn-fire" data-btn="fire" aria-label="Fire, drag to aim"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 3v4M12 17v4M3 12h4M17 12h4M5.6 5.6l2.2 2.2M16.2 16.2l2.2 2.2M5.6 18.4l2.2-2.2M16.2 7.8l2.2-2.2"/></svg><span class="cap">FIRE · DRAG TO AIM</span></div>
+      <div class="btn btn-fire" data-btn="fire" aria-label="Fire, drag to aim"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 3v4M12 17v4M3 12h4M17 12h4M5.6 5.6l2.2 2.2M16.2 16.2l2.2 2.2M5.6 18.4l2.2-2.2M16.2 7.8l2.2-2.2"/></svg><span class="cap">FIRE</span></div>
       <div class="btn btn-seam" data-btn="fireaim" aria-label="Fire while aiming, drag to aim"></div>
       <div class="btn btn-crouch" data-btn="crouch" aria-label="Crouch and slide, hold"><svg viewBox="0 0 24 24"><path d="M6 8l6 6 6-6"/><path d="M5 19h14"/></svg><span class="cap">CROUCH</span></div>
       <div class="btn btn-jump" data-btn="jump" aria-label="Jump, hold to keep hopping"><svg viewBox="0 0 24 24"><path d="M6 15l6-6 6 6"/><path d="M6 20l6-6 6 6" opacity=".5"/></svg><span class="cap">JUMP</span></div>

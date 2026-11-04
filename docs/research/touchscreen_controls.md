@@ -264,9 +264,9 @@ fills the screen.
  │   ╭─ move (left 42%) ───────╮   ╭─ look (right 58%) ────────────────╮  │
  │   │ floating stick: appears │   │ drag = look (acceleration curve)  │  │
  │   │ under the thumb; a faint│   │ hold at either edge = edge spin   │  │
- │   │ ghost marks its rest    │   │          [BL]  [«]  [»]           │  │
- │   │ any angle, always runs  │   │  (reload) ( FIRE )◆(AIM)          │  │
- │   │                         │   │   (crouch)            (JUMP)      │  │
+ │   │ ghost marks its rest    │   │        [BL]   [«]   [»]           │  │
+ │   │ any angle, always runs  │   │   (reload) ( FIRE )◆(AIM)         │  │
+ │   │                         │   │       (crouch)  (JUMP)            │  │
  │   ╰─────────────────────────╯   ╰───────────────────────────────────╯  │
  │              health · armor                weapon · ammo               │
  └──────────────────────────────────────────────────────────────────────┘
@@ -276,8 +276,11 @@ fills the screen.
 bottom-right corner (CSS container units, `cqh`), so the cluster keeps its
 shape on every phone width. The phone is held by its lower corners, so the
 thumb comes up from below: AIM sits at FIRE's right, a little below its middle,
-about a thumb pad apart. The weapon keys arc just above FIRE, « centred over it
-with BL and » on either side. Health and armor sit bottom centre-left and the
+about a thumb pad apart. The other keys ring FIRE loosely at about the same
+distance: the weapon keys arc above it (« centred over it, BL and » on either
+side), RELOAD sits to its left, and CROUCH and JUMP sit under it. Tried on a
+phone, the cluster needed buttons 30% larger than the first mockup's (FIRE is
+about 27% of the screen height). Health and armor sit bottom centre-left and the
 weapon and ammo bottom centre-right, clear of both thumbs.
 
 **One thumb on FIRE and AIM.** A touchscreen reports a finger as one point, its
