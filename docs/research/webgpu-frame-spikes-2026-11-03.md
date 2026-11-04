@@ -136,6 +136,43 @@ against the nearest one compiled at load found two causes:
 
 Effects compiled during the first 5:45 of play: 7 before, none after.
 
+## Weapons and projectiles vanishing (November 4)
+
+Playtesting (Opera and Firefox, a live duel against a bot) showed the blade
+gone for a while after switching back to it, and plasma bolts invisible until
+a burst of new shots. Both come from one gap in the snapshot controller. A
+recording frame forces every mesh hidden in place to draw (collapsed), except
+one hidden by a disabled ancestor: forcing the ancestor on would show its
+other children too. The view weapon parking disables the weapon's root, and
+the projectile pool disabled each shot's node. Once such a mesh had been
+learned as hidden in place, putting it away or bringing it back no longer
+changed the draw-list signature, so a recording made while it was put away
+kept replaying without it after it came back. The projectile fade ending at
+0.999 removed the last signature change a reused shot made.
+
+Reproduced in a paused demo with snapshots on: a plasma bolt spawned in front
+of the camera, despawned into the pool, a recording forced while it is
+parked, then spawned again. On the committed code the bolt drew from the
+third cycle on as 0 pixels (snapshots off: about 8,000); the blade switched
+away to the riot gun and back drew as 0 pixels in every cycle (off: about
+12,000). With the changes below, both draw in every cycle.
+
+- The controller lists, when a recording completes, the meshes hidden in
+  place that it did not draw, and stops replaying when one of them shows
+  ("unrecorded mesh shown").
+- Projectile shots and pickups hide each of their meshes instead of a parent
+  node, so the recording draws them collapsed and they come back without a
+  new recording. View weapons still park by their root (their ammo counter
+  hides digits of its own), so a switch back costs one recording.
+
+Cost: projectiles and pickups parked in place now draw collapsed in every
+replayed frame. In one session, disposing every idle shot changed the mean
+frame by no more than the noise between rounds (4.38 against 4.77 ms, then
+4.41 against 4.22 ms), and the committed code measured the same at the same
+time (4.0 to 4.7 ms with about 585 meshes recorded). Whole-demo runs on this
+machine while browsers were open drifted between 225 and 423 fps for the
+same code, so no whole-demo number is given for this change.
+
 ## Where the night ended
 
 The same demo, whole, with every change above:

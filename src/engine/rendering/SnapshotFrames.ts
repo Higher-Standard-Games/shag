@@ -346,6 +346,13 @@ class SnapshotFrames implements SnapshotFramesHandle {
   private readonly watched = new WeakSet<AbstractMesh>();
   /** Forced meshes that drew while recording; one that did not forces a new recording. */
   private readonly drawnForced = new Set<AbstractMesh>();
+  /**
+   * Meshes hidden in place that the recording could not draw: a disabled
+   * ancestor hides them, and forcing the ancestor on would show its other
+   * children. A replayed frame would leave one out once it shows, so replay
+   * stops when it does.
+   */
+  private undrawn: AbstractMesh[] = [];
   /** How often each mesh was shown or hidden; two changes make it hidden in place. */
   private readonly flips = new WeakMap<AbstractMesh, { shown: boolean; count: number }>();
   private readonly inPlace = new WeakSet<AbstractMesh>();
@@ -539,6 +546,9 @@ class SnapshotFrames implements SnapshotFramesHandle {
         this.stop("forced mesh not recorded");
       } else if (this.kind === "recording") {
         this.kind = "replay";
+        this.undrawn = this.recorded.filter(
+          (mesh) => this.inPlace.has(mesh) && !instanceStorage(mesh) && !this.drawnForced.has(mesh),
+        );
       }
       this.cullingAfterRecording();
       this.lastSignature = this.recordedSignature;
@@ -963,6 +973,14 @@ class SnapshotFrames implements SnapshotFramesHandle {
       this.stop("draw list");
       return;
     }
+    if (this.kind === "replay") {
+      for (const mesh of this.undrawn) {
+        if (!mesh.isDisposed() && mesh.isEnabled() && mesh.isVisible && mesh.visibility > 0) {
+          this.stop("unrecorded mesh shown");
+          return;
+        }
+      }
+    }
     if (this.kind === "recording") {
       this.recordingFrame = (this.scene.getEngine() as unknown as { frameId: number }).frameId;
       this.forceRecorded();
@@ -1073,6 +1091,7 @@ class SnapshotFrames implements SnapshotFramesHandle {
     this.world.onDisposeObservable.remove(this.worldDispose);
     this.engine._device?.removeEventListener("uncapturederror", this.onDeviceError);
     this.recorded = [];
+    this.undrawn = [];
     if (handles.get(this.scene) === this) handles.delete(this.scene);
   }
 }

@@ -185,7 +185,9 @@ describe("projectile trails", () => {
     tick();
     const { node, trailMesh } = stateOf(first);
     manager.despawn(first as string);
-    expect(node.isEnabled()).toBe(false);
+    // Its meshes hide themselves; the node stays enabled, so a snapshot recording can hold them
+    expect(node.isEnabled()).toBe(true);
+    expect(node.getChildMeshes().every((mesh) => !mesh.isEnabled(false))).toBe(true);
     const meshes = scene.meshes.length;
 
     const second = fire();

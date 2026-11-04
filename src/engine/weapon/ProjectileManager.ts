@@ -615,10 +615,12 @@ export class ProjectileManager {
     const node = reused?.node ?? new TransformNode(id, this.scene);
     if (reused) {
       node.name = id;
-      for (const mesh of node.getChildMeshes()) mesh.name = mesh.name.replace(/^proj_\d+_/, `${id}_`);
+      for (const mesh of node.getChildMeshes()) {
+        mesh.name = mesh.name.replace(/^proj_\d+_/, `${id}_`);
+        mesh.setEnabled(true);
+      }
       if (reused.trailMesh) reused.trailMesh.name = `${id}_trail`;
       if (reused.trailMeshCross) reused.trailMeshCross.name = `${id}_trailCross`;
-      node.setEnabled(true);
     }
     node.position = origin.clone();
 
@@ -1376,7 +1378,10 @@ export class ProjectileManager {
     getPointLightPool().release(proj.light);
     const idle = this.idleShots.get(proj.defId) ?? [];
     if (proj.source && isIntact(proj) && idle.length < ProjectileManager.MAX_IDLE_SHOTS) {
-      proj.node.setEnabled(false);
+      // Each mesh is hidden itself, the node staying enabled: a WebGPU snapshot
+      // recording draws a mesh hidden by its own state (collapsed), but not one
+      // hidden by a disabled ancestor, so the next shot needs no new recording
+      for (const mesh of proj.node.getChildMeshes()) mesh.setEnabled(false);
       proj.trailMesh?.setEnabled(false);
       proj.trailMeshCross?.setEnabled(false);
       idle.push({
