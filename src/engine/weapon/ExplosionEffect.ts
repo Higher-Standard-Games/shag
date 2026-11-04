@@ -58,7 +58,7 @@ export const ROCKET_EXPLOSION: ExplosionConfig = {
   outerColor: new Color3(1.0, 0.4, 0.05), // deep orange flames
   smokeColor: new Color3(0.3, 0.25, 0.2), // dark smoke
   shakeIntensity: 0.7,
-  shakeMaxRange: 162,
+  shakeMaxRange: 194,
 };
 
 /** Preset for grenade explosions */
@@ -69,7 +69,7 @@ export const GRENADE_EXPLOSION: ExplosionConfig = {
   outerColor: new Color3(1.0, 0.5, 0.1), // orange flames
   smokeColor: new Color3(0.3, 0.25, 0.2), // dark smoke
   shakeIntensity: 0.7,
-  shakeMaxRange: 162,
+  shakeMaxRange: 194,
 };
 
 /** Preset for plasma explosions — small, fast, green */
@@ -81,7 +81,7 @@ export const PLASMA_EXPLOSION: ExplosionConfig = {
   smokeColor: new Color3(0.1, 0.2, 0.1), // green-tinted smoke
   rays: { min: 4, max: 6 }, // a small pop; plasma fights spawn many
   shakeIntensity: 0.0525,
-  shakeMaxRange: 180, // close range only
+  shakeMaxRange: 216, // close range only
 };
 
 /** Preset for blade blast explosions — 50% of rocket, teal-themed */
@@ -92,7 +92,7 @@ export const BLADE_EXPLOSION: ExplosionConfig = {
   outerColor: new Color3(0.05, 1.0, 0.9),
   smokeColor: new Color3(0.08, 0.2, 0.18),
   shakeIntensity: 0.35, // 50% of rocket shake
-  shakeMaxRange: 135,
+  shakeMaxRange: 162,
 };
 
 interface ActiveExplosion {
