@@ -314,7 +314,7 @@ seam gold) and drops its shadow, so the thumb gets feedback without looking.
 | Scoreboard | Hold | `FPS.SCOREBOARD` |
 | Chat | Opens chat; the on-screen keyboard appears | `FPS.CHAT` |
 | Ready | Shown during warmup only | `FPS.READY` |
-| Use | Not on screen; add it if a map needs it | `FPS.USE` |
+| USE | Pops up under the pick-up prompt while there is a weapon to pick up or swap to, over the weapon card; the prompt reads "TAP USE" | `FPS.USE` |
 
 ### Aim assist
 
@@ -422,7 +422,8 @@ without any visible touch UI, testable on desktop.
    cancel their default, so no click falls through to the game after the
    menu button hides it. Checked in headless Edge with touch emulation on a
    phone-sized landscape view: move, look, edge spin, fire, ready and menu.
-   Not on screen: **Use** (F, picking up a dropped weapon).
+   **USE** pops up under the pick-up prompt (`#pickup-hud-prompt`) while it
+   shows, and the prompt reads "TAP USE" on a touch screen.
 6. **Fullscreen, orientation, rotate overlay. Done** on
    `feature/touch-controls`. `src/engine/input/TouchFullscreen.ts` enters
    fullscreen and then locks landscape, quietly where refused. It runs from
@@ -432,10 +433,18 @@ without any visible touch UI, testable on desktop.
    own tap cannot ask for fullscreen. In portrait the touch layer shows "turn
    your device sideways" and ignores touches. Checked in headless Edge: the
    boot tap entered fullscreen. The orientation lock needs a real phone.
-7. **Settings rows and layout editor**, in `ControlsPage.ts` and `SettingsModel.ts`.
-8. **Aim assist** in the touch look path, as described under
-   [Aim assist](#aim-assist), with unit tests for friction, pull and the
-   still-thumb case.
+7. **Settings rows and layout editor. Dropped:** the owner chose a fixed
+   layout with no customisation (2026-11-04). The look's speed, acceleration
+   and assist are console variables (`in_touchsens`, `in_touchaccel`,
+   `in_touchassist`), not settings rows.
+8. **Aim assist. Done on the client** on `feature/touch-controls`.
+   `client/AimAssist.ts` holds the rules as pure functions; `FPSController.touchLook`
+   passes them to `CameraInputHandler.applyLookDelta` as a look shape, which
+   gets the final turn in radians (after ADS scaling and invert). Targets come
+   from `RemotePlayerRenderer.getAimTargets()`: rendered, alive and not allied,
+   at the hitbox centre. A point trace through the world (the sweep backend)
+   rules out anyone behind a wall. Mouse look never passes a shape. The server
+   side, which marks assisted input, is still open.
 9. **Gyro (optional)**: `devicemotion` `rotationRate` added through
    `applyLookDelta`, only while fire or aim is held, by default.
 

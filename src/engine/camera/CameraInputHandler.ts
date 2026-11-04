@@ -22,6 +22,9 @@ export interface MouseLookState {
   rotationY: number; // Yaw (horizontal)
 }
 
+/** Reshapes a look turn (radians) given the view's yaw and pitch before it. */
+export type LookShape = (yaw: number, pitch: number, viewYaw: number, viewPitch: number) => [number, number];
+
 export interface PointerLockCallbacks {
   /** Called when play starts: pointer lock, or touch play */
   onLocked?: () => void;
@@ -239,15 +242,20 @@ export class CameraInputHandler {
   /**
    * Turn the view by `dx`, `dy` (pointer units) at `sensitivity` radians per
    * unit, through the controller's modifier (ADS), invert, and the pitch clamp.
-   * Mouse look calls it; touch look calls it with its own sensitivity.
+   * Mouse look calls it; touch look calls it with its own sensitivity, and
+   * `shape` (touch aim assist) gets the final turn in radians, with the view's
+   * yaw and pitch before it, and returns the turn to apply.
    */
-  applyLookDelta(dx: number, dy: number, sensitivity: number): void {
+  applyLookDelta(dx: number, dy: number, sensitivity: number, shape?: LookShape): void {
     if (!this.camera || this._lookFrozen) return; // post-game screen: aim is locked
     if (this.mouseLookModifier) sensitivity = this.mouseLookModifier(sensitivity);
     const invertY = this.config.invertY || Cvar.getBool("m_invertY") ? -1 : 1;
 
-    this._mouseRotationY += dx * sensitivity;
-    this._mouseRotationX += dy * sensitivity * invertY;
+    let yaw = dx * sensitivity;
+    let pitch = dy * sensitivity * invertY;
+    if (shape) [yaw, pitch] = shape(yaw, pitch, this._mouseRotationY, this._mouseRotationX);
+    this._mouseRotationY += yaw;
+    this._mouseRotationX += pitch;
     this._mouseRotationX = Math.max(-Math.PI / 2 + 0.1, Math.min(Math.PI / 2 - 0.1, this._mouseRotationX));
 
     // Custom applier, or straight to the camera

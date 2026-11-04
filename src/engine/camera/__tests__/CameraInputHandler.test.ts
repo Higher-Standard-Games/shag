@@ -89,5 +89,15 @@ describe("CameraInputHandler on a touch screen", () => {
     handler.applyLookDelta(10, 0, 0.01);
     expect(applied).toHaveLength(2);
     handler.setLookFrozen(false);
+
+    // A shape (touch aim assist) gets the final turn and the view before it, and decides the turn
+    const seen: number[][] = [];
+    handler.applyLookDelta(10, 0, 0.01, (yaw, pitch, viewYaw, viewPitch) => {
+      seen.push([yaw, pitch, viewYaw, viewPitch]);
+      return [yaw * 2, pitch];
+    });
+    expect(seen[0][0]).toBeCloseTo(0.05);
+    expect(seen[0][2]).toBeCloseTo(0.05);
+    expect(applied[2][1]).toBeCloseTo(0.15);
   });
 });
