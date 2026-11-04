@@ -24,6 +24,7 @@ import { AudioManager } from "../AudioManager";
 import { MENU_PLAYLIST } from "../audio/MenuPlaylist";
 import { devLog } from "../core/DevLog";
 import { EngineVersion } from "../core/EngineVersion";
+import { primaryDevice } from "../input/InputDevice";
 import { buildTwinLight, buildTwinRail, TWIN_ROOT_CLASS, type TwinRail } from "./components/LobbyTwin";
 import { LoadingAnimation } from "./LoadingAnimation";
 import { SHAG_PALETTE } from "./LoadingPalettes";
@@ -119,7 +120,7 @@ export class LoadingScreen {
     this.ringEl.append(sweep, ...pulses, logo);
 
     // A touch screen is tapped, and has no Enter to press
-    const touch = window.matchMedia?.("(pointer: coarse)").matches === true;
+    const touch = primaryDevice() === "touch";
     this.captionEl = element("div", "boot__caption");
     this.startEl = document.createElement("button");
     this.startEl.type = "button";

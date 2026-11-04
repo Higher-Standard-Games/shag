@@ -33,6 +33,7 @@ import {
 } from "../ui/BrowserControlFeedback";
 import { validatedBindingOverrides } from "./BindingValidation";
 import { FullscreenKeyboardLock } from "./FullscreenKeyboardLock";
+import { InputDevice } from "./InputDevice";
 import type {
   ActionDefinition,
   ActionState,
@@ -264,6 +265,7 @@ export class InputSystem {
     this.canvas = canvas;
     this.pointerLocked = document.pointerLockElement === canvas;
     this.windowFocused = document.hasFocus();
+    InputDevice.getInstance().start();
 
     // Add event listeners
     document.addEventListener("keydown", this.boundKeyDown);
@@ -942,6 +944,7 @@ export class InputSystem {
 
   dispose(): void {
     this.keyboardLock.dispose();
+    InputDevice.getInstance().stop();
     if (this.canvas) {
       document.removeEventListener("keydown", this.boundKeyDown);
       document.removeEventListener("keyup", this.boundKeyUp);

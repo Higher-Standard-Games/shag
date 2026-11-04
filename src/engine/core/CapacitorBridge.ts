@@ -13,6 +13,7 @@ import { App } from "@capacitor/app";
 import { Capacitor } from "@capacitor/core";
 import { SplashScreen } from "@capacitor/splash-screen";
 import { StatusBar } from "@capacitor/status-bar";
+import { primaryDevice } from "../input/InputDevice";
 import mobileCSS from "../ui/styles/mobile.css?raw";
 import { UIStyles } from "../ui/UIStyles";
 import { logRejection } from "./AsyncErrors";
@@ -116,18 +117,9 @@ export class CapacitorBridge {
     devLog(`[CapacitorBridge] Body classes: ${body.className}`);
   }
 
-  /**
-   * Detect if device primarily uses touch input
-   */
+  /** A phone or tablet: touch is the primary pointer. A touchscreen laptop is not one. */
   private isTouchDevice(): boolean {
-    return "ontouchstart" in window || navigator.maxTouchPoints > 0 || window.matchMedia("(pointer: coarse)").matches;
-  }
-
-  /**
-   * Check if running on a touch device (static helper)
-   */
-  public static isTouchDevice(): boolean {
-    return "ontouchstart" in window || navigator.maxTouchPoints > 0 || window.matchMedia("(pointer: coarse)").matches;
+    return primaryDevice() === "touch";
   }
 
   /**

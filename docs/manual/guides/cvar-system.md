@@ -75,5 +75,7 @@ Cvar.execConfig(config);
 - Render variables: `src/engine/rendering/RenderVars.ts`
 - Movement variables: `src/engine/movement/MovementVars.ts`
 - Audio variables: registered by `AudioManager`
+- Input device: `in_touch` in `src/engine/input/InputDevice.ts` (-1 follows the
+  input the player uses, 0 forces keyboard and mouse, 1 forces touch; not saved)
 
 Do not document a cvar merely because it would be useful; confirm that it is registered in source. The exact renderer list is maintained in [Render variables](./render-variables.md).
