@@ -215,6 +215,11 @@ export class InputSystem {
     this.pointerLocked = document.pointerLockElement === this.canvas;
     this.updateKeyboardLock();
   };
+  // Actions held by on-screen controls, and their changes since the last input frame
+  private virtualHeld = new Set<string>();
+  private virtualPressed = new Set<string>();
+  private virtualReleased = new Set<string>();
+
   // Leaving play (Esc, or the touch menu) lets go of everything held
   private playing = false;
   private boundPlayChange = () => {
@@ -439,6 +444,22 @@ export class InputSystem {
   // ==================== Action Queries ====================
 
   /**
+   * Hold or release an action from an on-screen control (the touch buttons),
+   * whatever keys it is bound to. A hold reads like a held key: active while
+   * held, pressed and released on the next input frame after each change.
+   */
+  setVirtualAction(actionId: string, held: boolean): void {
+    if (held === this.virtualHeld.has(actionId)) return;
+    if (held) {
+      this.virtualHeld.add(actionId);
+      this.virtualPressed.add(actionId);
+    } else {
+      this.virtualHeld.delete(actionId);
+      this.virtualReleased.add(actionId);
+    }
+  }
+
+  /**
    * Check if an action is currently active (held)
    */
   isActive(actionId: string): boolean {
@@ -562,6 +583,8 @@ export class InputSystem {
     this.rawState.touch.pointsEnded.push(...this.rawState.touch.points);
     this.rawState.touch.points = [];
     this.rawState.touch.pointsStarted = [];
+    this.virtualHeld.clear();
+    this.virtualPressed.clear();
     for (const [id, state] of this.actionStates) {
       // Preserve releases for modified binds even after their modifier is gone.
       if (state.active) this.pendingReleases.add(id);
@@ -587,6 +610,8 @@ export class InputSystem {
     this.rawState.mouse.wheel = 0;
     this.rawState.touch.pointsStarted = [];
     this.rawState.touch.pointsEnded = [];
+    this.virtualPressed.clear();
+    this.virtualReleased.clear();
     this.pendingReleases.clear();
 
     // Clear pressed/released on action states (keep active)
@@ -678,6 +703,10 @@ export class InputSystem {
           }
         }
       }
+
+      if (this.virtualHeld.has(actionId)) isActive = true;
+      if (this.virtualPressed.has(actionId)) wasPressed = true;
+      if (this.virtualReleased.has(actionId)) wasReleased = true;
 
       state.active = isActive;
       state.pressed = wasPressed;
@@ -999,6 +1028,9 @@ export class InputSystem {
     this.mousePointerId = null;
     this.rawState = this.createEmptyRawState();
     this.pendingReleases.clear();
+    this.virtualHeld.clear();
+    this.virtualPressed.clear();
+    this.virtualReleased.clear();
     for (const state of this.actionStates.values()) Object.assign(state, this.createEmptyActionState());
     this._initialized = false;
   }

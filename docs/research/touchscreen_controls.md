@@ -391,19 +391,23 @@ without any visible touch UI, testable on desktop.
    Resume use it; spectator clicks, the editor, free flight and the console
    stay on pointer lock. A touch on the canvas starts touch play from its
    `pointerdown`: touches there cancel their default, so no click follows.
-3. **Stick input into movement.** Add an optional
-   `moveAxis?: { forward: number; right: number }` to `PlayerInputState`.
-   `Game.sendInput()` builds the world direction from it when present (the same
-   yaw rotation, then normalize), otherwise from the four booleans. The
-   sprint-forward-only check in `FPSController` reads the axis too. There is no
-   wire, demo or server change; check with the `protocol-change` skill anyway,
-   to confirm nothing downstream assumes 8 directions.
-4. **Virtual buttons as bindings (engine).** Implement the reserved
-   `InputBinding.gesture`: touch buttons set ids such as `touch_fire` in a
-   held set, and `updateActionStates()` treats them like keys (active, pressed,
-   released). Add a `{ gesture: "touch_*" }` default binding to each FPS action
-   in `FPSActions.ts`. Keyboard rebinding keeps working, because these entries
-   never show in the key binder.
+3. **Stick input into movement. Done** on `feature/touch-controls`.
+   `client/MoveStick.ts` turns a stick reading into a direction (dead zone
+   12%, then length 1) and the four move keys, which split the circle into
+   eight sectors as one or two keys do. `FPSController.setMoveAxis()` takes
+   the stick; while in play it adds the stick's keys to its own, so running
+   (pure forward, up to 22.5° off), animation and view effects work unchanged,
+   and passes the direction as `PlayerInputState.moveAxis`. `Game.sendInput()`
+   builds the move direction from that exact angle. The wire already carries a
+   float direction and the server derives its keys from it, so nothing
+   downstream changes.
+4. **Touch buttons as actions (engine). Done** on `feature/touch-controls`.
+   `InputSystem.setVirtualAction(actionId, held)` holds an action from an
+   on-screen control: active while held, pressed and released once per hold,
+   let go when play ends. The reserved `InputBinding.gesture` is not used: a
+   player's key override replaces an action's default bindings, so a touch
+   binding kept there would vanish on rebinding. BL presses `FPS.WEAPON_1`
+   (the blade's slot); « and » press `FPS.WEAPON_PREV` / `FPS.WEAPON_NEXT`.
 5. **Touch controls widget (fps).**
    `src/games/fps/client/hud/widgets/TouchControls.ts`: a full-screen layer
    in the `overlay` area, on top of the canvas, using Pointer Events with
