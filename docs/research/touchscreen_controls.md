@@ -408,13 +408,21 @@ without any visible touch UI, testable on desktop.
    player's key override replaces an action's default bindings, so a touch
    binding kept there would vanish on rebinding. BL presses `FPS.WEAPON_1`
    (the blade's slot); « and » press `FPS.WEAPON_PREV` / `FPS.WEAPON_NEXT`.
-5. **Touch controls widget (fps).**
-   `src/games/fps/client/hud/widgets/TouchControls.ts`: a full-screen layer
-   in the `overlay` area, on top of the canvas, using Pointer Events with
-   `setPointerCapture` per finger. Each finger owns one control until it lifts:
-   the stick zone, the look pad, a button, or fire-then-drag. It shows and
-   hides on `input:device_changed`, removes its listeners in `dispose`, and
-   keeps the EventBus unsubscribe handle.
+5. **Touch controls widget (fps). Done** on `feature/touch-controls`.
+   `src/games/fps/client/TouchControls.ts` and `client/styles/TouchControls.css`:
+   a full-screen layer on the page body (the HUD container takes no pointer
+   events), owned by `FPSHud` and shown while the device is touch, touch play
+   is on and the HUD is up. Each finger owns the control it first touched.
+   Look runs through `FPSController.touchLook` with `in_touchsens` (1 = 130°
+   per screen height) and `in_touchaccel`; edge spin turns up to 220°/s. Chat
+   and the scoreboard, which the keyboard opens directly, go through the HUD.
+   A READY button shows while warmup's ready bar asks, and the bar says "tap
+   READY". In touch play the HUD's bottom row ends before the buttons, and the
+   weapon strip and the key-based hints are hidden. Touches on the layer
+   cancel their default, so no click falls through to the game after the
+   menu button hides it. Checked in headless Edge with touch emulation on a
+   phone-sized landscape view: move, look, edge spin, fire, ready and menu.
+   Not on screen: **Use** (F, picking up a dropped weapon).
 6. **Fullscreen, orientation, rotate overlay.** The flow in
    [section 2](#2-fullscreen-and-landscape): fullscreen and the landscape lock
    from `LoadingScreen.start()` and from the touch pause menu's Resume, the
