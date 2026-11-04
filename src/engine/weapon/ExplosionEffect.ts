@@ -57,7 +57,8 @@ export const ROCKET_EXPLOSION: ExplosionConfig = {
   coreColor: new Color3(1.0, 0.95, 0.6), // white-hot center
   outerColor: new Color3(1.0, 0.4, 0.05), // deep orange flames
   smokeColor: new Color3(0.3, 0.25, 0.2), // dark smoke
-  shakeMaxRange: 324,
+  shakeIntensity: 0.7,
+  shakeMaxRange: 162,
 };
 
 /** Preset for grenade explosions */
@@ -67,7 +68,8 @@ export const GRENADE_EXPLOSION: ExplosionConfig = {
   coreColor: new Color3(1.0, 0.9, 0.5), // warm white-yellow core
   outerColor: new Color3(1.0, 0.5, 0.1), // orange flames
   smokeColor: new Color3(0.3, 0.25, 0.2), // dark smoke
-  shakeMaxRange: 324,
+  shakeIntensity: 0.7,
+  shakeMaxRange: 162,
 };
 
 /** Preset for plasma explosions — small, fast, green */
@@ -78,8 +80,8 @@ export const PLASMA_EXPLOSION: ExplosionConfig = {
   outerColor: new Color3(0.1, 0.9, 0.2), // vivid green outer
   smokeColor: new Color3(0.1, 0.2, 0.1), // green-tinted smoke
   rays: { min: 4, max: 6 }, // a small pop; plasma fights spawn many
-  shakeIntensity: 0.075,
-  shakeMaxRange: 360, // half of default (close range only)
+  shakeIntensity: 0.0525,
+  shakeMaxRange: 180, // close range only
 };
 
 /** Preset for blade blast explosions — 50% of rocket, teal-themed */
@@ -89,8 +91,8 @@ export const BLADE_EXPLOSION: ExplosionConfig = {
   coreColor: new Color3(0.7, 1.0, 0.95),
   outerColor: new Color3(0.05, 1.0, 0.9),
   smokeColor: new Color3(0.08, 0.2, 0.18),
-  shakeIntensity: 0.5, // 50% of rocket shake
-  shakeMaxRange: 270,
+  shakeIntensity: 0.35, // 50% of rocket shake
+  shakeMaxRange: 135,
 };
 
 interface ActiveExplosion {
@@ -200,7 +202,7 @@ export class ExplosionEffect {
 
         if (finalIntensity < 0.01) return;
 
-        controller.shakeCamera(finalIntensity);
+        controller.shakeCamera(finalIntensity, "explosion");
       })
       .catch(() => {
         /* CameraSystem unavailable */

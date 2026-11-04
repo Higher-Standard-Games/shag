@@ -35,6 +35,9 @@ export interface CameraControllerConfig {
   fov?: number;
 }
 
+/** What shook the view: an explosion near the player, or a hit they took. */
+export type CameraShakeCause = "explosion" | "hit";
+
 export interface ICameraController {
   /** Unique identifier for this controller type */
   readonly type: string;
@@ -81,8 +84,11 @@ export interface ICameraController {
   /** The player's position, for controllers that drive a body rather than a free camera. */
   getPlayerPosition?(): Vector3;
 
-  /** Shake the view; an `intensity` of 1 is a very close explosion. */
-  shakeCamera?(intensity: number): void;
+  /**
+   * Shake the view; an `intensity` of 1 is a very close explosion. The cause
+   * lets the game apply the player's setting for it.
+   */
+  shakeCamera?(intensity: number, cause?: CameraShakeCause): void;
 
   /** Hold the view still (end screens) while leaving the controller attached. */
   setLookFrozen?(frozen: boolean): void;
