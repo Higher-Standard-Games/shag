@@ -113,6 +113,18 @@ export interface PlayerModelInstance {
    * renderer's garbage (B12 stage 1).
    */
   rootMotionNodes?: TransformNode[];
+  /**
+   * Each skeleton bone's transform node when the body was made. Babylon's
+   * ragdoll unlinks every bone from its node; a body put away after one is
+   * linked back so its animations drive it again.
+   */
+  boneNodes?: (TransformNode | null)[];
+  /**
+   * What a ragdoll takes from a body and a kept body gets back: its clips
+   * (the ragdoll empties `anims`), its root mesh's name and each part's
+   * pickability.
+   */
+  restore?: { anims: StoredAnim[]; name: string; pickable: boolean[] };
 }
 
 /**
@@ -171,6 +183,12 @@ export const DANCE_ANIMS = ["dance_1", "dance_2", "dance_3"];
 
 const NO_EMISSIVE: Readonly<Color3> = Color3.Black();
 
+/** Bodies kept per player for their next lives: a ragdoll can still hold the last one at respawn. */
+const MAX_PARKED_PER_PLAYER = 2;
+
+/** The manager that made each body, for `releasePlayerModel`. */
+const modelOwners = new WeakMap<PlayerModelInstance, PlayerModelManager>();
+
 export class PlayerModelManager {
   /** applyPowerupGlow's mesh list per model. */
   private readonly glowMeshes = new WeakMap<PlayerModelInstance, AbstractMesh[]>();
@@ -191,6 +209,13 @@ export class PlayerModelManager {
   private outlineProxyWanted = false;
   private outlineRuntime?: PlayerOutlineProxyRuntime;
   private readonly instances = new Map<PlayerModelInstance, ReturnType<Mesh["onDisposeObservable"]["add"]>>();
+  /**
+   * Bodies put away by player id, whole (rig, clip groups, materials), for
+   * that player's next body: building one took 3.5 ms and its frames about
+   * 30 ms more, and every body disposed and rebuilt changed the frame's draw
+   * list.
+   */
+  private readonly parked = new Map<string, PlayerModelInstance[]>();
 
   constructor(scene: Scene) {
     this.scene = scene;
@@ -295,6 +320,8 @@ export class PlayerModelManager {
   createInstance(id: string, scale: number = 36): PlayerModelInstance | null {
     const container = this.sourceContainer;
     if (!container || this.disposed) return null;
+    const parked = this.takeParked(id);
+    if (parked) return parked;
     // One prefix per node, not an ancestor path containing RootNode on every joint.
     const entries = container.instantiateModelsToScene((name) => `${id}/${name}`, false, { doNotInstantiate: true });
     const mesh = entries.rootNodes[0];
@@ -355,6 +382,7 @@ export class PlayerModelManager {
         child.alwaysSelectAsActiveMesh = true;
       }
       const hips = skeleton.bones.find((bone) => bone.name.toLowerCase().includes("hips"))?.getTransformNode();
+      const boneNodes = skeleton.bones.map((bone) => bone.getTransformNode());
       const instance: PlayerModelInstance = {
         id,
         anchor,
@@ -365,7 +393,11 @@ export class PlayerModelManager {
         currentAnim: "",
         oneshotUntil: 0,
         hipsBind: hips ? { node: hips, x: hips.position.x, y: hips.position.y, z: hips.position.z } : null,
+        boneNodes,
       };
+      const parts = [mesh, ...mesh.getChildMeshes()];
+      instance.restore = { anims, name: mesh.name, pickable: parts.map((part) => part.isPickable) };
+      modelOwners.set(instance, this);
       this.instances.set(
         instance,
         mesh.onDisposeObservable.add(() => {
@@ -868,9 +900,87 @@ export class PlayerModelManager {
     devLog(`[PlayerModelManager] Disposed instance: ${instance.id}`);
   }
 
+  /**
+   * Put a finished body away for its player's next one, or dispose it when
+   * enough are kept. Its hand weapon goes back to its own pool, a ragdoll's
+   * unlinked bones are linked again, and each part is hidden itself (a WebGPU
+   * snapshot recording draws a part hidden that way, not one hidden by a
+   * disabled ancestor).
+   */
+  releaseInstance(instance: PlayerModelInstance): void {
+    const kept = this.parked.get(instance.id) ?? [];
+    if (
+      this.disposed ||
+      kept.length >= MAX_PARKED_PER_PLAYER ||
+      !instance.boneNodes ||
+      instance.mesh.isDisposed() ||
+      instance.anchor.isDisposed()
+    ) {
+      this.disposeInstance(instance);
+      return;
+    }
+    this.stopOneShot(instance, false);
+    if (instance.attachedWeapon) {
+      disposeModelResources([instance.attachedWeapon]);
+      instance.attachedWeapon = null;
+    }
+    instance.masterGroup?.stop();
+    instance.currentAnim = "";
+    instance.oneshotUntil = 0;
+    const restore = instance.restore;
+    if (restore) {
+      instance.anims = restore.anims;
+      instance.mesh.name = restore.name;
+      const parts = [instance.mesh, ...instance.mesh.getChildMeshes()];
+      for (let i = 0; i < parts.length; i++) parts[i].isPickable = restore.pickable[i] ?? parts[i].isPickable;
+    }
+    const bones = instance.skeleton?.bones ?? [];
+    for (let i = 0; i < bones.length; i++) {
+      const node = instance.boneNodes[i];
+      if (node && !node.isDisposed() && bones[i].getTransformNode() !== node) bones[i].linkTransformNode(node);
+    }
+    instance.anchor.parent = null;
+    instance.anchor.setEnabled(true);
+    for (const part of [instance.mesh, ...instance.mesh.getChildMeshes()]) {
+      part.visibility = 1;
+      part.setEnabled(false);
+    }
+    kept.push(instance);
+    this.parked.set(instance.id, kept);
+    devLog(`[PlayerModelManager] Parked instance: ${instance.id}`);
+  }
+
+  /** A kept body of this player, shown again as `createInstance` makes one; null when there is none. */
+  private takeParked(id: string): PlayerModelInstance | null {
+    const kept = this.parked.get(id);
+    for (let instance = kept?.pop(); instance; instance = kept?.pop()) {
+      if (instance.mesh.isDisposed() || instance.anchor.isDisposed()) {
+        disposePlayerModel(instance);
+        continue;
+      }
+      instance.anchor.position.setAll(0);
+      instance.anchor.rotation.setAll(0);
+      for (const part of [instance.mesh, ...instance.mesh.getChildMeshes()]) {
+        part.setEnabled(true);
+        part.isVisible = true;
+        part.visibility = 1;
+        part.alwaysSelectAsActiveMesh = true;
+      }
+      return instance;
+    }
+    return null;
+  }
+
+  /** Dispose the bodies kept for a player who has gone. */
+  disposeParked(id: string): void {
+    for (const instance of this.parked.get(id) ?? []) disposePlayerModel(instance);
+    this.parked.delete(id);
+  }
+
   /** Dispose the manager and source model */
   dispose(): void {
     this.disposed = true;
+    for (const id of [...this.parked.keys()]) this.disposeParked(id);
     this.outlineRuntime?.release(this);
     this.outlineRuntime = undefined;
     for (const [instance, observer] of this.instances) instance.mesh.onDisposeObservable.remove(observer);
@@ -944,6 +1054,16 @@ export function releaseLocomotionGroups(instance: PlayerModelInstance): void {
  *
  * A one-shot animation lives in the manager; `disposeInstance` stops it first.
  */
+/**
+ * The end of a body that may live again: its manager keeps it for the player's
+ * next body (`releaseInstance`), and one without a manager is disposed.
+ */
+export function releasePlayerModel(instance: PlayerModelInstance): void {
+  const owner = modelOwners.get(instance);
+  if (owner) owner.releaseInstance(instance);
+  else disposePlayerModel(instance);
+}
+
 export function disposePlayerModel(instance: PlayerModelInstance): void {
   if (instance.attachedWeapon) {
     disposeModelResources([instance.attachedWeapon]);

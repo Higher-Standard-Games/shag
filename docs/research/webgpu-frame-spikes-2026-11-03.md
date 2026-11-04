@@ -173,6 +173,29 @@ time (4.0 to 4.7 ms with about 585 meshes recorded). Whole-demo runs on this
 machine while browsers were open drifted between 225 and 423 fps for the
 same code, so no whole-demo number is given for this change.
 
+## Player bodies kept between lives (November 4)
+
+The remaining disposals were deaths: per life a body (rig, clips, materials)
+and a hitbox outline (a line mesh with a material of its own) were disposed
+and built again.  now keeps up to two bodies per player
+id (, and  for the ragdoll, which
+holds a body without its manager), and the renderer keeps one hitbox outline
+per player. A kept body is hidden part by part, its anchor enabled, so a
+recording draws it collapsed.
+
+Babylon's ragdoll changes a body in ways a reused one must undo:
+ unlinks every bone from its transform node and
+ does not link them back, and our ragdoll empties the body's clip
+list, renames its root mesh and makes its parts unpickable. Each body records
+its bone nodes, clips, name and pickability when it is made, and release puts
+them back.
+
+Over 150 s of the dm5 demo: 9 bodies made, then every respawn reused one (12
+reuses); bringing a body back took 0.8 ms against 3.5 ms for building one;
+disposal stops fell from about 13 to 6 for meshes and 14 to 2 for materials;
+no replayed frame left out a shown mesh (render-hook ground truth). A reused
+enemy body was seen in play animating normally.
+
 ## Where the night ended
 
 The same demo, whole, with every change above:

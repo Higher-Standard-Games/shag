@@ -60,6 +60,44 @@ describe("player model instance isolation", () => {
     engine.dispose();
   });
 
+  it("keeps a finished body for the same player and gives it back whole after a ragdoll", () => {
+    const body = manager.createInstance("a")!;
+    manager.playAnimation(body, "lean");
+    const nodes = body.skeleton!.bones.map((bone) => bone.getTransformNode());
+    const name = body.mesh.name;
+    // What a ragdoll does to it: bones unlinked, clips taken, renamed, faded out
+    for (const bone of body.skeleton!.bones) bone.linkTransformNode(null);
+    body.anims = [];
+    body.mesh.name = "ragdoll_a";
+    body.mesh.isPickable = false;
+    body.mesh.visibility = 0;
+
+    manager.releaseInstance(body);
+    // Hidden part by part, its node still enabled: a snapshot recording can hold it
+    expect(body.anchor.isEnabled()).toBe(true);
+    expect([body.mesh, ...body.mesh.getChildMeshes()].some((part) => part.isEnabled(false))).toBe(false);
+
+    const other = manager.createInstance("b")!;
+    expect(other).not.toBe(body);
+    const again = manager.createInstance("a")!;
+    expect(again).toBe(body);
+    expect(again.skeleton!.bones.map((bone) => bone.getTransformNode())).toEqual(nodes);
+    expect(again.anims.map((anim) => anim.name)).toEqual(["lean"]);
+    expect(again.mesh.name).toBe(name);
+    expect(again.mesh.isPickable).toBe(true);
+    expect(again.mesh.isEnabled()).toBe(true);
+    expect(again.mesh.visibility).toBe(1);
+    expect(manager.playAnimation(again, "lean")).toBe(true);
+  });
+
+  it("keeps at most two bodies per player and disposes the rest", () => {
+    const bodies = [manager.createInstance("a")!, manager.createInstance("a")!, manager.createInstance("a")!];
+    for (const body of bodies) manager.releaseInstance(body);
+    expect(bodies.filter((body) => body.mesh.isDisposed())).toHaveLength(1);
+    manager.disposeParked("a");
+    expect(bodies.every((body) => body.mesh.isDisposed())).toBe(true);
+  });
+
   it("links every cloned bone to its own mesh hierarchy", () => {
     const a = manager.createInstance("a")!;
     const b = manager.createInstance("b")!;
