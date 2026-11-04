@@ -222,10 +222,11 @@ Fortnite, Standoff 2, Critical Ops) have converged on:
 - **Gyro aiming** (optional): small device rotations add to the look,
   usually only while aiming or firing. It gives the fine correction thumbs are
   bad at.
-- **Aim assist / auto-fire:** casual shooters add slowdown near targets or fire
-  automatically when the crosshair is on an enemy. This conflicts with "the
-  same core rules in every mode" and with fair mixed lobbies; it is not
-  proposed.
+- **Aim assist / auto-fire:** most shooters on phones and consoles slow the
+  view near a target and pull slightly toward it; casual ones also fire
+  automatically when the crosshair is on an enemy. Auto-fire is not proposed.
+  A small assist that only shapes the player's own turn is, for touch look
+  only; see [Aim assist](#aim-assist).
 - **Haptics:** a short vibration on hit or damage. `navigator.vibrate` works in
   Android browsers but not on iOS.
 
@@ -249,39 +250,89 @@ in this game need move and look at the same time from different thumbs, so
 this layout would cap a touch player's movement. It could be an optional
 "simple" preset; it should not be the default.
 
-## 4. Proposed control scheme
+## 4. Control scheme
+
+The layout below was settled with the owner on 2026-11-04 in an interactive
+mockup, kept as [touchscreen_controls_mockup.html](./touchscreen_controls_mockup.html).
+Open it in a browser and drag with the mouse; on a phone turned sideways it
+fills the screen.
 
 ```text
  ┌──────────────────────────────────────────────────────────────────────┐
- │ [≡ menu]  [Tab score]           timer/frags            [chat]          │
+ │ [≡] [score]                   timer · frags                    [chat] │
  │                                                                        │
- │                                                                        │
- │   ╭─ move zone (left ~40%) ─╮          ╭─ look pad (right ~60%) ─────╮ │
- │   │                         │          │  drag = look (accel curve)   │ │
- │   │    floating stick       │          │  hold at edge = edge spin    │ │
- │   │    appears under thumb  │          │                    (ADS)     │ │
- │   │    any angle, full run  │          │          (reload) (FIRE)     │ │
- │   │                         │          │                (JUMP)        │ │
- │   ╰─────────────────────────╯          │         (CROUCH/SLIDE)       │ │
- │  vitals           [weapon bar: tap 1..9, swipe to cycle]   ammo        │
+ │   ╭─ move (left 42%) ───────╮   ╭─ look (right 58%) ────────────────╮  │
+ │   │ floating stick: appears │   │ drag = look (acceleration curve)  │  │
+ │   │ under the thumb; a faint│   │ hold at either edge = edge spin   │  │
+ │   │ ghost marks its rest    │   │          [BL]  [«]  [»]           │  │
+ │   │ any angle, always runs  │   │  (reload) ( FIRE )◆(AIM)          │  │
+ │   │                         │   │   (crouch)            (JUMP)      │  │
+ │   ╰─────────────────────────╯   ╰───────────────────────────────────╯  │
+ │              health · armor                weapon · ammo               │
  └──────────────────────────────────────────────────────────────────────┘
 ```
+
+**Placement.** The right thumb's buttons are placed in screen heights from the
+bottom-right corner (CSS container units, `cqh`), so the cluster keeps its
+shape on every phone width. The phone is held by its lower corners, so the
+thumb comes up from below: AIM sits at FIRE's right, a little below its middle,
+about a thumb pad apart. The weapon keys arc just above FIRE, « centred over it
+with BL and » on either side. Health and armor sit bottom centre-left and the
+weapon and ammo bottom centre-right, clear of both thumbs.
+
+**One thumb on FIRE and AIM.** A touchscreen reports a finger as one point, its
+centre, so a thumb resting across two buttons presses only the one under that
+centre. The seam between FIRE and AIM (◆) is therefore its own spot: it holds
+fire and aim together, dragging from it aims, and on release aim returns to
+how it was. With the blade out it only slashes, since the blade's aim button
+charges the blast.
+
+**Look.** Zones are invisible in play; a faint "Move" / "Look" label shows
+until each side has been used once. The mockup also offers outlined and grey
+zones for comparison: choose one before building rather than shipping a
+setting. Buttons are ink discs with cream line icons, the HUD's offset print
+shadow and one shared opacity. A press lights a button cyan (FIRE magenta, the
+seam gold) and drops its shadow, so the thumb gets feedback without looking.
 
 | Control | Behavior | Feeds |
 | --- | --- | --- |
 | Move stick | Floating; direction relative to the stick's centre, dead zone about 12% of its radius; any angle at full run | New stick input into `Game.sendInput` direction (see stage 3) |
 | Walk | Pushing the stick only a little does **not** walk (magnitude is ignored); a held **walk** toggle on the stick ring is optional | `FPS.SPRINT` (held = walk, since `cl_autorun` is 1) |
-| Look pad | Drag deltas with an acceleration curve; edge spin; trackball inertia optional | Shared look function (see stage 2) |
+| Look side | Drag deltas with an acceleration curve; edge spin; trackball inertia optional; aim assist | Shared look function (see stage 2) |
 | Fire | Press = fire; drag while held = look | `FPS.FIRE` plus look |
-| Aim (ADS / alt fire) | Toggle on tap, hold on long press | `FPS.AIM` |
+| Aim | Tap toggles zoom, so nothing is held while firing. With the blade it is held, because the blade's alternate fire charges the blast. The rocket and grenade launchers already aim when fired (`hipfireBlocked`) | `FPS.AIM` (alternate fire) |
+| Fire + aim seam | Holds both; drag = look | `FPS.FIRE` + `FPS.AIM` plus look |
 | Jump | Hold = held jump (bunny hopping, wall jumps) | `FPS.JUMP` |
 | Crouch / slide | Hold | `FPS.CROUCH` |
-| Reload, use | Tap | `FPS.RELOAD`, `FPS.USE` |
-| Weapons | Tap a slot in the weapon bar; swipe on the bar for next/previous | `onWeaponSelect`, `FPS.WEAPON_NEXT/PREV` |
+| Reload | Tap; the machinegun, riotgun, plasma gun and voltaic have clips | `FPS.RELOAD` |
+| « / » | Tap: previous / next gun. Cycling skips the blade, as `FPSController` already does | `FPS.WEAPON_PREV` / `FPS.WEAPON_NEXT` |
+| BL | Tap: the blade; tap again: back to the last gun | `onWeaponSelect` |
 | Menu | Opens the match menu (desktop's Esc) | `FPSHud.showMatchMenu()` |
 | Scoreboard | Hold | `FPS.SCOREBOARD` |
 | Chat | Opens chat; the on-screen keyboard appears | `FPS.CHAT` |
 | Ready | Shown during warmup only | `FPS.READY` |
+| Use | Not on screen; add it if a map needs it | `FPS.USE` |
+
+### Aim assist
+
+The owner chose to try a small assist for touch look (2026-11-04). The mockup
+implements these rules; the numbers are starting points to tune on a phone:
+
+- **It only shapes the thumb's own turn.** A still thumb gets nothing, so it
+  can never aim on its own.
+- **Friction:** while the crosshair is over a target, turning slows to 60%.
+- **Pull:** toward the target, at most 25% of the thumb's own turn
+  horizontally and 15% vertically.
+- **Reach:** only within about three target widths of the crosshair, and
+  within a set distance.
+- **Only touch look passes through it.** It runs inside the touch look path,
+  before the shared look function, so mouse look never reaches it and forcing
+  touch with `in_touch 1` gives a mouse player nothing.
+
+The game needs what the mockup fakes: the remote players the client already
+interpolates, enemies only (not teammates), nobody dead, and a line-of-sight
+check, so it never pulls toward a player behind a wall. Which collision query
+the client can run for that is still to be checked.
 
 Every button except the move stick and look pad becomes an action through the
 existing action map, so `FPSController.syncKeysFromInput()` keeps reading
@@ -323,11 +374,12 @@ Following the project's rule of a better default over an optional toggle:
 Small, reviewable stages. Stages 1 to 3 are engine and controller plumbing
 without any visible touch UI, testable on desktop.
 
-1. **Input device state (engine).** `src/engine/input/InputDevice.ts`: the
-   capability check, last-input tracking from Pointer Events and keys, and the
-   `input:device_changed` EventBus event. Replace the OR test in
-   `CapacitorBridge.isTouchDevice()` with the capability check, so a touch
-   laptop stops getting `body.touch-device`.
+1. **Input device state (engine). Done** on `feature/touch-controls`.
+   `src/engine/input/InputDevice.ts`: the capability check, last-input
+   tracking from Pointer Events and keys, the `input:device_changed` EventBus
+   event and `in_touch`. `body.touch-device` and the boot screen's "Tap to
+   start" now follow the primary pointer, so a touch laptop no longer gets
+   them.
 2. **A "playing" state independent of pointer lock.** Give
    `CameraInputHandler` an `inPlay` state (pointer locked **or** touch play
    active) and a public `applyLookDelta(dx, dy)`, holding the existing
@@ -361,7 +413,10 @@ without any visible touch UI, testable on desktop.
    portrait overlay and the safe-area padding. This stage can ship before the
    controls; it is small and visible straight away.
 7. **Settings rows and layout editor**, in `ControlsPage.ts` and `SettingsModel.ts`.
-8. **Gyro (optional)**: `devicemotion` `rotationRate` added through
+8. **Aim assist** in the touch look path, as described under
+   [Aim assist](#aim-assist), with unit tests for friction, pull and the
+   still-thumb case.
+9. **Gyro (optional)**: `devicemotion` `rotationRate` added through
    `applyLookDelta`, only while fire or aim is held, by default.
 
 ### Things to watch
@@ -378,9 +433,10 @@ without any visible touch UI, testable on desktop.
   (and misses iPads). Mobile frame rate is a separate investigation, but touch
   controls are pointless if the game runs at 20 fps. Check a phone on WebGPU
   and WebGL2 before investing in the layout editor.
-- **Fairness.** Touch players will join the same lobbies as mouse players
-  without aim assist. That is a product decision, not a technical one; an
-  input-device badge on the scoreboard is one cheap option.
+- **Fairness.** Touch players join the same lobbies as mouse players, with a
+  small aim assist that mouse look never receives. A modified client could do
+  far more than the assist anyway, so the assist adds no new way to cheat; an
+  input-device badge on the scoreboard keeps it visible.
 
 ## 7. Testing
 
@@ -405,9 +461,8 @@ without any visible touch UI, testable on desktop.
 
 1. Is mobile a 1.0 goal, or a post-1.0 track? That decides whether
    performance on phones is investigated first.
-2. Should touch players get any assistance (slower look near targets), or play
-   by the same rules as everyone? This document assumes the same rules.
-3. Should the existing manifest be made Washoi's (name, `fullscreen`,
+2. Should the existing manifest be made Washoi's (name, `fullscreen`,
    `landscape`) and "Add to Home Screen" promoted on iPhone, since it is the
    only way there to play without browser bars?
-4. Should the scoreboard show the input device?
+3. Should the scoreboard show the input device?
+4. Which zone style ships: invisible (the mockup's default), outlined or grey?
