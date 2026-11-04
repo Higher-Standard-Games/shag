@@ -1241,11 +1241,19 @@ export class WeaponViewManager {
   private updateMuzzleFlashLightScope(): void {
     if (!this.muzzleFlashLight || !this.currentWeapon) return;
 
+    // Parked weapons too: they draw nothing while put away, and a weapon whose
+    // lights stay the same keeps the shader it was compiled with at load
+    // instead of compiling another when it is next held
     const meshes: AbstractMesh[] = [...this.currentWeapon.meshes];
+    for (const parked of this.parkedViews.values()) meshes.push(...parked.weapon.meshes);
     if (this.muzzleFlashModel) {
       meshes.push(...this.muzzleFlashModel.getChildMeshes());
     }
     this.muzzleFlashLight.includedOnlyMeshes = meshes;
+    // Babylon appends a light a mesh newly takes, but lists them in scene order
+    // when it rebuilds the list (a layer change does); the order is part of the
+    // shader's defines, so the list is always rebuilt and comes out the same
+    for (const mesh of meshes) (mesh as unknown as { _resyncLightSources(): void })._resyncLightSources();
   }
   // ==================== Shared Weapon Setup ====================
 

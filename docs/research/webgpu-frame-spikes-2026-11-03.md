@@ -94,15 +94,56 @@ disposals (buffers, meshes, textures, materials).
   and the next switch to it brings it out again: 2.6 ms, and 9 ms over the
   frames after it (25 switches measured in 150 s of the demo).
 
-Still disposed per use, from the same tally: third-person weapons and barrels
-(120 plasma gun barrel meshes with their own materials), blade slash trails
-(80 meshes, a material and a texture each), player models, hitboxes and
-ragdolls (about 45 each, one per death).
+The 120 plasma gun barrel meshes in the same tally were the view model's
+parts (under `weapon_plasmagun`, the view's node), so the parking covers
+them. Third-person guns were parked already, through a model recycler, but
+third-person blades were not: every switch to the blade cloned a blade and
+its grip nodes for that player. Blades now park with the guns, and the blade
+slash trail (a ribbon mesh, a material and a feather texture per swing) keeps
+up to four finished trails for later swings.
+
+Tally with the view weapons parked, the fade change and the slash trails
+reused (blades not yet parked): 482 stops, 106 in the first minute and about
+30 a minute after the third. What remains is mostly deaths: per death the
+hitbox (with its own material), the player model and its materials, a
+ragdoll and its trail are disposed or created, and a respawn builds the model
+again. A model creation costs 3.5 ms, and the eight frames after it peak at
+15 ms and add 32 ms in all (16 creations in 180 s of the demo).
+
+## Weapon shaders compiled in play
+
+The full-demo run after the view weapon parking had three frames over 50 ms
+again (at 2:19 and 5:34), none of them collections. Each came at a respawn:
+the held view weapon compiled two PBR effects (a 45 ms frame), and half a
+second later the main thread waited 130 to 180 ms in
+`CommandBufferHelper::WaitForAvailableEntries` while the GPU process built
+the pipelines. Diffing the defines of every effect compiled during play
+against the nearest one compiled at load found two causes:
+
+- **Clustered light defines** (`CLUSTLIGHT_SLICES 16 / CLUSTLIGHT_BATCH 32`
+  in play against `0 / 0` at load). The weapons were preloaded before the
+  point light pool created the gameplay light cluster; the projectile
+  preparation started the pool afterwards. A weapon rebuilt at every switch
+  compiled the right variant within its slow switch; a parked one compiled it
+  the first time it was held. The preloader now starts the pool first.
+- **Light order** (`POINTLIGHT2 DIRLIGHT3` against `DIRLIGHT2 HEMILIGHT3`).
+  The muzzle-flash light was scoped to the held weapon only, so every switch
+  took it from one weapon and gave it to the next. Babylon appends a light a
+  mesh newly takes but lists them in scene order when it rebuilds the list,
+  and the order is part of the defines. The muzzle flash now covers the parked
+  weapons too (they draw nothing), and the view weapons' light lists are
+  rebuilt whenever the scope is set, so they always come out in scene order.
+
+Effects compiled during the first 5:45 of play: 7 before, none after.
 
 ## What is left
 
 - **Recording frames** are now the worst frames: 20 to 34 ms when a fight
   changes the draw list, against 2 ms for a replayed one.
+- **Player models on death and respawn** are the main source of the draw-list
+  changes that remain. Parking a model instead of disposing it needs care: a
+  ragdoll moves its bones with physics and switches its bounds, and a reused
+  body must come back in its normal pose and bounds.
 - **The snapshot controller's own update** is about 1.2 ms of a 2.9 ms replayed
   frame in a fight: rebinding the materials that change every frame
   (0.37 ms for 49 draws), the world matrices of every recorded mesh, and the
