@@ -196,7 +196,7 @@
 
 /* ── States: order matters, later rules win ties ── */
 
-.raised-key:is(:hover, :focus-visible):not(:disabled) {
+.raised-key:is(:hover, :focus-visible, .controller-focus):not(:disabled) {
   --key-press: -0.35;
   --key-face: linear-gradient(180deg, hsl(278 92% 75%), hsl(273 80% 61%) 55%, hsl(268 72% 50%));
   --key-side: linear-gradient(180deg, hsl(266 72% 34%), hsl(258 72% 19%));
@@ -218,7 +218,7 @@
 
 /* The page you're on: a latched key, pressed in and inked */
 .raised-key[aria-current="page"],
-.raised-key[aria-current="page"]:is(:hover, :focus-visible, :active):not(:disabled) {
+.raised-key[aria-current="page"]:is(:hover, :focus-visible, .controller-focus, :active):not(:disabled) {
   --key-press: 0.62;
   --key-face: linear-gradient(180deg, hsl(250 28% 21%), hsl(250 40% 10%) 60%, hsl(252 44% 6%));
   --key-side: linear-gradient(180deg, hsl(252 44% 5%), hsl(252 44% 3%));

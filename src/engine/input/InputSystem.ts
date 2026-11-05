@@ -217,6 +217,7 @@ export class InputSystem {
   };
   // Actions held by on-screen controls, and their changes since the last input frame
   private virtualHeld = new Set<string>();
+  private virtualSources = new Map<string, Set<string>>();
   private virtualPressed = new Set<string>();
   private virtualReleased = new Set<string>();
 
@@ -448,7 +449,13 @@ export class InputSystem {
    * whatever keys it is bound to. A hold reads like a held key: active while
    * held, pressed and released on the next input frame after each change.
    */
-  setVirtualAction(actionId: string, held: boolean): void {
+  setVirtualAction(actionId: string, held: boolean, source = "touch"): void {
+    const sources = this.virtualSources.get(actionId) ?? new Set<string>();
+    if (held) sources.add(source);
+    else sources.delete(source);
+    if (sources.size) this.virtualSources.set(actionId, sources);
+    else this.virtualSources.delete(actionId);
+    held = sources.size > 0;
     if (held === this.virtualHeld.has(actionId)) return;
     if (held) {
       this.virtualHeld.add(actionId);
@@ -584,6 +591,7 @@ export class InputSystem {
     this.rawState.touch.points = [];
     this.rawState.touch.pointsStarted = [];
     this.virtualHeld.clear();
+    this.virtualSources.clear();
     this.virtualPressed.clear();
     for (const [id, state] of this.actionStates) {
       // Preserve releases for modified binds even after their modifier is gone.
@@ -648,6 +656,13 @@ export class InputSystem {
   private updateActionStates(): void {
     this.updateKeyboardLock();
     const activeContext = this.contexts.get(this.getActiveContext());
+    for (const [id, state] of this.actionStates) {
+      if (activeContext?.actions.includes(id)) continue;
+      state.released = state.active || this.pendingReleases.has(id);
+      state.active = false;
+      state.pressed = false;
+      state.delta = { x: 0, y: 0 };
+    }
     if (!activeContext) return;
 
     // Check each action in the active context
@@ -710,7 +725,7 @@ export class InputSystem {
 
       state.active = isActive;
       state.pressed = wasPressed;
-      state.released = wasReleased || this.pendingReleases.has(actionId);
+      state.released = !isActive && (wasReleased || this.pendingReleases.has(actionId));
 
       // For pan action, also track delta
       if (actionId === "camera_pan" && isActive) {
@@ -1029,6 +1044,7 @@ export class InputSystem {
     this.rawState = this.createEmptyRawState();
     this.pendingReleases.clear();
     this.virtualHeld.clear();
+    this.virtualSources.clear();
     this.virtualPressed.clear();
     this.virtualReleased.clear();
     for (const state of this.actionStates.values()) Object.assign(state, this.createEmptyActionState());

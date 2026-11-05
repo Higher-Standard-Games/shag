@@ -12,7 +12,7 @@ import type { FreeCamera } from "@babylonjs/core/Cameras/freeCamera";
 import { Cvar } from "../core/Cvar";
 import { devLog } from "../core/DevLog";
 import { InputDevice } from "../input/InputDevice";
-import { inPlay, PLAY_CHANGE, setTouchPlay } from "../input/PlayCapture";
+import { enterPlay, inPlay, leavePlay, PLAY_CHANGE, setTouchPlay } from "../input/PlayCapture";
 import { requestRawPointerLock } from "../input/RawPointerLock";
 import { clearBrowserControlFailure, showBrowserControlFailure } from "../ui/BrowserControlFeedback";
 import type { CameraControllerConfig } from "./controllers/ICameraController";
@@ -146,6 +146,10 @@ export class CameraInputHandler {
       // Post-game "open up": the cursor is deliberately free (chat + return
       // button) — don't re-capture on a stray world click while look is frozen.
       if (this._lookFrozen || !this.captureEnabled) return;
+      if (InputDevice.getInstance().current === "gamepad") {
+        enterPlay(this.canvas);
+        return;
+      }
       // Touch controls forced on a mouse (in_touch 1): the click starts touch play
       if (InputDevice.getInstance().current === "touch") {
         setTouchPlay(true);
@@ -207,6 +211,11 @@ export class CameraInputHandler {
 
     // Key prevention (Space + any extras)
     this._onKeyDown = (e: KeyboardEvent) => {
+      if (e.code === "Escape" && this._inPlay && InputDevice.getInstance().current === "gamepad") {
+        leavePlay();
+        e.preventDefault();
+        return;
+      }
       if (!this._isPointerLocked) return;
       if (e.code === "Space") e.preventDefault();
       for (const key of extraKeys) {
@@ -251,8 +260,14 @@ export class CameraInputHandler {
     if (this.mouseLookModifier) sensitivity = this.mouseLookModifier(sensitivity);
     const invertY = this.config.invertY || Cvar.getBool("m_invertY") ? -1 : 1;
 
-    let yaw = dx * sensitivity;
-    let pitch = dy * sensitivity * invertY;
+    const yaw = dx * sensitivity;
+    const pitch = dy * sensitivity * invertY;
+    this.applyLookTurn(yaw, pitch, shape);
+  }
+
+  /** An already scaled angular turn, independent of mouse sensitivity/inversion. */
+  applyLookTurn(yaw: number, pitch: number, shape?: LookShape): void {
+    if (!this.camera || this._lookFrozen) return;
     if (shape) [yaw, pitch] = shape(yaw, pitch, this._mouseRotationY, this._mouseRotationX);
     this._mouseRotationY += yaw;
     this._mouseRotationX += pitch;
@@ -276,7 +291,7 @@ export class CameraInputHandler {
     if (this._isPointerLocked) {
       document.exitPointerLock();
     }
-    setTouchPlay(false);
+    leavePlay();
     if (this._onPlayChange) document.removeEventListener(PLAY_CHANGE, this._onPlayChange);
     this._onPlayChange = null;
 

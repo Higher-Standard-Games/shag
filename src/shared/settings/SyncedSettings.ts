@@ -47,11 +47,21 @@ const DEVICE_CVARS = new Set([
 
 /** Renderer cvars that are about the player's eyes, not this device's speed. */
 const PLAYER_RENDER_CVARS = new Set(["r_colorcorrection", "r_colorcorrection_strength"]);
+const CONTROLLER_PLAYER_CVARS = new Set([
+  "in_pad_yaw",
+  "in_pad_pitch",
+  "in_pad_curve",
+  "in_pad_ads",
+  "in_pad_invert",
+  "in_pad_swap",
+  "in_pad_assist",
+]);
 
 /** Whether a persisted cvar follows the account rather than staying on this device. */
 export function isSyncedCvar(name: string): boolean {
   const lower = name.toLowerCase();
   if (PLAYER_RENDER_CVARS.has(lower)) return true;
+  if (CONTROLLER_PLAYER_CVARS.has(lower)) return true;
   if (DEVICE_CVARS.has(lower) || lower.startsWith("cl_debug")) return false;
   return SYNCED_CVAR_PREFIXES.some((prefix) => lower.startsWith(prefix));
 }

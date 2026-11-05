@@ -36,7 +36,7 @@ export interface InputBinding {
   scrollDirection?: "up" | "down";
   /** Touch gesture (future) */
   gesture?: string;
-  /** Gamepad button (future) */
+  /** Standard gamepad button index. */
   gamepadButton?: number;
   /** Modifier keys required */
   modifiers?: {

@@ -24,7 +24,8 @@ import { AudioManager } from "../AudioManager";
 import { MENU_PLAYLIST } from "../audio/MenuPlaylist";
 import { devLog } from "../core/DevLog";
 import { EngineVersion } from "../core/EngineVersion";
-import { primaryDevice } from "../input/InputDevice";
+import { GamepadInput } from "../input/GamepadInput";
+import { InputDevice, primaryDevice } from "../input/InputDevice";
 import { enterTouchFullscreen } from "../input/TouchFullscreen";
 import { buildTwinLight, buildTwinRail, TWIN_ROOT_CLASS, type TwinRail } from "./components/LobbyTwin";
 import { LoadingAnimation } from "./LoadingAnimation";
@@ -68,6 +69,7 @@ export class LoadingScreen {
 
   // For force-dismiss from console
   private readyResolver: (() => void) | null = null;
+  private offGamepad: (() => void) | null = null;
 
   // Smoke animation (shared component)
   private smokeAnimation: LoadingAnimation | null = null;
@@ -76,6 +78,7 @@ export class LoadingScreen {
   private readonly onKey = (event: KeyboardEvent): void => {
     if (event.key !== "Enter" && event.key !== " ") return;
     event.preventDefault();
+    InputDevice.getInstance().select("keyboard_mouse");
     this.start();
   };
 
@@ -128,7 +131,13 @@ export class LoadingScreen {
     this.startEl.className = "boot__start";
     this.startEl.textContent = touch ? "Tap to start" : "Click to start";
     this.captionEl.append(this.startEl);
-    if (!touch) this.captionEl.append(element("small", "", "or press Enter"));
+    this.captionEl.append(
+      element(
+        "small",
+        "",
+        touch ? "or press a controller button" : "or press Enter · controller button for controller mode",
+      ),
+    );
     this.captionEl.hidden = true;
 
     const lead = element("p", "boot__lead", version.getEngineTagline());
@@ -278,6 +287,14 @@ export class LoadingScreen {
     return new Promise((resolve) => {
       // Store resolver for force-dismiss capability
       this.readyResolver = resolve;
+      this.offGamepad?.();
+      this.offGamepad = GamepadInput.getInstance().subscribe(() => {
+        const pad = GamepadInput.getInstance();
+        if (this.failed || !pad.pressed.size) return;
+        InputDevice.getInstance().select("gamepad");
+        pad.suppressUntilNeutral();
+        this.start();
+      });
       this.ringEl.disabled = false;
       window.addEventListener("keydown", this.onKey);
       // Anywhere on the screen starts, not only the ring or the button
@@ -318,6 +335,8 @@ export class LoadingScreen {
     const resolve = this.readyResolver;
     if (!resolve) return;
     this.readyResolver = null;
+    this.offGamepad?.();
+    this.offGamepad = null;
     this.started = true;
     window.removeEventListener("keydown", this.onKey);
 
@@ -338,6 +357,8 @@ export class LoadingScreen {
   }
 
   public hide(): void {
+    this.offGamepad?.();
+    this.offGamepad = null;
     this.downloads.destroy();
     window.removeEventListener("keydown", this.onKey);
 

@@ -4,12 +4,15 @@
  * Use this for pause menus, confirmations, and other focused UI that should
  * sit over gameplay without taking over the whole screen like GamePanel.
  */
+import { UINavigation } from "../navigation/UINavigation";
+
 export interface GameDialogPanelOptions {
   title: string;
   extraClass?: string;
   closeOnBackdrop?: boolean;
   closeOnEscape?: boolean;
   showCloseButton?: boolean;
+  navigation?: "spatial" | "vertical";
 }
 
 export class GameDialogPanel {
@@ -21,7 +24,9 @@ export class GameDialogPanel {
   protected footerEl: HTMLElement;
 
   private visible: boolean = false;
+  private offNavigation: (() => void) | null = null;
   private readonly closeOnEscape: boolean;
+  private readonly navigation: "spatial" | "vertical";
   private onCloseCallback: (() => void) | null = null;
   private escHandler: (e: KeyboardEvent) => void;
 
@@ -29,6 +34,7 @@ export class GameDialogPanel {
     const { title, extraClass = "", closeOnBackdrop = true, closeOnEscape = true, showCloseButton = true } = options;
 
     this.closeOnEscape = closeOnEscape;
+    this.navigation = options.navigation ?? "spatial";
 
     this.backdrop = document.createElement("div");
     this.backdrop.className = `game-dialog-backdrop fps-dialog-backdrop ${extraClass}`.trim();
@@ -93,12 +99,19 @@ export class GameDialogPanel {
     if (this.visible) return;
     this.visible = true;
     this.backdrop.style.display = "";
+    this.offNavigation = UINavigation.getInstance().push({
+      root: this.backdrop,
+      navigation: this.navigation,
+      back: () => this.controllerBack(),
+    });
     document.addEventListener("keydown", this.escHandler, true);
   }
 
   public close(): void {
     if (!this.visible) return;
     this.visible = false;
+    this.offNavigation?.();
+    this.offNavigation = null;
     this.backdrop.style.display = "none";
     document.removeEventListener("keydown", this.escHandler, true);
     this.onCloseCallback?.();
@@ -106,6 +119,10 @@ export class GameDialogPanel {
 
   public isOpen(): boolean {
     return this.visible;
+  }
+
+  protected controllerBack(): void {
+    if (this.closeOnEscape) this.close();
   }
 
   public setTitle(title: string): void {
@@ -127,6 +144,7 @@ export class GameDialogPanel {
   }
 
   public destroy(): void {
+    this.offNavigation?.();
     document.removeEventListener("keydown", this.escHandler, true);
     this.backdrop.remove();
   }

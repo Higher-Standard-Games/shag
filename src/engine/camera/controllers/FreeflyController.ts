@@ -145,6 +145,15 @@ export class FreeflyController implements ICameraController {
   // Shared input handler (pointer lock, mouse look, key prevention)
   private inputHandler = new CameraInputHandler();
   private inputActions = getFreeflyInput().actions;
+  private moveAxis: { forward: number; right: number } | null = null;
+
+  setMoveAxis(axis: { forward: number; right: number } | null): void {
+    this.moveAxis = axis;
+  }
+
+  controllerLook(yaw: number, pitch: number): void {
+    if (this.enabled && this.inputHandler.inPlay) this.inputHandler.applyLookTurn(yaw, pitch);
+  }
 
   attach(camera: Camera, scene: Scene, canvas: HTMLCanvasElement): void {
     const input = getFreeflyInput();
@@ -223,6 +232,7 @@ export class FreeflyController implements ICameraController {
     }
 
     this.inputHandler.teardown();
+    this.moveAxis = null;
 
     this.camera = null;
     this.scene = null;
@@ -260,7 +270,7 @@ export class FreeflyController implements ICameraController {
       // Ignore if not initialized yet
     }
 
-    if (!this.inputHandler.isPointerLocked) {
+    if (!this.inputHandler.inPlay) {
       this.keys.forward = false;
       this.keys.backward = false;
       this.keys.left = false;
@@ -302,6 +312,10 @@ export class FreeflyController implements ICameraController {
     if (this.keys.right) movement.addInPlace(right.scale(speed));
     if (this.keys.up) movement.addInPlace(up.scale(speed));
     if (this.keys.down) movement.addInPlace(up.scale(-speed));
+    if (this.inputHandler.inPlay && this.moveAxis) {
+      movement.addInPlace(forward.scale(this.moveAxis.forward * speed));
+      movement.addInPlace(right.scale(this.moveAxis.right * speed));
+    }
 
     // Apply movement with collision
     if (movement.length() > 0) {

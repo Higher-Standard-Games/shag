@@ -1,5 +1,5 @@
 /**
- * Which input the player is using: touch, or keyboard and mouse.
+ * Which input the player is using: touch, keyboard/mouse, or controller.
  *
  * Touch hardware says only that a finger could be used: a laptop with a
  * touchscreen has it and is played with the mouse. So the device starts from
@@ -7,6 +7,8 @@
  * a tablet) and then follows the last deliberate input: a touch, a key, or a
  * mouse that moved. Pointer Events name the input in `pointerType`, so the
  * mouse events a browser makes up after a tap never count as the mouse.
+ * Choosing a controller on the start screen or in Settings pins controller
+ * mode until another device is explicitly chosen in Settings.
  *
  * Every change is announced as `input:device_changed`. `in_touch` overrides
  * it for testing: -1 follows the player, 0 keyboard and mouse, 1 touch.
@@ -15,7 +17,7 @@
 import { Cvar } from "../core/Cvar";
 import { EventBus } from "../core/EventBus";
 
-export type InputDeviceKind = "touch" | "keyboard_mouse";
+export type InputDeviceKind = "touch" | "keyboard_mouse" | "gamepad";
 
 export const INPUT_DEVICE_CHANGED = "input:device_changed";
 
@@ -79,7 +81,7 @@ export class InputDevice {
     if (this.win) return;
     this.win = win;
     this.capable = touchCapable(win);
-    this.followed = primaryDevice(win);
+    if (this.followed !== "gamepad") this.followed = primaryDevice(win);
     this.published = this.current;
     win.addEventListener("pointerdown", this.onPointerDown, CAPTURE);
     win.addEventListener("pointermove", this.onPointerMove, CAPTURE);
@@ -103,7 +105,14 @@ export class InputDevice {
     EventBus.emit(INPUT_DEVICE_CHANGED, { device });
   }
 
+  /** A start-screen choice or explicit settings action; controller mode is sticky. */
+  select(device: InputDeviceKind): void {
+    this.followed = device;
+    this.publish();
+  }
+
   private follow(device: InputDeviceKind): void {
+    if (this.followed === "gamepad") return;
     if (device === this.followed) return;
     this.followed = device;
     this.publish();

@@ -12,6 +12,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const audio = vi.hoisted(() => ({ unlockAudio: vi.fn(), loadPlaylist: vi.fn() }));
 vi.mock("../../AudioManager", () => ({ AudioManager: { getInstance: () => audio } }));
 
+import { GamepadInput, type PadState } from "../../input/GamepadInput";
+import { InputDevice } from "../../input/InputDevice";
 import { configureLobbyTwin } from "../components/LobbyTwin";
 import { LoadingScreen } from "../LoadingScreen";
 import { UIStyles } from "../UIStyles";
@@ -39,6 +41,9 @@ describe("start-up screen", () => {
   });
 
   afterEach(() => {
+    GamepadInput.getInstance().stop();
+    vi.unstubAllGlobals();
+    InputDevice.getInstance().select("keyboard_mouse");
     screen.hide();
     vi.runAllTimers();
     vi.useRealTimers();
@@ -153,6 +158,33 @@ describe("start-up screen", () => {
     window.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter" }));
     await ready;
     expect(audio.unlockAudio).toHaveBeenCalledOnce();
+  });
+
+  it("selects controller mode only from a button on the loading screen", async () => {
+    InputDevice.getInstance().select("keyboard_mouse");
+    const pad: PadState = {
+      index: 0,
+      id: "Xbox USB",
+      mapping: "standard",
+      axes: [0, 0, 0, 0],
+      buttons: Array.from({ length: 17 }, () => ({ value: 0, pressed: false })),
+    };
+    vi.spyOn(document, "hasFocus").mockReturnValue(true);
+    vi.stubGlobal("navigator", { getGamepads: () => [pad] });
+    const ready = screen.waitForReady();
+    const input = GamepadInput.getInstance();
+    input.start();
+    vi.advanceTimersByTime(32);
+    expect(LoadingScreen.isWaitingForReady()).toBe(true);
+    expect(InputDevice.getInstance().current).toBe("keyboard_mouse");
+    pad.buttons[0].value = 1;
+    pad.buttons[0].pressed = true;
+    vi.advanceTimersByTime(32);
+    await ready;
+    expect(InputDevice.getInstance().current).toBe("gamepad");
+    expect(input.down.size).toBe(0);
+    expect(audio.unlockAudio).toHaveBeenCalledOnce();
+    vi.restoreAllMocks();
   });
 
   it("leaves the menus' key styles for the menus to inject, in their own order", () => {

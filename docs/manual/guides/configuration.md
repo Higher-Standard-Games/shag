@@ -166,6 +166,45 @@ subsystems that load later. Saved values awaiting registration remain in browser
 storage and account uploads until their owner declares the default and bounds;
 resetting them removes the pending preference so that declared default applies.
 
+## Controller input
+
+Washoi selects controller mode from a controller button on the loading screen
+or **Settings → Controller → Use controller**. Connection and stick motion do
+not select it. Mouse movement and text entry leave controller mode selected;
+choose another input in Settings to switch. `in_touch` remains a developer
+override: 0 forces keyboard/mouse, 1 forces touch, and -1 allows the selected
+device policy.
+
+| Cvar | Default | Range | Meaning |
+| --- | ---: | --- | --- |
+| `in_pad_yaw` | 240 | 30–720 | Horizontal turn speed, degrees per second |
+| `in_pad_pitch` | 180 | 30–720 | Vertical turn speed, degrees per second |
+| `in_pad_curve` | 1.7 | 1–3 | Look response exponent |
+| `in_pad_move_deadzone` | 0.15 | 0.05–0.4 | Radial move-stick dead zone |
+| `in_pad_look_deadzone` | 0.12 | 0.05–0.4 | Radial look-stick dead zone |
+| `in_pad_ads` | 0.5 | 0.1–1 | Controller turn-speed multiplier while aiming |
+| `in_pad_invert` | 0 | 0–1 | Invert vertical look |
+| `in_pad_swap` | 0 | 0–1 | Swap move and look sticks |
+| `in_pad_assist` | 1 | 0–1 | FPS controller aim assist |
+
+Controller overrides use versioned `gamepad:v1:<action-id>` entries in
+`shag_keybindings`. They use the existing binding serializer and account sync;
+legacy keyboard overrides keep their IDs and values. An absent controller
+override uses the preset defaults; an explicit empty array is unbound. The
+`in_pad_*` look preferences sync through an explicit allowlist; both dead zones
+stay local. Runtime device selection is not persisted.
+
+`GamepadInput` samples browser gamepads once per animation frame, independently
+of scene attachment. The FPS `ControllerInput` adapter routes the sample to
+the active `UINavigation` scope or gameplay. Existing panels register their
+roots and Back callbacks; compound fields register child scopes. Focus uses the
+same live elements and activation handlers as the other input devices.
+Neutral checks use the configured radial dead zones for each physical stick,
+including swapped sticks. Input is rearmed after buttons and sticks return
+inside their release thresholds. A failing sampler subscriber is reported once
+per failure streak while other subscribers and subsequent frames continue;
+the gameplay adapter clears its holds and exits play on failure.
+
 ## Networking environment
 
 Copy and review `.env.example`, which lists every variable below.

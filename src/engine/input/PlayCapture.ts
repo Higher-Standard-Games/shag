@@ -19,6 +19,7 @@ import { enterTouchFullscreen } from "./TouchFullscreen";
 export const PLAY_CHANGE = "shag:playchange";
 
 let touchPlay = false;
+let gamepadPlay = false;
 let offDevice: (() => void) | null = null;
 
 const announce = (): void => {
@@ -26,7 +27,7 @@ const announce = (): void => {
 };
 
 export function inPlay(): boolean {
-  return touchPlay || !!document.pointerLockElement;
+  return touchPlay || gamepadPlay || !!document.pointerLockElement;
 }
 
 export function inTouchPlay(): boolean {
@@ -39,12 +40,21 @@ export function setTouchPlay(on: boolean): void {
   announce();
 }
 
+export function setGamepadPlay(on: boolean): void {
+  if (gamepadPlay === on) return;
+  gamepadPlay = on;
+  announce();
+}
+
 /**
  * Start play: touch play on a touch screen, otherwise lock the pointer to
- * `canvas`. From a tap (Resume), touch play also goes back to fullscreen.
+ * `canvas`. Controller play holds input without pointer lock. From a tap
+ * (Resume), touch play also goes back to fullscreen.
  */
 export function enterPlay(canvas: HTMLCanvasElement | null): void {
-  if (InputDevice.getInstance().current === "touch") {
+  if (InputDevice.getInstance().current === "gamepad") {
+    setGamepadPlay(true);
+  } else if (InputDevice.getInstance().current === "touch") {
     background(enterTouchFullscreen(), "PlayCapture");
     setTouchPlay(true);
   } else {
@@ -55,6 +65,7 @@ export function enterPlay(canvas: HTMLCanvasElement | null): void {
 /** End play, whichever kind it is. */
 export function leavePlay(): void {
   if (document.pointerLockElement) document.exitPointerLock?.();
+  setGamepadPlay(false);
   setTouchPlay(false);
 }
 
@@ -64,6 +75,7 @@ export function startPlayCapture(): void {
   document.addEventListener("pointerlockchange", announce);
   offDevice = EventBus.on<{ device: InputDeviceKind }>(INPUT_DEVICE_CHANGED, ({ device }) => {
     if (device !== "touch") setTouchPlay(false);
+    if (device !== "gamepad") setGamepadPlay(false);
   });
 }
 
@@ -73,4 +85,5 @@ export function stopPlayCapture(): void {
   offDevice();
   offDevice = null;
   touchPlay = false;
+  gamepadPlay = false;
 }

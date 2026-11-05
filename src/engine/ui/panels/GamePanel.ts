@@ -21,6 +21,7 @@
 
 import { background } from "../../core/AsyncErrors";
 import { LogoCanvas } from "../components/LogoCanvas";
+import { UINavigation } from "../navigation/UINavigation";
 import { UIStyles } from "../UIStyles";
 import { clearParticles, spawnParticles } from "./effects/FloatingParticles";
 import { createKanjiWatermarks } from "./effects/KanjiWatermark";
@@ -39,6 +40,7 @@ export class GamePanel {
   protected tabBar: HTMLElement;
 
   private visible: boolean = false;
+  private offNavigation: (() => void) | null = null;
   private particles: HTMLElement[] = [];
   private kanjiElements: HTMLElement[] = [];
   private onCloseCallback: (() => void) | null = null;
@@ -170,6 +172,13 @@ export class GamePanel {
 
     this.root.classList.remove("game-panel--closing");
     this.root.style.display = "";
+    this.offNavigation = UINavigation.getInstance().push({
+      root: this.root,
+      initialFocus: () => this.controllerInitialFocus(),
+      back: () => {
+        if (this.closable) this.close();
+      },
+    });
     document.addEventListener("keydown", this.escHandler, true);
 
     // Resume logo rendering
@@ -179,6 +188,8 @@ export class GamePanel {
   public close(): void {
     if (!this.visible) return;
     this.visible = false;
+    this.offNavigation?.();
+    this.offNavigation = null;
     document.removeEventListener("keydown", this.escHandler, true);
 
     // Exit animation then hide
@@ -203,6 +214,10 @@ export class GamePanel {
     this.logoCanvas?.pause();
   }
 
+  protected controllerInitialFocus(): HTMLElement | null {
+    return null;
+  }
+
   private cancelCloseAnimation(): void {
     if (this.closingHandler) this.root.removeEventListener("animationend", this.closingHandler);
     this.closingHandler = null;
@@ -221,6 +236,7 @@ export class GamePanel {
   }
 
   public destroy(): void {
+    this.offNavigation?.();
     this.cancelCloseAnimation();
     document.removeEventListener("keydown", this.escHandler, true);
     clearParticles(this.particles);

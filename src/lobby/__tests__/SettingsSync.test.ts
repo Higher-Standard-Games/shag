@@ -104,6 +104,30 @@ const blobText = (cvars: Record<string, string | number | boolean>, storage: Rec
   serializeSyncedSettings({ v: 1, cvars, storage });
 
 describe("which settings follow the account", () => {
+  it("syncs controller look preferences while keeping dead zones on the device", () => {
+    for (const name of [
+      "in_pad_yaw",
+      "in_pad_pitch",
+      "in_pad_curve",
+      "in_pad_ads",
+      "in_pad_invert",
+      "in_pad_swap",
+      "in_pad_assist",
+    ])
+      expect(isSyncedCvar(name)).toBe(true);
+    for (const name of ["in_pad_move_deadzone", "in_pad_look_deadzone", "in_touch"])
+      expect(isSyncedCvar(name)).toBe(false);
+    const mappings = JSON.stringify({ "gamepad:v1:fps_jump": [], fps_jump: [{ key: "KeyP" }] });
+    const parsed = parseSyncedSettings(
+      JSON.stringify({
+        v: 1,
+        cvars: { in_pad_yaw: 300, in_pad_move_deadzone: 0.3 },
+        storage: { shag_keybindings: mappings },
+      }),
+    );
+    expect(parsed?.cvars).toEqual({ in_pad_yaw: 300 });
+    expect(parsed?.storage.shag_keybindings).toBe(mappings);
+  });
   it("syncs game preferences and leaves graphics, debug and device settings alone", () => {
     for (const name of ["cl_fov", "cg_bob", "s_volume", "m_sensitivity", "cl_team_enemy_color"]) {
       expect(isSyncedCvar(name)).toBe(true);

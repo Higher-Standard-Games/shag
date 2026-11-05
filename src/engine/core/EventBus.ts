@@ -254,7 +254,7 @@ export interface InputEvents {
   "input:click": { x: number; y: number; target?: string };
   "input:key": { key: string; action: "down" | "up" };
   /** The player switched between touch and keyboard and mouse (`InputDevice`). */
-  "input:device_changed": { device: "touch" | "keyboard_mouse" };
+  "input:device_changed": { device: "touch" | "keyboard_mouse" | "gamepad" };
 }
 
 /**
