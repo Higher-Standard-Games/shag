@@ -2,6 +2,18 @@
 
 `RenderVars` registers numeric `r_*` cvars, clamps values, batches live scene updates, and persists non-debug values under `engine.renderVars`.
 
+Player video choices remain available without developer mode: renderer,
+resolution, antialiasing, texture quality, filtering, brightness/contrast,
+quality-preset switches, reflections, light-shaft quality, water quality,
+underwater comfort, marks, gibs and teleport afterimages. Accessibility colour
+correction and the outline on/off choices also remain public.
+
+Raw material/lighting multipliers, renderer experiments, water-material tuning,
+day/night controls, fog overrides and debug views require `developer 1`.
+The `render` inspection/import command requires it too. Direct cvar writes and
+config imports enforce the same policy. Production browser builds use authored
+defaults for developer-only variables even if older preferences contain overrides.
+
 ## Current groups
 
 | Category | Representative variables |
@@ -15,7 +27,7 @@
 The defaults use bloom off (`r_bloom 0`) and 4× anisotropic filtering
 (`r_anisotropy 4`), matching Washoi's Balanced preset. Zero bloom intensity
 disables the bloom rendering pass. Full-resolution map textures remain the
-default (`r_picmip 0`). Saved settings take priority over defaults.
+default (`r_picmip 0`). Saved player settings take priority over defaults.
 
 ### Renderer
 
@@ -53,7 +65,7 @@ Use `render list` for the authoritative current list, defaults, ranges, and desc
 (red-weak), 2 deuteranopia (green-weak), 3 tritanopia (blue-yellow). It
 daltonizes the final frame, moving the colour differences that eye cannot see
 into ones it can, and `r_colorcorrection_strength` (0–1, default 1) scales the
-shift. `r_colorsimulation` (same values, not saved) shows the screen as that eye
+shift. `r_colorsimulation` (same values, not saved, developer-only) shows the screen as that eye
 sees it, for checking a map; with both set it shows what a colour-blind player
 sees with correction on. All three apply at once, from the console mid-match
 too. They are one 3×3 matrix in a single pass that `ColorCorrectionPostProcess`

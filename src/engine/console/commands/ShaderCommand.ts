@@ -25,6 +25,7 @@ type InspectableMaterial = Material &
 
 export class ShaderCommand extends Command {
   readonly definition: CommandDef = {
+    developer: true,
     name: "shader",
     description: "Q3/Warsow shader management",
     usage: "shader <subcommand> [args]",

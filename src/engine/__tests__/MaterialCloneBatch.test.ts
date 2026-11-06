@@ -17,7 +17,11 @@ import { applySceneRendererPolicy } from "../rendering/SceneRendererPolicy";
 
 let engine: NullEngine;
 let scene: Scene;
+let developer = false;
 beforeEach(() => {
+  developer = Cvar.getBool("developer");
+  Cvar.register("developer", 0);
+  Cvar.set("developer", 1);
   engine = new NullEngine();
   scene = new Scene(engine);
   Cvar.set("r_material_clone_batch", 1);
@@ -27,6 +31,7 @@ afterEach(() => {
   engine.dispose();
   vi.restoreAllMocks();
   Cvar.set("r_material_clone_batch", 1);
+  Cvar.set("developer", developer);
 });
 
 it("reduces unrelated scene visits during fresh PBR cloning", () => {

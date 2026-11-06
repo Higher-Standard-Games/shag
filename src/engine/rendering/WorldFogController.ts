@@ -132,47 +132,56 @@ export class WorldFogController {
     const dev = { persist: false, onChange: refresh };
     Cvar.register("r_fog", true, { type: "bool", description: "World fog from the map (0/1)", onChange: refresh });
     Cvar.register("r_fog_distance", 0, {
+      developer: true,
       ...dev,
       type: "float",
       min: 0,
       description: "Developer: fog ~95% opaque at this distance; above 0 the r_fog_* cvars replace the map's fog",
     });
     Cvar.register("r_fog_color", OVERRIDE_COLOR, {
+      developer: true,
       ...dev,
       type: "string",
       description: 'Developer: fog colour "r g b" (0-1)',
     });
     Cvar.register("r_fog_mindist", -1, {
+      developer: true,
       ...dev,
       type: "float",
       description: "Developer: fog start distance; -1 keeps the map's",
     });
     Cvar.register("r_fog_height_clear", INHERIT_HEIGHT_CLEAR, {
+      developer: true,
       ...dev,
       type: "float",
       description: "Developer: height where fog is clear; 99999 keeps the map's",
     });
     Cvar.register("r_fog_height_full", INHERIT_HEIGHT_FULL, {
+      developer: true,
       ...dev,
       type: "float",
       description: "Developer: height where fog is full; -99999 keeps the map's",
     });
     Cvar.register("r_fog_sun_dir", "", {
+      developer: true,
       ...dev,
       type: "string",
       description: 'Developer: sun direction "x y z" (Quake axes)',
     });
     Cvar.register("r_fog_sun_color", "", {
+      developer: true,
       ...dev,
       type: "string",
       description: 'Developer: sun glow "r g b [exponent]"',
     });
     Cvar.register("r_fog_sun_inscatter", -1, {
+      developer: true,
       ...dev,
       type: "float",
       description: "Developer: sun glow intensity; -1 keeps the map's",
     });
     Cvar.register("r_fog_sky_blend", -1, {
+      developer: true,
       ...dev,
       type: "float",
       description: "Developer: sky horizon tint 0/1; -1 keeps the map's",

@@ -13,6 +13,6 @@ export default class ResetAllCommand extends Command {
 
   async execute(): Promise<string | undefined> {
     Cvar.resetAll();
-    return "All cvars reset to default values";
+    return "All writable cvars reset to default values";
   }
 }

@@ -6,6 +6,7 @@ import { Command, type CommandDef } from "../Command";
 
 export class HudCommand extends Command {
   readonly definition: CommandDef = {
+    developer: true,
     name: "hud",
     description: "HUD management",
     usage: "hud <subcommand>",

@@ -11,6 +11,9 @@ import { Cvar } from "../core/Cvar";
 import { installWeaponCameraCandidates } from "../rendering/WeaponCameraCandidates";
 
 it("filters on every backend by default and turns off with the cvar", () => {
+  const developer = Cvar.getBool("developer");
+  Cvar.register("developer", 0);
+  Cvar.set("developer", 1);
   const engine = new NullEngine();
   const scene = new Scene(engine);
   const camera = new FreeCamera("weapon", Vector3.Zero(), scene);
@@ -36,6 +39,7 @@ it("filters on every backend by default and turns off with the cvar", () => {
     release();
     scene.dispose();
     engine.dispose();
+    Cvar.set("developer", developer);
   }
 });
 

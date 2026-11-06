@@ -88,7 +88,7 @@ relevant file before doing that job.
 **Headless first** (required before asking for browser testing):
 
 ```bash
-npm --prefix src/games/fps run cli:game -- --exec "bsp load washoi_dm2; bsp info; quit"
+npm --prefix src/games/fps run cli:game -- --exec "developer 1; bsp load washoi_dm2; bsp info; quit"
 npm --prefix src/games/fps run cli:game -- --exec 'sim replay "W+CROUCH 60; JUMP 1; W 30"; quit'
 npm --prefix src/games/fps run test:simulation
 npm --prefix src/games/fps run test:physics

@@ -6,6 +6,7 @@ import { Command, type CommandDef } from "../Command";
 
 export default class WeatherCommand extends Command {
   readonly definition: CommandDef = {
+    developer: true,
     name: "weather",
     description: "Weather control",
     usage: "weather <rain|snow|clear|fog|thunder|status> [intensity]",

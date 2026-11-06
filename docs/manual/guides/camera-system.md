@@ -35,7 +35,7 @@ Controller type names in Washoi:
 - `isometric`;
 - `sidescroll`;
 - `follow`;
-- `spectator`, driven by the FPS `spectator` command rather than by `camera mode`.
+- `spectator`, used for watched-player views in live chase spectating and demo playback.
 
 Washoi owns `camera/FPSController.ts` and its `camera/components/PlayerVisuals.ts`
 helper inside the FPS game checkout. The application registers that controller
@@ -43,6 +43,11 @@ under the `fps` ID. Engine camera barrels export the generic controllers and
 interfaces; game code imports its concrete FPS controller from the game.
 The `spectator` and `giveweapon` commands are discovered by the game's console
 loader. The headless game CLI also registers those commands in its FPS composition.
+
+The `spectator` console command selects the local `fps` or `freefly` camera. It
+does not select the watched-player `spectator` controller or change server match
+membership. With no argument it toggles; `spectator 0` selects FPS and
+`spectator 1` selects freefly.
 
 `debug player` stays in the engine and queries the active FPS controller's
 optional `getPlayerPosition()` capability through `ICameraController`.
@@ -58,6 +63,7 @@ const registered = cameras.getController('isometric');
 Console selection uses:
 
 ```text
+developer 1
 camera mode freefly
 camera mode isometric
 camera fov 100
@@ -65,8 +71,17 @@ camera info
 ```
 
 `camera mode` selects a controller. `iso` is accepted as a short form of `isometric`. With no argument it reports the active controller by its own type name and lists the names it takes.
+This subcommand requires `developer 1`, including its query. `camera fov`,
+`camera pos`, `camera info` and the FPS `spectator` toggle remain available
+without developer mode.
+
+Unknown controller names, a missing active camera and failed selections return
+failures through checked command execution.
 
 `camera fov` does not write the camera: viewport effects rewrite that every frame from `cl_fov`, so the subcommand sets `cl_fov` instead, and reports the range rather than silently clamping a value outside it.
+With no value it reports the current setting. A supplied value must be a finite
+number from 80 to 110 degrees; malformed values, excess arguments and failed
+updates return checked failures.
 
 ## Projection modes
 

@@ -1,19 +1,7 @@
 /**
- * SpawnPointTable — single source of truth for BSP spawn points.
- *
- * Same contract as PickupTable / TriggerTable / BombSiteTable: one extractor,
- * used everywhere, so the server, the headless CLIs and the client all agree.
- *
- * Before this, the spawn classname list was duplicated verbatim in
- * `HeadlessMapLoader`, `SpawnPointManager` and `SpawnCommand` — and all three
- * listed only the Quake conventions. Warsow's team maps tag their spawns
- * `team_CTF_alphaspawn` / `team_CTF_betaspawn`, which appeared in **no** source
- * file, so every team spawn on every CTF and bomb map was invisible: 4-16 points
- * per team across six bomb maps, silently unused.
- *
- * Coordinates: Q3 (X right, Y forward, Z up) → engine (X right, Y up, Z forward),
- * plus PLAYER_ORIGIN_HEIGHT because BSP spawn entities sit at FEET level while
- * player physics uses the origin 24 units above.
+ * Shared BSP spawn classification, positions and facings.
+ * Generic and team-tagged spawns retain BSP entity order. Z-up map origins are
+ * converted to Y-up game positions, then raised to the player's origin height.
  */
 
 import type { TeamId } from "../server/gametype";
@@ -35,9 +23,7 @@ interface BspEntityLike {
 }
 
 /**
- * Untagged spawn classnames — usable by any player in any gametype.
- * `info_player_team1/2` are the Quake team conventions; no shipped Warsow map
- * uses them, but they cost nothing to accept.
+ * Untagged spawn classnames, usable by any player in any gametype.
  */
 export const SPAWN_CLASSNAMES: readonly string[] = [
   "info_player_deathmatch",
@@ -47,22 +33,18 @@ export const SPAWN_CLASSNAMES: readonly string[] = [
 ];
 
 /**
- * Warsow team spawn classnames → engine team id.
- *
- * Warsow names its teams alpha/beta; this engine names them udon/soba. The
- * mapping is positional (alpha = first team = udon) and is the only place the
- * two vocabularies meet.
- *
- * NOTE: which team ATTACKS in a bomb mode is a gametype decision, not a
- * property of the spawn set — see Search_And_Destroy.md §4.1, where the map
- * geometry says alpha's base holds the objectives and alpha therefore defends.
+ * Team-tagged map classnames mapped to engine team ids.
+ * A null prototype excludes inherited object names from classname lookups.
  */
-export const TEAM_SPAWN_CLASSNAMES: Readonly<Record<string, TeamId>> = {
-  team_CTF_alphaspawn: "udon",
-  team_CTF_betaspawn: "soba",
-};
+export const TEAM_SPAWN_CLASSNAMES: Readonly<Record<string, TeamId>> = Object.assign(
+  Object.create(null) as Record<string, TeamId>,
+  {
+    team_CTF_alphaspawn: "udon",
+    team_CTF_betaspawn: "soba",
+  } satisfies Record<string, TeamId>,
+);
 
-/** Parse a Q3 "x y z" origin to engine coords at player-origin height. */
+/** Parse a Z-up BSP origin to game coordinates at player-origin height. */
 function parseSpawnOrigin(origin: string | undefined): SpawnVec3 | null {
   if (!origin) return null;
   const parts = origin.trim().split(/\s+/).map(Number);
@@ -71,11 +53,7 @@ function parseSpawnOrigin(origin: string | undefined): SpawnVec3 | null {
 }
 
 /**
- * Every spawn point a player could use, in BSP order.
- *
- * Includes team-tagged spawns: a team map's `team_CTF_*spawn` points are real
- * spawn locations, and a gametype that ignores teams should still be able to
- * use them rather than falling back to three hardcoded defaults.
+ * Every generic or team-tagged spawn point, in BSP order.
  */
 export function extractSpawnPoints(entities: BspEntityLike[]): SpawnVec3[] {
   const out: SpawnVec3[] = [];

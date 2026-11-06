@@ -181,6 +181,7 @@ describe("RenderVars", () => {
     });
 
     it("preserves fractional water polish values through the console cvar path", () => {
+      Cvar.register("developer", 1);
       const rv = getRV();
       rv.registerCvars();
       for (const name of ["r_water_blur", "r_water_detail", "r_water_contact"]) {
@@ -206,7 +207,39 @@ describe("RenderVars", () => {
   // ── Get/Set ───────────────────────────────────────────────
 
   describe("get/set", () => {
+    it("applies headless updates without a browser frame scheduler", () => {
+      const rv = getRV();
+      const apply = vi.spyOn(rv, "applyToScene").mockImplementation(() => {});
+      vi.stubGlobal("requestAnimationFrame", undefined);
+      try {
+        expect(() => rv.set("r_exposure", 1.2)).not.toThrow();
+        expect(apply).toHaveBeenCalledTimes(1);
+      } finally {
+        vi.unstubAllGlobals();
+        apply.mockRestore();
+      }
+    });
+
+    it("still batches browser updates until the scheduled frame", () => {
+      const rv = getRV();
+      const apply = vi.spyOn(rv, "applyToScene").mockImplementation(() => {});
+      const frame = vi.fn();
+      vi.stubGlobal("requestAnimationFrame", frame);
+      try {
+        rv.set("r_normalmap", 0.5);
+        rv.set("r_glossmap", 0.5);
+        expect(frame).toHaveBeenCalledTimes(1);
+        expect(apply).not.toHaveBeenCalled();
+        frame.mock.calls[0][0]();
+        expect(apply).toHaveBeenCalledTimes(1);
+      } finally {
+        vi.unstubAllGlobals();
+        apply.mockRestore();
+      }
+    });
+
     it("stores spatial batching through the console without scheduling a live material update", () => {
+      Cvar.register("developer", 1);
       const rv = getRV();
       const apply = vi.spyOn(rv, "applyToScene");
       expect(rv.get("r_bsp_cellsize")).toBe(0);

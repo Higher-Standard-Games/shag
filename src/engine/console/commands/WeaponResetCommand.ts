@@ -20,6 +20,7 @@ const WEP_CVARS = [
 
 export default class WeaponResetCommand extends Command {
   readonly definition: CommandDef = {
+    developer: true,
     name: "cl_wep_reset",
     description: "Reset all cl_wep_* overrides to 0 (use weapon defs)",
     usage: "cl_wep_reset",

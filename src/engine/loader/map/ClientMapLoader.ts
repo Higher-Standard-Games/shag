@@ -1,6 +1,5 @@
 import { TargetCamera } from "@babylonjs/core/Cameras/targetCamera";
 import type { CameraSystem } from "../../camera/CameraSystem";
-import { CommandRegistry } from "../../console/CommandRegistry";
 import { devLog } from "../../core/DevLog";
 import { createLoadingOperationId } from "../../core/LoadingEvents";
 import { PLAYER_ORIGIN_HEIGHT } from "../../physics/PlayerPhysicsConstants";
@@ -49,9 +48,7 @@ async function performClientMap(mapName: string, options: MapLoadOptions): Promi
   const { MapLoader } = await import("./MapLoader");
   options.signal?.throwIfAborted();
   const mapLoader = MapLoader.getInstance();
-  const registry = CommandRegistry.getInstance();
-
-  return loadClientMapWithSystems(mapName, cameraSystem, mapLoader, registry, options);
+  return loadClientMapWithSystems(mapName, cameraSystem, mapLoader, options);
 }
 
 export async function unloadClientMap(operationId?: string): Promise<void> {
@@ -72,7 +69,6 @@ async function loadClientMapWithSystems(
   mapName: string,
   cameraSystem: CameraSystem,
   mapLoader: MapLoader,
-  registry: CommandRegistry,
   options: MapLoadOptions,
 ): Promise<string> {
   const { RenderVars } = await import("../../rendering/RenderVars");
@@ -80,16 +76,19 @@ async function loadClientMapWithSystems(
   RenderVars.getInstance();
 
   let scene = cameraSystem.getCamera()?.getScene();
+  const { default: SceneCommand } = await import("../../console/commands/SceneCommand");
+  options.signal?.throwIfAborted();
+  const scenes = new SceneCommand();
 
   if (!scene) {
-    await registry.execute("scene empty");
+    await scenes.createEmptyScene();
     options.signal?.throwIfAborted();
     scene = cameraSystem.getCamera()?.getScene();
     if (!scene) {
       return 'No scene available. Run "scene empty" first.';
     }
   } else {
-    await registry.execute("scene clear");
+    await scenes.clearScene();
     options.signal?.throwIfAborted();
     scene = cameraSystem.getCamera()?.getScene();
   }

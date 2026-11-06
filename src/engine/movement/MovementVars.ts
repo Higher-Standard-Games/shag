@@ -35,7 +35,7 @@ const DEFAULT_VARS: Record<string, Omit<MovementVar, "name">> = {
     max: 2000,
     description: "Player movement speed (units/sec)",
     category: "movement",
-    developerOnly: false,
+    developerOnly: true,
   },
   cl_sprintmult: {
     value: 1.5,
@@ -44,7 +44,7 @@ const DEFAULT_VARS: Record<string, Omit<MovementVar, "name">> = {
     max: 3.0,
     description: "Sprint speed multiplier",
     category: "movement",
-    developerOnly: false,
+    developerOnly: true,
   },
   cl_crouchmult: {
     value: 0.5,
@@ -53,7 +53,7 @@ const DEFAULT_VARS: Record<string, Omit<MovementVar, "name">> = {
     max: 1.0,
     description: "Crouch speed multiplier",
     category: "movement",
-    developerOnly: false,
+    developerOnly: true,
   },
   sv_movementSpeed: {
     value: 320,
@@ -547,7 +547,7 @@ const DEFAULT_VARS: Record<string, Omit<MovementVar, "name">> = {
     max: 1.0,
     description: "Time to transition to ADS (seconds, visual only)",
     category: "camera",
-    developerOnly: false,
+    developerOnly: true,
   },
   cl_ads_offset_y: {
     value: 2.0,
@@ -556,7 +556,7 @@ const DEFAULT_VARS: Record<string, Omit<MovementVar, "name">> = {
     max: 10.0,
     description: "Weapon Y offset when ADS (upward)",
     category: "camera",
-    developerOnly: false,
+    developerOnly: true,
   },
   cl_fov: {
     value: 90,
@@ -805,6 +805,7 @@ export class MovementVars {
       // Register cvar with developer flag if needed
       // Always use 'float' type since all movement vars are numeric with potential decimal values
       const cvar = Cvar.register(name, varConfig.value, {
+        developer: varConfig.developerOnly || name.startsWith("sv_"),
         type: "float",
         min: varConfig.min,
         max: varConfig.max,
@@ -830,8 +831,8 @@ export class MovementVars {
     if (!v) return false;
 
     const clamped = Math.max(v.min, Math.min(v.max, value));
+    if (!Cvar.set(name, clamped)) return false;
     v.value = clamped;
-    Cvar.set(name, clamped);
     this.saveToStorage();
     return true;
   }
@@ -870,6 +871,7 @@ export class MovementVars {
       const valid: Record<string, number> = {};
       for (const [name, value] of Object.entries(parsed)) {
         const config = DEFAULT_VARS[name];
+        if (Cvar.isDeveloperLocked() && config && (config.developerOnly || name.startsWith("sv_"))) continue;
         if (config && typeof value === "number" && Number.isFinite(value)) {
           valid[name] = Math.max(config.min, Math.min(config.max, value));
         }

@@ -3,7 +3,14 @@
  */
 
 import { Cvar } from "../../core/Cvar";
-import { Command, type CommandDef } from "../Command";
+import { Command, type CommandDef, type CommandOutput, fail } from "../Command";
+
+const CVAR_NAME = "g_godmode";
+Cvar.register(CVAR_NAME, false, {
+  developer: true,
+  type: "bool",
+  description: "God mode (invincibility)",
+});
 
 export default class GodCommand extends Command {
   readonly definition: CommandDef = {
@@ -12,22 +19,9 @@ export default class GodCommand extends Command {
     developer: true,
   };
 
-  async execute(): Promise<string | undefined> {
-    const cvarName = "g_godmode";
-
-    // Toggle or create the cvar
-    if (Cvar.exists(cvarName)) {
-      const current = Cvar.getBool(cvarName);
-      Cvar.set(cvarName, !current);
-      return `God mode: ${!current ? "ON" : "OFF"}`;
-    }
-
-    // Register if it doesn't exist
-    Cvar.register(cvarName, true, {
-      type: "bool",
-      description: "God mode (invincibility)",
-    });
-
-    return "God mode: ON";
+  async execute(): Promise<CommandOutput> {
+    const enabled = !Cvar.getBool(CVAR_NAME);
+    if (!Cvar.set(CVAR_NAME, enabled)) return fail("God mode requires developer mode.");
+    return `God mode: ${enabled ? "ON" : "OFF"}`;
   }
 }

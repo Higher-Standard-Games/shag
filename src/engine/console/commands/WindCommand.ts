@@ -6,6 +6,7 @@ import { Command, type CommandDef } from "../Command";
 
 export default class WindCommand extends Command {
   readonly definition: CommandDef = {
+    developer: true,
     name: "wind",
     description: "Wind control",
     usage: "wind <on|off|strength|direction> [value]",

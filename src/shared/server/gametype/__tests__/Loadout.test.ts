@@ -1,10 +1,4 @@
-/**
- * Spawn kits: the table, and what it refuses.
- *
- * The refusals are the interesting half. A loadout parser that quietly falls
- * back to a default when it does not recognise a name hands someone a rocket
- * launcher when they asked for a lasergun and says nothing.
- */
+/** Spawn-kit choices, input validation and kit construction. */
 
 import { describe, expect, it } from "vitest";
 import { normalizeTeamId } from "../GametypeTypes";
@@ -42,8 +36,7 @@ describe("parsing", () => {
     expect(parseLoadout("electrobolt", "plasmagun")).toEqual({ primary: "electrobolt", secondary: "plasmagun" });
   });
 
-  it("accepts the short names players type, and the Warsow ones", () => {
-    // `lg` means the Lasergun in Warsow; here that weapon is the Voltaic.
+  it("accepts aliases regardless of case and surrounding whitespace", () => {
     expect(parseLoadout("lg", "rg")).toEqual({ primary: "voltaic", secondary: "riotgun" });
     expect(parseLoadout("lasergun", "mg")).toEqual({ primary: "voltaic", secondary: "machinegun" });
     expect(parseLoadout("  RL  ", "GL")).toEqual({ primary: "rlauncher", secondary: "glauncher" });
@@ -57,7 +50,6 @@ describe("parsing", () => {
   });
 
   it("refuses a weapon in the wrong slot", () => {
-    // Two power weapons is exactly what this design does not offer.
     expect(parseLoadout("mg", "rl")).toBeNull();
     expect(parseLoadout("rl", "eb")).toBeNull();
   });
@@ -114,8 +106,6 @@ describe("normalizeTeamId", () => {
   });
 
   it("returns null for anything else, so the caller can fall back to balancing", () => {
-    // Never guess: dropping a player onto an invalid team is worse than
-    // balancing them onto a real one.
     expect(normalizeTeamId("green")).toBeNull();
     expect(normalizeTeamId("")).toBeNull();
     expect(normalizeTeamId(undefined)).toBeNull();

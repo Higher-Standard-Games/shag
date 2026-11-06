@@ -1,13 +1,8 @@
 /**
- * PlayerPhysicsConstants - Q3-style player physics constants
+ * Player dimensions, view heights and coordinate helpers.
  *
- * This defines the player bounding box and physics parameters in Q3 style.
- *
- * Q3 Coordinate System:
- * - Origin (position tracked) is at "waist" level, NOT at feet
- * - Box extends 24 units DOWN from origin (to feet)
- * - Box extends 40 units UP from origin (to head)
- * - Total height: 64 units (taller than Q3's 56 to fit vanguard model)
+ * The fixed standing box extends 24 units below the tracked origin and
+ * 40 units above it, for a total height of 64. Position helpers use Y-up coordinates.
  *
  * ```
  * HEAD    (+40 above origin)  ┌─────────┐
@@ -17,11 +12,8 @@
  * FEET    (-24 below origin)  └─────────┘
  * ```
  *
- * This asymmetric box was carefully designed by id Software:
- * - Origin at hip/waist level is natural center of mass
- * - More headroom than footroom feels natural for movement
- * - Step logic traces work correctly without offset calculations
- * - Crouch simply changes mins.z from -24 to -4
+ * Crouching changes the lower vertical extent from -24 to -4, giving a height of 44.
+ * The bounds-building functions below scale their extents using a 24:32 ratio.
  */
 
 // =============================================================================
@@ -47,26 +39,26 @@ export const PLAYER_ORIGIN_HEIGHT = -PLAYER_MINS_Z;
 // VIEW HEIGHT
 // =============================================================================
 
-/** Eye position relative to origin when standing (raised from Q3's 26 to match taller model) */
+/** Eye position relative to origin when standing */
 export const DEFAULT_VIEWHEIGHT = 34;
 
-/** Eye position relative to origin when crouching (Q3: 12) */
+/** Eye position relative to origin when crouching */
 export const CROUCH_VIEWHEIGHT = 12;
 
-/** Eye position relative to origin when dead (Q3: -16) */
+/** Eye position relative to origin when dead */
 export const DEAD_VIEWHEIGHT = -16;
 
 // =============================================================================
 // MOVEMENT CONSTANTS
 // =============================================================================
 
-/** Maximum step height the player can walk up (Q3: 18) */
+/** Maximum step height the player can walk up */
 export const STEPSIZE = 18;
 
 /** Crouched height - box extends only 4 units below origin */
 export const CROUCH_MINS_Z = -4;
 
-/** Crouched total height (4 + 32 = 36) */
+/** Crouched total height (4 + 40 = 44) */
 export const CROUCH_HEIGHT = PLAYER_MAXS_Z - CROUCH_MINS_Z;
 
 // =============================================================================
@@ -104,7 +96,7 @@ export function originToEyes(originY: number, viewheight: number = DEFAULT_VIEWH
 /**
  * Calculate asymmetric box mins/maxs for a given height
  * Scales proportionally to maintain the 24/32 ratio
- * @param height Total height (default: 56)
+ * @param height Total height (default: 64)
  * @param radius Horizontal radius (default: 16)
  * @returns Object with mins and maxs arrays [x, y, z] in Babylon coords
  */
@@ -126,10 +118,10 @@ export function getPlayerBounds(
 }
 
 /**
- * Get Q3-style bounds (for use with Q3 coordinate system where Z is up)
- * @param height Total height (default: 56)
+ * Get bounds in Z-up coordinates, using a 24:32 lower-to-upper extent ratio.
+ * @param height Total height (default: 64)
  * @param radius Horizontal radius (default: 16)
- * @returns Object with mins and maxs arrays [x, y, z] in Q3 coords
+ * @returns Object with mins and maxs arrays [x, y, z] in Z-up coordinates
  */
 export function getPlayerBoundsQ3(
   height: number = PLAYER_HEIGHT,
@@ -142,7 +134,7 @@ export function getPlayerBoundsQ3(
   const maxsZ = height + minsZ;
 
   return {
-    mins: [-radius, -radius, minsZ], // Q3: X, Y, Z (Z is up)
+    mins: [-radius, -radius, minsZ], // X, Y, Z (Z is up)
     maxs: [radius, radius, maxsZ],
   };
 }

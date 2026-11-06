@@ -24,6 +24,7 @@ import type { BspMeshBuildResult } from "./mesh/types";
  * mesh, since shot and collision tests judge a mesh by its texture name.
  */
 Cvar.register("r_surface_arrays", 1, {
+  developer: true,
   type: "int",
   min: 0,
   max: 1,

@@ -870,6 +870,7 @@ export class FreeflyController implements ICameraController {
 
 // Register freefly camera cvars at module load (after class definition)
 Cvar.register("cam_freefly_speed", FreeflyController.getDefaultSpeed(), {
+  developer: true,
   type: "float",
   min: 10,
   max: 10000,

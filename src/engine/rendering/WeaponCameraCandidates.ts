@@ -4,6 +4,7 @@ import { Cvar } from "../core/Cvar";
 import { installSceneMeshFilter } from "./SceneMeshCandidates";
 
 Cvar.register("r_weapon_candidates", 1, {
+  developer: true,
   type: "int",
   min: 0,
   max: 1,

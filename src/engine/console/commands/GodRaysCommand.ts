@@ -14,6 +14,7 @@ import { Command, type CommandDef } from "../Command";
 
 export default class GodRaysCommand extends Command {
   readonly definition: CommandDef = {
+    developer: true,
     name: "godrays",
     description: "Spawn Babylon 9 volumetric god rays (sun shafts or a fixed emitter)",
     usage: "godrays [sun|here|off]",

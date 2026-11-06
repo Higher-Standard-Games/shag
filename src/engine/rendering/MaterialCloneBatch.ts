@@ -9,6 +9,7 @@ import { applySafeMaxSimultaneousLights } from "../lighting/DynamicLightSafety";
 import { isSceneRendererPolicyApplied } from "./SceneRendererPolicy";
 
 Cvar.register("r_material_clone_batch", 1, {
+  developer: true,
   type: "int",
   min: 0,
   max: 1,

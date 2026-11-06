@@ -78,6 +78,9 @@ describe("SkyLightSystem day/night clock", () => {
   it("saves the animated time of day once a game minute, not every frame", async () => {
     const { Cvar } = await import("../../core/Cvar");
     const { RenderVars } = await import("../../rendering/RenderVars");
+    const developer = Cvar.getBool("developer");
+    Cvar.register("developer", 0);
+    Cvar.set("developer", 1);
     RenderVars.getInstance();
     Cvar.set("r_daynight", 1);
     Cvar.set("r_daynight_animate", 1);
@@ -101,6 +104,7 @@ describe("SkyLightSystem day/night clock", () => {
     } finally {
       set.mockRestore();
       for (const name of ["r_daynight", "r_daynight_animate", "r_daynight_length", "r_daynight_time"]) Cvar.reset(name);
+      Cvar.set("developer", developer);
     }
   });
 });

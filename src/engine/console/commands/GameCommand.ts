@@ -7,6 +7,7 @@ import { Command, type CommandDef } from "../Command";
 
 export default class GameCommand extends Command {
   readonly definition: CommandDef = {
+    developer: true,
     name: "game",
     description: "Game path control",
     usage: "game <info|load|switch|reload>",

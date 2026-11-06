@@ -6,7 +6,7 @@ SHAG has an in-game developer console and a shared command registry used by the 
 
 Press the backquote/tilde key (the key normally below Escape).
 
-Some commands require developer mode, among them `map`, `pk3`, `render`, `debug`, `physics`, `teleport`, `god` and `noclip`. The console refuses them with `requires developer mode` and hides them from completion until developer mode is on:
+Some commands require developer mode, among them `pk3`, `render`, `debug`, `physics`, `teleport`, `god` and `noclip`. The console refuses them with `requires developer mode` and hides them from completion until developer mode is on:
 
 ```text
 developer 1
@@ -14,7 +14,14 @@ help
 help render
 ```
 
-`bsp`, `camera`, `shader`, `pvs` and `freefly_collision` are not gated, so map inspection works without developer mode.
+`map` starts normal practice play without developer mode. `camera fov`, camera
+information and the FPS `spectator` toggle also remain public. `camera mode`,
+`bsp`, `shader`, `pvs`, `scene` and collision inspection require `developer 1`.
+
+Developer cvars require the same gate through direct console writes, `set`,
+`toggle`, `reset` and config imports. They are hidden from normal completion and
+cvar listings. Player settings remain writable. Production browser builds ignore
+saved developer cvar overrides, including the renderer and movement caches.
 
 Production browser builds lock `developer` to `0`, including saved preferences,
 config imports and the `dev` alias. Developer commands such as `editor` remain
@@ -25,6 +32,7 @@ Useful commands include:
 
 ```text
 map washoi_dm2 duel
+developer 1
 bsp load washoi_dm2
 bsp info
 camera mode freefly

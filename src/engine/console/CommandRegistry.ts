@@ -198,6 +198,9 @@ export class CommandRegistry {
    * Handle cvar get/set
    */
   private handleCvar(name: string, args: string[]): CommandOutput {
+    if (Cvar.getCvar(name)?.flags.developer && !Cvar.getBool("developer")) {
+      return fail(`Cvar '${name}' requires developer mode`);
+    }
     if (args.length === 0) {
       // Get value - use formatInfo for full display
       return Cvar.formatInfo(name);

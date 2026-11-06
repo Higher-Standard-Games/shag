@@ -10,6 +10,7 @@ import { Command } from "../Command";
  */
 export default class BinaryTestCommand extends Command {
   readonly definition = {
+    developer: true,
     name: "binarytest",
     description: "Test binary protocol encoding/decoding",
     usage: "binarytest <subcommand>",

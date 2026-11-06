@@ -19,6 +19,7 @@ interface Vec3 {
  */
 export default class NetworkTestCommand extends Command {
   readonly definition = {
+    developer: true,
     name: "nettest",
     description: "Test networking infrastructure",
     usage: "nettest <subcommand>",

@@ -9,7 +9,7 @@ read this page when the task touches one of these areas.
 | I want to... | Do this |
 |--------------|---------|
 | Run a console command | `await CommandRegistry.getInstance().executeChecked('map washoi_dm2 duel')` (one command per call; `ok` tells failure from output) |
-| Inspect a BSP map | `executeChecked('bsp load washoi_dm2')`, then `executeChecked('bsp info')`; or headless `npm --prefix src/games/fps run cli:game -- --exec "bsp load washoi_dm2; bsp info; quit"` |
+| Inspect a BSP map | First `executeChecked('developer 1')`, then `executeChecked('bsp load washoi_dm2')` and `executeChecked('bsp info')`; or headless `npm --prefix src/games/fps run cli:game -- --exec "developer 1; bsp load washoi_dm2; bsp info; quit"` |
 | Load a map in code | `await MapLoader.getInstance().loadMap('washoi_dm2', scene)` |
 | Change camera controller | `CameraSystem.getInstance().setController('freefly')` |
 | Play a one-shot sound | `AudioManager.getInstance().playSfx(path)` |

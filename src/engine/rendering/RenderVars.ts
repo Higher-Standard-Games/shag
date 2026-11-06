@@ -1,8 +1,7 @@
 /**
  * RenderVars - Runtime-configurable renderer variables
  *
- * Provides Q3/Warsow-style r_* console variables for tuning
- * material intensities, lighting, and visual settings.
+ * Provides r_* variables for material, lighting and visual settings.
  *
  * Values are persisted to localStorage and can be exported/imported
  * as config blocks.
@@ -137,6 +136,34 @@ export type RenderVarName =
 // ==================== Constants ====================
 
 const STORAGE_KEY = "engine.renderVars";
+
+/** Rendering choices exposed by player video controls and quality presets. */
+const PLAYER_RENDER_VARS = new Set([
+  "r_deluxe",
+  "r_bsp_pbr",
+  "r_anisotropy",
+  "r_picmip",
+  "r_renderer",
+  "r_godrays",
+  "r_godrays_samples",
+  "r_arealights",
+  "r_ssr",
+  "r_ssr_strength",
+  "r_softhalos",
+  "r_glow",
+  "r_bloom",
+  "r_exposure",
+  "r_contrast",
+  "r_water_quality",
+  "r_water_actors",
+  "r_underwater_distortion",
+  "r_renderscale",
+  "r_msaa",
+  "r_dynamiclight",
+  "r_marks",
+  "r_gibs",
+  "r_teleport_ghost",
+]);
 
 const DEFAULT_VARS: Record<string, Omit<RenderVar, "name">> = {
   // Material intensities (core 4)
@@ -742,6 +769,7 @@ export class RenderVars {
       const isInt = name === "r_anisotropy" || name === "r_picmip" || (def.max === 1 && !fractional);
 
       Cvar.register(name, def.value, {
+        developer: !PLAYER_RENDER_VARS.has(name),
         type: isInt ? "int" : "float",
         min: def.min,
         max: def.max,
@@ -939,6 +967,7 @@ export class RenderVars {
         const data = JSON.parse(saved) as Record<string, number>;
         for (const [name, value] of Object.entries(data)) {
           const varDef = this.vars.get(name);
+          if (Cvar.isDeveloperLocked() && !PLAYER_RENDER_VARS.has(name)) continue;
           // Skip debug vars - they should always start at defaults
           if (varDef && varDef.category !== "debug" && typeof value === "number") {
             varDef.value = Math.max(varDef.min, Math.min(varDef.max, value));
@@ -1015,11 +1044,12 @@ export class RenderVars {
     if (this.updateScheduled) return;
     this.updateScheduled = true;
 
-    // Use requestAnimationFrame for batching
-    requestAnimationFrame(() => {
+    const apply = () => {
       this.updateScheduled = false;
       this.applyToScene();
-    });
+    };
+    if (typeof requestAnimationFrame === "function") requestAnimationFrame(apply);
+    else apply();
   }
 
   private shouldApplyLive(name: string): boolean {

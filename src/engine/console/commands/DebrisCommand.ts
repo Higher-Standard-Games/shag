@@ -6,6 +6,7 @@ import { Command, type CommandDef } from "../Command";
 
 export default class DebrisCommand extends Command {
   readonly definition: CommandDef = {
+    developer: true,
     name: "debris",
     description: "Debris particle control",
     usage: "debris <leaves|trash|dust|mixed|off|density|size|speed>",

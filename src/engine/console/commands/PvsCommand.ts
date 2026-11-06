@@ -8,6 +8,7 @@ import { Command, type CommandDef } from "../Command";
 
 export class PvsCommand extends Command {
   readonly definition: CommandDef = {
+    developer: true,
     name: "pvs",
     description: "PVS visibility culling control",
     usage: "pvs <on|off|status|cluster>",

@@ -3,7 +3,7 @@
  */
 
 import { Cvar } from "../../core/Cvar";
-import { Command, type CommandDef } from "../Command";
+import { Command, type CommandDef, type CommandOutput, fail } from "../Command";
 
 export default class SetCommand extends Command {
   readonly definition: CommandDef = {
@@ -12,23 +12,23 @@ export default class SetCommand extends Command {
     usage: "set <cvar> <value>",
   };
 
-  async execute(args: string[]): Promise<string | undefined> {
+  async execute(args: string[]): Promise<CommandOutput> {
     if (args.length < 2) {
-      return "Usage: set <cvar> <value>";
+      return fail("Usage: set <cvar> <value>");
     }
 
     const name = args[0];
     const value = args.slice(1).join(" ");
 
     if (!Cvar.exists(name)) {
-      return `Unknown cvar: ${name}`;
+      return fail(`Unknown cvar: ${name}`);
     }
 
     const success = Cvar.set(name, value);
     if (success) {
       return `${name} = ${JSON.stringify(Cvar.get(name))}`;
     } else {
-      return `Failed to set ${name}`;
+      return fail(`Failed to set ${name}`);
     }
   }
 

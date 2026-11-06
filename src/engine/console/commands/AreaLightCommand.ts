@@ -21,6 +21,7 @@ let currentSource: { dispose(): void } | null = null;
 
 export default class AreaLightCommand extends Command {
   readonly definition: CommandDef = {
+    developer: true,
     name: "arealight",
     description: "Spawn a Babylon 9 textured area light ahead of the camera (POC)",
     usage: "arealight [<image-url>|off]",

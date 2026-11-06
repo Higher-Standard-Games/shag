@@ -9,13 +9,14 @@ import type { Observer } from "@babylonjs/core/Misc/observable";
 import type { Scene } from "@babylonjs/core/scene";
 import { waitForAsync } from "../core/AsyncWait";
 import { devLog } from "../core/DevLog";
+import { fetchAsset, readAssetBuffer } from "../loader/pk3/AssetRequest";
 import { PK3Index } from "../loader/pk3/PK3Index";
 import { PK3Loader } from "../loader/pk3/PK3Loader";
+import { overlapLoopChannel } from "./LoopOverlap";
 
 /**
- * The mix a sound belongs to, each with its own volume under the effects
- * volume, as Warsow's: hit confirmations and the announcer can then stay
- * clear of everything else.
+ * Each sound channel has its own volume under the effects volume, allowing
+ * hit confirmations and announcements to be balanced separately.
  */
 export type SfxChannel = "effects" | "players" | "hits" | "announcer";
 export const SFX_CHANNELS: readonly SfxChannel[] = ["effects", "players", "hits", "announcer"];
@@ -30,8 +31,8 @@ export interface SfxPlayOptions {
 }
 
 /**
- * How fast a sound fades with distance, Quake's attenuation classes. On the
- * inverse curve below, a Normal sound is at half volume 250 units away and an
+ * How fast a sound fades with distance. On the inverse curve below,
+ * a Normal sound is at half volume 250 units away and an
  * eighth at 1000; None plays at full volume everywhere.
  */
 export const Attenuation = {
@@ -47,8 +48,8 @@ export interface SpatialSfxPlayOptions extends SfxPlayOptions {
   /** An `Attenuation` class, or a map's own value; Normal when absent. */
   attenuation?: number;
   /**
-   * One sound at a time per slot, as Quake's entity channels: a new sound in
-   * a player's pain slot cuts the last instead of playing over it.
+   * One sound at a time per slot: a new sound in a player's pain slot cuts the
+   * previous one instead of playing over it.
    */
   slot?: string;
 }
@@ -56,6 +57,13 @@ export interface SpatialSfxPlayOptions extends SfxPlayOptions {
 /** A looping sound until `stop()`, as for a map's ambient speaker. */
 export interface SfxLoop {
   stop(): void;
+  /** Move a spatial loop without restarting playback. */
+  setPosition?(position: { x: number; y: number; z: number }): void;
+}
+
+export interface LoopSfxPlayOptions extends SpatialSfxPlayOptions {
+  /** Equal-power overlap at the sample seam, in seconds; zero leaves the buffer unchanged. */
+  overlapSeconds?: number;
 }
 
 const SOUND_EXTENSIONS = [".ogg", ".wav", ".mp3"] as const;
@@ -70,9 +78,9 @@ const REFERENCE_DISTANCE = 125;
 const FAR_DISTANCE = 8000;
 
 /**
- * A sound plays where it started; nothing attaches it to a moving node. Without
- * `spatialAutoUpdate: false` Babylon gives every playing sound its own
- * requestAnimationFrame loop that re-applies that fixed position each frame.
+ * Positions are explicit: one-shots stay at their origin and loop owners can
+ * move their source through the handle. Disabling spatialAutoUpdate avoids
+ * a separate Babylon requestAnimationFrame loop for each sound.
  */
 function spatialOptions(position: Vector3, options: SpatialSfxPlayOptions) {
   return {
@@ -238,20 +246,21 @@ export class AudioV2Sfx {
   /**
    * Loop `path` at an engine-world position until the returned handle stops it,
    * or play it everywhere at once when `position` is null. Resolves to null when
-   * the sound cannot play (no audio, missing file); a handle stopped before the
-   * sound has loaded never starts it.
+   * the sound cannot play (no audio, missing file). Aborting `signal` while it
+   * loads prevents playback; once resolved, the owner stops it with the handle.
    */
   async playLoop3D(
     path: string,
     position: Vector3 | null,
-    options: SpatialSfxPlayOptions = {},
+    options: LoopSfxPlayOptions = {},
+    signal?: AbortSignal,
   ): Promise<SfxLoop | null> {
-    if (!(await this.ensureInitialized()) || !this.engine || !this.sfxBus) return null;
+    if (signal?.aborted || !(await this.ensureInitialized()) || !this.engine || !this.sfxBus) return null;
     this.syncListener();
 
     const generation = this.generation;
-    const buffer = await this.getBuffer(path);
-    if (!buffer || generation !== this.generation || !this.engine || !this.sfxBus) return null;
+    const buffer = await this.getBuffer(path, options.overlapSeconds);
+    if (signal?.aborted || !buffer || generation !== this.generation || !this.engine || !this.sfxBus) return null;
 
     const volume = Math.max(0, options.volume ?? 1);
     const sound = await this.engine.createSoundAsync(`loop:${normalizePath(path)}`, buffer, {
@@ -260,14 +269,20 @@ export class AudioV2Sfx {
       maxInstances: 1,
       ...(position ? spatialOptions(position, options) : {}),
     });
-    if (generation !== this.generation || this.disposed) {
+    if (signal?.aborted || generation !== this.generation || this.disposed) {
       sound.dispose();
       return null;
     }
 
     this.loops.set(sound, volume);
-    sound.play({ volume: this.loopsMuted ? 0 : volume });
+    sound.volume = this.loopsMuted ? 0 : volume;
+    sound.play();
     return {
+      setPosition: (at) => {
+        if (!position || !this.loops.has(sound)) return;
+        sound.spatial.position.copyFromFloats(at.x, at.y, at.z);
+        sound.spatial.update();
+      },
       stop: () => {
         if (!this.loops.delete(sound)) return;
         sound.stop();
@@ -389,14 +404,15 @@ export class AudioV2Sfx {
     this.listenerNode = camera;
   }
 
-  private async getBuffer(path: string): Promise<StaticSoundBuffer | null> {
-    const key = normalizePath(path);
+  private async getBuffer(path: string, overlapSeconds = 0): Promise<StaticSoundBuffer | null> {
+    const overlap = Number.isFinite(overlapSeconds) && overlapSeconds > 0 ? overlapSeconds : 0;
+    const key = normalizePath(path) + (overlap > 0 ? `#overlap=${overlap}` : "");
     const existing = this.bufferPromises.get(key);
     if (existing) return existing;
 
     const generation = this.generation;
     let active = true;
-    const work = this.loadBuffer(path).then((buffer) => {
+    const work = this.loadBuffer(path, overlap).then((buffer) => {
       if (!active || generation !== this.generation || this.disposed) {
         return null;
       }
@@ -417,10 +433,10 @@ export class AudioV2Sfx {
     return loading;
   }
 
-  private async loadBuffer(path: string): Promise<StaticSoundBuffer | null> {
+  private async loadBuffer(path: string, overlapSeconds = 0): Promise<StaticSoundBuffer | null> {
     if (!this.engine) return null;
     try {
-      if (isDirectUrl(path)) return await this.engine.createSoundBufferAsync(path);
+      if (isDirectUrl(path)) return await this.createBuffer(path, overlapSeconds);
 
       const candidates = hasAudioExtension(path)
         ? [normalizePath(path)]
@@ -433,7 +449,7 @@ export class AudioV2Sfx {
           if (packageName) await this.loadPackage(packageName);
         }
         const bytes = await loader.getFile(candidate);
-        if (bytes) return await this.engine.createSoundBufferAsync(bytes);
+        if (bytes) return await this.createBuffer(bytes, overlapSeconds);
       }
     } catch (error) {
       console.warn(`[AudioManager] Failed to decode SFX '${path}':`, error);
@@ -446,6 +462,29 @@ export class AudioV2Sfx {
       console.warn(`[AudioManager] SFX not found in PK3 index: ${path}`);
     }
     return null;
+  }
+
+  private async createBuffer(source: string | ArrayBuffer, overlapSeconds: number): Promise<StaticSoundBuffer | null> {
+    const engine = this.engine;
+    if (!engine) return null;
+    if (overlapSeconds === 0) return engine.createSoundBufferAsync(source);
+    let bytes: ArrayBuffer;
+    if (typeof source === "string") {
+      const response = await fetchAsset(source);
+      if (!response.ok) throw new Error(`Sound request failed: ${response.status}`);
+      bytes = await readAssetBuffer(response);
+    } else bytes = source;
+    // Retain the PK3 byte cache: decodeAudioData may detach its input buffer.
+    const context = new OfflineAudioContext(1, 1, 48000);
+    const decoded = await context.decodeAudioData(bytes.slice(0));
+    const overlapFrames = Math.round(overlapSeconds * decoded.sampleRate);
+    const channels = Array.from({ length: decoded.numberOfChannels }, (_, channel) =>
+      overlapLoopChannel(decoded.getChannelData(channel), overlapFrames),
+    );
+    const loop = context.createBuffer(channels.length, channels[0].length, decoded.sampleRate);
+    for (let channel = 0; channel < channels.length; channel++) loop.copyToChannel(channels[channel], channel);
+    if (this.disposed || this.engine !== engine) return null;
+    return engine.createSoundBufferAsync(loop);
   }
 
   private async loadPackage(packageName: string): Promise<void> {

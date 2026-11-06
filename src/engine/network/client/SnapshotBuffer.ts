@@ -191,6 +191,7 @@ export class SnapshotBuffer {
     SnapshotBuffer.cvarsRegistered = true;
 
     Cvar.register("cl_timenudge", 0, {
+      developer: true,
       type: "int",
       min: -100,
       max: 100,
@@ -198,6 +199,7 @@ export class SnapshotBuffer {
     });
 
     Cvar.register("cl_interp", 0, {
+      developer: true,
       type: "int",
       min: 0,
       max: 500,

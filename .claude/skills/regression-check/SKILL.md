@@ -41,7 +41,7 @@ npm --prefix src/games/fps run test:simulation
 npm --prefix src/games/fps run test:physics
 npm --prefix src/games/fps run server:tick
 npm --prefix src/games/fps run server:fuzz -- --ticks 1000
-npm --prefix src/games/fps run cli:game -- --exec "bsp load washoi_dm2; bsp info; quit"
+npm --prefix src/games/fps run cli:game -- --exec "developer 1; bsp load washoi_dm2; bsp info; quit"
 ```
 
 These need the game data under `public/data/`. If a map-dependent check says

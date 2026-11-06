@@ -7,6 +7,7 @@ import { Command, type CommandDef } from "../Command";
 
 export default class TimeCommand extends Command {
   readonly definition: CommandDef = {
+    developer: true,
     name: "time",
     description: "Control game time",
     usage: "time [subcommand] [args]",

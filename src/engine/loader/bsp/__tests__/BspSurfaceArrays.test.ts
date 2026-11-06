@@ -26,8 +26,12 @@ describe("texture-array surface merging", () => {
   let engine: NullEngine;
   let scene: Scene;
   let world: Mesh;
+  let developer = false;
 
   beforeEach(() => {
+    developer = Cvar.getBool("developer");
+    Cvar.register("developer", 0);
+    Cvar.set("developer", 1);
     engine = new NullEngine();
     scene = new Scene(engine);
     world = new Mesh("bsp_world", scene);
@@ -36,6 +40,7 @@ describe("texture-array surface merging", () => {
   afterEach(() => {
     scene.dispose();
     engine.dispose();
+    Cvar.set("developer", developer);
   });
 
   /** A one-quad surface of its own texture, as the BSP builder makes them. */

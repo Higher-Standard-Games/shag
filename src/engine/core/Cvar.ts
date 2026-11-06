@@ -1,5 +1,5 @@
 /**
- * Cvar - Console Variable System (Quake-style)
+ * Cvar - Typed engine and game configuration variables.
  *
  * Unified system for engine/game configuration variables.
  * Features:
@@ -13,11 +13,11 @@
  * - r_*   Render/graphics (r_bloom, r_wireframe)
  * - s_*   Sound/audio (s_volume, s_musicenabled)
  * - ui_*  UI settings (ui_scale, ui_theme)
- * - cam_* Camera (cam_height, cam_fov)
- * - g_*   Game settings (g_timescale, g_autosave)
+ * - cam_* Camera (cam_freefly_speed)
+ * - g_*   Game settings (g_godmode)
  * - con_* Console (con_size, con_debug)
- * - cl_*  Client (future)
- * - sv_*  Server (future)
+ * - cl_*  Client settings
+ * - sv_*  Simulation settings
  */
 
 import { writePreference } from "./PreferenceStorage";
@@ -31,11 +31,13 @@ export type CvarType = "bool" | "int" | "float" | "string";
 export type CvarValue = boolean | number | string;
 
 export interface CvarFlags {
+  /** Requires developer mode for user changes and console access. */
+  developer?: boolean;
   /** Save to localStorage (default: true) */
   persist?: boolean;
   /** Read-only, cannot be changed via console */
   readonly?: boolean;
-  /** Requires cheats enabled to change (future) */
+  /** Classification metadata; write access is enforced by readonly/developer flags. */
   cheat?: boolean;
   /** Hidden from cvarlist (internal use) */
   hidden?: boolean;
@@ -121,6 +123,7 @@ export class Cvar {
       max: options.max,
       description: options.description ?? "",
       flags: {
+        developer: options.developer ?? false,
         persist: options.persist ?? true,
         readonly: options.readonly ?? false,
         cheat: options.cheat ?? false,
@@ -131,7 +134,7 @@ export class Cvar {
 
     // Check if we have a persisted value
     const existing = Cvar.cvars.get(lowerName);
-    if (!locked && existing && Cvar.validValue(existing.value, type)) {
+    if (!locked && !(options.developer && DEVELOPER_LOCKED) && existing && Cvar.validValue(existing.value, type)) {
       // Keep the persisted/current value, held to the type and bounds this
       // registration declares — storage kept it before either was known.
       cvar.value = Cvar.coerceValue(existing.value, type, options.min, options.max);
@@ -154,6 +157,17 @@ export class Cvar {
   static get(name: string): CvarValue | undefined {
     if (name.toLowerCase() === "developer" && DEVELOPER_LOCKED) return 0;
     return Cvar.cvars.get(name.toLowerCase())?.value;
+  }
+
+  /** Production browser builds cannot enable developer controls. */
+  static isDeveloperLocked(): boolean {
+    return DEVELOPER_LOCKED;
+  }
+
+  /** Whether the current developer setting permits editing this variable. */
+  static canEdit(name: string): boolean {
+    const cvar = Cvar.getCvar(name);
+    return cvar !== undefined && !cvar.flags.readonly && (!cvar.flags.developer || Cvar.getBool("developer"));
   }
 
   /**
@@ -210,9 +224,11 @@ export class Cvar {
       console.warn(`[Cvar] ${name} is read-only`);
       return false;
     }
+    if (cvar.flags.developer && !Cvar.getBool("developer")) {
+      return false;
+    }
 
-    // A numeric cvar refuses text rather than reading it as zero: "r_bloom abc"
-    // is a typo, and silently turning bloom off is worse than saying no.
+    // Reject malformed numeric text before coercion.
     if ((cvar.type === "int" || cvar.type === "float") && typeof value === "string") {
       const text = value.trim();
       if (text === "" || !Number.isFinite(Number(text))) {
@@ -289,10 +305,11 @@ export class Cvar {
    */
   static resetAll(): void {
     for (const cvar of Cvar.cvars.values()) {
-      if (!cvar.flags.readonly) {
+      if (cvar.name !== "developer" && Cvar.canEdit(cvar.name)) {
         Cvar.reset(cvar.name);
       }
     }
+    if (Cvar.canEdit("developer")) Cvar.reset("developer");
   }
 
   /**
@@ -310,7 +327,7 @@ export class Cvar {
     const filterLower = filter?.toLowerCase();
 
     for (const cvar of Cvar.cvars.values()) {
-      if (cvar.flags.hidden) continue;
+      if (cvar.flags.hidden || (cvar.flags.developer && !Cvar.getBool("developer"))) continue;
       if (filterLower && !cvar.name.startsWith(filterLower)) continue;
       result.push(cvar);
     }
@@ -323,7 +340,10 @@ export class Cvar {
    */
   static getNames(): string[] {
     return Array.from(Cvar.cvars.keys())
-      .filter((name) => !Cvar.cvars.get(name)?.flags.hidden)
+      .filter((name) => {
+        const flags = Cvar.cvars.get(name)?.flags;
+        return !flags?.hidden && (!flags?.developer || Cvar.getBool("developer"));
+      })
       .sort();
   }
 
@@ -376,6 +396,7 @@ export class Cvar {
     if (cvar.flags.readonly) {
       info += " [readonly]";
     }
+    if (cvar.flags.developer) info += " [developer]";
     return info;
   }
 
@@ -393,7 +414,8 @@ export class Cvar {
       if (!data || typeof data !== "object" || Array.isArray(data)) return;
       for (const [name, value] of Object.entries(data)) {
         if (name.toLowerCase() === "developer" && DEVELOPER_LOCKED) continue;
-        const cvar = Cvar.cvars.get(name);
+        const cvar = Cvar.cvars.get(name.toLowerCase());
+        if (cvar?.flags.developer && DEVELOPER_LOCKED) continue;
         if (!Cvar.validValue(value, cvar?.type)) continue;
         if (cvar?.flags.persist) {
           cvar.value = Cvar.coerceValue(value, cvar.type, cvar.min, cvar.max);
@@ -524,7 +546,11 @@ export class Cvar {
   static exportConfig(): string {
     const lines: string[] = [];
     for (const cvar of Cvar.cvars.values()) {
-      if (cvar.value !== cvar.defaultValue && !cvar.flags.hidden) {
+      if (
+        cvar.value !== cvar.defaultValue &&
+        !cvar.flags.hidden &&
+        (!cvar.flags.developer || Cvar.getBool("developer"))
+      ) {
         lines.push(`${cvar.name} ${JSON.stringify(String(cvar.value))}`);
       }
     }
@@ -558,7 +584,13 @@ export class Cvar {
         }
       }
       const cvar = Cvar.getCvar(name);
-      const reason = !cvar ? "Unknown setting" : cvar.flags.readonly ? "Read-only setting" : null;
+      const reason = !cvar
+        ? "Unknown setting"
+        : cvar.flags.readonly
+          ? "Read-only setting"
+          : cvar.flags.developer && !Cvar.getBool("developer")
+            ? "Requires developer mode"
+            : null;
       if (reason || !Cvar.set(name, value)) {
         result.rejected.push({ line: index + 1, reason: reason ?? "Invalid value" });
       } else result.accepted++;

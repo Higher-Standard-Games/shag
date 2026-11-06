@@ -1,26 +1,15 @@
 /**
- * Player-chosen spawn kits, for modes that have them.
- *
- * Warsow Bomb is a pure loadout mode — it zeroes every item mask and lets you
- * pick two weapons at spawn. Ours is close: in a mode with kits the map's
- * weapons do not spawn, so the kit is your arsenal, but ammo, armor, health and
- * powerups stay on the floor where you have to go and take them. You spawn with
- * a blade, one primary and one secondary.
- *
- * The table is shared because three places need the same answer: the server
- * builds the kit from it, the client menu lists it, and bots pick from it.
- * A choice that is not in the table is not a choice.
+ * Shared spawn-kit choices, aliases, ammunition and display names.
+ * Each kit contains the blade, one primary weapon and one secondary weapon.
+ * The server builds kits from these tables; the client and bots use the same choices.
  */
 
 import type { WeaponLoadout } from "./GametypeTypes";
 
-/**
- * The heavy weapon. Exactly one, unlike Warsow's pairs — with map weapons still
- * spawning, handing out two power weapons would leave nothing worth walking to.
- */
+/** Primary weapon choices; each kit contains exactly one. */
 export const PRIMARY_CHOICES = ["rlauncher", "voltaic", "electrobolt"] as const;
 
-/** The utility weapon. */
+/** Secondary weapon choices; each kit contains exactly one. */
 export const SECONDARY_CHOICES = ["riotgun", "plasmagun", "glauncher", "machinegun"] as const;
 
 export type PrimaryWeapon = (typeof PRIMARY_CHOICES)[number];
@@ -31,22 +20,10 @@ export interface LoadoutChoice {
   secondary: SecondaryWeapon;
 }
 
-/**
- * What a player gets who has never chosen.
- *
- * Rocket launcher and machinegun: the two weapons whose behaviour is most
- * obvious on sight, so a first-timer is armed with something they can use
- * rather than something they have to learn first.
- */
+/** Default choice used when a player has no selected kit. */
 export const DEFAULT_LOADOUT: LoadoutChoice = { primary: "rlauncher", secondary: "machinegun" };
 
-/**
- * Spawn ammo, from Warsow's `player.as` (`AMMO_RL 15`, `AMMO_EB 15`,
- * `AMMO_LG 180`, `AMMO_PG 140`, `AMMO_RG 15`, `AMMO_MG 150`, `AMMO_GL 10`).
- *
- * Enough to fight a round with, not enough to stop caring about the map: an
- * empty rocket launcher is a reason to go somewhere dangerous.
- */
+/** Ammunition granted for each selected weapon when building a kit. */
 const SPAWN_AMMO: Record<PrimaryWeapon | SecondaryWeapon, number> = {
   rlauncher: 15,
   electrobolt: 15,
@@ -57,7 +34,7 @@ const SPAWN_AMMO: Record<PrimaryWeapon | SecondaryWeapon, number> = {
   machinegun: 150,
 };
 
-/** Warsow's `PLAYER_ARMOR` — nobody starts a round soft. */
+/** Default spawn armor; buildLoadout callers may override it. */
 export const LOADOUT_SPAWN_ARMOR = 100;
 
 /** Display names, for the menu and the console. */
@@ -80,11 +57,7 @@ function isSecondary(value: string): value is SecondaryWeapon {
 }
 
 /**
- * Read a loadout off the wire or out of a console command.
- *
- * Returns null rather than a default on bad input: silently handing someone a
- * rocket launcher when they asked for something else is worse than telling them
- * the name was wrong. Accepts the short aliases players actually type.
+ * Parse weapon IDs or aliases, returning null for missing, unknown or wrong-slot choices.
  */
 export function parseLoadout(primary: string | undefined, secondary: string | undefined): LoadoutChoice | null {
   const p = resolveAlias(primary);
@@ -93,7 +66,7 @@ export function parseLoadout(primary: string | undefined, secondary: string | un
   return { primary: p, secondary: s };
 }
 
-/** Short names, including the Warsow ones players coming from it will type. */
+/** Accepted weapon aliases, resolved after trimming and lowercasing input. */
 const ALIASES: Record<string, string> = {
   rl: "rlauncher",
   rocket: "rlauncher",
@@ -123,9 +96,8 @@ function resolveAlias(value: string | undefined): string | null {
 }
 
 /**
- * When a changed kit takes effect. `round`: at the next round, so a lost
- * gunfight is not a free re-kit (S&D, Amphi). `respawn`: at the player's next
- * spawn, which in a respawning mode comes within seconds (Deathmatch).
+ * When a changed kit takes effect: `round` at the next round (S&D, Amphi),
+ * `respawn` at the player's next spawn (Deathmatch).
  */
 export type LoadoutMode = "round" | "respawn";
 

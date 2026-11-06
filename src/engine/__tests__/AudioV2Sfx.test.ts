@@ -3,7 +3,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 let bufferSeconds = 1;
 const createdSounds: Array<{
   play: ReturnType<typeof vi.fn>;
+  stop: ReturnType<typeof vi.fn>;
+  volume: number;
   dispose: ReturnType<typeof vi.fn>;
+  spatial: { position: { copyFromFloats: ReturnType<typeof vi.fn> }; update: ReturnType<typeof vi.fn> };
   onEndedObservable: { addOnce: ReturnType<typeof vi.fn> };
 }> = [];
 const engine = {
@@ -13,9 +16,16 @@ const engine = {
     outBus: options?.outBus,
     dispose: vi.fn(),
   })),
-  createSoundBufferAsync: vi.fn(async () => ({ duration: bufferSeconds })),
+  createSoundBufferAsync: vi.fn(async (_source: unknown) => ({ duration: bufferSeconds })),
   createSoundAsync: vi.fn(async (_name: string, _source: unknown, _options?: Record<string, unknown>) => {
-    const sound = { play: vi.fn(), dispose: vi.fn(), onEndedObservable: { addOnce: vi.fn() } };
+    const sound = {
+      play: vi.fn(),
+      stop: vi.fn(),
+      volume: 1,
+      dispose: vi.fn(),
+      onEndedObservable: { addOnce: vi.fn() },
+      spatial: { position: { copyFromFloats: vi.fn() }, update: vi.fn() },
+    };
     createdSounds.push(sound);
     return sound;
   }),
@@ -84,6 +94,123 @@ describe("AudioV2Sfx", () => {
   });
 
   afterEach(() => vi.unstubAllGlobals());
+
+  it("caches overlapped PCM separately from one-shots and preserves both channels", async () => {
+    const channels = [
+      Float32Array.from([0, 0.25, 0.5, 1, 1, 1, 1, 0.5, 0.25, 0]),
+      Float32Array.from([0, -0.25, -0.5, -1, -1, -1, -1, -0.5, -0.25, 0]),
+    ];
+    const decode = vi.fn(async () => ({
+      sampleRate: 10,
+      numberOfChannels: 2,
+      getChannelData: (channel: number) => channels[channel],
+    }));
+    const prepared: Float32Array[] = [];
+    const create = vi.fn((count: number, length: number, rate: number) => ({
+      count,
+      length,
+      rate,
+      copyToChannel: (samples: Float32Array, channel: number) => {
+        prepared[channel] = samples.slice();
+      },
+    }));
+    vi.stubGlobal(
+      "OfflineAudioContext",
+      class {
+        decodeAudioData = decode;
+        createBuffer = create;
+      },
+    );
+    const audio = new AudioV2Sfx();
+    const first = await audio.playLoop3D("hum.ogg", null, { overlapSeconds: 0.4 });
+    const second = await audio.playLoop3D("hum.ogg", null, { overlapSeconds: 0.4 });
+    expect(decode).toHaveBeenCalledOnce();
+    expect(create).toHaveBeenCalledWith(2, 6, 10);
+    expect(prepared[0][0]).toBe(1);
+    expect(prepared[1][0]).toBe(-1);
+    expect(prepared[0].at(-1)).toBe(1);
+    expect(prepared[1].at(-1)).toBe(-1);
+    await audio.play2D("hum.ogg");
+    expect(engine.createSoundBufferAsync).toHaveBeenCalledTimes(2);
+    expect(engine.createSoundBufferAsync.mock.calls[1][0]).toBeInstanceOf(ArrayBuffer);
+    first?.stop();
+    second?.stop();
+    audio.dispose();
+  });
+
+  it("restores a loop started while SFX is disabled without leaving its instance at zero gain", async () => {
+    const audio = new AudioV2Sfx();
+    audio.setLoopsMuted(true);
+    const loop = await audio.playLoop3D("hum.ogg", null, { volume: 0.9 });
+    const sound = createdSounds[0];
+    expect(sound.volume).toBe(0);
+    expect(sound.play).toHaveBeenCalledExactlyOnceWith();
+    audio.setLoopsMuted(false);
+    expect(sound.volume).toBe(0.9);
+    audio.setLoopsMuted(true);
+    expect(sound.volume).toBe(0);
+    loop?.stop();
+    audio.dispose();
+  });
+
+  it("moves a running spatial loop without restarting and stops it idempotently", async () => {
+    const audio = new AudioV2Sfx();
+    const loop = await audio.playLoop3D("hum.ogg", new Vector3(1, 2, 3));
+    const sound = createdSounds[0];
+    loop?.setPosition?.({ x: 4, y: 5, z: 6 });
+    expect(sound.spatial.position.copyFromFloats).toHaveBeenCalledWith(4, 5, 6);
+    expect(sound.spatial.update).toHaveBeenCalledOnce();
+    expect(sound.play).toHaveBeenCalledOnce();
+    loop?.stop();
+    loop?.stop();
+    loop?.setPosition?.({ x: 7, y: 8, z: 9 });
+    expect(sound.spatial.update).toHaveBeenCalledOnce();
+    expect(sound.stop).toHaveBeenCalledOnce();
+    expect(sound.dispose).toHaveBeenCalledOnce();
+    audio.dispose();
+  });
+
+  it("keeps a listener-relative loop non-spatial", async () => {
+    const audio = new AudioV2Sfx();
+    const loop = await audio.playLoop3D("hum.ogg", null);
+    loop?.setPosition?.({ x: 4, y: 5, z: 6 });
+    expect(createdSounds[0].spatial.update).not.toHaveBeenCalled();
+    expect(engine.createSoundAsync.mock.calls[0][2]).not.toHaveProperty("spatialEnabled");
+    loop?.stop();
+    audio.dispose();
+  });
+
+  it("does not load or play an already-cancelled loop", async () => {
+    const audio = new AudioV2Sfx();
+    const cancellation = new AbortController();
+    cancellation.abort();
+    expect(await audio.playLoop3D("hum.ogg", null, {}, cancellation.signal)).toBeNull();
+    expect(engine.createSoundAsync).not.toHaveBeenCalled();
+    expect(loader.ensurePK3).not.toHaveBeenCalled();
+    audio.dispose();
+  });
+
+  it("disposes a loop cancelled while Babylon constructs its sound, without playing it", async () => {
+    const audio = new AudioV2Sfx();
+    await audio.preload(["hum.ogg"]);
+    const original = engine.createSoundAsync.getMockImplementation()!;
+    let finish!: () => Promise<void>;
+    engine.createSoundAsync.mockImplementationOnce(
+      (...args) =>
+        new Promise((resolve) => {
+          finish = async () => resolve(await original(...args));
+        }),
+    );
+    const cancellation = new AbortController();
+    const pending = audio.playLoop3D("hum.ogg", null, {}, cancellation.signal);
+    await vi.waitFor(() => expect(engine.createSoundAsync).toHaveBeenCalledOnce());
+    cancellation.abort();
+    await finish();
+    expect(await pending).toBeNull();
+    expect(createdSounds[0].dispose).toHaveBeenCalledOnce();
+    expect(createdSounds[0].play).not.toHaveBeenCalled();
+    audio.dispose();
+  });
 
   it("loads an indexed PK3 once, shares decoded buffers, and separates 2D from spatial sources", async () => {
     const audio = new AudioV2Sfx();

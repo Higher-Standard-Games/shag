@@ -15,6 +15,7 @@ import { Command, type CommandDef } from "../Command";
 
 export default class WeaponCommand extends Command {
   readonly definition: CommandDef = {
+    developer: true,
     name: "weapon",
     description: "Weapon system commands",
     usage: "weapon <subcommand> [args]",

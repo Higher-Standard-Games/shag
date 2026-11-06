@@ -19,6 +19,7 @@ import { Command, type CommandDef, type CommandOutput, fail } from "../Command";
 
 export class BspCommand extends Command {
   readonly definition: CommandDef = {
+    developer: true,
     name: "bsp",
     description: "BSP map loading and inspection",
     usage: "bsp <subcommand> [args]",

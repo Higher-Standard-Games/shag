@@ -566,6 +566,7 @@ export class PostProcessingManager {
       onChange: apply,
     });
     Cvar.register("r_colorsimulation", 0, {
+      developer: true,
       type: "int",
       min: 0,
       max: 3,
@@ -599,6 +600,7 @@ export class PostProcessingManager {
     });
 
     Cvar.register("r_cel_thickness", 1.5, {
+      developer: true,
       type: "float",
       min: 0.1,
       max: 8.0,
@@ -607,6 +609,7 @@ export class PostProcessingManager {
     });
 
     Cvar.register("r_cel_depth_threshold", 0.1, {
+      developer: true,
       type: "float",
       min: 0.001,
       max: 1.0,
@@ -615,6 +618,7 @@ export class PostProcessingManager {
     });
 
     Cvar.register("r_cel_normal_threshold", 0.3, {
+      developer: true,
       type: "float",
       min: 0.01,
       max: 2.0,
@@ -623,6 +627,7 @@ export class PostProcessingManager {
     });
 
     Cvar.register("r_cel_opacity", 1.0, {
+      developer: true,
       type: "float",
       min: 0.0,
       max: 1.0,
@@ -631,6 +636,7 @@ export class PostProcessingManager {
     });
 
     Cvar.register("r_cel_color", "0 0 0", {
+      developer: true,
       type: "string",
       description: 'Cel outline RGB color ("r g b", 0-1 range)',
       onChange: (value) => cel.setColorFromString(value as string),
@@ -659,6 +665,7 @@ export class PostProcessingManager {
     });
 
     Cvar.register("r_cel_weapon_width", 25, {
+      developer: true,
       type: "float",
       min: 0.1,
       max: 100,
@@ -667,6 +674,7 @@ export class PostProcessingManager {
     });
 
     Cvar.register("r_cel_weapon_color", "0 0 0", {
+      developer: true,
       type: "string",
       description: 'Weapon outline RGB color ("r g b", 0-1 range)',
       onChange: (value) => getWVM().then((wvm) => wvm.setWeaponOutlineColorFromString(value as string)),

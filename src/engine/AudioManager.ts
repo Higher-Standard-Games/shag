@@ -1,7 +1,13 @@
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import type { Scene } from "@babylonjs/core/scene";
 import { AssetLoader } from "./AssetLoader";
-import { AudioV2Sfx, type SfxChannel, type SfxLoop, type SpatialSfxPlayOptions } from "./audio/AudioV2Sfx";
+import {
+  AudioV2Sfx,
+  type LoopSfxPlayOptions,
+  type SfxChannel,
+  type SfxLoop,
+  type SpatialSfxPlayOptions,
+} from "./audio/AudioV2Sfx";
 import { background } from "./core/AsyncErrors";
 import { Cvar } from "./core/Cvar";
 import { devLog } from "./core/DevLog";
@@ -363,16 +369,18 @@ export class AudioManager {
 
   /**
    * Loop a sound at an engine-world position (or everywhere, when `position` is
-   * null) until the handle stops it: a map's ambient speakers. Loops keep
-   * running while SFX is off, silenced, so turning SFX back on restores them.
+   * null) until the handle stops it. The handle can move a spatial source;
+   * `signal` cancels pending creation. Loops keep running while SFX is off,
+   * silenced, so turning SFX back on restores them.
    */
   public playLoop3D(
     path: string,
     position: { x: number; y: number; z: number } | null,
-    options: SpatialSfxPlayOptions = {},
+    options: LoopSfxPlayOptions = {},
+    signal?: AbortSignal,
   ): Promise<SfxLoop | null> {
     const at = position ? new Vector3(position.x, position.y, position.z) : null;
-    return this.sfxBackend.playLoop3D(path, at, options);
+    return this.sfxBackend.playLoop3D(path, at, options, signal);
   }
 
   /**

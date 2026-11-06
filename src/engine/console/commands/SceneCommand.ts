@@ -20,6 +20,7 @@ let emptySceneEscHandler: ((e: KeyboardEvent) => void) | null = null;
 
 export default class SceneCommand extends Command {
   readonly definition: CommandDef = {
+    developer: true,
     name: "scene",
     description: "Scene creation, management and debugging",
     usage: "scene [subcommand]",
@@ -122,7 +123,7 @@ export default class SceneCommand extends Command {
     return [];
   }
 
-  private async createEmptyScene(): Promise<string> {
+  async createEmptyScene(): Promise<string> {
     const canvas = document.querySelector("canvas") as HTMLCanvasElement;
     if (!canvas) {
       return "No canvas found";
@@ -269,7 +270,7 @@ export default class SceneCommand extends Command {
     return "Empty scene disposed - returned to main menu";
   }
 
-  private async clearScene(): Promise<string> {
+  async clearScene(): Promise<string> {
     const { CameraSystem } = await import("../../camera/CameraSystem");
     const scene = CameraSystem.getInstance().getCamera()?.getScene();
 

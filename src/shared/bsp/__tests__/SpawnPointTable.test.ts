@@ -1,11 +1,5 @@
 /**
- * SpawnPointTable — the shared spawn extractor.
- *
- * The bug this exists to fix: the spawn classname list was duplicated in three
- * files and every copy listed only the Quake conventions, so Warsow's
- * `team_CTF_alphaspawn` / `team_CTF_betaspawn` matched nothing. Every team spawn
- * on every CTF and bomb map was invisible — 4 to 16 points per team across six
- * bomb maps — and team modes silently fell back to the untagged pool.
+ * Shared spawn positions, team classification and facings.
  */
 
 import { describe, expect, it } from "vitest";
@@ -22,6 +16,16 @@ import {
 } from "../SpawnPointTable";
 import { q3AngleToGameYaw } from "../TriggerTable";
 
+it.each(["constructor", "__proto__", "toString"])("does not classify %s as a team spawn", (classname) => {
+  const entities = [{ classname, properties: { origin: "100 200 16" } }];
+  expect(TEAM_SPAWN_CLASSNAMES[classname]).toBeUndefined();
+  expect(classname in TEAM_SPAWN_CLASSNAMES).toBe(false);
+  expect(extractSpawnPoints(entities)).toEqual([]);
+  expect(extractTeamSpawnPoints(entities).size).toBe(0);
+  expect(extractSpawnFacings(entities)).toEqual([]);
+  expect(hasTeamSpawns(entities)).toBe(false);
+});
+
 type Ent = { classname: string; properties: Record<string, string> };
 const ent = (classname: string, origin?: string): Ent => ({
   classname,
@@ -29,7 +33,7 @@ const ent = (classname: string, origin?: string): Ent => ({
 });
 
 describe("extractSpawnPoints", () => {
-  it("applies the Q3 to engine swap and lifts to player-origin height", () => {
+  it("converts a Z-up origin to Y-up and lifts to player-origin height", () => {
     // BSP spawns sit at FEET level; player physics uses the origin 24 above.
     const [p] = extractSpawnPoints([ent("info_player_deathmatch", "100 200 16")]);
     expect(p).toEqual({ x: 100, y: 16 + PLAYER_ORIGIN_HEIGHT, z: 200 });
@@ -70,7 +74,7 @@ describe("extractSpawnPoints", () => {
 });
 
 describe("extractTeamSpawnPoints", () => {
-  it("maps Warsow alpha/beta onto the engine team ids", () => {
+  it("maps alpha/beta spawn classnames onto the engine team ids", () => {
     const byTeam = extractTeamSpawnPoints([
       ent("team_CTF_alphaspawn", "0 0 0"),
       ent("team_CTF_alphaspawn", "10 0 0"),

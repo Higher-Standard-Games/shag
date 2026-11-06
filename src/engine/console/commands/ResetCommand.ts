@@ -3,7 +3,7 @@
  */
 
 import { Cvar } from "../../core/Cvar";
-import { Command, type CommandDef } from "../Command";
+import { Command, type CommandDef, type CommandOutput, fail } from "../Command";
 
 export default class ResetCommand extends Command {
   readonly definition: CommandDef = {
@@ -12,22 +12,22 @@ export default class ResetCommand extends Command {
     usage: "reset <cvar>",
   };
 
-  async execute(args: string[]): Promise<string | undefined> {
+  async execute(args: string[]): Promise<CommandOutput> {
     if (args.length === 0) {
-      return "Usage: reset <cvar>";
+      return fail("Usage: reset <cvar>");
     }
 
     const name = args[0];
 
     if (!Cvar.exists(name)) {
-      return `Unknown cvar: ${name}`;
+      return fail(`Unknown cvar: ${name}`);
     }
 
     const success = Cvar.reset(name);
     if (success) {
       return `${name} reset to ${Cvar.get(name)}`;
     } else {
-      return `Failed to reset ${name}`;
+      return fail(`Failed to reset ${name}`);
     }
   }
 

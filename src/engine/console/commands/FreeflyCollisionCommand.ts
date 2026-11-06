@@ -19,6 +19,7 @@ let clipBrushVizMeshes: Mesh[] = [];
 
 export class FreeflyCollisionCommand extends Command {
   readonly definition: CommandDef = {
+    developer: true,
     name: "freefly_collision",
     description: "Freefly camera collision control",
     usage: "freefly_collision <0|1|mode|test|draw|clear|clipviz|clipdump|cliptrace>",
