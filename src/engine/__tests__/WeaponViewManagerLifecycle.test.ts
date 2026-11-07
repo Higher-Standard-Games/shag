@@ -23,6 +23,30 @@ vi.mock("../weapon/ProjectileManager", () => ({
 type Internals = { updateObserver: Observer<Scene> | null };
 
 describe("WeaponViewManager demo lifecycle", () => {
+  it("does not commit a weapon load superseded between model completion and final setup", async () => {
+    const engine = new NullEngine();
+    const scene = new Scene(engine);
+    const manager = new WeaponViewManager();
+    manager.init(scene, new FreeCamera("view", Vector3.Zero(), scene));
+    const internals = manager as unknown as {
+      loadMd3Weapon(): Promise<boolean>;
+      setupWeapon(): boolean;
+    };
+    const setup = vi.spyOn(internals, "setupWeapon").mockReturnValue(true);
+    vi.spyOn(internals, "loadMd3Weapon").mockImplementation(async () => {
+      queueMicrotask(() => manager.dispose());
+      return true;
+    });
+    try {
+      expect(await manager.loadWeapon("missing-test-weapon")).toBe(false);
+      expect(setup).not.toHaveBeenCalled();
+    } finally {
+      manager.dispose();
+      scene.dispose();
+      engine.dispose();
+    }
+  });
+
   it("releases scene observers and view resources before repeated playback", async () => {
     const engine = new NullEngine();
     const scene = new Scene(engine);

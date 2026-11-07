@@ -95,6 +95,17 @@ then on, before the map load has started. Music continues.
 Saved sound levels and enabled settings are preserved; muted one-shots are
 dropped rather than played when loading finishes.
 
+An isolated offline renderer can own `PresentationTime.ownPresentationClock`
+until disposal. Shader animation and sky-portal rotation then read the supplied
+time instead of encoding or storage wall time. This clock is local to the
+document; the renderer must also supply its own frame delta.
+
+`AudioManager.ownSfxSink` redirects SFX requests to a document-owned collector
+before speaker mute filtering. It returns a release handle and rejects a second
+simultaneous owner. `readSfxBytes` resolves encoded sounds through the same
+package path as playback; copy its buffer before passing it to a decoder that
+detaches input. These hooks preserve the normal speaker path when released.
+
 Weapon GLBs and their configs live inside `public/data/washoi_weapons.pk3`, with the
 projectile and impact media. The package carries only what the game loads; the
 original IQM/MD3 models and textures stay in the source bank. First-person weapons, loadout previews,

@@ -1,7 +1,6 @@
 /**
  * Sky portals (`misc_skyportal`, also `props_skyportal`): the sky shows a part
- * of the map seen from the portal's origin, as Warfork draws it (g_misc.cpp
- * SP_skyportal, cg_view.cpp CG_SkyPortal, r_portals.c R_DrawSkyportal).
+ * of the map seen from the portal's origin.
  *
  * Each frame the portal camera takes the player's view angles (plus the
  * portal's rotation speeds) at the portal origin and renders into a target the
@@ -12,7 +11,7 @@
  * Keys: `origin`; `fov` (else the player's); `scale` (world/sky-area ratio:
  * the camera moves by the player's offset from the world centre over scale);
  * `noents` (the portal shows map geometry only); `angles` read as pitch, yaw
- * and roll speeds in degrees per second, as Warfork reads them.
+ * and roll speeds in degrees per second.
  */
 
 import type { Camera } from "@babylonjs/core/Cameras/camera";
@@ -24,6 +23,7 @@ import { Quaternion, Vector3 } from "@babylonjs/core/Maths/math.vector";
 import type { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh";
 import type { IParticleSystem } from "@babylonjs/core/Particles/IParticleSystem";
 import type { Scene } from "@babylonjs/core/scene";
+import { presentationNow } from "../core/PresentationTime";
 import { leadingNumbers } from "../loader/bsp/WorldFog";
 import { isSkyMesh } from "./AtmosphericFogPlugin";
 
@@ -99,7 +99,7 @@ export class SkyPortalView {
   private readonly layer: Layer;
   private readonly portalOrigin: Vector3;
   private readonly worldCentre: Vector3;
-  private readonly startTime = performance.now();
+  private readonly startTime = presentationNow();
   private readonly cleanups: (() => void)[] = [];
   private drawing = true;
 
@@ -218,7 +218,7 @@ export class SkyPortalView {
     );
 
     // The player's view rotation, turned by the portal's rotation speeds
-    const seconds = (performance.now() - this.startTime) / 1000;
+    const seconds = (presentationNow() - this.startTime) / 1000;
     this.camera.rotationQuaternion = skyPortalViewRotation(view.absoluteRotation, this.config.rotationSpeed, seconds);
 
     this.camera.minZ = view.minZ;

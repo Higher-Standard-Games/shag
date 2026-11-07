@@ -1,5 +1,5 @@
 /**
- * ShaderAnimationSystem - Manages animated Q3/Warsow shader effects
+ * ShaderAnimationSystem - Manages animated BSP material stages.
  *
  * Handles tcMod (texture coordinate animation), rgbGen wave, and alphaGen wave
  * for BSP materials. Runs as a centralized system with one render observer.
@@ -12,6 +12,7 @@ import type { Color3 } from "@babylonjs/core/Maths/math.color";
 import type { Observer } from "@babylonjs/core/Misc/observable";
 import type { Scene } from "@babylonjs/core/scene";
 import { devLog } from "../../core/DevLog";
+import { presentationNow } from "../../core/PresentationTime";
 import { createFlipbook, type Flipbook } from "../../rendering/TextureArrays";
 import type { AlphaGen, RgbGen, TcMod } from "./Q3ShaderTypes";
 
@@ -93,7 +94,7 @@ export class ShaderAnimationSystem {
 
     this.scene = scene;
     this.totalTime = 0;
-    this.lastTime = performance.now() / 1000;
+    this.lastTime = presentationNow() / 1000;
 
     // Register render observer
     this.renderObserver = scene.onBeforeRenderObservable.add(() => {
@@ -267,7 +268,7 @@ export class ShaderAnimationSystem {
     if (!this.enabled || this.entries.size === 0) return;
 
     // Calculate delta time
-    const now = performance.now() / 1000;
+    const now = presentationNow() / 1000;
     const deltaTime = (now - this.lastTime) * this.timeScale;
     this.lastTime = now;
     this.totalTime += deltaTime;

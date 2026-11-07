@@ -11,9 +11,11 @@
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { TransformNode } from "@babylonjs/core/Meshes/transformNode";
 import type { Scene } from "@babylonjs/core/scene";
+import { mulberry32, seedFrom } from "../../../shared/DeterministicRng";
 import { AudioManager } from "../../AudioManager";
 import type { SfxLoop } from "../../audio/AudioV2Sfx";
 import { type EntityData, EntityHandlerRegistry, type EntityHandlerResult } from "../../core/EntityHandlerRegistry";
+import { hasPresentationClock, presentationNow } from "../../core/PresentationTime";
 import type { BspFile } from "./BspLoader";
 import { buildBrushModel } from "./BspMeshBuilder";
 
@@ -140,12 +142,33 @@ async function handleTargetSpeaker(entity: EntityData, scene: Scene): Promise<En
     return { handled: true, node };
   }
 
+  const play = () => {
+    if (plan.position) audio.playSfx3D(plan.path, plan.position, options);
+    else audio.playSfx2D(plan.path, plan.volume);
+  };
+  if (hasPresentationClock()) {
+    let seed = 0;
+    for (const letter of `${plan.path}|${entity.properties.origin ?? ""}|${plan.wait}|${plan.random}`)
+      seed = seedFrom(seed, letter.charCodeAt(0));
+    const random = mulberry32(seed);
+    const delay = () => Math.max(0.05, plan.wait + (random() * 2 - 1) * plan.random) * 1000;
+    let next = presentationNow() + delay();
+    const observer = scene.onBeforeRenderObservable.add(() => {
+      const now = presentationNow();
+      for (let emitted = 0; now >= next && emitted < 32; emitted++) {
+        play();
+        next += delay();
+      }
+    });
+    node.onDisposeObservable.addOnce(() => scene.onBeforeRenderObservable.remove(observer));
+    return { handled: true, node };
+  }
+
   let timer: ReturnType<typeof setTimeout> | null = null;
   const schedule = () => {
     const seconds = Math.max(0.05, plan.wait + (Math.random() * 2 - 1) * plan.random);
     timer = setTimeout(() => {
-      if (plan.position) audio.playSfx3D(plan.path, plan.position, options);
-      else audio.playSfx2D(plan.path, plan.volume);
+      play();
       schedule();
     }, seconds * 1000);
   };

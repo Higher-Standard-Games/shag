@@ -470,6 +470,13 @@ export class AudioV2Sfx {
     return null;
   }
 
+  /** Original cached package bytes; offline decoders must copy before decoding. */
+  async readSourceBytes(path: string): Promise<ArrayBuffer> {
+    const source = await this.sourceFor(path);
+    if (!source) throw new Error(`Missing sound: ${path}`);
+    return this.encodedBytes(source);
+  }
+
   private async loadBuffer(
     path: string,
     overlapSeconds = 0,

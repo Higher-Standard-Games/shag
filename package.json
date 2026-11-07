@@ -1,7 +1,7 @@
 {
   "name": "shag-engine",
   "private": true,
-  "version": "1.0.0-beta.7",
+  "version": "1.0.0-beta.8",
   "type": "module",
   "main": "dist-electron/main.cjs",
   "scripts": {
@@ -87,6 +87,7 @@
     "@types/pngjs": "^6.0.5",
     "@types/ws": "^8.18.1",
     "@vitest/coverage-v8": "3.2.4",
+    "@webgpu/types": "0.1.38",
     "babylonjs-gltf2interface": "9.17.0",
     "concurrently": "^9.2.1",
     "electron": "^40.6.1",
@@ -103,8 +104,7 @@
     "vitepress-plugin-mermaid": "^2.0.17",
     "vitest": "^3.2.3",
     "wait-on": "^9.0.4",
-    "ws": "^8.19.0",
-    "@webgpu/types": "0.1.38"
+    "ws": "^8.19.0"
   },
   "dependencies": {
     "@2toad/profanity": "3.3.0",
@@ -119,6 +119,7 @@
     "@capacitor/status-bar": "^8.0.0",
     "@tensorflow/tfjs-node": "^4.22.0",
     "jszip": "^3.10.1",
+    "mediabunny": "1.62.1",
     "pngjs": "^7.0.0",
     "ts-trueskill": "5.1.0"
   }

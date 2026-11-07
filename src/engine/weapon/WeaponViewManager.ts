@@ -33,7 +33,7 @@ import "@babylonjs/loaders/glTF";
 import { getEntityRegistry, type WeaponDef } from "../../shared/entities";
 import { fireIntervalTicks } from "../../shared/entities/WeaponDef";
 import { DEFAULT_PHYSICS_TICK_RATE } from "../../shared/server/simulation/physics/constants";
-import { logRejection } from "../core/AsyncErrors";
+import { background, logRejection } from "../core/AsyncErrors";
 import { devLog } from "../core/DevLog";
 import {
   applySafeMaxSimultaneousLights,
@@ -525,6 +525,7 @@ export class WeaponViewManager {
 
   // Load generation counter — prevents concurrent loadWeapon calls from clobbering each other
   private _loadGeneration: number = 0;
+  private readonly pendingWeaponLoads = new Set<Promise<boolean>>();
 
   /**
    * The LIVE gameplay instance. The class is instantiable (QA-8): demo
@@ -677,7 +678,27 @@ export class WeaponViewManager {
    * Load a weapon from pk3
    * @param weaponName - Either a weapon ID (looks up in registry) or folder name
    */
-  public async loadWeapon(weaponName: string, pk3Path?: string): Promise<boolean> {
+  public loadWeapon(weaponName: string, pk3Path?: string): Promise<boolean> {
+    const loading = this.performWeaponLoad(weaponName, pk3Path);
+    this.pendingWeaponLoads.add(loading);
+    const settled = () => {
+      this.pendingWeaponLoads.delete(loading);
+    };
+    background(loading.then(settled, settled), "Weapon load bookkeeping");
+    return loading;
+  }
+
+  public get hasPendingWeaponLoads(): boolean {
+    return this.pendingWeaponLoads.size > 0;
+  }
+
+  /** Offline presentation waits for model/details without advancing its movie clock. */
+  public async waitForPendingWeaponLoads(): Promise<void> {
+    while (this.pendingWeaponLoads.size) await Promise.all([...this.pendingWeaponLoads]);
+    await this.weaponDetailsReady;
+  }
+
+  private async performWeaponLoad(weaponName: string, pk3Path?: string): Promise<boolean> {
     this.weaponDetailsReady = Promise.resolve();
     if (!this.scene || !this.weaponRoot) {
       console.error("[WeaponViewManager] Not initialized");
@@ -731,6 +752,7 @@ export class WeaponViewManager {
       if (!ok) return false;
     }
 
+    if (this._loadGeneration !== loadGen) return false;
     // Shared final setup (parenting, layer mask, position, outlines)
     return this.setupWeapon(weaponName, isGlbWeapon, weaponDef);
   }

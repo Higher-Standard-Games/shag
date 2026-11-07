@@ -8,6 +8,7 @@ import {
   type SfxLoop,
   type SpatialSfxPlayOptions,
 } from "./audio/AudioV2Sfx";
+import type { SfxSink } from "./audio/SfxSink";
 import { background } from "./core/AsyncErrors";
 import { Cvar } from "./core/Cvar";
 import { devLog } from "./core/DevLog";
@@ -37,6 +38,29 @@ const CHANNEL_CVARS: ReadonlyArray<readonly [string, SfxChannel, string]> = [
 const DEFAULT_SFX_VOLUME = 1;
 
 export class AudioManager {
+  private sfxSink: SfxSink | null = null;
+
+  public ownSfxSink(sink: SfxSink): () => void {
+    if (this.sfxSink) throw new Error("SFX presentation already has an owner");
+    this.sfxSink = sink;
+    let released = false;
+    return () => {
+      if (!released && this.sfxSink === sink) this.sfxSink = null;
+      released = true;
+    };
+  }
+
+  public readSfxBytes(path: string): Promise<ArrayBuffer> {
+    return this.sfxBackend.readSourceBytes(path);
+  }
+
+  public get hasSfxSink(): boolean {
+    return this.sfxSink !== null;
+  }
+
+  public getSfxPresentationTime(): number {
+    return this.sfxSink?.nowMs ?? performance.now();
+  }
   private static instance: AudioManager;
 
   /** Clear the cached singleton so ServiceLocator re-inits a fresh one (QA-WO13). */
@@ -338,6 +362,10 @@ export class AudioManager {
    * Play a sound effect (one-shot, no looping)
    */
   public playSfx(key: string, volumeMultiplier = 1.0): void {
+    if (this.sfxSink) {
+      this.sfxSink.play2D(AssetLoader.getInstance().getAudio(key)?.src || key, { volume: volumeMultiplier });
+      return;
+    }
     if (!this.sfxEnabled) return;
 
     const audio = AssetLoader.getInstance().getAudio(key);
@@ -347,12 +375,17 @@ export class AudioManager {
 
   /** Decode a set of short SFX into the Babylon Audio V2 buffer cache. */
   public async preloadSfx(paths: readonly string[], options?: LoopSfxPlayOptions): Promise<void> {
+    if (this.sfxSink) return this.sfxSink.preload(paths, options);
     if (!this.sfxEnabled) return;
     await this.sfxBackend.preload(paths, options);
   }
 
   /** Play a listener-relative sound without HTMLAudioElement cloning. */
   public playSfx2D(path: string, volumeMultiplier = 1.0, maxInstances = 8, channel?: SfxChannel): void {
+    if (this.sfxSink) {
+      this.sfxSink.play2D(path, { volume: volumeMultiplier, maxInstances, channel });
+      return;
+    }
     if (!this.sfxEnabled) return;
     void this.sfxBackend.play2D(path, { volume: volumeMultiplier, maxInstances, channel });
   }
@@ -363,6 +396,10 @@ export class AudioManager {
     position: { x: number; y: number; z: number },
     options: SpatialSfxPlayOptions = {},
   ): void {
+    if (this.sfxSink) {
+      this.sfxSink.play3D(path, position, options);
+      return;
+    }
     if (!this.sfxEnabled) return;
     void this.sfxBackend.play3D(path, new Vector3(position.x, position.y, position.z), options);
   }
@@ -379,6 +416,7 @@ export class AudioManager {
     options: LoopSfxPlayOptions = {},
     signal?: AbortSignal,
   ): Promise<SfxLoop | null> {
+    if (this.sfxSink) return this.sfxSink.playLoop3D(path, position, options, signal);
     const at = position ? new Vector3(position.x, position.y, position.z) : null;
     return this.sfxBackend.playLoop3D(path, at, options, signal);
   }

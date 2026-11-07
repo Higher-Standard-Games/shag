@@ -156,11 +156,14 @@ Not every classname has gameplay behavior. Confirm handlers in `BspEntityHandler
 Map ambience is client-only (`AmbientEntityHandlers.ts`) and ends with the map:
 
 - `target_speaker` with spawnflag 1 (LOOPED_ON) loops its `noise` where it
-  stands, at full volume within 80 units and silent past
-  80 + 1000 / `attenuation`, as in Quake; spawnflag 4 (GLOBAL) or attenuation 0
+  stands, using the audio system's inverse-distance attenuation; spawnflag 4
+  (GLOBAL) or attenuation 0
   plays it everywhere. An untriggered speaker with `wait` plays every `wait` ±
   `random` seconds. Speakers with a `targetname` wait for triggering, which the
   client does not have yet, and are reported as unhandled.
+  Live play schedules periodic speakers with wall timers. An isolated video
+  exporter that owns presentation time uses repeatable delays on that clock,
+  so processing stalls and readiness redraws do not change the sound sequence.
 - `func_rotating` builds its inline model and spins it at `speed` degrees a
   second (default 100) about the vertical axis, or X/Y with spawnflags 4/8;
   2 reverses. A model built with an origin brush turns about its `origin`. One

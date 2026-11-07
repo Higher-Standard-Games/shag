@@ -1,0 +1,8 @@
+Mediabunny 1.62.1
+Copyright (c) 2026-present, Vanilagy and contributors.
+
+The unmodified Mediabunny dependency is used by the optional video exporter.
+Its Mozilla Public License 2.0 text is provided in mediabunny-1.62.1.txt.
+Source code for this exact dependency is available in the published package:
+https://registry.npmjs.org/mediabunny/-/mediabunny-1.62.1.tgz
+Project: https://github.com/Vanilagy/mediabunny

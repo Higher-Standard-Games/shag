@@ -1,6 +1,9 @@
 # Highlight video export
 
-Date: 2026-10-22. Status: standalone browser proof passed; Washoi exporter not implemented.
+Date: 2026-10-22. Status updated 2026-11-07: the integrated developer exporter
+produces synchronized picture/game audio; optional OST music and yellow export UI
+are implemented. Broader public acceptance remains open. The implementation and
+review sections below supersede the historical planning scope.
 
 Planning review: 2026-10-26. Public target narrowed to existing 1/2/3-minute
 highlight reels. The review below supersedes the earlier interval/HUD scope;
@@ -35,7 +38,7 @@ The recommended first complete version supports:
 - An already generated cinematic highlight reel, using the existing 1/2/3-minute choices.
 - Full HD 1920×1080 at 60 FPS, landscape 16:9, SDR.
 - H.264 video and AAC stereo audio in an MP4 container, after capability checks.
-- Game SFX; music selection is deferred from the first public version.
+- Game SFX, with optional packaged OST music and a song start timestamp.
 - Clean cinematic picture; full gameplay HUD export is deferred.
 - Reel title/shot cards and fades when the chosen reel contains them.
 - Progress, cancellation, and a local save. No account upload or YouTube publishing.
@@ -901,3 +904,425 @@ Current primary references: [WebCodecs](https://www.w3.org/TR/webcodecs/),
 [Mediabunny output and backpressure](https://mediabunny.dev/guide/writing-media-files),
 and [File System Access](https://developer.chrome.com/docs/capabilities/web-apis/file-system-access).
 These support the API direction; none establishes Washoi game acceptance.
+
+## Implementation progress, 2026-11-07
+
+Work is on `feature/highlight-video-export` in both repositories, created from
+the published beta 7 pair (engine `6ce3a5de`, FPS `b7e7bd3`). Beta 7 was verified
+active in EU and US, including isolated lobby-to-match-to-result probes. This
+feature begins the beta 8 development cycle; no video-export code is published.
+
+Implemented foundations:
+
+- An export-only document selected before the normal application bootstrap.
+  It initializes the renderer and demo systems without creating a lobby or
+  joining a server. The development `videoexport` command opens it in a modal
+  iframe, transfers a copy of the loaded demo through an origin/job-owned
+  message channel, and protects active work/unsaved results from accidental close.
+- A sequential frame producer with integer microsecond timestamps, explicit
+  backpressure and interruptible waits. A document-owned presentation clock
+  keeps authored shader animation independent of encoding/storage wall time.
+- Pinned Mediabunny 1.62.1, loaded lazily, with its MPL text and source notice
+  retained under `public/licenses/`. MP4 uses positional 64 KiB writes to an
+  OPFS temporary file and `fastStart: false`; raw frames and a whole-file byte
+  buffer are not retained. Download is a separate gesture; generated output is
+  retained after save cancellation/failure. The bounded fallback says Download
+  started rather than claiming destination close success.
+- Manual cinematic startup and copied reel/camera recipes. Export samples the
+  actual shared cinematic player at 60 FPS, including snapshot seek rounding,
+  speed easing, the authored title hold and a finite three-second closing card.
+  The render traversal checks every source tick/segment/speed/hold against the
+  prepared schedule. Preview timing and SequenceBuilder's estimates are unchanged.
+- A canvas compositor for shared title/summary/shot-card data and the existing
+  black/white veil. Controls and progress remain outside the encoded surface.
+
+Evidence so far (headless Edge, actual GPU/WebGL2, local dm2 Duel recording):
+
+| Proof | Result | Limit |
+| --- | --- | --- |
+| Ten-second integration clip | Finalized MP4 independently decoded to 600 frames, 1280×720, timestamps 0 through 9,983,333 µs; no skipped demo frames | Silent picture proof, not complete audio export |
+| Deliberately slow clip | A 20 ms wait per frame still produced all 600 frames with identical dimensions/timestamps; no browser errors or failed HTTP requests | Picture identity across runs is not yet established |
+| Full one-minute-target reel | 3,788 decoded 1920×1080 frames, 63.133 s of video including finite cards; 151,303,912-byte MP4; both traversals agreed at every frame | Silent. Found a view-weapon async race and missing projectile types at seek landings; not a clean final acceptance |
+| Frame/clock/cinematic/lifecycle tests | 49 focused tests passed, including replay of a copied recipe against actual CinematicDemoPlayer clock/cut behavior | Full suite reserved for consolidated implementation |
+| Required headless regression set | Simulation, physics, server tick, 1,000-tick fuzz and indexed dm2 BSP load all passed | No new server or protocol changes |
+
+The fast clip's first inspection imported a second muxer instance through a
+different Vite URL, producing a duplicate-load warning. The inspection fixture
+now uses a normal source import and that warning is absent from the slow run.
+The real game emits its existing GLTF root warnings and unsupported map-entity
+diagnostics. The reel additionally exposed a real asynchronous weapon-load race:
+the model's promise could report success, then disposal/new ownership could
+supersede it before final setup. A focused test reproduced it (one failure/four
+passes); a final generation check fixes it, and 48 weapon/cinematic tests pass.
+Pending-load tracking supplies an export readiness barrier. Bounded shot pre-roll,
+projectile coverage and full audio are the next integration work.
+
+Local evidence/logs: `.agent/papercuts-beta6/video-*`. These are scratch proof
+artifacts, not shipped assets. The modal is a development harness, not yet the
+finished public 1/2/3-minute export flow described above. Long-reel memory,
+actual file-picker behavior, full cancellation/repeat testing, game-audio sync,
+and WebGPU acceptance remain to be demonstrated.
+
+### Integrated developer implementation
+
+The developer flow now exports actual 1/2/3-minute highlight targets, rather
+than only the ten-second picture fixture. The Demos highlight popover offers
+**Export video** with `developer 1` in development builds. `videoexport` opens
+the same modal for an already loaded demo. A remote card passes its URL and
+metadata to the isolated child; it does not replace the parent's loaded demo
+or join/leave a lobby. The child downloads the recording only on Generate.
+Native dialog modality protects background focus, and an origin/job-owned
+message channel carries only source data and close eligibility.
+
+Generation freezes the shared cinematic recipe and samples its actual eased
+movie/source schedule. A first traversal captures sound requests and listener
+poses, mixes stereo 48 kHz PCM offline, then a second traversal renders H.264
+frames and AAC into the same MP4. Every frame checks source tick, segment,
+speed, title and closing state. Sound choices, cue times, source motion and
+listener poses must agree before the output is finalized. Optional packaged OST
+music follows movie time; chat and the full gameplay HUD are omitted. Title,
+shot and finite closing cards share preview
+copy/data; black/white transition veils are composited into the movie.
+
+Sound buffers resolve through the normal package reader, including extension
+fallbacks. Voltaic uses the same loop-window/intro/seam processing as live SFX.
+The native offline graph uses the live inverse-distance curve and equal-power
+pan model, with timestamped source/listener/rate changes and short cut-tail
+fades. A Babylon offline-context proof established spatial direction and cue
+onset; a synthetic H.264/AAC round trip decoded its quarter-second cue at
+0.2500208333 seconds. The actual movie mix contains finite, nonzero samples.
+
+The implementation caps movie length at four minutes, decoded sound cache at
+64 MiB, cue count at 20,000, motion samples at 250,000 and encoded temporary
+storage at 768 MiB. The stereo output PCM is bounded by the movie duration;
+raw video frames are not retained. Encoding and positional OPFS writes apply
+backpressure. Temporary files hold per-file Web Locks; abandoned UUID-named
+files older than 24 hours are removed only when unlocked. Cleanup runs before
+the quota check and never touches the package cache. The job has preparation,
+shader-readiness and overall deadlines, and aborts on hidden document or lost
+WebGL context. Save cancellation retains the finalized result for retry.
+
+#### Integration findings and corrections
+
+- Sound-coordinate collection must explicitly copy x/y/z: Babylon vectors
+  expose accessor properties that object spread does not preserve. A test
+  with real Vector3 objects covers one-shots, loop movement and listener poses.
+- Sound variant counters must rewind with demo state; pain cooldowns use the
+  collector's logical clock. Both sound traversals now choose the same cues.
+- Lazy teleport effects must finish before advancing the movie clock, and
+  cannot run after disposal or a discontinuity. Pre-roll ages/clears teleport
+  effects without advancing shader animation or the movie's shot clock.
+- Each shot freezes its selected 2-second lead-in or bounded 11-second
+  projectile-recovery lead-in. Rendering checks visible projectile spawn
+  coverage. Warnings at unrecorded seek landings can still occur; an unresolved
+  projectile in a captured frame fails the job.
+- Longer reels exposed stale light shader/buffer layouts. A measured draw
+  required a 344-byte light block but had 96 bytes bound. The export scene
+  disables shader hot swapping and waits for attempted draw readiness, with
+  zero-delta warm-up redraws. Whole-scene readiness is unsuitable here: it
+  forces variants for hidden model sources. Effect-created notifications also
+  fire for already cached variants; they do not establish that compilation is
+  pending. The corrected full three-minute preparation traversal passed.
+
+These corrections and the viewmodel continuation race are also recorded as
+PC-046–PC-049 in the papercut matrix. The export shader policy is isolated;
+reproducing the light-layout problem in ordinary live play is recommended
+before changing production rendering policy.
+
+#### Browser evidence
+
+All probes use headless Edge on Windows, the actual GPU and WebGL2, with the
+local `washoi_dm2_duel_20261106_215121.shagdemo` recording. No lobby/server join
+is required. This establishes the dm2 Duel path; other maps/modes need broader
+acceptance before public rollout.
+
+| Target | Decoded video | Encoded size | Audio / limits |
+| --- | --- | --- | --- |
+| 1 minute | 3,788 frames, 1920×1080, 63.133 s | 152,835,050 bytes in the first audio proof | Strict sound/listener agreement passed. A later actual modal run generated a 152,789,499-byte file after cancellation/retry. |
+| 2 minutes | 7,502 frames, 1920×1080, 125.033 s | 304,638,392 bytes | Stereo 48 kHz AAC decoded to 125.034667 s. Picture warnings prompted the shader-readiness follow-up. |
+| 3 minutes | 10,963 frames, 1920×1080, 182.716667 s | 449,318,197 bytes in the first audio proof | AAC decoded to 182.72 s; save cancellation/failure/retry checks passed. Final rendering after shader protection is tracked below. |
+
+The three-minute save tests substitute an actual OPFS destination for the OS
+picker. They cover cancelled picker, denied permission, cancelled copy,
+preserving an existing destination, successful retry/close and matching size
+plus boundary bytes. They do **not** establish an OS picker grant. A separate
+attempt to retain the large file through an automated anchor download did not
+complete; it exceeded the product's 64 MiB fallback limit and is not accepted
+fallback evidence. The one-minute modal output was streamed to a local-only
+artifact receiver for inspection without buffering the whole file in JS.
+
+The modal run demonstrated cancel during preparation, generation again in the
+same document, protected active/unsaved close, save retry and discard. After
+cleanup there were zero engines, no SFX sink and only the preview canvas.
+The first focus assertion used a programmatic click without first focusing its
+opener. A corrected independent check explicitly focused the opener and
+confirmed both focus restoration and unchanged parent demo-byte ownership.
+
+Still required before public rollout: OS save-picker permission/overwrite and
+browser-download fallback acceptance; long-running heap/native/GPU memory
+plateau measurements; actual device-loss/disk-full/hidden-tab stress; broader
+maps/modes and supported hardware. WebGPU and non-Chromium browsers are separate
+acceptance work. Development-only access remains intentional.
+
+### Final verification and handoff, 2026-11-07
+
+The final three-minute picture/audio run finalized a 449,441,265-byte MP4,
+independently decoded all 10,963 1920×1080 frames (0 through 182,700,000 µs),
+and decoded stereo 48 kHz AAC to 182.72 seconds. It recorded **zero invalid GPU
+draws** and no failed HTTP requests. The known GLTF-root, unsupported map-entity,
+cache-reload and unrecorded projectile-seek diagnostics remain distinguishable
+from captured-frame failures.
+
+A final rate-alignment check verifies that each audio sample's rate governs the
+source interval following its pictured frame. After this refinement, the
+one-minute movie independently decoded all 3,788 frames and stereo AAC, passed
+the frozen rate schedule and strict sound/listener replay checks, and recorded
+zero invalid GPU draws. Its 152,663,105-byte MP4 is retained locally at
+`.agent/papercuts-beta6/video-artifacts/washoi-highlights-1min-final.mp4`.
+An earlier retained modal output was separately decoded from disk with no
+browser warnings or failed requests.
+
+Movie decoding and save fixtures are separate checks. One repeated large-file
+save fixture failed during destination cleanup, obscuring its primary failure;
+the fixture now waits for an actual copy write before cancelling and preserves
+cleanup diagnostics. This is not counted as an overall passing OS save test.
+The successful 429 MB save/cancel/permission/retry proof above still uses an
+OPFS destination, and native OS permission/overwrite remains unverified.
+
+The consolidated suite passed **804 files, 6,267 tests, one skipped**. Subsequent
+targeted cleanup/rate checks passed: the six export test files contain 24 passing
+tests, and the material-disposal regression restores wrapped methods so cached
+disposed materials do not retain an export scene. Final typecheck, build and
+Biome also passed after those refinements. Biome remains at its baseline of
+zero errors and 47 warnings.
+
+Exact validation commands, from the assembled root:
+
+```text
+npm run typecheck
+npm run test:run
+npm run build
+npm run gate:biome
+npm run docs:build
+npm --prefix src/games/fps run docs:build
+npm --prefix src/games/fps run test:simulation
+npm --prefix src/games/fps run test:physics
+npm --prefix src/games/fps run server:tick
+npm --prefix src/games/fps run server:fuzz -- --ticks 1000
+npm --prefix src/games/fps run cli:game -- --exec "developer 1; bsp load washoi_dm2; bsp info; quit"
+npm run test:run -- src/games/fps/client/video/__tests__
+npm run test:run -- src/games/fps/client/video/__tests__/ExportSceneReadiness.test.ts
+```
+
+All five headless regressions passed; dm2 reported 7,475 faces. The tick and fuzz
+determinism checksums were 2768943778 and 792392251 respectively. The additional
+headless `sim replay "W+CROUCH 60; JUMP 1; W 30"` scenario completed 91 ticks and
+its child process exited 0. Its PowerShell wrapper reported failure on the
+documented Node `localStorage` warning; the emitted child status disambiguates
+that wrapper result. A first invocation used an invalid proxy runtime argument
+and was corrected before executing the scenario.
+
+Browser command fixtures (ignored, local-only):
+
+```text
+node .agent/papercuts-beta6/video-integration-browser.mjs --reel=1
+node .agent/papercuts-beta6/video-integration-browser.mjs --reel=2
+node .agent/papercuts-beta6/video-integration-browser.mjs --reel=3
+node .agent/papercuts-beta6/video-integration-browser.mjs --stalled
+node .agent/papercuts-beta6/video-offline-audio-probe.mjs
+node .agent/papercuts-beta6/video-gl-probe.mjs
+node .agent/papercuts-beta6/video-ui-acceptance.mjs
+node .agent/papercuts-beta6/video-focus.mjs
+node .agent/papercuts-beta6/video-artifact-inspect.mjs
+```
+
+These include passing component proofs and the explicitly described failed
+fixtures above; they are not all blanket acceptance passes. Logs and JSON
+reports live beside them. The final browser target is Windows/Edge/WebGL2;
+dm2 Duel is the verified source. Other maps/modes, native save UI, memory plateau
+and fault stress remain the release recommendation. No demo-format, server or
+network-protocol change is introduced.
+
+Both repositories remain on `feature/highlight-video-export`. Beta 7's published
+tag and main/staging branches are unchanged by this feature. The beta 8 version,
+changelog, code and manuals are local working changes; none is pushed.
+
+#### Changed-file manifest
+
+Engine repository (relative to the assembled root):
+
+```text
+docs/changelog/v1.0.0-beta.8.md
+docs/manual/guides/bsp-system.md
+docs/manual/guides/model-loading.md
+docs/research/highlight_video_export.md
+docs/research/v1.0.0-beta6-papercuts.md
+package-lock.json
+package.json
+public/licenses/mediabunny-1.62.1.txt
+public/licenses/mediabunny-notice.txt
+src/engine/AudioManager.ts
+src/engine/__tests__/PresentationTime.test.ts
+src/engine/__tests__/SfxSink.test.ts
+src/engine/__tests__/WeaponViewManagerLifecycle.test.ts
+src/engine/audio/AudioV2Sfx.ts
+src/engine/audio/SfxSink.ts
+src/engine/core/PresentationTime.ts
+src/engine/loader/bsp/AmbientEntityHandlers.ts
+src/engine/loader/bsp/__tests__/AmbientPresentationClock.test.ts
+src/engine/loader/shader/ShaderAnimationSystem.ts
+src/engine/rendering/SkyPortal.ts
+src/engine/version.txt
+src/engine/weapon/WeaponViewManager.ts
+```
+
+FPS repository (assembled-root paths):
+
+```text
+src/games/fps/client/CinematicDemoPlayer.ts
+src/games/fps/client/DemoService.ts
+src/games/fps/client/DemosView.ts
+src/games/fps/client/FPSCombatAudio.ts
+src/games/fps/client/FPSMovementAudio.ts
+src/games/fps/client/FPSVoltaicAudio.ts
+src/games/fps/client/ReelLengths.ts
+src/games/fps/client/RemotePlayerRenderer.ts
+src/games/fps/client/TeleportEffect.ts
+src/games/fps/client/__tests__/CinematicDemoPlayer.test.ts
+src/games/fps/client/__tests__/FPSCombatAudio.test.ts
+src/games/fps/client/__tests__/FPSVoltaicAudio.test.ts
+src/games/fps/client/__tests__/RemoteEffectReadiness.test.ts
+src/games/fps/client/__tests__/TeleportBurstPool.test.ts
+src/games/fps/client/boot.ts
+src/games/fps/client/styles/Demos.css
+src/games/fps/client/video/ExportAudioAgreement.ts
+src/games/fps/client/video/ExportAudioBuffers.ts
+src/games/fps/client/video/ExportAudioCapture.ts
+src/games/fps/client/video/ExportAudioMixer.ts
+src/games/fps/client/video/ExportAudioTimeline.ts
+src/games/fps/client/video/ExportMusic.ts
+src/games/fps/client/video/ExportMusicSelection.ts
+src/games/fps/client/video/ExportOverlay.ts
+src/games/fps/client/video/ExportPage.ts
+src/games/fps/client/video/ExportRenderer.ts
+src/games/fps/client/video/ExportSceneReadiness.ts
+src/games/fps/client/video/ExportSource.ts
+src/games/fps/client/video/ExportVideo.css
+src/games/fps/client/video/HighlightVideoExporter.ts
+src/games/fps/client/video/MovieClock.ts
+src/games/fps/client/video/Mp4Writer.ts
+src/games/fps/client/video/ReelMovieSchedule.ts
+src/games/fps/client/video/ShotPreroll.ts
+src/games/fps/client/video/TemporaryVideo.ts
+src/games/fps/client/video/__tests__/ExportAudio.test.ts
+src/games/fps/client/video/__tests__/ExportCancellation.test.ts
+src/games/fps/client/video/__tests__/ExportMusic.test.ts
+src/games/fps/client/video/__tests__/ExportSceneReadiness.test.ts
+src/games/fps/client/video/__tests__/MovieClock.test.ts
+src/games/fps/client/video/__tests__/ReelMovieSchedule.test.ts
+src/games/fps/client/video/__tests__/ShotPreroll.test.ts
+src/games/fps/client/video/__tests__/TemporaryVideo.test.ts
+src/games/fps/console/commands/VideoExportCommand.ts
+src/games/fps/docs/manual/developer/server-commands.md
+src/games/fps/docs/manual/multiplayer/demos.md
+```
+
+Unrelated `public/shag.glb` and `server-data-mapcheck/` remain untouched.
+
+### UI, optional OST and data-flow review, 2026-11-07
+
+The owner confirmed successful video export and requested the shared yellow
+dialog style, a full-width Orbitron menu action, and an optional OST selector.
+The child imports the shared lobby dialog skin; export-specific CSS handles
+the native parent dialog, responsive controls and preview. The menu action uses
+the same class and 30 px number font as the minute choices.
+
+The selector enumerates every MP3 owned by `washoi_soundtrack.pk3` in PK3Index,
+not only songs in the gameplay playlist. The installed package contains six
+tracks. `<none>` is the default and skips music decoding. A selected song is
+read through AudioManager's package reader, copied before native 48 kHz stereo
+decode, and bounded to 32 MiB encoded / 192 MiB decoded. `Start from` accepts
+seconds, m:ss or h:mm:ss with millisecond precision; the actual decoded duration
+validates the offset before map preparation. Job settings are copied before any
+download so later mutations cannot change the selected song or position.
+
+Music starts at movie time zero at gain 0.22, continues at normal tempo through
+cuts and slow motion, and ends at the earlier song/movie boundary. A 0.25 s
+fade-in and 1.5 s fade-out shorten for very short remaining song tails. It does
+not join the SFX voice-stealing list or follow gameplay playlist playback. The
+combined mix retains the existing clipping protection. Decoded music ownership
+is dropped after offline mixing and during cleanup.
+
+The review reproduced and corrected three failures:
+
+- Periodic map speakers used wall timers and unseeded jitter. With an owned
+  presentation clock they now use fixed movie time and seeded delays, ignore
+  zero-delta readiness redraws and remove their observer with the map node.
+  Ordinary live documents retain wall timers. Each export traversal reloads
+  its map after resetting the presentation clock, rebuilding the same schedule.
+- Cancellation could retain the renderer while font loading remained pending.
+  The font wait is abortable. Other shared startup operations still have their
+  own asynchronous lifetimes; this fix specifically covers the reproduced font
+  wait rather than claiming every native startup operation is interruptible.
+- A failed temporary-file deletion cached a rejected disposal promise and
+  invalidated a finalized file. A transient failure now preserves readability
+  and the file lease, allows download, and permits a later discard retry.
+
+Standalone file selection also clears the old source before reading and uses a
+generation fence so a late file read cannot replace a newer source. The affected
+BSP manual documents the owned clock and corrects its outdated linear-distance
+sound description against the actual inverse-distance backend. These findings
+are recorded as PC-051–PC-056 in the papercut matrix.
+
+Validation for this follow-up is recorded separately from the earlier exporter
+proofs:
+
+| Command / probe | Result |
+| --- | --- |
+| `node node_modules/vitest/vitest.mjs run src/games/fps/client/video src/engine/loader/bsp/__tests__/AmbientPresentationClock.test.ts src/engine/loader/bsp/__tests__/AmbientEntities.test.ts src/engine/__tests__/PresentationTime.test.ts src/lobby/__tests__/SettingsSyncLifecycle.test.ts` | Passed: 12 files, 64 tests. Covers song parsing/offset/tempo/None graph, discard retry, actual renderer font cancellation, seeded speaker cadence, live timers and settings lifecycle. |
+| `node .agent/video-review/verify-updates.cjs` | Passed: in-process source checks, actual NullEngine speaker traversals with different wall stalls, and DOM checks for selection, validation, immutable job settings and control lifecycle. |
+| Five headless regression commands from the regression-check procedure | Passed after the speaker change; tick checksum 2768943778, fuzz checksum 4204154386, BSP dm2 7,475 faces. Logs: `.agent/video-review/{simulation,physics,tick,fuzz,bsp}-final.log`. |
+| `node .agent/video-review/ui-music-probe.mjs` | Headless Edge/WebGL2: yellow/Orbitron UI, all six tracks plus None, 388 px child with no horizontal overflow, and 152,807,121-byte MP4 with video/audio tracks (63.146667 s container duration) using Washiki Washoi from 0:30. The fixture's final focus assertion failed because its synthetic opener click did not first focus the opener; track inspection also imported a second Mediabunny module and warned. These are not blanket passing UI acceptance. |
+| `node .agent/video-review/music-graph-probe.mjs` | Passed with no browser errors/failed HTTP. Real package decode is 240 s; native 48 kHz music output at 0:30 agrees with expected PCM ×0.22 to maximum error 4.18e-9 while the fixture's movie rate is 0.4. |
+| `node .agent/video-review/menu-focus-probe.mjs` | Passed with no browser errors/failed HTTP. The actual DemosView export button and minute row both measure 372.48 px during the menu animation; both labels use Orbitron at 30 px. Explicitly focusing the opener before opening the modal confirms focus restoration. Screenshot: `.agent/video-review/export-menu.png`. |
+
+The first review reproduction config accidentally merged its include array with
+the root config and ran the whole suite: 806 files / 6,270 tests passed, one
+settings-sync timer assertion failed, one test skipped. All three reproduction
+tests passed, confirming the pre-fix faults. The unchanged settings file passed
+all nine focused checks afterward; D-009 continues to track suite timer
+isolation. A new ambience fixture initially counted already-unregistered
+Babylon observers; comparing active observers corrected that test assertion.
+
+Sandboxed Vitest startup failed with spawn EPERM. Automatic approval review
+temporarily failed on an account usage limit while an earlier runner-stop
+request was being reviewed; that action did not execute and the run finished
+naturally. Later normal escalated test/browser runs were authorized and worked.
+No release, push, live-game join, protocol change or server change is part of
+this follow-up.
+
+Final follow-up gates, from the assembled root:
+
+| Command | Result |
+| --- | --- |
+| `npm run typecheck` | Passed. |
+| `npm run test:run` | Passed: 807 files, 6,286 tests passed, one skipped; 283.24 s. The earlier settings-sync failure did not recur. Existing expected negative-test stderr and renderer-extension registration diagnostics remain in the log. |
+| `npm run build` | Passed; existing bundle-size advisories remain. |
+| `npm run gate:biome` / `node scripts/biome-gate.mjs` | Passed, verified child exit zero: zero errors, 47 baseline warnings. One newly wrapped test line initially failed formatting and was corrected. A direct PowerShell wrapper then reported failure on Node's DEP0190 warning despite the gate's success message; `node .agent/video-review/biome-exit-check.cjs` confirmed the successful child exit. |
+| `npm run docs:build` | Passed again after the final BSP manual correction. |
+| `npm --prefix src/games/fps run docs:build` | Passed. |
+| `npm --prefix src/games/fps run test:simulation` | Passed; existing CollisionManager initialization diagnostic recorded. |
+| `npm --prefix src/games/fps run test:physics` | Passed; maintained spawn Y=168.0. |
+| `npm --prefix src/games/fps run server:tick` | Passed; repeated checksum 2768943778. |
+| `npm --prefix src/games/fps run server:fuzz -- --ticks 1000` | Passed; repeated checksum 4204154386, no invalid values/crashes. |
+| `npm --prefix src/games/fps run cli:game -- --exec "developer 1; bsp load washoi_dm2; bsp info; quit"` | Passed, child exit zero, 7,475 faces; harmless Node preference/localStorage diagnostic recorded. |
+
+Gate logs are `.agent/video-review/{typecheck,biome,build,engine-docs,fps-docs,suite}-gate.log`;
+the final Biome and engine-docs retries are `biome-gate-final.log` and
+`engine-docs-final.log`. Browser probes closed their own Edge instances; the
+final process query found zero probe-profile browsers and no listener on 3107.
+Screenshots are `export-dialog-desktop.png`, `export-dialog-narrow.png`,
+`export-dialog-ready.png` and `export-menu.png` in `.agent/video-review/`.
+The OST movie proof used dm2 Duel and an isolated client-only WebGL2 renderer;
+it does not add broader map/mode, OS-picker, memory-plateau or device-fault
+acceptance. Those public-rollout recommendations above remain open.
