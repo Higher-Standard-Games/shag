@@ -106,14 +106,14 @@
   animation: none;
 }
 
-/* Square, and sized before it has loaded, so nothing around it jumps */
+/* Frame the image's badge (rows 54–512); its flame overhangs the circular rim. */
 .boot__logo {
-  position: relative;
+  position: absolute;
   display: block;
-  width: 76%;
-  height: auto;
-  aspect-ratio: 1;
-  filter: drop-shadow(8px 10px 0 hsla(250, 50%, 2%, 0.6));
+  left: 4.5%;
+  top: calc(4.5% - 91% * 54 / 458);
+  width: 91%;
+  height: calc(91% * 512 / 458);
   pointer-events: none;
 }
 

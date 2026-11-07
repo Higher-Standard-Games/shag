@@ -346,9 +346,9 @@ export class AudioManager {
   }
 
   /** Decode a set of short SFX into the Babylon Audio V2 buffer cache. */
-  public async preloadSfx(paths: readonly string[]): Promise<void> {
+  public async preloadSfx(paths: readonly string[], options?: LoopSfxPlayOptions): Promise<void> {
     if (!this.sfxEnabled) return;
-    await this.sfxBackend.preload(paths);
+    await this.sfxBackend.preload(paths, options);
   }
 
   /** Play a listener-relative sound without HTMLAudioElement cloning. */

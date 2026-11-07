@@ -12,7 +12,7 @@ import { devLog } from "../core/DevLog";
 import { fetchAsset, readAssetBuffer } from "../loader/pk3/AssetRequest";
 import { PK3Index } from "../loader/pk3/PK3Index";
 import { PK3Loader } from "../loader/pk3/PK3Loader";
-import { overlapLoopChannel } from "./LoopOverlap";
+import { overlapLoopChannel, prependLoopIntro } from "./LoopOverlap";
 
 /**
  * Each sound channel has its own volume under the effects volume, allowing
@@ -62,8 +62,14 @@ export interface SfxLoop {
 }
 
 export interface LoopSfxPlayOptions extends SpatialSfxPlayOptions {
+  /** Pitch adjustment in cents; it does not change the cached PCM. */
+  pitch?: number;
+  /** Sustain window in the source buffer, before seam processing. */
+  loopRegion?: { startSeconds: number; endSeconds: number };
   /** Equal-power overlap at the sample seam, in seconds; zero leaves the buffer unchanged. */
   overlapSeconds?: number;
+  /** A one-time attack blended into the sustained region of the same buffer. */
+  intro?: { path: string; holdSeconds: number; fadeSeconds: number };
 }
 
 const SOUND_EXTENSIONS = [".ogg", ".wav", ".mp3"] as const;
@@ -130,6 +136,7 @@ export class AudioV2Sfx {
   private playbackEpoch = 0;
 
   private readonly bufferPromises = new Map<string, Promise<StaticSoundBuffer | null>>();
+  private readonly loopStarts = new WeakMap<StaticSoundBuffer, number>();
   private readonly soundPromises = new Map<string, Promise<StaticSound | null>>();
   /** Playing 3D one-shots, with when each ends (ms, `performance.now`). */
   private readonly activeSpatialSounds: Array<{ sound: StaticSound; endsAt: number; slot?: string }> = [];
@@ -172,9 +179,11 @@ export class AudioV2Sfx {
     await this.engine.unlockAsync();
   }
 
-  async preload(paths: readonly string[]): Promise<void> {
+  async preload(paths: readonly string[], options: LoopSfxPlayOptions = {}): Promise<void> {
     if (!(await this.ensureInitialized())) return;
-    await Promise.all(paths.map((path) => this.getBuffer(path)));
+    await Promise.all(
+      paths.map((path) => this.getBuffer(path, options.overlapSeconds, options.intro, options.loopRegion)),
+    );
   }
 
   async play2D(path: string, options: SfxPlayOptions = {}): Promise<boolean> {
@@ -259,13 +268,15 @@ export class AudioV2Sfx {
     this.syncListener();
 
     const generation = this.generation;
-    const buffer = await this.getBuffer(path, options.overlapSeconds);
+    const buffer = await this.getBuffer(path, options.overlapSeconds, options.intro, options.loopRegion);
     if (signal?.aborted || !buffer || generation !== this.generation || !this.engine || !this.sfxBus) return null;
 
     const volume = Math.max(0, options.volume ?? 1);
     const sound = await this.engine.createSoundAsync(`loop:${normalizePath(path)}`, buffer, {
       outBus: this.busFor(options.channel) ?? this.sfxBus,
       loop: true,
+      loopStart: this.loopStarts.get(buffer) ?? 0,
+      pitch: Number.isFinite(options.pitch) ? options.pitch! : 0,
       maxInstances: 1,
       ...(position ? spatialOptions(position, options) : {}),
     });
@@ -404,15 +415,24 @@ export class AudioV2Sfx {
     this.listenerNode = camera;
   }
 
-  private async getBuffer(path: string, overlapSeconds = 0): Promise<StaticSoundBuffer | null> {
+  private async getBuffer(
+    path: string,
+    overlapSeconds = 0,
+    intro?: LoopSfxPlayOptions["intro"],
+    region?: LoopSfxPlayOptions["loopRegion"],
+  ): Promise<StaticSoundBuffer | null> {
     const overlap = Number.isFinite(overlapSeconds) && overlapSeconds > 0 ? overlapSeconds : 0;
-    const key = normalizePath(path) + (overlap > 0 ? `#overlap=${overlap}` : "");
+    const key =
+      normalizePath(path) +
+      (overlap > 0 ? `#overlap=${overlap}` : "") +
+      (intro ? `#intro=${normalizePath(intro.path)}:${intro.holdSeconds}:${intro.fadeSeconds}` : "") +
+      (region ? `#region=${region.startSeconds}:${region.endSeconds}` : "");
     const existing = this.bufferPromises.get(key);
     if (existing) return existing;
 
     const generation = this.generation;
     let active = true;
-    const work = this.loadBuffer(path, overlap).then((buffer) => {
+    const work = this.loadBuffer(path, overlap, intro, region).then((buffer) => {
       if (!active || generation !== this.generation || this.disposed) {
         return null;
       }
@@ -433,24 +453,33 @@ export class AudioV2Sfx {
     return loading;
   }
 
-  private async loadBuffer(path: string, overlapSeconds = 0): Promise<StaticSoundBuffer | null> {
+  private async sourceFor(path: string): Promise<string | ArrayBuffer | null> {
+    if (isDirectUrl(path)) return path;
+    const candidates = hasAudioExtension(path)
+      ? [normalizePath(path)]
+      : SOUND_EXTENSIONS.map((extension) => `${normalizePath(path)}${extension}`);
+    const loader = PK3Loader.getInstance();
+    for (const candidate of candidates) {
+      if (!loader.hasFile(candidate)) {
+        const packageName = PK3Index.getInstance().findFile(candidate);
+        if (packageName) await this.loadPackage(packageName);
+      }
+      const bytes = await loader.getFile(candidate);
+      if (bytes) return bytes;
+    }
+    return null;
+  }
+
+  private async loadBuffer(
+    path: string,
+    overlapSeconds = 0,
+    intro?: LoopSfxPlayOptions["intro"],
+    region?: LoopSfxPlayOptions["loopRegion"],
+  ): Promise<StaticSoundBuffer | null> {
     if (!this.engine) return null;
     try {
-      if (isDirectUrl(path)) return await this.createBuffer(path, overlapSeconds);
-
-      const candidates = hasAudioExtension(path)
-        ? [normalizePath(path)]
-        : SOUND_EXTENSIONS.map((extension) => `${normalizePath(path)}${extension}`);
-      const loader = PK3Loader.getInstance();
-
-      for (const candidate of candidates) {
-        if (!loader.hasFile(candidate)) {
-          const packageName = PK3Index.getInstance().findFile(candidate);
-          if (packageName) await this.loadPackage(packageName);
-        }
-        const bytes = await loader.getFile(candidate);
-        if (bytes) return await this.createBuffer(bytes, overlapSeconds);
-      }
+      const source = await this.sourceFor(path);
+      if (source) return await this.createBuffer(source, overlapSeconds, intro, region);
     } catch (error) {
       console.warn(`[AudioManager] Failed to decode SFX '${path}':`, error);
       return null;
@@ -464,27 +493,61 @@ export class AudioV2Sfx {
     return null;
   }
 
-  private async createBuffer(source: string | ArrayBuffer, overlapSeconds: number): Promise<StaticSoundBuffer | null> {
+  private async encodedBytes(source: string | ArrayBuffer): Promise<ArrayBuffer> {
+    if (typeof source !== "string") return source;
+    const response = await fetchAsset(source);
+    if (!response.ok) throw new Error(`Sound request failed: ${response.status}`);
+    return readAssetBuffer(response);
+  }
+
+  private async createBuffer(
+    source: string | ArrayBuffer,
+    overlapSeconds: number,
+    intro?: LoopSfxPlayOptions["intro"],
+    region?: LoopSfxPlayOptions["loopRegion"],
+  ): Promise<StaticSoundBuffer | null> {
     const engine = this.engine;
     if (!engine) return null;
-    if (overlapSeconds === 0) return engine.createSoundBufferAsync(source);
-    let bytes: ArrayBuffer;
-    if (typeof source === "string") {
-      const response = await fetchAsset(source);
-      if (!response.ok) throw new Error(`Sound request failed: ${response.status}`);
-      bytes = await readAssetBuffer(response);
-    } else bytes = source;
+    if (overlapSeconds === 0 && !intro && !region) return engine.createSoundBufferAsync(source);
+    const bytes = await this.encodedBytes(source);
     // Retain the PK3 byte cache: decodeAudioData may detach its input buffer.
     const context = new OfflineAudioContext(1, 1, 48000);
     const decoded = await context.decodeAudioData(bytes.slice(0));
+    const start = region ? Math.max(0, Math.round(region.startSeconds * decoded.sampleRate)) : 0;
+    const end = region ? Math.min(decoded.length, Math.round(region.endSeconds * decoded.sampleRate)) : decoded.length;
+    if (region && (!Number.isFinite(start) || !Number.isFinite(end) || start >= end))
+      throw new Error("Invalid loop region");
     const overlapFrames = Math.round(overlapSeconds * decoded.sampleRate);
-    const channels = Array.from({ length: decoded.numberOfChannels }, (_, channel) =>
-      overlapLoopChannel(decoded.getChannelData(channel), overlapFrames),
+    let channels = Array.from({ length: decoded.numberOfChannels }, (_, channel) =>
+      overlapLoopChannel(
+        region ? decoded.getChannelData(channel).subarray(start, end) : decoded.getChannelData(channel),
+        overlapFrames,
+      ),
     );
+    const loopFrames = channels[0].length;
+    if (intro) {
+      if (!Number.isFinite(intro.holdSeconds) || !Number.isFinite(intro.fadeSeconds))
+        throw new Error("Invalid loop intro duration");
+      const introSource = await this.sourceFor(intro.path);
+      if (!introSource) throw new Error(`Missing loop intro: ${intro.path}`);
+      const attackBytes = await this.encodedBytes(introSource);
+      const attack = await context.decodeAudioData(attackBytes.slice(0));
+      if (attack.numberOfChannels !== decoded.numberOfChannels) throw new Error("Loop intro channels do not match");
+      channels = channels.map((channel, index) =>
+        prependLoopIntro(
+          attack.getChannelData(index),
+          channel,
+          intro.holdSeconds * decoded.sampleRate,
+          intro.fadeSeconds * decoded.sampleRate,
+        ),
+      );
+    }
     const loop = context.createBuffer(channels.length, channels[0].length, decoded.sampleRate);
     for (let channel = 0; channel < channels.length; channel++) loop.copyToChannel(channels[channel], channel);
     if (this.disposed || this.engine !== engine) return null;
-    return engine.createSoundBufferAsync(loop);
+    const buffer = await engine.createSoundBufferAsync(loop);
+    if (intro) this.loopStarts.set(buffer, (channels[0].length - loopFrames) / decoded.sampleRate);
+    return buffer;
   }
 
   private async loadPackage(packageName: string): Promise<void> {

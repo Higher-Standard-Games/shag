@@ -95,6 +95,46 @@ describe("AudioV2Sfx", () => {
 
   afterEach(() => vi.unstubAllGlobals());
 
+  it("prepares one attack-to-loop buffer, then starts its repeat after the blended intro", async () => {
+    const loopData = new Float32Array(1000).fill(0.8);
+    loopData.fill(0.2, 100, 250);
+    const attackData = new Float32Array(1000).fill(0.6);
+    const decode = vi
+      .fn()
+      .mockResolvedValueOnce({ length: 1000, sampleRate: 1000, numberOfChannels: 1, getChannelData: () => loopData })
+      .mockResolvedValueOnce({ sampleRate: 1000, numberOfChannels: 1, getChannelData: () => attackData });
+    let prepared = new Float32Array();
+    const create = vi.fn((_channels: number, _length: number, _rate: number) => ({
+      copyToChannel: (samples: Float32Array) => {
+        prepared = new Float32Array(samples);
+      },
+    }));
+    vi.stubGlobal(
+      "OfflineAudioContext",
+      class {
+        decodeAudioData = decode;
+        createBuffer = create;
+      },
+    );
+    const audio = new AudioV2Sfx();
+    const options = {
+      pitch: 150,
+      loopRegion: { startSeconds: 0.1, endSeconds: 0.25 },
+      intro: { path: "start.ogg", holdSeconds: 0.12, fadeSeconds: 0.06 },
+    };
+    await audio.preload(["hum.ogg"], options);
+    const loop = await audio.playLoop3D("hum.ogg", null, options);
+    expect(decode).toHaveBeenCalledTimes(2);
+    expect(create).toHaveBeenCalledWith(1, 330, 1000);
+    expect(prepared[0]).toBeCloseTo(0.6);
+    expect(prepared[119]).toBeCloseTo(0.6);
+    expect(prepared[179]).toBeCloseTo(0.2);
+    expect([...prepared.slice(180)]).toEqual([...loopData.slice(100, 250)]);
+    expect(engine.createSoundAsync.mock.calls[0][2]).toMatchObject({ loop: true, loopStart: 0.18, pitch: 150 });
+    loop?.stop();
+    audio.dispose();
+  });
+
   it("caches overlapped PCM separately from one-shots and preserves both channels", async () => {
     const channels = [
       Float32Array.from([0, 0.25, 0.5, 1, 1, 1, 1, 0.5, 0.25, 0]),

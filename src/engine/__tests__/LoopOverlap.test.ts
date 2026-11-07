@@ -1,7 +1,23 @@
 import { describe, expect, it } from "vitest";
-import { overlapLoopChannel } from "../audio/LoopOverlap";
+import { overlapLoopChannel, prependLoopIntro } from "../audio/LoopOverlap";
 
 describe("loop overlap", () => {
+  it("preserves the attack then blends toward the loop tail without including the attack in the repeat", () => {
+    const attack = Float32Array.of(0.8, 0.7, 0.6, 0.5, 0.4);
+    const loop = Float32Array.of(0.1, 0.2, 0.3, 0.4);
+    const joined = prependLoopIntro(attack, loop, 2, 3);
+    expect([...joined.slice(0, 2)]).toEqual([...attack.slice(0, 2)]);
+    expect(joined[2]).toBeCloseTo(0.6);
+    expect(joined[4]).toBeCloseTo(0.4);
+    expect([...joined.slice(5)]).toEqual([...loop]);
+    expect([...attack]).toEqual([...Float32Array.of(0.8, 0.7, 0.6, 0.5, 0.4)]);
+  });
+
+  it("bounds the intro and fade to the available audio", () => {
+    expect(prependLoopIntro(Float32Array.of(1, 2), Float32Array.of(3, 4), 100, 100)).toEqual(
+      Float32Array.of(1, 2, 3, 4),
+    );
+  });
   it("joins faded edges without replaying a silent boundary", () => {
     const source = Float32Array.from([0, 0.25, 0.5, 1, 1, 1, 1, 0.5, 0.25, 0]);
     const loop = overlapLoopChannel(source, 4);

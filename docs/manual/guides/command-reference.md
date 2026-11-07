@@ -190,7 +190,8 @@ Engine: `join`; `nettest <subcommand>` and `binarytest <subcommand>` require **d
 The FPS module adds `connect`, `disconnect`, `loadout`, `demo`, `demolist`, `demoplay`, `timedemo`, `netsim` **dev** (network simulation tests), `pickup_audit` **dev**, `camera_audit` **dev** and `water` **dev**.
 
 `loadout <primary> <secondary>` chooses a spawn kit. With no arguments it lists
-the choices and aliases. Invalid weapons and disconnected attempts return a
+the choices and aliases. Changes apply at the next spawn; the live inventory
+stays unchanged. Invalid weapons and disconnected attempts return a
 failure through `CommandRegistry.executeChecked`.
 
 ```text

@@ -96,8 +96,8 @@ function resolveAlias(value: string | undefined): string | null {
 }
 
 /**
- * When a changed kit takes effect: `round` at the next round (S&D, Amphi),
- * `respawn` at the player's next spawn (Deathmatch).
+ * Kit timing reported by a match: `round` at a round boundary,
+ * `respawn` at the player's next spawn.
  */
 export type LoadoutMode = "round" | "respawn";
 

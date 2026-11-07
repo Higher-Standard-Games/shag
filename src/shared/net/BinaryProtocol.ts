@@ -1472,7 +1472,7 @@ export enum MessageType {
   Spectate = 0x87, // Player → Spectator: request to leave game and spectate
   RequestSpawn = 0x88, // Dead player requests respawn (after cooldown)
   Chat = 0x89, // In-game chat text (server sanitizes, rate-limits, rebroadcasts as snapshot event)
-  SetLoadout = 0x8a, // Chosen spawn kit (S&D). Takes effect from the next round.
+  SetLoadout = 0x8a, // Chosen kit for the player's next spawn.
   Resume = 0x8b, // Reconnecting client claims the session it was dropped from
   ClientPrefs = 0x8c, // Player preferences the server acts on (auto-switch on pickup)
 }

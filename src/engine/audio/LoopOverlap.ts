@@ -12,3 +12,17 @@ export function overlapLoopChannel(samples: Float32Array, overlapFrames: number)
   }
   return result;
 }
+
+/** Play an attack once, blend into the loop's tail, then repeat only the loop. */
+export function prependLoopIntro(attack: Float32Array, loop: Float32Array, holdFrames: number, fadeFrames: number) {
+  const hold = Math.min(attack.length, Math.max(0, Math.floor(holdFrames)));
+  const fade = Math.min(loop.length, attack.length - hold, Math.max(0, Math.floor(fadeFrames)));
+  const result = new Float32Array(hold + fade + loop.length);
+  result.set(attack.subarray(0, hold));
+  for (let i = 0; i < fade; i++) {
+    const angle = (fade > 1 ? i / (fade - 1) : 1) * (Math.PI / 2);
+    result[hold + i] = attack[hold + i] * Math.cos(angle) + loop[loop.length - fade + i] * Math.sin(angle);
+  }
+  result.set(loop, hold + fade);
+  return result;
+}

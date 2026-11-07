@@ -392,9 +392,8 @@ export class MessageCodec {
   /**
    * Encode a SetLoadout message (Client → Server)
    *
-   * The chosen spawn kit, as weapon ids. Sent whenever the player changes it,
-   * not per round — the server decides when it takes effect (next round), so a
-   * client that spams this gains nothing.
+   * The chosen spawn kit, as weapon ids. Sent when the selection changes;
+   * the server grants the selection at the next spawn.
    * Format: [MessageType.SetLoadout][primary: string][secondary: string]
    */
   static encodeSetLoadout(primary: string, secondary: string): Uint8Array {
