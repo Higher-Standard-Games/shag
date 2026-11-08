@@ -1,4 +1,5 @@
 import { VertexBuffer } from "@babylonjs/core/Buffers/buffer";
+import { Constants } from "@babylonjs/core/Engines/constants";
 import { NullEngine } from "@babylonjs/core/Engines/nullEngine";
 import type { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
 import { Texture } from "@babylonjs/core/Materials/Textures/texture";
@@ -6,6 +7,9 @@ import { Scene } from "@babylonjs/core/scene";
 import { describe, expect, it, vi } from "vitest";
 import { SAFE_MAX_SIMULTANEOUS_LIGHTS } from "../../../lighting/DynamicLightSafety";
 import { PK3TextureLoader } from "../../pk3/PK3TextureLoader";
+import { parseShaderFile } from "../../shader/Q3ShaderParser";
+import { Q3ShaderRegistry } from "../../shader/Q3ShaderRegistry";
+import type { Q3Shader } from "../../shader/Q3ShaderTypes";
 import type { BspFile } from "../BspLoader";
 import { buildBrushModel } from "../mesh/brushModelBuilder";
 
@@ -119,4 +123,68 @@ describe("inline brush lightmap pages", () => {
       engine.dispose();
     }
   });
+});
+
+it("preserves authored blending, vertex alpha and depth bias on inline door decals", async () => {
+  const engine = new NullEngine(),
+    scene = new Scene(engine);
+  const registry = Q3ShaderRegistry.getInstance();
+  registry.clear();
+  const [shader] = parseShaderFile(`textures/qa/door_decal {
+    polygonOffset
+    cull none
+    { material textures/qa/numbers textures/flatnorm
+      blendFunc GL_SRC_ALPHA GL_ONE
+      rgbGen vertex
+      alphaGen vertex
+    }
+  }`);
+  (registry as unknown as { shaders: Map<string, Q3Shader> }).shaders.set(shader.name, shader);
+  const load = vi.spyOn(PK3TextureLoader.getInstance(), "loadTexture").mockResolvedValue(new Texture(null, scene));
+  try {
+    const bsp = {
+      models: [{ mins: [0, 0, 0], maxs: [1, 1, 1], firstFace: 0, numFaces: 2 }],
+      textures: [shader.name, "textures/qa/door_panel"].map((name) => ({ name, surfaceFlags: 0, contentFlags: 1 })),
+      lightmaps: [],
+      faces: [0, 1].map((textureIndex) => ({
+        textureIndex,
+        lightmapIndex: -1,
+        faceType: 1,
+        firstVertex: 0,
+        numVertices: 3,
+        firstMeshVert: 0,
+        numMeshVerts: 3,
+      })),
+      vertices: [
+        [0, 0, 0],
+        [1, 0, 0],
+        [0, 1, 0],
+      ].map((position) => ({
+        position,
+        normal: [0, 0, 1],
+        texCoord: [0, 0],
+        lightmapCoord: [0, 0],
+        color: [128, 64, 32, 128],
+      })),
+      meshVerts: [0, 1, 2],
+    } as unknown as BspFile;
+    const parent = await buildBrushModel(bsp, 0, scene, "door");
+    const [decal, panel] = parent!.getChildMeshes();
+    const material = decal.material as StandardMaterial;
+    expect(load.mock.calls[0][0]).toBe("textures/qa/numbers.webp");
+    expect(material.zOffsetUnits).toBeLessThan(0);
+    expect(material.zOffset).toBeLessThan(0);
+    expect(material.alphaMode).toBe(Constants.ALPHA_ADD);
+    expect(material.backFaceCulling).toBe(false);
+    expect(decal.hasVertexAlpha).toBe(true);
+    expect(decal.getVerticesData(VertexBuffer.ColorKind)![3]).toBeCloseTo(128 / 255);
+    expect((panel.material as StandardMaterial).zOffsetUnits).toBe(0);
+    expect(panel.hasVertexAlpha).toBe(false);
+    expect(panel.getVerticesData(VertexBuffer.ColorKind)).toBeNull();
+  } finally {
+    load.mockRestore();
+    registry.clear();
+    scene.dispose();
+    engine.dispose();
+  }
 });

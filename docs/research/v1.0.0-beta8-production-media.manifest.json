@@ -1,0 +1,2448 @@
+{
+  "date": "2026-11-08",
+  "destination": "/srv/washoi/assets/data",
+  "published": false,
+  "logo": {
+    "file": "washoi.png",
+    "bytes": 1221484,
+    "sha256": "a9e736a2939a889b87eaaa386c04b3b05ce6c352ddb900b8601f400574bf1909"
+  },
+  "regions": {
+    "EU": {
+      "host": "root@washoi.net",
+      "changes": [
+        {
+          "file": "map_washoi_dm1.pk3",
+          "bytes": 21160006,
+          "sha256": "09987df46b935dd3e453e0e6c5935c79ab9ae8a3beeea4e8dc3047b74fa65082",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "map_washoi_dm3.pk3",
+          "bytes": 16467181,
+          "sha256": "2ed0643a67470e4b8a3eadc5f8d6f679ccbc1b3e78622c76b21bf36aafef27da",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "map_washoi_dm5.pk3",
+          "bytes": 22546644,
+          "sha256": "f0bbfc52185220a3038ac6bfd64774a4c5efc90cf2968404436cc62184e848b8",
+          "action": "replace",
+          "previousSha256": "2dc73599d0412e097549e67eabbdb06b110f5f49853fde88174759ab4a1b9881"
+        },
+        {
+          "file": "map_washoi_dm7.pk3",
+          "bytes": 12707590,
+          "sha256": "54160b2701af904e6f534ed7c79cd6813cf4e7e76a3756ad85cc4ba504144c6e",
+          "action": "replace",
+          "previousSha256": "757145ece441b79281721111186af0d8235d1fa12f27e1ac1379b5aa120444fa"
+        },
+        {
+          "file": "tex_washoi_dm1.pk3",
+          "bytes": 7973730,
+          "sha256": "90489058c800b479877b7f3b31764d7f05eb24e2683f101671c48b6db90737a6",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "tex_washoi_dm3.pk3",
+          "bytes": 5973827,
+          "sha256": "43eded33edb3a8356df25dcdbb8b6f28b2a808dbe1fe8bd8f0c94651efdd2212",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "tex_washoi_dm5.pk3",
+          "bytes": 12528443,
+          "sha256": "2760101f297060bde8d166a901c002837d377cc774adc33b983f199e06cdb8fe",
+          "action": "replace",
+          "previousSha256": "f4a4f40271fd37e1c4fc51c66c6edbb1dc48315dbf9f10b819a7ea8b3cca5a64"
+        },
+        {
+          "file": "tex_washoi_dm7.pk3",
+          "bytes": 7780305,
+          "sha256": "fac5f950fef4ff149edb2c90894a611cd8d2655db6b4de025fd30eea19610836",
+          "action": "replace",
+          "previousSha256": "a56a74528c26e6768c62d4ee2cdc5f9a696371afcccdd49ee7bc032fa8cb8545"
+        },
+        {
+          "file": "washoi.png",
+          "bytes": 1221484,
+          "sha256": "a9e736a2939a889b87eaaa386c04b3b05ce6c352ddb900b8601f400574bf1909",
+          "action": "replace",
+          "previousSha256": "a0417f1603ee8c1d66a9643ab6b148383e8f3a308938d47941c0b38f8f25ad8c"
+        },
+        {
+          "file": "ktx2cache/manifest.json",
+          "bytes": 277953,
+          "sha256": "022ab69ac3cab15f4a04d08500e23245ad789f991da58cf869ba4272ef56726f",
+          "action": "replace",
+          "previousSha256": "4f316f3e9497693861eb9c435a83e4e7ac196721790bda757f22ac071e85d928"
+        },
+        {
+          "file": "ktx2cache/levelshots/washoi_amphi2.ktx2",
+          "bytes": 276537,
+          "sha256": "ffa4569522d0dbd8096bb5a4e0efddf948ffdb65eb796b6857c145d3bd70ab2a",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/levelshots/washoi_dm1.ktx2",
+          "bytes": 505697,
+          "sha256": "c90851120d9cacbd5b5e1088a570150f34772964d8926b171fa1f9de423e8f85",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/levelshots/washoi_dm12.ktx2",
+          "bytes": 387793,
+          "sha256": "de90ba05284e3ddfe141274a4ba5050ddbe5b1bbb6af7e55a58930897e83e1ec",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/levelshots/washoi_dm14.ktx2",
+          "bytes": 279149,
+          "sha256": "85578e0cf766388fb178bfe2666b1b45f7880764ca4bd32118da0b7434c6b2b7",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/levelshots/washoi_dm3.ktx2",
+          "bytes": 410090,
+          "sha256": "31cdcf80a86f7644d9b2ff44bf3d9f4102563650af667fe919059def2d40a5c4",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/levelshots/washoi_dm7.ktx2",
+          "bytes": 337877,
+          "sha256": "40f1a890a963025cbfa6f793ac66e26817da32f925489045377e6faf10567a05",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/levelshots/washoi_snd4.ktx2",
+          "bytes": 301885,
+          "sha256": "49fe2edb6eff2a8f481f3bcd6000a9def35abc21b5c3213d3fe220ce902f39d3",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/levelshots/washoi_snd6.ktx2",
+          "bytes": 329077,
+          "sha256": "a8e8856efa65ece86652e102623b97233352b5e7016ee5e9c20acdbe8ab4dd63",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/textures/exwsw/ex_q2_01c_norm.ktx2",
+          "bytes": 24872,
+          "sha256": "aadfaff6a0bc133b454c629b51d48580455fd38e810c8bbcc2e333b88dbe90c3",
+          "action": "replace",
+          "previousSha256": "ef797af2f3d27af8f3b0239a62e8d78764919f372eefa36cfdb1bd8111c7ea00"
+        },
+        {
+          "file": "ktx2cache/textures/baxandall/trim_01_norm.ktx2",
+          "bytes": 3401,
+          "sha256": "6ba562cc34bdef993f30d805f5465a88569d2188d04f533e3426b44b90aaf0c8",
+          "action": "replace",
+          "previousSha256": "f58ee7df54847eeff1f37bf2abe286c239d66e27880396ba888afda0250782ee"
+        },
+        {
+          "file": "ktx2cache/textures/wsw_city1/9techwall01_norm.ktx2",
+          "bytes": 305641,
+          "sha256": "efced93f6308ff327af768738a6b5c1529c1d4f676eefbfd9bd31d2148dbad91",
+          "action": "replace",
+          "previousSha256": "fcd818d0ed4e04358ab55361e17004afef2a9152f1266c20e99e9dd44d354728"
+        },
+        {
+          "file": "ktx2cache/textures/common/skip.ktx2",
+          "bytes": 3780,
+          "sha256": "8d7dea0fdac692726d3c99428ddabd9e09619514bfd03c3ba22505c3ba28bdc3",
+          "action": "replace",
+          "previousSha256": "a774116a0e0e4dbc55b0c881020f600f1f03a294a11af2731fc06adbafd67745"
+        },
+        {
+          "file": "ktx2cache/textures/neon/jujitsu_sign1.ktx2",
+          "bytes": 2077,
+          "sha256": "2e867932cfb6ab5f860f2289977e97a275f74329f3ca8b036c09110e3aa19449",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/textures/neon/jujitsu_sign2.ktx2",
+          "bytes": 2711,
+          "sha256": "cbd4763e76883b4d70b7d5d57d11237d077f33d6f32f14d9ee82e97d684ee207",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/textures/neon/jujitsu_sign3.ktx2",
+          "bytes": 3442,
+          "sha256": "ce3abf3d404243432dc55a6c7d722de0ca84d1c88db2f3c4d2b972818805cbd1",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/textures/neon/jujitsu_sign4.ktx2",
+          "bytes": 3957,
+          "sha256": "076aa2cc12b1aa4c5cd32183c63505b22b64f3d9e4a9220509e7353f365168bc",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/textures/neon/jujitsu_sign5.ktx2",
+          "bytes": 4782,
+          "sha256": "d651848a8d9ffe0cdef3f198a12355a4879e17c1cd6bb5ef015b92e0f4f5b967",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/textures/blx_wtest3/blx_wt3_crate1_norm.ktx2",
+          "bytes": 6739,
+          "sha256": "562f5d97a28a078df15903f23bf7040c5536510dcbb200134b2078971ff33e3a",
+          "action": "replace",
+          "previousSha256": "18234c9f54c56368fdf29983d3ea8da5501806a5124879bb6e95e0114c67dfb7"
+        },
+        {
+          "file": "ktx2cache/textures/blx_wtest3/blx_wt3_crate2_norm.ktx2",
+          "bytes": 11070,
+          "sha256": "77563bf3ece1fd16fe4533169a59b8db30c14ca02924b392fd56767a548fa8bd",
+          "action": "replace",
+          "previousSha256": "7db1164220e4669292b48f9ded01a050e4dc10229912395f5bcc81bb40a64f3f"
+        },
+        {
+          "file": "ktx2cache/textures/exwsw/ex_trim_01_norm.ktx2",
+          "bytes": 7771,
+          "sha256": "5cd2ea6c8f2b9a58401b54dc27460d9c1c668ba8bc0f56ab3ba90c2c22f95424",
+          "action": "replace",
+          "previousSha256": "f02700849683e3b6fc7418c566c56dd061bf3067b662eedd23887f76b8daf1a2"
+        },
+        {
+          "file": "ktx2cache/textures/exwsw/ex_wall_01_norm.ktx2",
+          "bytes": 20898,
+          "sha256": "a91c9dc148c751ebc4f3d6921d220f2d0957567668c5ca3f892b5544148dfe9f",
+          "action": "replace",
+          "previousSha256": "e9a8a5c9ec20bc26ac38249545cfdcb1bed0bc84d7e9e3c97ff27d9ce6a4ab12"
+        },
+        {
+          "file": "ktx2cache/textures/exwsw/exmetal_plate01b_norm.ktx2",
+          "bytes": 37621,
+          "sha256": "b80b86e376f544c7e5bb62edd9801b15375ab0690c6104cee7ca14fe4f986029",
+          "action": "replace",
+          "previousSha256": "a43f6e427a7e2aeadddef0dde08793bfbb4f7a186caa752f7dcec8279af3bdae"
+        },
+        {
+          "file": "ktx2cache/textures/exwsw/exmetal_plate01c_norm.ktx2",
+          "bytes": 44241,
+          "sha256": "c18f57a921a48bb182f288a8f374c442489ed49aeaaceb416f6efcd91bc87f10",
+          "action": "replace",
+          "previousSha256": "4ccc4383b81d9b73a0905558ad2158e2f4e58b47407df4d8c6e9a2e61ee64f43"
+        },
+        {
+          "file": "ktx2cache/textures/exwsw/exmetalfloor02_norm.ktx2",
+          "bytes": 5666,
+          "sha256": "5908716e334caf72fbcdb06fc2189d97f6eb6b01cd77f813dde0da8872a4367f",
+          "action": "replace",
+          "previousSha256": "6e50957f230fbdedd1a8a247f31c58941098b14c7bb8b59c88234d4599dc0453"
+        },
+        {
+          "file": "ktx2cache/textures/factory/factory_metal_floor_norm.ktx2",
+          "bytes": 983,
+          "sha256": "bc9bd6125b6bf404f46d846f3a41a0663d863a476ec17f10b97c3fe17772d03f",
+          "action": "replace",
+          "previousSha256": "f87dc76b989c5a580586900c4892dcb415c06cdfcf3cfeefbf9cb933174bfc22"
+        },
+        {
+          "file": "ktx2cache/textures/factory/pillar03_norm.ktx2",
+          "bytes": 4461,
+          "sha256": "d5987f99a5a404052ffcf34a2e715ce4cdbc777625e65e8e9b02e03bf992bd4c",
+          "action": "replace",
+          "previousSha256": "8a5bf2ed71839c7dfff83f67009c518210a2199eecd81ed0f57ef60e57bfdcda"
+        },
+        {
+          "file": "ktx2cache/textures/factory/trim_04_decal_norm.ktx2",
+          "bytes": 1675,
+          "sha256": "525e5eae45e1a6c2779bf7d8a059bc300d009dad824cc5b3c97c446a8f3b4765",
+          "action": "replace",
+          "previousSha256": "ae060604b776cd2408068a16ad93cae1bb85beb4abc099b5d6e6bdc3bf247062"
+        },
+        {
+          "file": "ktx2cache/textures/hazelh/rivet_trim2_norm.ktx2",
+          "bytes": 10290,
+          "sha256": "125d52cfb964994c8f51acf0d89e467fb491a550d88214a477d1d1599ae8fa2d",
+          "action": "replace",
+          "previousSha256": "6ac78204915dfa85178722633ab0215e53ad11dd5b8fdcdbc4208bc5aa5c10aa"
+        },
+        {
+          "file": "ktx2cache/textures/hazelh/ventpanel2_norm.ktx2",
+          "bytes": 13663,
+          "sha256": "59e71b6ec9a4927dbdc9121462d6f1f03936acb403d54e23412ad4aae63a4c7b",
+          "action": "replace",
+          "previousSha256": "1b0a0a91a3245937abf3d08f39542b091f66dfac803cae057c0c15719e25376a"
+        },
+        {
+          "file": "ktx2cache/textures/hazelh/verticalborder_norm.ktx2",
+          "bytes": 39976,
+          "sha256": "f4ab5f66cca598c6312ff2cb859f80b6f55ca04e0981e1305202b5a6cd058abb",
+          "action": "replace",
+          "previousSha256": "954a64539fe326dbfbb1a6fc7642d6c512bc0e025a970dd2c7bfddfa1dafd0b4"
+        },
+        {
+          "file": "ktx2cache/textures/hexagons/metalfloor01_norm.ktx2",
+          "bytes": 19318,
+          "sha256": "b1926df6e8c741df77ac970cf27f9d128d00912ab0df0e0e7fe357087127563d",
+          "action": "replace",
+          "previousSha256": "4a88c9cb1e7f88adde0400c656ec56722883543bcd63641f289182012b179d1f"
+        },
+        {
+          "file": "ktx2cache/textures/lights/oc2_norm.ktx2",
+          "bytes": 4916,
+          "sha256": "7f2b8940238c61c03e93fc7a748e420f96109572bba4b4c6bdf7d689f89a612e",
+          "action": "replace",
+          "previousSha256": "a12326cd60ba25ddac6aeafd4f48cbf512674e4bfdaa11667f53a71c0ce3efe1"
+        },
+        {
+          "file": "ktx2cache/textures/lights/tech_norm.ktx2",
+          "bytes": 2024,
+          "sha256": "b78748a9b3384b0e6e68eec45edf27fae35fcd46763309e242310ee6b2610acb",
+          "action": "replace",
+          "previousSha256": "93c66d68b6215856e00867c88b32239f3f35f8e7525f7fc83865bbab11bfb56b"
+        },
+        {
+          "file": "ktx2cache/textures/wsw_cave1/stairs1_norm.ktx2",
+          "bytes": 50978,
+          "sha256": "5cd0375f0976ddd19df3317399dbfd5bbf7b6c558acb9575cf63e17550bdc2fe",
+          "action": "replace",
+          "previousSha256": "8fdb5540b2f522bc75eb1843d23b8c45268a16dae08edfc923562245c19dfb46"
+        },
+        {
+          "file": "ktx2cache/textures/wsw_city1/tech_concrete_pattern_norm.ktx2",
+          "bytes": 261201,
+          "sha256": "18dc8c2216d236b3574d0ba90b09ddb10d0e0c2563e8ccd254bd4bb710cb6758",
+          "action": "replace",
+          "previousSha256": "fa0e18758a7b3d1046f4fa61687bc499839108a68bf019a5744189dbbf7ce322"
+        },
+        {
+          "file": "ktx2cache/env/autumtrees/autumtrees_bk.ktx2",
+          "bytes": 81510,
+          "sha256": "c717f58281974ee07f3d88c7dcd47801e8b20a3283e8cda7f8b1fbe2631c15f2",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/env/autumtrees/autumtrees_dn.ktx2",
+          "bytes": 70369,
+          "sha256": "b7f409652d2d8048cd45796a72bd3942307a8cb29a88642879ec418cf8029177",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/env/autumtrees/autumtrees_ft.ktx2",
+          "bytes": 80253,
+          "sha256": "37ef58cb8f9e6110b18d9d1524be0486cc1ca90f96503c215f634cca6e96d40c",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/env/autumtrees/autumtrees_lf.ktx2",
+          "bytes": 79731,
+          "sha256": "420a2d4512d31248a62448a71af7d6b4ecf582fba5013f00598371befb02bfb0",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/env/autumtrees/autumtrees_rt.ktx2",
+          "bytes": 77304,
+          "sha256": "5c08c0c0ffa92b2e58aa5385127ccfff812f5501200755ff6dedef4f35837d1c",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/env/autumtrees/autumtrees_up.ktx2",
+          "bytes": 79915,
+          "sha256": "0caf6121609e5bddaa53c140a97e818aaf107a08b94394b94b5b4e36bb257bc6",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/models/mapobjects/lights/fluo-pack/albedo_gloss.ktx2",
+          "bytes": 346067,
+          "sha256": "ffee38e780c170c125ac7cda9a11e97135f776c3debcc19901e1848911aedb65",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/models/mapobjects/lights/fluo-pack/albedo_norm.ktx2",
+          "bytes": 699,
+          "sha256": "a2bd26f0c0a02b80cc6cab27dd2deeeeea265ac33f1d71c12d4ef45f501d61f5",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/models/mapobjects/lights/fluo-pack/albedo.ktx2",
+          "bytes": 321840,
+          "sha256": "efda0fbeba1f262d1114764eee2193b0e6c76402f16ef2f4bfda8234cc7d5429",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/textures/blx_wtest3/blx_wt3_ceil4_norm.ktx2",
+          "bytes": 2055,
+          "sha256": "aec26216c58901947d67470456cff3c58ecc59ae0fd1c79aa2f69494b315cb32",
+          "action": "replace",
+          "previousSha256": "34bb9a5388a6d9f03253d75b7dfe467d3fa9f3a161e2d011a0bd8baa746f87c2"
+        },
+        {
+          "file": "ktx2cache/textures/blx_wtest3/blx_wt3_lines_norm.ktx2",
+          "bytes": 770,
+          "sha256": "ebd92c10b21fcaaaeef5eabce0edc880e47012f1712ac0186e448cf525823cd0",
+          "action": "replace",
+          "previousSha256": "6cb04e5805a4b550e06a8b1bb3768dafc5d46e090a5786854cd3dfe76d7e3a53"
+        },
+        {
+          "file": "ktx2cache/textures/blx_wtest3/blx_wt3_wall2_norm.ktx2",
+          "bytes": 6236,
+          "sha256": "98d50ac42d8d0aa1c2dccea3b84d32c3593fa61f4ea068a0a59aca36154e9612",
+          "action": "replace",
+          "previousSha256": "b749339a9674f9a65cb45aac596116ed86cfdf2d7718188810cf25eebfbf418c"
+        },
+        {
+          "file": "ktx2cache/textures/blx_wtest3/blx_wt3_wall3_norm.ktx2",
+          "bytes": 10204,
+          "sha256": "f464db311fe76b3493151d10e766a47a94906394d74beef6e4b5e705d932c114",
+          "action": "replace",
+          "previousSha256": "7700373d6276191ffa4f3a4ac4def958030e2a616a21c55854394ae39bfea5d1"
+        },
+        {
+          "file": "ktx2cache/textures/cha0s_ws/concrete-pit-rows_norm.ktx2",
+          "bytes": 72453,
+          "sha256": "b475bc5c35ff0fc18566919210318a7495bc004cd1f28a30e01a3dfca7281bbb",
+          "action": "replace",
+          "previousSha256": "5204ca64fd56c5a7a8cbac4ab5d670bd5861b6137ddaa79410ff2fc9e2edb273"
+        },
+        {
+          "file": "ktx2cache/textures/cha0s_ws/trim2_norm.ktx2",
+          "bytes": 2299,
+          "sha256": "b63d980af51aed6b5025256d8a6b43200488fafcca23b8077226b6dd6f7439b8",
+          "action": "replace",
+          "previousSha256": "f35795cbeffa66f1a1fcacb41f1225dd04011cf3b56f8efbbd921df30cd0ac93"
+        },
+        {
+          "file": "ktx2cache/textures/exwsw/ex_trim_psimple_04_norm.ktx2",
+          "bytes": 7894,
+          "sha256": "1a0c54ab675c345963d0418bdce97de240f54956a53f276f10a381cf19a2d81b",
+          "action": "replace",
+          "previousSha256": "7ac832960d32ff40945820df442a8b8310679e864ca7c04213ea894cd62d0814"
+        },
+        {
+          "file": "ktx2cache/textures/factory/factory_tile_norm.ktx2",
+          "bytes": 1101,
+          "sha256": "5148fb65ae9455f442abca2c21966de71d5599f58243222808095db8e75fcc57",
+          "action": "replace",
+          "previousSha256": "6b78cbbe33697f0dd6c0caa979508c4d57dd9404e53fb47850e597d5087ceb35"
+        },
+        {
+          "file": "ktx2cache/textures/hexagons/metalcollumn01_norm.ktx2",
+          "bytes": 1856,
+          "sha256": "d08ad14ed5c7102d92732fa94f5f68c531ed55322eb0666d65cc663e00c7db84",
+          "action": "replace",
+          "previousSha256": "b39c4aa168a7205a5aa19d9e2f17a969a1acce464948ccb7982099765c96ef18"
+        },
+        {
+          "file": "ktx2cache/textures/terrain/sand_norm.ktx2",
+          "bytes": 301657,
+          "sha256": "30328a8c5e9fa4219a92f667ad1449d7172e1a379ae3b4d69dad272d0e3e3756",
+          "action": "replace",
+          "previousSha256": "0cacbb1799b357a66fbe8dae2ffe203d28395ee7116964816261b0a66d213ae0"
+        },
+        {
+          "file": "ktx2cache/textures/grates/grid06_norm.ktx2",
+          "bytes": 20148,
+          "sha256": "fbcc27aa368bacd328b42265949c2ed78bbc1d83695f7cdb0d22d9c85ef76e0b",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/textures/grates/grid06.ktx2",
+          "bytes": 9632,
+          "sha256": "438281be0e45af9b75ae47b17add7eb0b149faff7667d0c729949ed69dad7be4",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/textures/terrain/rocks001_1024x1024_norm.ktx2",
+          "bytes": 1064155,
+          "sha256": "7d684770658aceef101312ea5830445ed0499c73fdb5f680d72117275bf3c47b",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/textures/terrain/rocks001_1024x1024.ktx2",
+          "bytes": 120908,
+          "sha256": "6270815b9493526622cc1c929cb016375421b6c1df7e30637d0afe1d061bc606",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/textures/wsw_city1/grate.ktx2",
+          "bytes": 13349,
+          "sha256": "172558a35065521c509d6db02f07c891f5589042698cbf699b3bc0f6ae5bf5bc",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/textures/terrain/rocks002_1024x1024.ktx2",
+          "bytes": 49545,
+          "sha256": "737d0aa4e82930967f0b137702d73e09f57f0e4f2041834cadabcc596ff8edbd",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/env/36sky_up.ktx2",
+          "bytes": 36693,
+          "sha256": "c74d0b6eb2d0c6a27d9e5cb24da6ca54c27d2f3c2bef96896d608b5beccf5222",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/textures/concrete_techwalls/concrete_blx_tile_norm.ktx2",
+          "bytes": 173223,
+          "sha256": "9ba23f597fe42b2e9d0c3dea684e292c1d8a32c32afa9063ac9e41ce59993d9c",
+          "action": "replace",
+          "previousSha256": "cfbefce14cc8428f64a1343d47f58189bf3aca997c2f0c36245c9cc7ceab74e8"
+        },
+        {
+          "file": "ktx2cache/textures/concrete_techwalls/concreteclean_blx_wall2_norm.ktx2",
+          "bytes": 194594,
+          "sha256": "8ee1bded3709b91457b590bb734277c999ea6092fe6fbd7195c2d1c881d61ec5",
+          "action": "replace",
+          "previousSha256": "d13c00394527bb2d7e05bf0afd21276f5e8cf9dec6eacf0d5da0b5dcc488443f"
+        },
+        {
+          "file": "ktx2cache/textures/concrete_techwalls/concreteclean_norm.ktx2",
+          "bytes": 140727,
+          "sha256": "7acabbaa83fd00f7dbcc46eaf0777d93a482365c904c79655d4ed83199185274",
+          "action": "replace",
+          "previousSha256": "b8302e7d34d56dceccc34475421d2328e68600f0e5e9b8f7821abfd7250711f4"
+        },
+        {
+          "file": "ktx2cache/textures/decals/dirt_01_norm.ktx2",
+          "bytes": 50033,
+          "sha256": "5e24ee00e0b254f3d0cef4804f4a5218ce7b024eb812d66931e6202058ea76b7",
+          "action": "replace",
+          "previousSha256": "990a1649f1449500cceb044c9464bdf523eb5684da5e5ed87e0aa6df265f1da7"
+        },
+        {
+          "file": "ktx2cache/textures/decals/dirt_02_norm.ktx2",
+          "bytes": 112510,
+          "sha256": "fb68b4d3f6d69fc55eaa56173e200498bfa9fe7437d5ba14a20b1b29a4fb6adf",
+          "action": "replace",
+          "previousSha256": "8d0d03fa74cfc1ee7360c7ad844a7b4650d0a599eb060eb94636f387cdfc33b9"
+        },
+        {
+          "file": "ktx2cache/textures/exwsw/ex_mtl_panel_03c_norm.ktx2",
+          "bytes": 5729,
+          "sha256": "75602552c7be0af2b5d9cfb4ebe9596ce9e800b9e4aff72df3414815e43114dd",
+          "action": "replace",
+          "previousSha256": "43197187983d843862e3bb781e3dd1da91e2c45b64d15a342dbd6c1a65479d02"
+        },
+        {
+          "file": "ktx2cache/textures/exwsw/ex_trim_psimple_05_norm.ktx2",
+          "bytes": 13920,
+          "sha256": "3f2919a73195bf8a956a752d1cb9f50369dfb768bd2e7eefa183a3534ad16f66",
+          "action": "replace",
+          "previousSha256": "69fc7a6c36dc6136c8ff59b895434eedbaa619dd31fb90e9fe0120ac65e6262a"
+        },
+        {
+          "file": "ktx2cache/textures/exwsw/ex_wall_01_big_green_norm.ktx2",
+          "bytes": 16284,
+          "sha256": "5b069e1c97c569c0726c2bfb3e578c99c8281cdd15562c07caf2312f4ca541f6",
+          "action": "replace",
+          "previousSha256": "dc2a7ace552d57cf0c5b841ed41efa8af0a20379d2fdf60795a3506e7907cbb2"
+        },
+        {
+          "file": "ktx2cache/textures/exwsw/ex_wall_bigrib_02_norm.ktx2",
+          "bytes": 2176,
+          "sha256": "067a297fa90bd93938a83f97a6f82d07844152d6ebc39442b7f38404fc895099",
+          "action": "replace",
+          "previousSha256": "40b3ddee128c0a45c5a1a7956b5fb2573a9c56b92e30557497f79b056f04e03c"
+        },
+        {
+          "file": "ktx2cache/textures/metal/scratchedmetal_norm.ktx2",
+          "bytes": 310255,
+          "sha256": "62010bd50de5818ad8add310ddafca460aa91d6c9d61031687ae754b365ebb38",
+          "action": "replace",
+          "previousSha256": "aa1be3f82d1c4f9d820890dea6fbc2da1abf9d22ee3d9c65ca0d7e71a7bcf2aa"
+        },
+        {
+          "file": "ktx2cache/textures/scifi_interior/aluminium_airvent_norm.ktx2",
+          "bytes": 19844,
+          "sha256": "8b04df4b25d520f947d3df1dbfc70964b14f78ef7aeaeee08041abd36de76bec",
+          "action": "replace",
+          "previousSha256": "403b685135c727b9851151543b81fd0a01c4f7344d72b5fe500bb5dc0080b178"
+        },
+        {
+          "file": "ktx2cache/textures/wsw_city1/metalsheet1_norm.ktx2",
+          "bytes": 15350,
+          "sha256": "2433c5d89309b994dc73f7f4002ed5867c5ff8959b02872b8af5ee0d63b62d71",
+          "action": "replace",
+          "previousSha256": "1d045175865c98dc412d77791375d244f3d000c7db543d35aa0d1e72893525a0"
+        },
+        {
+          "file": "ktx2cache/textures/wsw_city1/tech_wall1_norm.ktx2",
+          "bytes": 16336,
+          "sha256": "ceb8976e871ad0a3226a887da3eff292f500a1bef0f49e32bd73f34e80e90d98",
+          "action": "replace",
+          "previousSha256": "b7334e6b063197c01a1feb762507005f65316ad0ce437e99d4425b2ff43b8da2"
+        },
+        {
+          "file": "ktx2cache/models/mapobjects/crates/crate_wood3/albedo_norm.ktx2",
+          "bytes": 955674,
+          "sha256": "e6c3687496f20aed3b83c9c0626d6d15c09fe2f43906a80c9cf9a71c51a0dc91",
+          "action": "replace",
+          "previousSha256": "74ba17538b7b2cadbbdd5ca90f9d53e5bd072b8b7b9e6c5cbef051d95b3a8651"
+        },
+        {
+          "file": "ktx2cache/models/mapobjects/vehicles/forklift_norm.ktx2",
+          "bytes": 144223,
+          "sha256": "a5a10cc7a8e2694d5eb39351a4ae6fb124c4f118d56f28716b5787f3db4ebf20",
+          "action": "replace",
+          "previousSha256": "2828e3e6fd874a6be756ddf9d94592375fcb16b8fd52c46c9c63ee575b6bd716"
+        },
+        {
+          "file": "ktx2cache/textures/bricks/redbricks_trim_01_norm.ktx2",
+          "bytes": 20295,
+          "sha256": "b1120b18b68254ecf447e0b156489670f910cb73bdd017f65dab68896306a726",
+          "action": "replace",
+          "previousSha256": "bc6015d5145738ba906c0314233b5fa962dc7f58a415b48b8ef8415f85b58608"
+        },
+        {
+          "file": "ktx2cache/textures/concrete/baseblue0060_norm.ktx2",
+          "bytes": 260672,
+          "sha256": "e7bfd4716891dab2bb5ddb408edf9b3b75e66555f56164914014a05d8ff26d57",
+          "action": "replace",
+          "previousSha256": "d75c8e637e9f68d6ffefc495b557be82ae106430d3cb015b7c829097f3fa9c29"
+        },
+        {
+          "file": "ktx2cache/textures/decals/dirt_scratch_02_norm.ktx2",
+          "bytes": 53033,
+          "sha256": "afb377673c13783e00f80a1223e691ae22361aca71708ed859f62d264a5cb610",
+          "action": "replace",
+          "previousSha256": "067243e960279da3baa803494c8c37693bfec92ddba3231638ba02f647bf86db"
+        },
+        {
+          "file": "ktx2cache/textures/exwsw/ex_q2_01_norm.ktx2",
+          "bytes": 20998,
+          "sha256": "315484bfe0af5c21f72472fae510de05727dcb36c7b97bae4ac3d80fa41c8819",
+          "action": "replace",
+          "previousSha256": "38851b9412c9e4f9295a17d4a1cbcc0dcb4e163f6b90f243c3c0fe6f660cfe6f"
+        },
+        {
+          "file": "ktx2cache/textures/exwsw/trim_red_2_norm.ktx2",
+          "bytes": 2185,
+          "sha256": "851cf4d39ccba1bc9b5c6ca5e177aabe503fdfb14b8ea5d2e66940d0638cd8db",
+          "action": "replace",
+          "previousSha256": "dfe673622b58223b3d5c7361ae0d29e358da249c3742dc45a7090e0cdf10abdf"
+        },
+        {
+          "file": "ktx2cache/textures/exwsw/trim_red_norm.ktx2",
+          "bytes": 962,
+          "sha256": "21dbcaca123f0c7dbe6c50fe47d37064258b295164d42755b2d807323c2af2a0",
+          "action": "replace",
+          "previousSha256": "bb6fed2445087f6d794fec26563071e17e32dc8be0e25eefcd2a2d5f8f201a83"
+        },
+        {
+          "file": "ktx2cache/textures/hexagons/metalwallceilling03_norm.ktx2",
+          "bytes": 8672,
+          "sha256": "30f27a1ff73fcf784bce9576ca883737876b71af3bbae96b6383c9cc72421a97",
+          "action": "replace",
+          "previousSha256": "828f5524878e94c58a38b643b3ef4daf3a134a18145238a1189f08b9fb962e29"
+        },
+        {
+          "file": "ktx2cache/textures/metal/redwall_double_norm.ktx2",
+          "bytes": 184412,
+          "sha256": "1966c02301fe2716b55f3d6d0de410b844dc9aeb58165b8961e1d245fdf11040",
+          "action": "replace",
+          "previousSha256": "cf9b4cfe58580038d5834525ddb18b0d97df94e3584dcbabe9ff45904c287c0a"
+        },
+        {
+          "file": "ktx2cache/textures/metal/redwall_norm.ktx2",
+          "bytes": 173081,
+          "sha256": "0caa0572a1c43ab7fdc13ff967c45745e200c735a2b4c8969f2f0bdba8ca3708",
+          "action": "replace",
+          "previousSha256": "f7423633c875c1e42e2f738f7c5ebfc56daed0bdd9521b970109931b0c192ad2"
+        },
+        {
+          "file": "ktx2cache/textures/metal/redwall_single_norm.ktx2",
+          "bytes": 178293,
+          "sha256": "bf589d1a1904e07fee8c0568f811351c2cf056519831d1ad60118bb962a060ae",
+          "action": "replace",
+          "previousSha256": "044940dea2f4f4ffc24b490880a9ca716297acf96e269433262aaeffb289904c"
+        },
+        {
+          "file": "ktx2cache/textures/terrain/rocks005_512x512_norm.ktx2",
+          "bytes": 312565,
+          "sha256": "48fefe19df3f7a205727946f2b9ef03a854df16652f52e0db7474a75f8f7a95d",
+          "action": "replace",
+          "previousSha256": "c4ec6cf0ab52907d2233d4246ed71489bc8273d28a4aca4983ca80c714ce9323"
+        },
+        {
+          "file": "ktx2cache/textures/terrain/rockwall01_norm.ktx2",
+          "bytes": 301545,
+          "sha256": "3bd98ab753209c7b587f57d0137994474919776bd13879a631d9f2e4896ac04f",
+          "action": "replace",
+          "previousSha256": "0a8f94716935a6ce7ab00cc18d29643644bdc102fed9fe58ce54624bfe6d07e5"
+        },
+        {
+          "file": "ktx2cache/textures/world/water/nateswater.ktx2",
+          "bytes": 29064,
+          "sha256": "4d4ae2ec9ba4addca1cc1c7a1eaf5088ec5d11d760bb885484cc76ac8fe14cf4",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/textures/wsw_city1/tech_dirt1_norm.ktx2",
+          "bytes": 321753,
+          "sha256": "5d9e7c7332f355b3de26f71f8fbbe6d8af6b891d64d9e6f8e379c43dd5b9d1a6",
+          "action": "replace",
+          "previousSha256": "4fce3ea91f31d349a3df8d83e200e93bf224ecde8497913c474c03fd09928c49"
+        },
+        {
+          "file": "ktx2cache/env/grimmnight/grimmnight_bk.ktx2",
+          "bytes": 21257,
+          "sha256": "438cb46292a8bc1ff94d71e1be8ecc3881740380a241fccb225de5874e537d23",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/env/grimmnight/grimmnight_ft.ktx2",
+          "bytes": 21044,
+          "sha256": "7f983232808c47762fac7a33354faeda7d3cfc0cc89331b7b5b1731ca7461f65",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/env/grimmnight/grimmnight_lf.ktx2",
+          "bytes": 18546,
+          "sha256": "134366b91bd3abfbacab73b05f02358ef026601467e167542cb353074d42edc1",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/env/grimmnight/grimmnight_rt.ktx2",
+          "bytes": 25324,
+          "sha256": "ac66d9e052016a2e4cd49656f141e40ffbd81714c49a3f2c07d79a8872e22789",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/env/grimmnight/grimmnight_up.ktx2",
+          "bytes": 9750,
+          "sha256": "e0392101574607d39c31936b0660d7ae653ba9ec9130adc1b5c82f5f4b9c2ad5",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/textures/boqu/med_concrete2_norm.ktx2",
+          "bytes": 55844,
+          "sha256": "011b6dd011cd6e6c982b776d48dcdf4ec809565d7a929170cbb82810c85e3c44",
+          "action": "replace",
+          "previousSha256": "84f8abac199f7df5f0e57bc4332c0c7a04724e822da853562c2780f14afbc921"
+        },
+        {
+          "file": "ktx2cache/textures/exwsw/ex_mtl_panel_03b_norm.ktx2",
+          "bytes": 5891,
+          "sha256": "389af1ecf12b04af5cb47106cdc85ce1b67da9912a200d8bd4feb8c46e6f6932",
+          "action": "replace",
+          "previousSha256": "25a18077592b8ec5d9eab5e9af9ba476c8ae451cbe59e5d2042be70379ce8226"
+        },
+        {
+          "file": "ktx2cache/textures/metal/bigtreadplateg_norm.ktx2",
+          "bytes": 5948,
+          "sha256": "db860b028b93c992842a489d5f5340067b2b3e0cddcf225b8b06dafb3894b4ae",
+          "action": "replace",
+          "previousSha256": "72394e5be49d93820a7ba21129d28ee1da90ba7d9e76b7d41b3262dd4a0687bf"
+        },
+        {
+          "file": "ktx2cache/textures/sky/sky_night_front.ktx2",
+          "bytes": 13958,
+          "sha256": "06206695fb1ff098df7f0a4ed6d9f7261b77297c89b9111554db8c74d804c633",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/models/mapobjects/tree110/barkdecidious048_gloss.ktx2",
+          "bytes": 9777,
+          "sha256": "2f53615eb121a264731c2a1217a6a5b7808832eaac300ba27055263a90af5bc9",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/models/mapobjects/tree110/barkdecidious048_norm.ktx2",
+          "bytes": 39103,
+          "sha256": "7daa90c2d24041aababdf6a9cacefdaf20922c89dd64a5d10064ea4ef6d2ca51",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/models/mapobjects/tree110/barkdecidious048.ktx2",
+          "bytes": 9173,
+          "sha256": "16e958e352eb2c49d34124cef48a6fed2a724ec8175d275c7ac4d1514d9bcb79",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/models/mapobjects/tree110/leaves0108_s.ktx2",
+          "bytes": 26927,
+          "sha256": "9fb9690e6ff3840dd74276368f222c35e6e0f932a8d4cc6de3e1702eebc74fe8",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/textures/refly_wood/wood3_norm.ktx2",
+          "bytes": 52255,
+          "sha256": "39cdb888bf1da46116aaa5286ad1c8ebec82b771fff29c24584416e00437a375",
+          "action": "replace",
+          "previousSha256": "57082820bbc184c13b4da151efcbbefdc8e90e8bca2267d17550d26e10bb67a6"
+        },
+        {
+          "file": "ktx2cache/textures/tiles/floorsregular0100_norm.ktx2",
+          "bytes": 241067,
+          "sha256": "259d19a01dcd962fc24600781b783f56c754036e40e9e6ab6b11dbdea140bf50",
+          "action": "replace",
+          "previousSha256": "6e04b51dd7f27cfe334d1c114d7c2ab492ea6082882f8ce0cc34ba606f0a8ebe"
+        },
+        {
+          "file": "ktx2cache/textures/wood/woodtables01_norm.ktx2",
+          "bytes": 69152,
+          "sha256": "466530e29726efbee6546bcb27940607d4afbdb1f714c9576b34710eebabc9b1",
+          "action": "replace",
+          "previousSha256": "fe54529f1541a5ad56faae5fe1a295ccc7fdebd346c692a2fe363f269163adf3"
+        },
+        {
+          "file": "ktx2cache/textures/cha0s_ws/blocks_1_top_lip_norm.ktx2",
+          "bytes": 1335,
+          "sha256": "3bf704f660099a7bdb0b6ee53c25b44265d6f0eadb7ae4ee0798be34dbdfb5c8",
+          "action": "replace",
+          "previousSha256": "385974051f0f1dee410701fc2eddc3d04e1a5ffdea3bdadad286c52a45140e1c"
+        },
+        {
+          "file": "ktx2cache/textures/cha0s_ws/trim19_norm.ktx2",
+          "bytes": 11029,
+          "sha256": "2d9241ccdff3578b75889ab7326009f4dbded80734136df260d9b49d0f59d7cb",
+          "action": "replace",
+          "previousSha256": "a338f6f1747e5ab2077d2bcfdb248d40e4f73a065db2556e62ba7641629daaa2"
+        },
+        {
+          "file": "ktx2cache/textures/grates/grid05_norm.ktx2",
+          "bytes": 19263,
+          "sha256": "6eb42a08d52aac0451bb3e7d7ddde90d8342f6f0d225f9f6e821a69b0ccff583",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/textures/cha0s_ws/cement_3_norm.ktx2",
+          "bytes": 2406,
+          "sha256": "5a151fc26f5552c80d72f3399e9b71fa25b88676788e6f72303578edcba76c26",
+          "action": "replace",
+          "previousSha256": "6e5817894dec64cbf67384af01b5a864d46bac1c18aae70106f73fb7db5027f2"
+        },
+        {
+          "file": "ktx2cache/models/mapobjects/lights/fluo-pack/albedo_decal.ktx2",
+          "bytes": 33270,
+          "sha256": "f97dbdef8f3d6a315565a6147ec9d1e0ac35bc6c0fa789fd26a2afe39825e926",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/models/mapobjects/scifi/pillar-mech/albedo.ktx2",
+          "bytes": 355201,
+          "sha256": "7ac30aebca74632b972d309d579ac1ef6f23fa87aa62bee1a253ae32521760f0",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/models/mapobjects/scifi/pillar-mech/albedo_norm.ktx2",
+          "bytes": 3322208,
+          "sha256": "a5b1cd8c0b2dae5d45a948f1d88b751b4ac4c34b7220cc49e019bf548ec76cc9",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/models/mapobjects/scifi/pillar-mech/albedo_gloss.ktx2",
+          "bytes": 97917,
+          "sha256": "f16c2f441aa7b770f643b236cfe6c3ec930c194ee98174de8324845faeb109a8",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/textures/pipes/o2pipe_norm.ktx2",
+          "bytes": 1033,
+          "sha256": "d0ef59e7c76d9bd63d1bff5f6a7761d7106694e2141b09f70401072a5b94edac",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/textures/pipes/o2pipe_gloss.ktx2",
+          "bytes": 2749,
+          "sha256": "dd4a12da2cbaa27e6b99ea081eb81ed4971e1695df4dfc31d83a72fa486275ce",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/models/mapobjects/industrial/barrel_1/albedo_norm.ktx2",
+          "bytes": 907663,
+          "sha256": "bbc2dd242c5a1bfc4dff483ed3cf486a92d8f9f3e335ff982055f14984e17040",
+          "action": "replace",
+          "previousSha256": "487dd73af1e51c2daff38f10331257957f5d3481fe79c775f68d8054ef6c3df2"
+        },
+        {
+          "file": "ktx2cache/textures/pipes/o2pipe.ktx2",
+          "bytes": 13855,
+          "sha256": "6327f39aff33f7ea960edcf4d8d87db840cb8d53be47e40ea2c78de761e4f1bc",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/textures/boqu/whitepanel01_norm.ktx2",
+          "bytes": 7575,
+          "sha256": "beee4060bc047b66cbc537578a49d2b5b3148742f164ef908fe75bef1e10fd3e",
+          "action": "replace",
+          "previousSha256": "52a274206ef992912075f5ae2e278e605fa08878c82855222a13db0128a09bd8"
+        },
+        {
+          "file": "ktx2cache/textures/boqu/white_panel1_norm.ktx2",
+          "bytes": 8334,
+          "sha256": "37044c90e32e6096179b76e0a26be25972df799686edf0c9a439d85210727c78",
+          "action": "replace",
+          "previousSha256": "dd76ecb3b7750673f435ce821c75ad43441b30200bb1f9d21898d51679f237e2"
+        },
+        {
+          "file": "ktx2cache/textures/terrain/drymud1_norm.ktx2",
+          "bytes": 118160,
+          "sha256": "7078a1365fc1318abb33dbe88b51d45c7b67cbfabfaf67e009e90753c5ba019b",
+          "action": "replace",
+          "previousSha256": "73320e8ef3a2e60ba1331b9cd5726ce8850873068985bdf3a8b5cb4586a82861"
+        },
+        {
+          "file": "ktx2cache/textures/blx_wtest3/blx_wt3_ceil2_norm.ktx2",
+          "bytes": 3995,
+          "sha256": "02b64b10a0de116efffebf6205d99357e25b9dd07660e239588d04c20e32000d",
+          "action": "replace",
+          "previousSha256": "4f07e57daf4fb1af76432d6b0c466c369645e1f74e8cd0f27f98b47da758fd4e"
+        },
+        {
+          "file": "ktx2cache/textures/boqu2/metaltrim2_norm.ktx2",
+          "bytes": 996,
+          "sha256": "53a9c5ea6e7de23d3461fffdb1ffee103c637dca6be94031792cc4bb436f48eb",
+          "action": "replace",
+          "previousSha256": "80c3e6ed7588aca942716802a0006b62eea99ec603903e76d86bf50493570122"
+        },
+        {
+          "file": "ktx2cache/textures/exwsw/ex_mtl_bigplate_04b_norm.ktx2",
+          "bytes": 56512,
+          "sha256": "2487b3a074dd7e412049763825ba7ea161c0683dbff00424a0f3cb8e0456217a",
+          "action": "replace",
+          "previousSha256": "7fc503f9195ad005bcdb66c35e7e2d9ace6fc6d666b033a9360392344b32fc66"
+        },
+        {
+          "file": "ktx2cache/textures/boqu2/whitetrim3_norm.ktx2",
+          "bytes": 4517,
+          "sha256": "4b863141894a7216e72ca760765aed54ffc138a99634c8fddf4cd1bcf7d78614",
+          "action": "replace",
+          "previousSha256": "6f62ee2820d25ccace16256e2a8da3cc4116e3d93b1ccc4f9820c21bfc8c114e"
+        },
+        {
+          "file": "ktx2cache/textures/scifi_interior/aluminium_panel2_norm.ktx2",
+          "bytes": 3203,
+          "sha256": "f753e14bf7b4085c6432e43e8f6505ff9fe667ae22401ef24681e32dfd52bc85",
+          "action": "replace",
+          "previousSha256": "153bc9fecefed3ad3001cb255da8dffdadde71d841cb4cd18317d6ccb50cc12f"
+        },
+        {
+          "file": "ktx2cache/models/mapobjects/rocks/cliffrock/albedo.ktx2",
+          "bytes": 627534,
+          "sha256": "31dc64754be60e86b4b49d4796295fa4c6c031da418604588701f80591c46da4",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/models/mapobjects/rocks/cliffrock/albedo_norm.ktx2",
+          "bytes": 2227104,
+          "sha256": "e66017e42637015db8fcc7f53e1a3c3c65e2cd8fc97f4ffff70b3c02a40dd6d4",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/models/mapobjects/rocks/cliffrock/radiant.ktx2",
+          "bytes": 65427,
+          "sha256": "c4a8e6ce6c9ea3fd5d0226d9e0a969bfa7bab2a2d7a9c88d7fe71f963467a256",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/models/mapobjects/rocks/blockyrocks/albedo.ktx2",
+          "bytes": 412656,
+          "sha256": "f63ce6deaaa6dc17ccde6d2c64344108d4729959b837827279e1e2bb10919127",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/models/mapobjects/rocks/blockyrocks/normal.ktx2",
+          "bytes": 827115,
+          "sha256": "b295d4a4bb1e632de66db262d7ff34b82c6dae9c1668beb6f54cd1c4974b50bf",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/models/mapobjects/rocks/blockyrocks/add.ktx2",
+          "bytes": 79368,
+          "sha256": "5b9d801ed72b2539739c6ba3d92127eed58d102a5f392601a7e394b590e32d2e",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/models/mapobjects/rocks/blockyrocks/radiant.ktx2",
+          "bytes": 20136,
+          "sha256": "1c7519b00b29c5275c3f4431568230573cc50de302dba056e5d07b487f368c51",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/models/mapobjects/scifi/doordouble01/door_right_norm.ktx2",
+          "bytes": 126193,
+          "sha256": "60934f9f8b4e471816dc452be47adc6b698ac1a876a65c1ad72e728d307e7e62",
+          "action": "replace",
+          "previousSha256": "9ef7290dde4b1287670ce121b43904c409ac164a9a928898ecbf53921c9e05cd"
+        },
+        {
+          "file": "ktx2cache/models/mapobjects/scifi/doordouble01/door_left_norm.ktx2",
+          "bytes": 154120,
+          "sha256": "91094f2f5446d023a6589791467fc8ee94c1b3be0239cad2033c0d645acd963c",
+          "action": "replace",
+          "previousSha256": "3bfbd999fee7494b7c9c6970dd869915186ec89886a86493e5d85d1e170c7d96"
+        },
+        {
+          "file": "ktx2cache/textures/terrain/brokenasfalt.ktx2",
+          "bytes": 126021,
+          "sha256": "fe8205efe1646a442afe14fd64583278e5676aa185af2aeecd224b920b131b24",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/textures/terrain/brokenasfalt_norm.ktx2",
+          "bytes": 678274,
+          "sha256": "ed88c4f46ad41c4d2c17e2b81ea4737f88dd147e4b55a115db1919c81c72bae1",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/textures/metal/plaindark.ktx2",
+          "bytes": 2260,
+          "sha256": "0980befe50fee38ebaf263529e62e83705202631de214ce9b6393157e75191e4",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/textures/metal/plaindark_gloss.ktx2",
+          "bytes": 4633,
+          "sha256": "d43923f51ee9dfbaf5cd3afa7b73115c65040d221e9e474801b27d70effa3174",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/textures/decals/concretedamage02.ktx2",
+          "bytes": 63727,
+          "sha256": "988bc030b593ea81460784a29cb04c60606888b95915e01060f39875e1c291dc",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/textures/decals/concretedamage02_norm.ktx2",
+          "bytes": 175963,
+          "sha256": "629289a6430f5eaf6e3725b82433a7ec4b928f5f1968b6c402d58c210113ee19",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/textures/decals/concretedamage01.ktx2",
+          "bytes": 79505,
+          "sha256": "540d5b9f7ca5ee18002d228e7014499ff4d02110b5e48a2749d2dbfd2086b09e",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/textures/decals/concretedamage01_norm.ktx2",
+          "bytes": 247207,
+          "sha256": "36cae51ff33e438c30aa798c7b96d13f72aba5811d4d2fc91dec02a811c87bed",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/textures/factory/construction_debris.ktx2",
+          "bytes": 71762,
+          "sha256": "904364dcabd18a4e00af9b3752f84215f91a26c5510a4b9bff2087ab7ace8ce8",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/textures/factory/construction_debris_norm.ktx2",
+          "bytes": 1196455,
+          "sha256": "c2ad2146d90da8d8a08b4d8607f6517a46b585e271b14c22e64a3e60a3cfbee5",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/textures/exwsw/ex_trim_psimple_04.ktx2",
+          "bytes": 6056,
+          "sha256": "e2c3934750f03ac843f6805e15e0b004a762961baa4a7cbdb07772de3230dbc6",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/textures/terrain/chipped_dirt.ktx2",
+          "bytes": 62746,
+          "sha256": "3e6b63ca787f953072818c1642be21315cbc1cc9286d69bbd2ff5703f12b3ab2",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/textures/terrain/chipped_dirt_norm.ktx2",
+          "bytes": 293552,
+          "sha256": "010cd7e7fcfea9de1b70247c8ec40cfccf7b0a6d7067a8490207180a0e56715e",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/textures/grates/grid05.ktx2",
+          "bytes": 10999,
+          "sha256": "d658ec49b5dbd6dcd68428ad88bf5eba2457ac9d90845ebae1f0d8871fd68045",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/textures/grates/grid05_gloss.ktx2",
+          "bytes": 6327,
+          "sha256": "330f81d8af167face2189fb3607c16d7cb71267a6715b017af52c270cd2b32c5",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/textures/grates/preview/grid05.ktx2",
+          "bytes": 11086,
+          "sha256": "2331a2ee2c4f9946cc0eec401ac00f1ff131897e333f1b38476ac8e636c9be5f",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/textures/grates/gratehzh.ktx2",
+          "bytes": 4464,
+          "sha256": "12712a094de2bf0defbc938f87f8a64d38a5e896f847a5c3c7f9db423ace041e",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/models/mapobjects/nateleaf1/ivyleaf.ktx2",
+          "bytes": 2419,
+          "sha256": "6e61fff7b87c77e3367e170bc6c97fb564ace8fca24596e823fa0954cbcc7e21",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/textures/bricks/bricks_05_black_decal.ktx2",
+          "bytes": 88477,
+          "sha256": "772f1a2bec53b25ddcf82ab6ad1f5b3dbf3894132bfcfc2a8ba3e88f3852ae72",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/textures/decals/lights/decal_blacktrim01.ktx2",
+          "bytes": 1421,
+          "sha256": "77a6745ace62bf4789f5d638501acf3f8417f7ae46657034b2c16e7cf944b490",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/textures/decals/lights/decal_blacktrim02.ktx2",
+          "bytes": 1450,
+          "sha256": "8c44e4dcedd3afab5043d39e2a4aea63649b0e9a2a193a6158612ebb50f0aa07",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/textures/factory/factory_pillar2_norm.ktx2",
+          "bytes": 1257,
+          "sha256": "4eb2e4f461656af78bd0d0373fb7e115fe1e14859d632b4c9d94b9c214d72dcb",
+          "action": "replace",
+          "previousSha256": "5e5640cd6f0d48baf08b73ac106f8cafdfc4967ce6e59c42d75918b4846f054c"
+        },
+        {
+          "file": "ktx2cache/textures/exwsw/ex_q2_01e_norm.ktx2",
+          "bytes": 21137,
+          "sha256": "698d98115cc4369c1841bdc3d74b98ea24f813cf76771e84f737ce0213fbdb9a",
+          "action": "replace",
+          "previousSha256": "bde01123fcf3dcedaab24fd40b63ea28116484ad72b4a04d9609b1cb8fa4b2b3"
+        },
+        {
+          "file": "ktx2cache/env/grimmnight/grimmnight_dn.ktx2",
+          "bytes": 377,
+          "sha256": "476ea61045930e43696ea322c031730fc82ebbfc347b9a7e28a732913497ff7f",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/textures/cha0s_ws/flat_lt_norm.ktx2",
+          "bytes": 250677,
+          "sha256": "416f074af9b32da928ab825c884a4e4ed992ed9dbf8f5ffb8a76d8fa1f0df055",
+          "action": "replace",
+          "previousSha256": "6baedd4b91af4978742de362abcb1578e1222f1ebdb3a8d86d015b6db5639c83"
+        },
+        {
+          "file": "ktx2cache/textures/common/botclip.ktx2",
+          "bytes": 2100,
+          "sha256": "619f5d025b4346e604a51000adffdc79a58b8e0f984f1a08626cb8d6356faceb",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/textures/cha0s_ws/concrete-pit-rows_bump.ktx2",
+          "bytes": 2227,
+          "sha256": "855f8d46d05df9152287952e970446e8f7df241aa3fdb65c1deb737e6c4e3038",
+          "action": "replace",
+          "previousSha256": "63cd7398a3c5103673d9000ce3da88a46ff30a0d6a77100bc581ef67d34e1d3d"
+        },
+        {
+          "file": "ktx2cache/textures/wdm7/blx_crocinus_pillar2_norm.ktx2",
+          "bytes": 371,
+          "sha256": "5fea26ec9ccc486ba55df9cc4a703b827975bad24e37faf70c6760586ca5c71c",
+          "action": "replace",
+          "previousSha256": "545934762d24ef7228d78b9a05f37c000f9b7521a6407e5277a6bc588fad5195"
+        }
+      ],
+      "totalBytes": 132809313,
+      "unchanged": 1043
+    },
+    "US": {
+      "host": "root@us.washoi.net",
+      "changes": [
+        {
+          "file": "map_washoi_dm1.pk3",
+          "bytes": 21160006,
+          "sha256": "09987df46b935dd3e453e0e6c5935c79ab9ae8a3beeea4e8dc3047b74fa65082",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "map_washoi_dm3.pk3",
+          "bytes": 16467181,
+          "sha256": "2ed0643a67470e4b8a3eadc5f8d6f679ccbc1b3e78622c76b21bf36aafef27da",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "map_washoi_dm5.pk3",
+          "bytes": 22546644,
+          "sha256": "f0bbfc52185220a3038ac6bfd64774a4c5efc90cf2968404436cc62184e848b8",
+          "action": "replace",
+          "previousSha256": "2dc73599d0412e097549e67eabbdb06b110f5f49853fde88174759ab4a1b9881"
+        },
+        {
+          "file": "map_washoi_dm7.pk3",
+          "bytes": 12707590,
+          "sha256": "54160b2701af904e6f534ed7c79cd6813cf4e7e76a3756ad85cc4ba504144c6e",
+          "action": "replace",
+          "previousSha256": "757145ece441b79281721111186af0d8235d1fa12f27e1ac1379b5aa120444fa"
+        },
+        {
+          "file": "tex_washoi_dm1.pk3",
+          "bytes": 7973730,
+          "sha256": "90489058c800b479877b7f3b31764d7f05eb24e2683f101671c48b6db90737a6",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "tex_washoi_dm3.pk3",
+          "bytes": 5973827,
+          "sha256": "43eded33edb3a8356df25dcdbb8b6f28b2a808dbe1fe8bd8f0c94651efdd2212",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "tex_washoi_dm5.pk3",
+          "bytes": 12528443,
+          "sha256": "2760101f297060bde8d166a901c002837d377cc774adc33b983f199e06cdb8fe",
+          "action": "replace",
+          "previousSha256": "f4a4f40271fd37e1c4fc51c66c6edbb1dc48315dbf9f10b819a7ea8b3cca5a64"
+        },
+        {
+          "file": "tex_washoi_dm7.pk3",
+          "bytes": 7780305,
+          "sha256": "fac5f950fef4ff149edb2c90894a611cd8d2655db6b4de025fd30eea19610836",
+          "action": "replace",
+          "previousSha256": "a56a74528c26e6768c62d4ee2cdc5f9a696371afcccdd49ee7bc032fa8cb8545"
+        },
+        {
+          "file": "washoi.png",
+          "bytes": 1221484,
+          "sha256": "a9e736a2939a889b87eaaa386c04b3b05ce6c352ddb900b8601f400574bf1909",
+          "action": "replace",
+          "previousSha256": "a0417f1603ee8c1d66a9643ab6b148383e8f3a308938d47941c0b38f8f25ad8c"
+        },
+        {
+          "file": "ktx2cache/manifest.json",
+          "bytes": 277953,
+          "sha256": "022ab69ac3cab15f4a04d08500e23245ad789f991da58cf869ba4272ef56726f",
+          "action": "replace",
+          "previousSha256": "4f316f3e9497693861eb9c435a83e4e7ac196721790bda757f22ac071e85d928"
+        },
+        {
+          "file": "ktx2cache/levelshots/washoi_amphi2.ktx2",
+          "bytes": 276537,
+          "sha256": "ffa4569522d0dbd8096bb5a4e0efddf948ffdb65eb796b6857c145d3bd70ab2a",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/levelshots/washoi_dm1.ktx2",
+          "bytes": 505697,
+          "sha256": "c90851120d9cacbd5b5e1088a570150f34772964d8926b171fa1f9de423e8f85",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/levelshots/washoi_dm12.ktx2",
+          "bytes": 387793,
+          "sha256": "de90ba05284e3ddfe141274a4ba5050ddbe5b1bbb6af7e55a58930897e83e1ec",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/levelshots/washoi_dm14.ktx2",
+          "bytes": 279149,
+          "sha256": "85578e0cf766388fb178bfe2666b1b45f7880764ca4bd32118da0b7434c6b2b7",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/levelshots/washoi_dm3.ktx2",
+          "bytes": 410090,
+          "sha256": "31cdcf80a86f7644d9b2ff44bf3d9f4102563650af667fe919059def2d40a5c4",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/levelshots/washoi_dm7.ktx2",
+          "bytes": 337877,
+          "sha256": "40f1a890a963025cbfa6f793ac66e26817da32f925489045377e6faf10567a05",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/levelshots/washoi_snd4.ktx2",
+          "bytes": 301885,
+          "sha256": "49fe2edb6eff2a8f481f3bcd6000a9def35abc21b5c3213d3fe220ce902f39d3",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/levelshots/washoi_snd6.ktx2",
+          "bytes": 329077,
+          "sha256": "a8e8856efa65ece86652e102623b97233352b5e7016ee5e9c20acdbe8ab4dd63",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/textures/exwsw/ex_q2_01c_norm.ktx2",
+          "bytes": 24872,
+          "sha256": "aadfaff6a0bc133b454c629b51d48580455fd38e810c8bbcc2e333b88dbe90c3",
+          "action": "replace",
+          "previousSha256": "ef797af2f3d27af8f3b0239a62e8d78764919f372eefa36cfdb1bd8111c7ea00"
+        },
+        {
+          "file": "ktx2cache/textures/baxandall/trim_01_norm.ktx2",
+          "bytes": 3401,
+          "sha256": "6ba562cc34bdef993f30d805f5465a88569d2188d04f533e3426b44b90aaf0c8",
+          "action": "replace",
+          "previousSha256": "f58ee7df54847eeff1f37bf2abe286c239d66e27880396ba888afda0250782ee"
+        },
+        {
+          "file": "ktx2cache/textures/wsw_city1/9techwall01_norm.ktx2",
+          "bytes": 305641,
+          "sha256": "efced93f6308ff327af768738a6b5c1529c1d4f676eefbfd9bd31d2148dbad91",
+          "action": "replace",
+          "previousSha256": "fcd818d0ed4e04358ab55361e17004afef2a9152f1266c20e99e9dd44d354728"
+        },
+        {
+          "file": "ktx2cache/textures/common/skip.ktx2",
+          "bytes": 3780,
+          "sha256": "8d7dea0fdac692726d3c99428ddabd9e09619514bfd03c3ba22505c3ba28bdc3",
+          "action": "replace",
+          "previousSha256": "a774116a0e0e4dbc55b0c881020f600f1f03a294a11af2731fc06adbafd67745"
+        },
+        {
+          "file": "ktx2cache/textures/neon/jujitsu_sign1.ktx2",
+          "bytes": 2077,
+          "sha256": "2e867932cfb6ab5f860f2289977e97a275f74329f3ca8b036c09110e3aa19449",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/textures/neon/jujitsu_sign2.ktx2",
+          "bytes": 2711,
+          "sha256": "cbd4763e76883b4d70b7d5d57d11237d077f33d6f32f14d9ee82e97d684ee207",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/textures/neon/jujitsu_sign3.ktx2",
+          "bytes": 3442,
+          "sha256": "ce3abf3d404243432dc55a6c7d722de0ca84d1c88db2f3c4d2b972818805cbd1",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/textures/neon/jujitsu_sign4.ktx2",
+          "bytes": 3957,
+          "sha256": "076aa2cc12b1aa4c5cd32183c63505b22b64f3d9e4a9220509e7353f365168bc",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/textures/neon/jujitsu_sign5.ktx2",
+          "bytes": 4782,
+          "sha256": "d651848a8d9ffe0cdef3f198a12355a4879e17c1cd6bb5ef015b92e0f4f5b967",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/textures/blx_wtest3/blx_wt3_crate1_norm.ktx2",
+          "bytes": 6739,
+          "sha256": "562f5d97a28a078df15903f23bf7040c5536510dcbb200134b2078971ff33e3a",
+          "action": "replace",
+          "previousSha256": "18234c9f54c56368fdf29983d3ea8da5501806a5124879bb6e95e0114c67dfb7"
+        },
+        {
+          "file": "ktx2cache/textures/blx_wtest3/blx_wt3_crate2_norm.ktx2",
+          "bytes": 11070,
+          "sha256": "77563bf3ece1fd16fe4533169a59b8db30c14ca02924b392fd56767a548fa8bd",
+          "action": "replace",
+          "previousSha256": "7db1164220e4669292b48f9ded01a050e4dc10229912395f5bcc81bb40a64f3f"
+        },
+        {
+          "file": "ktx2cache/textures/exwsw/ex_trim_01_norm.ktx2",
+          "bytes": 7771,
+          "sha256": "5cd2ea6c8f2b9a58401b54dc27460d9c1c668ba8bc0f56ab3ba90c2c22f95424",
+          "action": "replace",
+          "previousSha256": "f02700849683e3b6fc7418c566c56dd061bf3067b662eedd23887f76b8daf1a2"
+        },
+        {
+          "file": "ktx2cache/textures/exwsw/ex_wall_01_norm.ktx2",
+          "bytes": 20898,
+          "sha256": "a91c9dc148c751ebc4f3d6921d220f2d0957567668c5ca3f892b5544148dfe9f",
+          "action": "replace",
+          "previousSha256": "e9a8a5c9ec20bc26ac38249545cfdcb1bed0bc84d7e9e3c97ff27d9ce6a4ab12"
+        },
+        {
+          "file": "ktx2cache/textures/exwsw/exmetal_plate01b_norm.ktx2",
+          "bytes": 37621,
+          "sha256": "b80b86e376f544c7e5bb62edd9801b15375ab0690c6104cee7ca14fe4f986029",
+          "action": "replace",
+          "previousSha256": "a43f6e427a7e2aeadddef0dde08793bfbb4f7a186caa752f7dcec8279af3bdae"
+        },
+        {
+          "file": "ktx2cache/textures/exwsw/exmetal_plate01c_norm.ktx2",
+          "bytes": 44241,
+          "sha256": "c18f57a921a48bb182f288a8f374c442489ed49aeaaceb416f6efcd91bc87f10",
+          "action": "replace",
+          "previousSha256": "4ccc4383b81d9b73a0905558ad2158e2f4e58b47407df4d8c6e9a2e61ee64f43"
+        },
+        {
+          "file": "ktx2cache/textures/exwsw/exmetalfloor02_norm.ktx2",
+          "bytes": 5666,
+          "sha256": "5908716e334caf72fbcdb06fc2189d97f6eb6b01cd77f813dde0da8872a4367f",
+          "action": "replace",
+          "previousSha256": "6e50957f230fbdedd1a8a247f31c58941098b14c7bb8b59c88234d4599dc0453"
+        },
+        {
+          "file": "ktx2cache/textures/factory/factory_metal_floor_norm.ktx2",
+          "bytes": 983,
+          "sha256": "bc9bd6125b6bf404f46d846f3a41a0663d863a476ec17f10b97c3fe17772d03f",
+          "action": "replace",
+          "previousSha256": "f87dc76b989c5a580586900c4892dcb415c06cdfcf3cfeefbf9cb933174bfc22"
+        },
+        {
+          "file": "ktx2cache/textures/factory/pillar03_norm.ktx2",
+          "bytes": 4461,
+          "sha256": "d5987f99a5a404052ffcf34a2e715ce4cdbc777625e65e8e9b02e03bf992bd4c",
+          "action": "replace",
+          "previousSha256": "8a5bf2ed71839c7dfff83f67009c518210a2199eecd81ed0f57ef60e57bfdcda"
+        },
+        {
+          "file": "ktx2cache/textures/factory/trim_04_decal_norm.ktx2",
+          "bytes": 1675,
+          "sha256": "525e5eae45e1a6c2779bf7d8a059bc300d009dad824cc5b3c97c446a8f3b4765",
+          "action": "replace",
+          "previousSha256": "ae060604b776cd2408068a16ad93cae1bb85beb4abc099b5d6e6bdc3bf247062"
+        },
+        {
+          "file": "ktx2cache/textures/hazelh/rivet_trim2_norm.ktx2",
+          "bytes": 10290,
+          "sha256": "125d52cfb964994c8f51acf0d89e467fb491a550d88214a477d1d1599ae8fa2d",
+          "action": "replace",
+          "previousSha256": "6ac78204915dfa85178722633ab0215e53ad11dd5b8fdcdbc4208bc5aa5c10aa"
+        },
+        {
+          "file": "ktx2cache/textures/hazelh/ventpanel2_norm.ktx2",
+          "bytes": 13663,
+          "sha256": "59e71b6ec9a4927dbdc9121462d6f1f03936acb403d54e23412ad4aae63a4c7b",
+          "action": "replace",
+          "previousSha256": "1b0a0a91a3245937abf3d08f39542b091f66dfac803cae057c0c15719e25376a"
+        },
+        {
+          "file": "ktx2cache/textures/hazelh/verticalborder_norm.ktx2",
+          "bytes": 39976,
+          "sha256": "f4ab5f66cca598c6312ff2cb859f80b6f55ca04e0981e1305202b5a6cd058abb",
+          "action": "replace",
+          "previousSha256": "954a64539fe326dbfbb1a6fc7642d6c512bc0e025a970dd2c7bfddfa1dafd0b4"
+        },
+        {
+          "file": "ktx2cache/textures/hexagons/metalfloor01_norm.ktx2",
+          "bytes": 19318,
+          "sha256": "b1926df6e8c741df77ac970cf27f9d128d00912ab0df0e0e7fe357087127563d",
+          "action": "replace",
+          "previousSha256": "4a88c9cb1e7f88adde0400c656ec56722883543bcd63641f289182012b179d1f"
+        },
+        {
+          "file": "ktx2cache/textures/lights/oc2_norm.ktx2",
+          "bytes": 4916,
+          "sha256": "7f2b8940238c61c03e93fc7a748e420f96109572bba4b4c6bdf7d689f89a612e",
+          "action": "replace",
+          "previousSha256": "a12326cd60ba25ddac6aeafd4f48cbf512674e4bfdaa11667f53a71c0ce3efe1"
+        },
+        {
+          "file": "ktx2cache/textures/lights/tech_norm.ktx2",
+          "bytes": 2024,
+          "sha256": "b78748a9b3384b0e6e68eec45edf27fae35fcd46763309e242310ee6b2610acb",
+          "action": "replace",
+          "previousSha256": "93c66d68b6215856e00867c88b32239f3f35f8e7525f7fc83865bbab11bfb56b"
+        },
+        {
+          "file": "ktx2cache/textures/wsw_cave1/stairs1_norm.ktx2",
+          "bytes": 50978,
+          "sha256": "5cd0375f0976ddd19df3317399dbfd5bbf7b6c558acb9575cf63e17550bdc2fe",
+          "action": "replace",
+          "previousSha256": "8fdb5540b2f522bc75eb1843d23b8c45268a16dae08edfc923562245c19dfb46"
+        },
+        {
+          "file": "ktx2cache/textures/wsw_city1/tech_concrete_pattern_norm.ktx2",
+          "bytes": 261201,
+          "sha256": "18dc8c2216d236b3574d0ba90b09ddb10d0e0c2563e8ccd254bd4bb710cb6758",
+          "action": "replace",
+          "previousSha256": "fa0e18758a7b3d1046f4fa61687bc499839108a68bf019a5744189dbbf7ce322"
+        },
+        {
+          "file": "ktx2cache/env/autumtrees/autumtrees_bk.ktx2",
+          "bytes": 81510,
+          "sha256": "c717f58281974ee07f3d88c7dcd47801e8b20a3283e8cda7f8b1fbe2631c15f2",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/env/autumtrees/autumtrees_dn.ktx2",
+          "bytes": 70369,
+          "sha256": "b7f409652d2d8048cd45796a72bd3942307a8cb29a88642879ec418cf8029177",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/env/autumtrees/autumtrees_ft.ktx2",
+          "bytes": 80253,
+          "sha256": "37ef58cb8f9e6110b18d9d1524be0486cc1ca90f96503c215f634cca6e96d40c",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/env/autumtrees/autumtrees_lf.ktx2",
+          "bytes": 79731,
+          "sha256": "420a2d4512d31248a62448a71af7d6b4ecf582fba5013f00598371befb02bfb0",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/env/autumtrees/autumtrees_rt.ktx2",
+          "bytes": 77304,
+          "sha256": "5c08c0c0ffa92b2e58aa5385127ccfff812f5501200755ff6dedef4f35837d1c",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/env/autumtrees/autumtrees_up.ktx2",
+          "bytes": 79915,
+          "sha256": "0caf6121609e5bddaa53c140a97e818aaf107a08b94394b94b5b4e36bb257bc6",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/models/mapobjects/lights/fluo-pack/albedo_gloss.ktx2",
+          "bytes": 346067,
+          "sha256": "ffee38e780c170c125ac7cda9a11e97135f776c3debcc19901e1848911aedb65",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/models/mapobjects/lights/fluo-pack/albedo_norm.ktx2",
+          "bytes": 699,
+          "sha256": "a2bd26f0c0a02b80cc6cab27dd2deeeeea265ac33f1d71c12d4ef45f501d61f5",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/models/mapobjects/lights/fluo-pack/albedo.ktx2",
+          "bytes": 321840,
+          "sha256": "efda0fbeba1f262d1114764eee2193b0e6c76402f16ef2f4bfda8234cc7d5429",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/textures/blx_wtest3/blx_wt3_ceil4_norm.ktx2",
+          "bytes": 2055,
+          "sha256": "aec26216c58901947d67470456cff3c58ecc59ae0fd1c79aa2f69494b315cb32",
+          "action": "replace",
+          "previousSha256": "34bb9a5388a6d9f03253d75b7dfe467d3fa9f3a161e2d011a0bd8baa746f87c2"
+        },
+        {
+          "file": "ktx2cache/textures/blx_wtest3/blx_wt3_lines_norm.ktx2",
+          "bytes": 770,
+          "sha256": "ebd92c10b21fcaaaeef5eabce0edc880e47012f1712ac0186e448cf525823cd0",
+          "action": "replace",
+          "previousSha256": "6cb04e5805a4b550e06a8b1bb3768dafc5d46e090a5786854cd3dfe76d7e3a53"
+        },
+        {
+          "file": "ktx2cache/textures/blx_wtest3/blx_wt3_wall2_norm.ktx2",
+          "bytes": 6236,
+          "sha256": "98d50ac42d8d0aa1c2dccea3b84d32c3593fa61f4ea068a0a59aca36154e9612",
+          "action": "replace",
+          "previousSha256": "b749339a9674f9a65cb45aac596116ed86cfdf2d7718188810cf25eebfbf418c"
+        },
+        {
+          "file": "ktx2cache/textures/blx_wtest3/blx_wt3_wall3_norm.ktx2",
+          "bytes": 10204,
+          "sha256": "f464db311fe76b3493151d10e766a47a94906394d74beef6e4b5e705d932c114",
+          "action": "replace",
+          "previousSha256": "7700373d6276191ffa4f3a4ac4def958030e2a616a21c55854394ae39bfea5d1"
+        },
+        {
+          "file": "ktx2cache/textures/cha0s_ws/concrete-pit-rows_norm.ktx2",
+          "bytes": 72453,
+          "sha256": "b475bc5c35ff0fc18566919210318a7495bc004cd1f28a30e01a3dfca7281bbb",
+          "action": "replace",
+          "previousSha256": "5204ca64fd56c5a7a8cbac4ab5d670bd5861b6137ddaa79410ff2fc9e2edb273"
+        },
+        {
+          "file": "ktx2cache/textures/cha0s_ws/trim2_norm.ktx2",
+          "bytes": 2299,
+          "sha256": "b63d980af51aed6b5025256d8a6b43200488fafcca23b8077226b6dd6f7439b8",
+          "action": "replace",
+          "previousSha256": "f35795cbeffa66f1a1fcacb41f1225dd04011cf3b56f8efbbd921df30cd0ac93"
+        },
+        {
+          "file": "ktx2cache/textures/exwsw/ex_trim_psimple_04_norm.ktx2",
+          "bytes": 7894,
+          "sha256": "1a0c54ab675c345963d0418bdce97de240f54956a53f276f10a381cf19a2d81b",
+          "action": "replace",
+          "previousSha256": "7ac832960d32ff40945820df442a8b8310679e864ca7c04213ea894cd62d0814"
+        },
+        {
+          "file": "ktx2cache/textures/factory/factory_tile_norm.ktx2",
+          "bytes": 1101,
+          "sha256": "5148fb65ae9455f442abca2c21966de71d5599f58243222808095db8e75fcc57",
+          "action": "replace",
+          "previousSha256": "6b78cbbe33697f0dd6c0caa979508c4d57dd9404e53fb47850e597d5087ceb35"
+        },
+        {
+          "file": "ktx2cache/textures/hexagons/metalcollumn01_norm.ktx2",
+          "bytes": 1856,
+          "sha256": "d08ad14ed5c7102d92732fa94f5f68c531ed55322eb0666d65cc663e00c7db84",
+          "action": "replace",
+          "previousSha256": "b39c4aa168a7205a5aa19d9e2f17a969a1acce464948ccb7982099765c96ef18"
+        },
+        {
+          "file": "ktx2cache/textures/terrain/sand_norm.ktx2",
+          "bytes": 301657,
+          "sha256": "30328a8c5e9fa4219a92f667ad1449d7172e1a379ae3b4d69dad272d0e3e3756",
+          "action": "replace",
+          "previousSha256": "0cacbb1799b357a66fbe8dae2ffe203d28395ee7116964816261b0a66d213ae0"
+        },
+        {
+          "file": "ktx2cache/textures/grates/grid06_norm.ktx2",
+          "bytes": 20148,
+          "sha256": "fbcc27aa368bacd328b42265949c2ed78bbc1d83695f7cdb0d22d9c85ef76e0b",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/textures/grates/grid06.ktx2",
+          "bytes": 9632,
+          "sha256": "438281be0e45af9b75ae47b17add7eb0b149faff7667d0c729949ed69dad7be4",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/textures/terrain/rocks001_1024x1024_norm.ktx2",
+          "bytes": 1064155,
+          "sha256": "7d684770658aceef101312ea5830445ed0499c73fdb5f680d72117275bf3c47b",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/textures/terrain/rocks001_1024x1024.ktx2",
+          "bytes": 120908,
+          "sha256": "6270815b9493526622cc1c929cb016375421b6c1df7e30637d0afe1d061bc606",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/textures/wsw_city1/grate.ktx2",
+          "bytes": 13349,
+          "sha256": "172558a35065521c509d6db02f07c891f5589042698cbf699b3bc0f6ae5bf5bc",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/textures/terrain/rocks002_1024x1024.ktx2",
+          "bytes": 49545,
+          "sha256": "737d0aa4e82930967f0b137702d73e09f57f0e4f2041834cadabcc596ff8edbd",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/env/36sky_up.ktx2",
+          "bytes": 36693,
+          "sha256": "c74d0b6eb2d0c6a27d9e5cb24da6ca54c27d2f3c2bef96896d608b5beccf5222",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/textures/concrete_techwalls/concrete_blx_tile_norm.ktx2",
+          "bytes": 173223,
+          "sha256": "9ba23f597fe42b2e9d0c3dea684e292c1d8a32c32afa9063ac9e41ce59993d9c",
+          "action": "replace",
+          "previousSha256": "cfbefce14cc8428f64a1343d47f58189bf3aca997c2f0c36245c9cc7ceab74e8"
+        },
+        {
+          "file": "ktx2cache/textures/concrete_techwalls/concreteclean_blx_wall2_norm.ktx2",
+          "bytes": 194594,
+          "sha256": "8ee1bded3709b91457b590bb734277c999ea6092fe6fbd7195c2d1c881d61ec5",
+          "action": "replace",
+          "previousSha256": "d13c00394527bb2d7e05bf0afd21276f5e8cf9dec6eacf0d5da0b5dcc488443f"
+        },
+        {
+          "file": "ktx2cache/textures/concrete_techwalls/concreteclean_norm.ktx2",
+          "bytes": 140727,
+          "sha256": "7acabbaa83fd00f7dbcc46eaf0777d93a482365c904c79655d4ed83199185274",
+          "action": "replace",
+          "previousSha256": "b8302e7d34d56dceccc34475421d2328e68600f0e5e9b8f7821abfd7250711f4"
+        },
+        {
+          "file": "ktx2cache/textures/decals/dirt_01_norm.ktx2",
+          "bytes": 50033,
+          "sha256": "5e24ee00e0b254f3d0cef4804f4a5218ce7b024eb812d66931e6202058ea76b7",
+          "action": "replace",
+          "previousSha256": "990a1649f1449500cceb044c9464bdf523eb5684da5e5ed87e0aa6df265f1da7"
+        },
+        {
+          "file": "ktx2cache/textures/decals/dirt_02_norm.ktx2",
+          "bytes": 112510,
+          "sha256": "fb68b4d3f6d69fc55eaa56173e200498bfa9fe7437d5ba14a20b1b29a4fb6adf",
+          "action": "replace",
+          "previousSha256": "8d0d03fa74cfc1ee7360c7ad844a7b4650d0a599eb060eb94636f387cdfc33b9"
+        },
+        {
+          "file": "ktx2cache/textures/exwsw/ex_mtl_panel_03c_norm.ktx2",
+          "bytes": 5729,
+          "sha256": "75602552c7be0af2b5d9cfb4ebe9596ce9e800b9e4aff72df3414815e43114dd",
+          "action": "replace",
+          "previousSha256": "43197187983d843862e3bb781e3dd1da91e2c45b64d15a342dbd6c1a65479d02"
+        },
+        {
+          "file": "ktx2cache/textures/exwsw/ex_trim_psimple_05_norm.ktx2",
+          "bytes": 13920,
+          "sha256": "3f2919a73195bf8a956a752d1cb9f50369dfb768bd2e7eefa183a3534ad16f66",
+          "action": "replace",
+          "previousSha256": "69fc7a6c36dc6136c8ff59b895434eedbaa619dd31fb90e9fe0120ac65e6262a"
+        },
+        {
+          "file": "ktx2cache/textures/exwsw/ex_wall_01_big_green_norm.ktx2",
+          "bytes": 16284,
+          "sha256": "5b069e1c97c569c0726c2bfb3e578c99c8281cdd15562c07caf2312f4ca541f6",
+          "action": "replace",
+          "previousSha256": "dc2a7ace552d57cf0c5b841ed41efa8af0a20379d2fdf60795a3506e7907cbb2"
+        },
+        {
+          "file": "ktx2cache/textures/exwsw/ex_wall_bigrib_02_norm.ktx2",
+          "bytes": 2176,
+          "sha256": "067a297fa90bd93938a83f97a6f82d07844152d6ebc39442b7f38404fc895099",
+          "action": "replace",
+          "previousSha256": "40b3ddee128c0a45c5a1a7956b5fb2573a9c56b92e30557497f79b056f04e03c"
+        },
+        {
+          "file": "ktx2cache/textures/metal/scratchedmetal_norm.ktx2",
+          "bytes": 310255,
+          "sha256": "62010bd50de5818ad8add310ddafca460aa91d6c9d61031687ae754b365ebb38",
+          "action": "replace",
+          "previousSha256": "aa1be3f82d1c4f9d820890dea6fbc2da1abf9d22ee3d9c65ca0d7e71a7bcf2aa"
+        },
+        {
+          "file": "ktx2cache/textures/scifi_interior/aluminium_airvent_norm.ktx2",
+          "bytes": 19844,
+          "sha256": "8b04df4b25d520f947d3df1dbfc70964b14f78ef7aeaeee08041abd36de76bec",
+          "action": "replace",
+          "previousSha256": "403b685135c727b9851151543b81fd0a01c4f7344d72b5fe500bb5dc0080b178"
+        },
+        {
+          "file": "ktx2cache/textures/wsw_city1/metalsheet1_norm.ktx2",
+          "bytes": 15350,
+          "sha256": "2433c5d89309b994dc73f7f4002ed5867c5ff8959b02872b8af5ee0d63b62d71",
+          "action": "replace",
+          "previousSha256": "1d045175865c98dc412d77791375d244f3d000c7db543d35aa0d1e72893525a0"
+        },
+        {
+          "file": "ktx2cache/textures/wsw_city1/tech_wall1_norm.ktx2",
+          "bytes": 16336,
+          "sha256": "ceb8976e871ad0a3226a887da3eff292f500a1bef0f49e32bd73f34e80e90d98",
+          "action": "replace",
+          "previousSha256": "b7334e6b063197c01a1feb762507005f65316ad0ce437e99d4425b2ff43b8da2"
+        },
+        {
+          "file": "ktx2cache/models/mapobjects/crates/crate_wood3/albedo_norm.ktx2",
+          "bytes": 955674,
+          "sha256": "e6c3687496f20aed3b83c9c0626d6d15c09fe2f43906a80c9cf9a71c51a0dc91",
+          "action": "replace",
+          "previousSha256": "74ba17538b7b2cadbbdd5ca90f9d53e5bd072b8b7b9e6c5cbef051d95b3a8651"
+        },
+        {
+          "file": "ktx2cache/models/mapobjects/vehicles/forklift_norm.ktx2",
+          "bytes": 144223,
+          "sha256": "a5a10cc7a8e2694d5eb39351a4ae6fb124c4f118d56f28716b5787f3db4ebf20",
+          "action": "replace",
+          "previousSha256": "2828e3e6fd874a6be756ddf9d94592375fcb16b8fd52c46c9c63ee575b6bd716"
+        },
+        {
+          "file": "ktx2cache/textures/bricks/redbricks_trim_01_norm.ktx2",
+          "bytes": 20295,
+          "sha256": "b1120b18b68254ecf447e0b156489670f910cb73bdd017f65dab68896306a726",
+          "action": "replace",
+          "previousSha256": "bc6015d5145738ba906c0314233b5fa962dc7f58a415b48b8ef8415f85b58608"
+        },
+        {
+          "file": "ktx2cache/textures/concrete/baseblue0060_norm.ktx2",
+          "bytes": 260672,
+          "sha256": "e7bfd4716891dab2bb5ddb408edf9b3b75e66555f56164914014a05d8ff26d57",
+          "action": "replace",
+          "previousSha256": "d75c8e637e9f68d6ffefc495b557be82ae106430d3cb015b7c829097f3fa9c29"
+        },
+        {
+          "file": "ktx2cache/textures/decals/dirt_scratch_02_norm.ktx2",
+          "bytes": 53033,
+          "sha256": "afb377673c13783e00f80a1223e691ae22361aca71708ed859f62d264a5cb610",
+          "action": "replace",
+          "previousSha256": "067243e960279da3baa803494c8c37693bfec92ddba3231638ba02f647bf86db"
+        },
+        {
+          "file": "ktx2cache/textures/exwsw/ex_q2_01_norm.ktx2",
+          "bytes": 20998,
+          "sha256": "315484bfe0af5c21f72472fae510de05727dcb36c7b97bae4ac3d80fa41c8819",
+          "action": "replace",
+          "previousSha256": "38851b9412c9e4f9295a17d4a1cbcc0dcb4e163f6b90f243c3c0fe6f660cfe6f"
+        },
+        {
+          "file": "ktx2cache/textures/exwsw/trim_red_2_norm.ktx2",
+          "bytes": 2185,
+          "sha256": "851cf4d39ccba1bc9b5c6ca5e177aabe503fdfb14b8ea5d2e66940d0638cd8db",
+          "action": "replace",
+          "previousSha256": "dfe673622b58223b3d5c7361ae0d29e358da249c3742dc45a7090e0cdf10abdf"
+        },
+        {
+          "file": "ktx2cache/textures/exwsw/trim_red_norm.ktx2",
+          "bytes": 962,
+          "sha256": "21dbcaca123f0c7dbe6c50fe47d37064258b295164d42755b2d807323c2af2a0",
+          "action": "replace",
+          "previousSha256": "bb6fed2445087f6d794fec26563071e17e32dc8be0e25eefcd2a2d5f8f201a83"
+        },
+        {
+          "file": "ktx2cache/textures/hexagons/metalwallceilling03_norm.ktx2",
+          "bytes": 8672,
+          "sha256": "30f27a1ff73fcf784bce9576ca883737876b71af3bbae96b6383c9cc72421a97",
+          "action": "replace",
+          "previousSha256": "828f5524878e94c58a38b643b3ef4daf3a134a18145238a1189f08b9fb962e29"
+        },
+        {
+          "file": "ktx2cache/textures/metal/redwall_double_norm.ktx2",
+          "bytes": 184412,
+          "sha256": "1966c02301fe2716b55f3d6d0de410b844dc9aeb58165b8961e1d245fdf11040",
+          "action": "replace",
+          "previousSha256": "cf9b4cfe58580038d5834525ddb18b0d97df94e3584dcbabe9ff45904c287c0a"
+        },
+        {
+          "file": "ktx2cache/textures/metal/redwall_norm.ktx2",
+          "bytes": 173081,
+          "sha256": "0caa0572a1c43ab7fdc13ff967c45745e200c735a2b4c8969f2f0bdba8ca3708",
+          "action": "replace",
+          "previousSha256": "f7423633c875c1e42e2f738f7c5ebfc56daed0bdd9521b970109931b0c192ad2"
+        },
+        {
+          "file": "ktx2cache/textures/metal/redwall_single_norm.ktx2",
+          "bytes": 178293,
+          "sha256": "bf589d1a1904e07fee8c0568f811351c2cf056519831d1ad60118bb962a060ae",
+          "action": "replace",
+          "previousSha256": "044940dea2f4f4ffc24b490880a9ca716297acf96e269433262aaeffb289904c"
+        },
+        {
+          "file": "ktx2cache/textures/terrain/rocks005_512x512_norm.ktx2",
+          "bytes": 312565,
+          "sha256": "48fefe19df3f7a205727946f2b9ef03a854df16652f52e0db7474a75f8f7a95d",
+          "action": "replace",
+          "previousSha256": "c4ec6cf0ab52907d2233d4246ed71489bc8273d28a4aca4983ca80c714ce9323"
+        },
+        {
+          "file": "ktx2cache/textures/terrain/rockwall01_norm.ktx2",
+          "bytes": 301545,
+          "sha256": "3bd98ab753209c7b587f57d0137994474919776bd13879a631d9f2e4896ac04f",
+          "action": "replace",
+          "previousSha256": "0a8f94716935a6ce7ab00cc18d29643644bdc102fed9fe58ce54624bfe6d07e5"
+        },
+        {
+          "file": "ktx2cache/textures/world/water/nateswater.ktx2",
+          "bytes": 29064,
+          "sha256": "4d4ae2ec9ba4addca1cc1c7a1eaf5088ec5d11d760bb885484cc76ac8fe14cf4",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/textures/wsw_city1/tech_dirt1_norm.ktx2",
+          "bytes": 321753,
+          "sha256": "5d9e7c7332f355b3de26f71f8fbbe6d8af6b891d64d9e6f8e379c43dd5b9d1a6",
+          "action": "replace",
+          "previousSha256": "4fce3ea91f31d349a3df8d83e200e93bf224ecde8497913c474c03fd09928c49"
+        },
+        {
+          "file": "ktx2cache/env/grimmnight/grimmnight_bk.ktx2",
+          "bytes": 21257,
+          "sha256": "438cb46292a8bc1ff94d71e1be8ecc3881740380a241fccb225de5874e537d23",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/env/grimmnight/grimmnight_ft.ktx2",
+          "bytes": 21044,
+          "sha256": "7f983232808c47762fac7a33354faeda7d3cfc0cc89331b7b5b1731ca7461f65",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/env/grimmnight/grimmnight_lf.ktx2",
+          "bytes": 18546,
+          "sha256": "134366b91bd3abfbacab73b05f02358ef026601467e167542cb353074d42edc1",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/env/grimmnight/grimmnight_rt.ktx2",
+          "bytes": 25324,
+          "sha256": "ac66d9e052016a2e4cd49656f141e40ffbd81714c49a3f2c07d79a8872e22789",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/env/grimmnight/grimmnight_up.ktx2",
+          "bytes": 9750,
+          "sha256": "e0392101574607d39c31936b0660d7ae653ba9ec9130adc1b5c82f5f4b9c2ad5",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/textures/boqu/med_concrete2_norm.ktx2",
+          "bytes": 55844,
+          "sha256": "011b6dd011cd6e6c982b776d48dcdf4ec809565d7a929170cbb82810c85e3c44",
+          "action": "replace",
+          "previousSha256": "84f8abac199f7df5f0e57bc4332c0c7a04724e822da853562c2780f14afbc921"
+        },
+        {
+          "file": "ktx2cache/textures/exwsw/ex_mtl_panel_03b_norm.ktx2",
+          "bytes": 5891,
+          "sha256": "389af1ecf12b04af5cb47106cdc85ce1b67da9912a200d8bd4feb8c46e6f6932",
+          "action": "replace",
+          "previousSha256": "25a18077592b8ec5d9eab5e9af9ba476c8ae451cbe59e5d2042be70379ce8226"
+        },
+        {
+          "file": "ktx2cache/textures/metal/bigtreadplateg_norm.ktx2",
+          "bytes": 5948,
+          "sha256": "db860b028b93c992842a489d5f5340067b2b3e0cddcf225b8b06dafb3894b4ae",
+          "action": "replace",
+          "previousSha256": "72394e5be49d93820a7ba21129d28ee1da90ba7d9e76b7d41b3262dd4a0687bf"
+        },
+        {
+          "file": "ktx2cache/textures/sky/sky_night_front.ktx2",
+          "bytes": 13958,
+          "sha256": "06206695fb1ff098df7f0a4ed6d9f7261b77297c89b9111554db8c74d804c633",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/models/mapobjects/tree110/barkdecidious048_gloss.ktx2",
+          "bytes": 9777,
+          "sha256": "2f53615eb121a264731c2a1217a6a5b7808832eaac300ba27055263a90af5bc9",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/models/mapobjects/tree110/barkdecidious048_norm.ktx2",
+          "bytes": 39103,
+          "sha256": "7daa90c2d24041aababdf6a9cacefdaf20922c89dd64a5d10064ea4ef6d2ca51",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/models/mapobjects/tree110/barkdecidious048.ktx2",
+          "bytes": 9173,
+          "sha256": "16e958e352eb2c49d34124cef48a6fed2a724ec8175d275c7ac4d1514d9bcb79",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/models/mapobjects/tree110/leaves0108_s.ktx2",
+          "bytes": 26927,
+          "sha256": "9fb9690e6ff3840dd74276368f222c35e6e0f932a8d4cc6de3e1702eebc74fe8",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/textures/refly_wood/wood3_norm.ktx2",
+          "bytes": 52255,
+          "sha256": "39cdb888bf1da46116aaa5286ad1c8ebec82b771fff29c24584416e00437a375",
+          "action": "replace",
+          "previousSha256": "57082820bbc184c13b4da151efcbbefdc8e90e8bca2267d17550d26e10bb67a6"
+        },
+        {
+          "file": "ktx2cache/textures/tiles/floorsregular0100_norm.ktx2",
+          "bytes": 241067,
+          "sha256": "259d19a01dcd962fc24600781b783f56c754036e40e9e6ab6b11dbdea140bf50",
+          "action": "replace",
+          "previousSha256": "6e04b51dd7f27cfe334d1c114d7c2ab492ea6082882f8ce0cc34ba606f0a8ebe"
+        },
+        {
+          "file": "ktx2cache/textures/wood/woodtables01_norm.ktx2",
+          "bytes": 69152,
+          "sha256": "466530e29726efbee6546bcb27940607d4afbdb1f714c9576b34710eebabc9b1",
+          "action": "replace",
+          "previousSha256": "fe54529f1541a5ad56faae5fe1a295ccc7fdebd346c692a2fe363f269163adf3"
+        },
+        {
+          "file": "ktx2cache/textures/cha0s_ws/blocks_1_top_lip_norm.ktx2",
+          "bytes": 1335,
+          "sha256": "3bf704f660099a7bdb0b6ee53c25b44265d6f0eadb7ae4ee0798be34dbdfb5c8",
+          "action": "replace",
+          "previousSha256": "385974051f0f1dee410701fc2eddc3d04e1a5ffdea3bdadad286c52a45140e1c"
+        },
+        {
+          "file": "ktx2cache/textures/cha0s_ws/trim19_norm.ktx2",
+          "bytes": 11029,
+          "sha256": "2d9241ccdff3578b75889ab7326009f4dbded80734136df260d9b49d0f59d7cb",
+          "action": "replace",
+          "previousSha256": "a338f6f1747e5ab2077d2bcfdb248d40e4f73a065db2556e62ba7641629daaa2"
+        },
+        {
+          "file": "ktx2cache/textures/grates/grid05_norm.ktx2",
+          "bytes": 19263,
+          "sha256": "6eb42a08d52aac0451bb3e7d7ddde90d8342f6f0d225f9f6e821a69b0ccff583",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/textures/cha0s_ws/cement_3_norm.ktx2",
+          "bytes": 2406,
+          "sha256": "5a151fc26f5552c80d72f3399e9b71fa25b88676788e6f72303578edcba76c26",
+          "action": "replace",
+          "previousSha256": "6e5817894dec64cbf67384af01b5a864d46bac1c18aae70106f73fb7db5027f2"
+        },
+        {
+          "file": "ktx2cache/models/mapobjects/lights/fluo-pack/albedo_decal.ktx2",
+          "bytes": 33270,
+          "sha256": "f97dbdef8f3d6a315565a6147ec9d1e0ac35bc6c0fa789fd26a2afe39825e926",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/models/mapobjects/scifi/pillar-mech/albedo.ktx2",
+          "bytes": 355201,
+          "sha256": "7ac30aebca74632b972d309d579ac1ef6f23fa87aa62bee1a253ae32521760f0",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/models/mapobjects/scifi/pillar-mech/albedo_norm.ktx2",
+          "bytes": 3322208,
+          "sha256": "a5b1cd8c0b2dae5d45a948f1d88b751b4ac4c34b7220cc49e019bf548ec76cc9",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/models/mapobjects/scifi/pillar-mech/albedo_gloss.ktx2",
+          "bytes": 97917,
+          "sha256": "f16c2f441aa7b770f643b236cfe6c3ec930c194ee98174de8324845faeb109a8",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/textures/pipes/o2pipe_norm.ktx2",
+          "bytes": 1033,
+          "sha256": "d0ef59e7c76d9bd63d1bff5f6a7761d7106694e2141b09f70401072a5b94edac",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/textures/pipes/o2pipe_gloss.ktx2",
+          "bytes": 2749,
+          "sha256": "dd4a12da2cbaa27e6b99ea081eb81ed4971e1695df4dfc31d83a72fa486275ce",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/models/mapobjects/industrial/barrel_1/albedo_norm.ktx2",
+          "bytes": 907663,
+          "sha256": "bbc2dd242c5a1bfc4dff483ed3cf486a92d8f9f3e335ff982055f14984e17040",
+          "action": "replace",
+          "previousSha256": "487dd73af1e51c2daff38f10331257957f5d3481fe79c775f68d8054ef6c3df2"
+        },
+        {
+          "file": "ktx2cache/textures/pipes/o2pipe.ktx2",
+          "bytes": 13855,
+          "sha256": "6327f39aff33f7ea960edcf4d8d87db840cb8d53be47e40ea2c78de761e4f1bc",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/textures/boqu/whitepanel01_norm.ktx2",
+          "bytes": 7575,
+          "sha256": "beee4060bc047b66cbc537578a49d2b5b3148742f164ef908fe75bef1e10fd3e",
+          "action": "replace",
+          "previousSha256": "52a274206ef992912075f5ae2e278e605fa08878c82855222a13db0128a09bd8"
+        },
+        {
+          "file": "ktx2cache/textures/boqu/white_panel1_norm.ktx2",
+          "bytes": 8334,
+          "sha256": "37044c90e32e6096179b76e0a26be25972df799686edf0c9a439d85210727c78",
+          "action": "replace",
+          "previousSha256": "dd76ecb3b7750673f435ce821c75ad43441b30200bb1f9d21898d51679f237e2"
+        },
+        {
+          "file": "ktx2cache/textures/terrain/drymud1_norm.ktx2",
+          "bytes": 118160,
+          "sha256": "7078a1365fc1318abb33dbe88b51d45c7b67cbfabfaf67e009e90753c5ba019b",
+          "action": "replace",
+          "previousSha256": "73320e8ef3a2e60ba1331b9cd5726ce8850873068985bdf3a8b5cb4586a82861"
+        },
+        {
+          "file": "ktx2cache/textures/blx_wtest3/blx_wt3_ceil2_norm.ktx2",
+          "bytes": 3995,
+          "sha256": "02b64b10a0de116efffebf6205d99357e25b9dd07660e239588d04c20e32000d",
+          "action": "replace",
+          "previousSha256": "4f07e57daf4fb1af76432d6b0c466c369645e1f74e8cd0f27f98b47da758fd4e"
+        },
+        {
+          "file": "ktx2cache/textures/boqu2/metaltrim2_norm.ktx2",
+          "bytes": 996,
+          "sha256": "53a9c5ea6e7de23d3461fffdb1ffee103c637dca6be94031792cc4bb436f48eb",
+          "action": "replace",
+          "previousSha256": "80c3e6ed7588aca942716802a0006b62eea99ec603903e76d86bf50493570122"
+        },
+        {
+          "file": "ktx2cache/textures/exwsw/ex_mtl_bigplate_04b_norm.ktx2",
+          "bytes": 56512,
+          "sha256": "2487b3a074dd7e412049763825ba7ea161c0683dbff00424a0f3cb8e0456217a",
+          "action": "replace",
+          "previousSha256": "7fc503f9195ad005bcdb66c35e7e2d9ace6fc6d666b033a9360392344b32fc66"
+        },
+        {
+          "file": "ktx2cache/textures/boqu2/whitetrim3_norm.ktx2",
+          "bytes": 4517,
+          "sha256": "4b863141894a7216e72ca760765aed54ffc138a99634c8fddf4cd1bcf7d78614",
+          "action": "replace",
+          "previousSha256": "6f62ee2820d25ccace16256e2a8da3cc4116e3d93b1ccc4f9820c21bfc8c114e"
+        },
+        {
+          "file": "ktx2cache/textures/scifi_interior/aluminium_panel2_norm.ktx2",
+          "bytes": 3203,
+          "sha256": "f753e14bf7b4085c6432e43e8f6505ff9fe667ae22401ef24681e32dfd52bc85",
+          "action": "replace",
+          "previousSha256": "153bc9fecefed3ad3001cb255da8dffdadde71d841cb4cd18317d6ccb50cc12f"
+        },
+        {
+          "file": "ktx2cache/models/mapobjects/rocks/cliffrock/albedo.ktx2",
+          "bytes": 627534,
+          "sha256": "31dc64754be60e86b4b49d4796295fa4c6c031da418604588701f80591c46da4",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/models/mapobjects/rocks/cliffrock/albedo_norm.ktx2",
+          "bytes": 2227104,
+          "sha256": "e66017e42637015db8fcc7f53e1a3c3c65e2cd8fc97f4ffff70b3c02a40dd6d4",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/models/mapobjects/rocks/cliffrock/radiant.ktx2",
+          "bytes": 65427,
+          "sha256": "c4a8e6ce6c9ea3fd5d0226d9e0a969bfa7bab2a2d7a9c88d7fe71f963467a256",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/models/mapobjects/rocks/blockyrocks/albedo.ktx2",
+          "bytes": 412656,
+          "sha256": "f63ce6deaaa6dc17ccde6d2c64344108d4729959b837827279e1e2bb10919127",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/models/mapobjects/rocks/blockyrocks/normal.ktx2",
+          "bytes": 827115,
+          "sha256": "b295d4a4bb1e632de66db262d7ff34b82c6dae9c1668beb6f54cd1c4974b50bf",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/models/mapobjects/rocks/blockyrocks/add.ktx2",
+          "bytes": 79368,
+          "sha256": "5b9d801ed72b2539739c6ba3d92127eed58d102a5f392601a7e394b590e32d2e",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/models/mapobjects/rocks/blockyrocks/radiant.ktx2",
+          "bytes": 20136,
+          "sha256": "1c7519b00b29c5275c3f4431568230573cc50de302dba056e5d07b487f368c51",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/models/mapobjects/scifi/doordouble01/door_right_norm.ktx2",
+          "bytes": 126193,
+          "sha256": "60934f9f8b4e471816dc452be47adc6b698ac1a876a65c1ad72e728d307e7e62",
+          "action": "replace",
+          "previousSha256": "9ef7290dde4b1287670ce121b43904c409ac164a9a928898ecbf53921c9e05cd"
+        },
+        {
+          "file": "ktx2cache/models/mapobjects/scifi/doordouble01/door_left_norm.ktx2",
+          "bytes": 154120,
+          "sha256": "91094f2f5446d023a6589791467fc8ee94c1b3be0239cad2033c0d645acd963c",
+          "action": "replace",
+          "previousSha256": "3bfbd999fee7494b7c9c6970dd869915186ec89886a86493e5d85d1e170c7d96"
+        },
+        {
+          "file": "ktx2cache/textures/terrain/brokenasfalt.ktx2",
+          "bytes": 126021,
+          "sha256": "fe8205efe1646a442afe14fd64583278e5676aa185af2aeecd224b920b131b24",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/textures/terrain/brokenasfalt_norm.ktx2",
+          "bytes": 678274,
+          "sha256": "ed88c4f46ad41c4d2c17e2b81ea4737f88dd147e4b55a115db1919c81c72bae1",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/textures/metal/plaindark.ktx2",
+          "bytes": 2260,
+          "sha256": "0980befe50fee38ebaf263529e62e83705202631de214ce9b6393157e75191e4",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/textures/metal/plaindark_gloss.ktx2",
+          "bytes": 4633,
+          "sha256": "d43923f51ee9dfbaf5cd3afa7b73115c65040d221e9e474801b27d70effa3174",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/textures/decals/concretedamage02.ktx2",
+          "bytes": 63727,
+          "sha256": "988bc030b593ea81460784a29cb04c60606888b95915e01060f39875e1c291dc",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/textures/decals/concretedamage02_norm.ktx2",
+          "bytes": 175963,
+          "sha256": "629289a6430f5eaf6e3725b82433a7ec4b928f5f1968b6c402d58c210113ee19",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/textures/decals/concretedamage01.ktx2",
+          "bytes": 79505,
+          "sha256": "540d5b9f7ca5ee18002d228e7014499ff4d02110b5e48a2749d2dbfd2086b09e",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/textures/decals/concretedamage01_norm.ktx2",
+          "bytes": 247207,
+          "sha256": "36cae51ff33e438c30aa798c7b96d13f72aba5811d4d2fc91dec02a811c87bed",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/textures/factory/construction_debris.ktx2",
+          "bytes": 71762,
+          "sha256": "904364dcabd18a4e00af9b3752f84215f91a26c5510a4b9bff2087ab7ace8ce8",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/textures/factory/construction_debris_norm.ktx2",
+          "bytes": 1196455,
+          "sha256": "c2ad2146d90da8d8a08b4d8607f6517a46b585e271b14c22e64a3e60a3cfbee5",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/textures/exwsw/ex_trim_psimple_04.ktx2",
+          "bytes": 6056,
+          "sha256": "e2c3934750f03ac843f6805e15e0b004a762961baa4a7cbdb07772de3230dbc6",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/textures/terrain/chipped_dirt.ktx2",
+          "bytes": 62746,
+          "sha256": "3e6b63ca787f953072818c1642be21315cbc1cc9286d69bbd2ff5703f12b3ab2",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/textures/terrain/chipped_dirt_norm.ktx2",
+          "bytes": 293552,
+          "sha256": "010cd7e7fcfea9de1b70247c8ec40cfccf7b0a6d7067a8490207180a0e56715e",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/textures/grates/grid05.ktx2",
+          "bytes": 10999,
+          "sha256": "d658ec49b5dbd6dcd68428ad88bf5eba2457ac9d90845ebae1f0d8871fd68045",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/textures/grates/grid05_gloss.ktx2",
+          "bytes": 6327,
+          "sha256": "330f81d8af167face2189fb3607c16d7cb71267a6715b017af52c270cd2b32c5",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/textures/grates/preview/grid05.ktx2",
+          "bytes": 11086,
+          "sha256": "2331a2ee2c4f9946cc0eec401ac00f1ff131897e333f1b38476ac8e636c9be5f",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/textures/grates/gratehzh.ktx2",
+          "bytes": 4464,
+          "sha256": "12712a094de2bf0defbc938f87f8a64d38a5e896f847a5c3c7f9db423ace041e",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/models/mapobjects/nateleaf1/ivyleaf.ktx2",
+          "bytes": 2419,
+          "sha256": "6e61fff7b87c77e3367e170bc6c97fb564ace8fca24596e823fa0954cbcc7e21",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/textures/bricks/bricks_05_black_decal.ktx2",
+          "bytes": 88477,
+          "sha256": "772f1a2bec53b25ddcf82ab6ad1f5b3dbf3894132bfcfc2a8ba3e88f3852ae72",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/textures/decals/lights/decal_blacktrim01.ktx2",
+          "bytes": 1421,
+          "sha256": "77a6745ace62bf4789f5d638501acf3f8417f7ae46657034b2c16e7cf944b490",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/textures/decals/lights/decal_blacktrim02.ktx2",
+          "bytes": 1450,
+          "sha256": "8c44e4dcedd3afab5043d39e2a4aea63649b0e9a2a193a6158612ebb50f0aa07",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/textures/factory/factory_pillar2_norm.ktx2",
+          "bytes": 1257,
+          "sha256": "4eb2e4f461656af78bd0d0373fb7e115fe1e14859d632b4c9d94b9c214d72dcb",
+          "action": "replace",
+          "previousSha256": "5e5640cd6f0d48baf08b73ac106f8cafdfc4967ce6e59c42d75918b4846f054c"
+        },
+        {
+          "file": "ktx2cache/textures/exwsw/ex_q2_01e_norm.ktx2",
+          "bytes": 21137,
+          "sha256": "698d98115cc4369c1841bdc3d74b98ea24f813cf76771e84f737ce0213fbdb9a",
+          "action": "replace",
+          "previousSha256": "bde01123fcf3dcedaab24fd40b63ea28116484ad72b4a04d9609b1cb8fa4b2b3"
+        },
+        {
+          "file": "ktx2cache/env/grimmnight/grimmnight_dn.ktx2",
+          "bytes": 377,
+          "sha256": "476ea61045930e43696ea322c031730fc82ebbfc347b9a7e28a732913497ff7f",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/textures/cha0s_ws/flat_lt_norm.ktx2",
+          "bytes": 250677,
+          "sha256": "416f074af9b32da928ab825c884a4e4ed992ed9dbf8f5ffb8a76d8fa1f0df055",
+          "action": "replace",
+          "previousSha256": "6baedd4b91af4978742de362abcb1578e1222f1ebdb3a8d86d015b6db5639c83"
+        },
+        {
+          "file": "ktx2cache/textures/common/botclip.ktx2",
+          "bytes": 2100,
+          "sha256": "619f5d025b4346e604a51000adffdc79a58b8e0f984f1a08626cb8d6356faceb",
+          "action": "add",
+          "previousSha256": null
+        },
+        {
+          "file": "ktx2cache/textures/cha0s_ws/concrete-pit-rows_bump.ktx2",
+          "bytes": 2227,
+          "sha256": "855f8d46d05df9152287952e970446e8f7df241aa3fdb65c1deb737e6c4e3038",
+          "action": "replace",
+          "previousSha256": "63cd7398a3c5103673d9000ce3da88a46ff30a0d6a77100bc581ef67d34e1d3d"
+        },
+        {
+          "file": "ktx2cache/textures/wdm7/blx_crocinus_pillar2_norm.ktx2",
+          "bytes": 371,
+          "sha256": "5fea26ec9ccc486ba55df9cc4a703b827975bad24e37faf70c6760586ca5c71c",
+          "action": "replace",
+          "previousSha256": "545934762d24ef7228d78b9a05f37c000f9b7521a6407e5277a6bc588fad5195"
+        }
+      ],
+      "totalBytes": 132809313,
+      "unchanged": 1043
+    }
+  }
+}

@@ -392,6 +392,33 @@ npm --prefix src/games/fps run cli:game -- --exec 'bsp load washoi_dm2; bsp info
 
 Headless loading resolves the BSP through the same PK3 index. Do not add ad-hoc filesystem searches for map files.
 
+## Map media packaging
+
+Map BSPs ship in `map_<map>.pk3`; their collected images, shader definitions and
+provenance ship in `tex_<map>.pk3`. Keep original material paths when renaming a
+BSP. Shared billboard paths remain in `tex_billboard.pk3`.
+
+`washoi_textures.pk3` is the unpublished lossless source bank.
+`config/map-texture-encoding.json` classifies source images for WebP packaging.
+Compatibility definitions in `config/map-material-aliases.shader` are imported
+into that bank; editing the source file alone does not update runtime packages.
+Import the definitions before rebuilding affected map banks.
+
+```bash
+node scripts/package-map-media.mjs --maps washoi_dm1,washoi_dm3,washoi_dm5,washoi_dm7 --master-package washoi_textures.pk3 --output-dir .cache/map-media-review
+```
+
+Review the dependency report, then install the generated map and texture archives
+under `public/data/`. Regenerate the PK3 index and applicable KTX2 sidecars. Keep
+backups of replaced packages and preserve map metadata such as levelshots.
+
+The `polygonOffset` shader directive gives coplanar map overlays both slope and
+constant depth bias. Constant bias keeps them separated when viewed straight on,
+where the depth slope can be zero. Filter-blend overlays also use both terms.
+These are material raster states; they add no rendering pass or map geometry. Inline brush
+models also honor the resolved diffuse image, blending, culling, vertex RGB/alpha
+and polygon offset, so door decals retain the authored material state.
+
 ## KTX2 sidecar loading
 
 Normal and scalar companion maps are encoded as linear data. The converter

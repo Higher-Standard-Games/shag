@@ -93,8 +93,9 @@ export function createFilterBlendMaterial(name: string, scene: Scene, texture: T
   // Disable depth write for proper overlay
   material.disableDepthWrite = true;
 
-  // Z-offset to prevent z-fighting with underlying wall
+  // Slope and constant bias keep overlays separated at every viewing angle.
   material.zOffset = -4;
+  material.zOffsetUnits = -4;
 
   bindAtmosphericFog(material);
   return material;

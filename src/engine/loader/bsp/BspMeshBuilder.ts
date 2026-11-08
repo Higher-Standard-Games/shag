@@ -2034,11 +2034,10 @@ export class BspMeshBuilder {
       mat.disableLighting = true;
     }
 
-    // Polygon offset for decals
-    // NOTE: polygonOffset with multiply blend (decals) still has z-fighting issues
-    // TODO: Investigate proper decal rendering with depth sorting or stencil buffer
+    // Constant bias separates coplanar decals even when the depth slope is zero.
     if (props.polygonOffset) {
       mat.zOffset = -2;
+      mat.zOffsetUnits = -2;
     }
 
     return mat;

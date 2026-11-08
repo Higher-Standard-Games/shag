@@ -4,9 +4,11 @@ import type { AbstractEngine } from "@babylonjs/core/Engines/abstractEngine";
 import { NullEngine } from "@babylonjs/core/Engines/nullEngine";
 import { ShaderMaterial } from "@babylonjs/core/Materials/shaderMaterial";
 import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
+import { Texture } from "@babylonjs/core/Materials/Textures/texture";
 import { MeshBuilder } from "@babylonjs/core/Meshes/meshBuilder";
 import { Scene } from "@babylonjs/core/scene";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { ShaderAnimationSystem } from "../loader/shader/ShaderAnimationSystem";
 import { bindAtmosphericFog } from "../rendering/AtmosphericFogShader";
 import {
   drawListSignature,
@@ -105,6 +107,63 @@ describe("whole-frame snapshots", () => {
       expect(materials.map((material) => internals.dynamicMaterials.has(material))).toEqual([true, true, false]);
     } finally {
       handle?.dispose();
+      for (const mesh of meshes) (mesh.subMeshes[0] as unknown as { _drawWrappers: unknown[] })._drawWrappers = [];
+      delete (engine as unknown as { isWebGPU?: boolean }).isWebGPU;
+      delete (engine as unknown as { compatibilityMode?: boolean }).compatibilityMode;
+    }
+  });
+
+  it("refreshes animated material UBOs from the first recording without learning loose-uniform changes", () => {
+    vi.stubGlobal("location", { search: "" });
+    Object.defineProperty(engine, "isWebGPU", { value: true, configurable: true });
+    Object.defineProperty(engine, "compatibilityMode", { value: false, configurable: true });
+    Object.assign(engine, { _snapshotRendering: { endRenderPass() {}, _allBundleLists: [] } });
+    const animation = ShaderAnimationSystem.getInstance();
+    animation.init(scene);
+    const materials = ["teleporter", "fixed_scale", "ordinary"].map((name) => new StandardMaterial(name, scene));
+    animation.registerMaterial("teleporter", materials[0], new Texture(null, scene), [
+      { type: "rotate", degreesPerSecond: 60 },
+    ]);
+    animation.registerMaterial("fixed", materials[1], new Texture(null, scene), [
+      { type: "scale", sScale: 2, tScale: 2 },
+    ]);
+    const meshes = materials.map((material) => {
+      const mesh = MeshBuilder.CreateBox(material.name, {}, scene);
+      mesh.material = material;
+      const context = { buffers: { LeftOver: {} } };
+      const uniforms = {
+        _uniformLocations: { cameraPosition: 0 },
+        _uniformSizes: { cameraPosition: 3 },
+        _slotByOwner: new Map([[context, 0]]),
+        _slotFrameId: [0],
+      };
+      (mesh.subMeshes[0] as unknown as { _drawWrappers: unknown[] })._drawWrappers = [
+        { effect: { _pipelineContext: { uniformBuffer: uniforms } }, drawContext: context },
+      ];
+      return mesh;
+    });
+    const handle = installSnapshotFrames(
+      scene,
+      meshes[0],
+      () => null,
+      () => {},
+    );
+    try {
+      expect(handle).not.toBeNull();
+      const internals = handle as unknown as {
+        recorded: typeof meshes;
+        recordingFrame: number;
+        slotDraws(): unknown[];
+        dynamicMaterials: WeakSet<StandardMaterial>;
+      };
+      internals.recorded = meshes;
+      internals.recordingFrame = 0;
+      expect(internals.slotDraws()).toHaveLength(3);
+      expect(materials.map((m) => internals.dynamicMaterials.has(m))).toEqual([true, false, false]);
+    } finally {
+      handle?.dispose();
+      animation.dispose();
+      vi.unstubAllGlobals();
       for (const mesh of meshes) (mesh.subMeshes[0] as unknown as { _drawWrappers: unknown[] })._drawWrappers = [];
       delete (engine as unknown as { isWebGPU?: boolean }).isWebGPU;
       delete (engine as unknown as { compatibilityMode?: boolean }).compatibilityMode;
