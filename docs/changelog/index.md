@@ -6,7 +6,8 @@ All notable changes to this project are documented in version-specific files.
 
 | Version | Date | Summary |
 |---------|------|---------|
-| [v1.0.0-beta.8](./v1.0.0-beta.8.md) | unreleased | Living changelog for the next beta cycle |
+| [v1.0.0-beta.9](./v1.0.0-beta.9.md) | unreleased | Living changelog for the next beta cycle |
+| [v1.0.0-beta.8](./v1.0.0-beta.8.md) | Nov 8, 2026 | Browser highlight video export with OST music, smooth local Voltaic beams, DM1/DM3 and refreshed DM5/DM7, animated shaders, door decals and jumppad fixes |
 | [v1.0.0-beta.7](./v1.0.0-beta.7.md) | Nov 7, 2026 | Next-spawn loadout changes, continuous Voltaic audio, visible reload cues, lightweight slide dust, and gameplay, bot, console and manual fixes |
 | [v1.0.0-beta.6](./v1.0.0-beta.6.md) | Nov 6, 2026 | Controller support with shared-menu navigation, Xbox-style presets and remapping, stick tuning and safe input handoffs |
 | [v1.0.0-beta.5](./v1.0.0-beta.5.md) | Nov 4, 2026 | Touch controls with aim assist and gyro while firing, input devices shown on the scoreboard, and native-client lobby, demos, downloads and match settings |
