@@ -80,6 +80,13 @@ const LEARNED_DRAWS_PER_FRAME = 256;
 /** The world matrix of a mesh hidden in place: every vertex at the origin, nothing drawn. */
 const COLLAPSED = Matrix.Zero();
 
+const declaredDynamicMaterials = new WeakSet<Material>();
+
+/** Declare per-frame uniform writes before the material's first recorded draw. */
+export function markSnapshotMaterialDynamic(material: Material): void {
+  declaredDynamicMaterials.add(material);
+}
+
 interface PassWrapper {
   renderPassDescriptor?: {
     colorAttachments?: ({ loadOp?: string } | null)[];
@@ -753,6 +760,7 @@ class SnapshotFrames implements SnapshotFramesHandle {
             const uniforms = MATRIX_UNIFORMS.filter((name) => name in names);
             const hasWorld = uniforms.some((name) => name.startsWith("world"));
             const material = subMesh.getMaterial(false);
+            if (material && declaredDynamicMaterials.has(material)) this.dynamicMaterials.add(material);
             const ranges = this.valueRanges(leftOver);
             draws.push({
               mesh,

@@ -51,6 +51,10 @@ When extending it:
 - dispose observers, materials, lights, particles, and models on reset;
 - keep weapon bob synchronized with viewport/player state.
 
+Hitscan bullet-hole and pellet batches share materials within their owning scene.
+An effect clear retains those materials for reuse; scene replacement or material
+disposal requires fresh materials before the next batch is created.
+
 Projectile collision and velocity follow the server's eye-based aim ray. The
 first-person **visible start** uses the weapon's authored `tag_flash` socket:
 project through the weapon camera's FOV and map that pixel into the world camera.
@@ -63,6 +67,16 @@ renderers receive an explicit visual muzzle instead of using `scene.activeCamera
 which may refer to the last weapon-camera pass. Demo POV uses its own view manager.
 Which local shot a projectile belongs to is inferred from its position and
 forward velocity; projectiles do not carry an explicit owner for this.
+
+The live local Voltaic beam traces from the current eye and aim immediately
+before the main camera renders. Its visible start follows the projected muzzle.
+The world collision trace caps a game-owned player-contact resolver, which
+checks the existing interpolated hitbox centres and crouch heights. This is
+visual prediction only: damage, ammo and hit confirmation remain authoritative.
+Remote players and demo POV retain the replicated beam endpoint and impact kind.
+The contact resolver is registered by `RemotePlayerRenderer` and cleared by
+identity on disposal. No meshes, materials or shader variants are created by
+the per-frame contact checks.
 
 Machinegun tracers spawn a warm impact light when their streak reaches the hit.
 The light peaks at 0.25 intensity, uses a 60-unit range and expires with the

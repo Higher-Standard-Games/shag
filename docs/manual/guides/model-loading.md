@@ -284,6 +284,20 @@ missing main models and barrel GLBs. Barrel instances retain their authored glTF
 root transforms and receive the existing tag/per-barrel offsets. Both dropped
 caches retire with the dropped-weapon renderer.
 
+Hand-held guns retain their imported glTF hierarchy, skin joints and muzzle
+nodes under a separate grip. The grip replaces the loader's catalog scale with
+the holder's visual scale and aligns the authored +X barrel with the right
+hand's finger direction, including the scene's handedness conversion. Barrel
+sub-models attach in the same imported model space. The winner showcase uses
+the same grip. A visibility/LOD update leaves locomotion stopped while an
+attack animation owns the bones.
+
+The hitscan effect manager validates its persistent mesh resources during
+initialization. Map clearing can dispose those meshes while retaining the
+scene; initialization then rebuilds the procedural effect controllers and
+prewarms their resources. Repeated initialization on an intact scene reuses
+them.
+
 Each `WeaponViewManager` also owns prepared GLB sources for its first-person
 weapons and barrels. Main sources are keyed by weapon ID/model path so appearance
 and orientation variants remain distinct. Material conversion and light/layer

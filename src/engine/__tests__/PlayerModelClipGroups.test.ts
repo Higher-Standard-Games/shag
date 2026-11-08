@@ -70,3 +70,35 @@ it("reuses one group per clip across switches, restarting it as a fresh one woul
   expect(scene.animationGroups.length).toBe(0);
   expect(instance.masterGroup).toBeNull();
 });
+
+it("keeps a one-shot's bones exclusive when visibility asks to resume locomotion", () => {
+  const { scene, instance } = setup();
+  const manager = new PlayerModelManager(scene);
+  try {
+    manager.playAnimation(instance, "run");
+    const run = instance.masterGroup!;
+    expect(manager.playOnce(instance, "idle")).toBe(true);
+    expect(run.isPlaying).toBe(false);
+    manager.setAnimationActive(instance, false);
+    manager.setAnimationActive(instance, true);
+    expect(manager.isOneShotPlaying(instance)).toBe(true);
+    expect(run.isPlaying).toBe(false);
+    instance.anims.push({
+      name: "jump",
+      animations: [{ animation: clip("jump", -10), target: scene.getTransformNodeByName("joint")! }],
+    });
+    manager.playAnimation(instance, "jump");
+    const jump = instance.masterGroup!;
+    expect(instance.currentAnim).toBe("jump");
+    expect(jump.isPlaying).toBe(false);
+    manager.setAnimationActive(instance, true);
+    expect(jump.isPlaying).toBe(false);
+    manager.stopOneShot(instance);
+    manager.setAnimationActive(instance, true);
+    expect(jump.isPlaying).toBe(true);
+    expect(run.isPlaying).toBe(false);
+  } finally {
+    disposePlayerModel(instance);
+    scene.getEngine().dispose();
+  }
+});

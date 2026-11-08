@@ -39,6 +39,14 @@ the console logs the reason. Washoi shows it as **Video → Advanced → Rendere
 changing the saved value. Under WebGPU, whole-frame snapshots are on unless the
 address says `?snapshot=0`.
 
+Shader materials that update their own uniforms can declare that requirement
+before their first recorded draw with `markSnapshotMaterialDynamic(material)`.
+The atmospheric-fog binding does this for its camera-dependent uniforms, which
+also covers the procedural effects and map shader materials using that binding.
+Their recorded uniform slots are refreshed from the first replay. Other materials
+keep the existing bounded change detection; declaring a dynamic material does
+not disable snapshots or change draw-list invalidation.
+
 ### Frame-cost switches
 
 Washoi's Ultralow video preset turns these down; every other preset sets them

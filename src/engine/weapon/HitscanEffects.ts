@@ -83,22 +83,13 @@ export interface VoltaicBeamTruthConfig extends HitscanFireConfig {
   impactNormal?: Vector3;
 }
 
-/** Largest server-side Voltaic wander that reconciliation may legitimately add. */
-export const VOLTAIC_TRUTH_MAX_ANGLE_DEG = 8;
-
-/**
- * Reject a recent server endpoint after the player has already turned away.
- * Without this gate, a 20 Hz truth sample can connect the current muzzle to an
- * endpoint from the previous aim direction and make the whole beam bend sideways.
- */
-export function isVoltaicTruthAligned(currentDirection: Vector3, truthDirection: Vector3): boolean {
-  const currentLengthSquared = currentDirection.lengthSquared();
-  const truthLengthSquared = truthDirection.lengthSquared();
-  if (currentLengthSquared < 0.000001 || truthLengthSquared < 0.000001) return false;
-  const inverseLengths = 1 / Math.sqrt(currentLengthSquared * truthLengthSquared);
-  const dot = Vector3.Dot(currentDirection, truthDirection) * inverseLengths;
-  return dot >= Math.cos((VOLTAIC_TRUTH_MAX_ANGLE_DEG * Math.PI) / 180);
-}
+/** Resolve a rendered player contact before the world hit, without applying damage. */
+export type LocalLightningTargetResolver = (
+  origin: Vector3,
+  direction: Vector3,
+  maxDistance: number,
+  result: Vector3,
+) => boolean;
 
 /** Pellet spread (riotgun-style multi-ray) */
 export interface PelletConfig extends HitscanFireConfig {
@@ -220,8 +211,6 @@ export class HitscanEffects {
   private travelingPellets: TravelingPellet[] = [];
   private nextId = 0;
 
-  private static readonly LOCAL_TRUTH_TIMEOUT = 0.1; // seconds
-
   /** Procedural GPU Voltaic renderer (hero, remote, impacts, and chain arcs). */
   private voltaicRenderer: VoltaicEffectRenderer | null = null;
   /** Procedural GPU Electrobolt rail renderer (one-shot analytic helix rails). */
@@ -236,15 +225,10 @@ export class HitscanEffects {
   private pendingImpacts: { due: number; play: () => void }[] = [];
   private muzzleAnchorResolver: (() => Vector3 | null) | null = null;
   private remoteVoltaicStartResolver: VoltaicRemoteStartResolver | null = null;
-  private readonly localVoltaicEndpoint = new Vector3();
-  private readonly localVoltaicNormal = new Vector3();
-  private readonly localVoltaicDirection = new Vector3();
+  private localLightningTargetResolver: LocalLightningTargetResolver | null = null;
+  private readonly localLightningContact = new Vector3();
   /** Scratch for the rail's travel direction; burst() copies out before returning. */
   private readonly railImpactDirection = new Vector3();
-  private localVoltaicImpactKind: VoltaicImpactKind = "none";
-  private localVoltaicHasNormal = false;
-  private localVoltaicHasDirection = false;
-  private localVoltaicTruthAt = -Infinity;
 
   /**
    * Wall marks (bullet holes / scorch marks): thin instances of one disc, so
@@ -296,7 +280,7 @@ export class HitscanEffects {
   init(scene: Scene): void {
     if (this.tickObserver) this.scene?.onBeforeRenderObservable.remove(this.tickObserver);
     this.tickObserver = scene.onBeforeRenderObservable.add(() => this.update(scene.getEngine().getDeltaTime() / 1000));
-    if (this.scene !== scene) {
+    if (this.scene !== scene || !this.voltaicRenderer || this.voltaicRenderer.isDisposed()) {
       this.voltaicRenderer?.dispose();
       this.voltaicRenderer = new VoltaicEffectRenderer(scene, this.now);
       this.voltaicRenderer.setRemoteStartResolver(this.remoteVoltaicStartResolver);
@@ -384,65 +368,43 @@ export class HitscanEffects {
 
   // ── Procedural continuous Voltaic beam ───────────────────────────
 
-  /** Procedural local hero beam. Call every frame while Voltaic is firing. */
+  /** Trace the current local view each frame; this predicts presentation only. */
   updateLightningBeam(cfg: BeamConfig): Vector3 | null {
     if (!this.scene || !this.voltaicRenderer) return null;
     const range = cfg.maxRange ?? 850;
     const color = cfg.color ?? new Color3(1.0, 0.7, 0.1);
-    const now = this.now();
-    const hasFreshTruth =
-      this.localVoltaicHasDirection &&
-      now - this.localVoltaicTruthAt <= HitscanEffects.LOCAL_TRUTH_TIMEOUT &&
-      isVoltaicTruthAligned(cfg.direction, this.localVoltaicDirection);
     const traceOrigin = cfg.traceOrigin ?? cfg.origin;
-    const hit = hasFreshTruth ? null : this.traceRay(traceOrigin, cfg.direction, range);
-    const endpoint = hasFreshTruth
-      ? this.localVoltaicEndpoint
-      : (hit?.point ?? traceOrigin.add(cfg.direction.scale(range)));
-    const impactKind = hasFreshTruth ? this.localVoltaicImpactKind : hit ? "world" : "none";
-    const impactNormal = hasFreshTruth
-      ? this.localVoltaicHasNormal
-        ? this.localVoltaicNormal
-        : undefined
-      : hit?.normal;
+    const hit = this.traceRay(traceOrigin, cfg.direction, range);
+    const worldEndpoint = hit?.point ?? traceOrigin.add(cfg.direction.scale(range));
+    const playerHit = this.localLightningTargetResolver?.(
+      traceOrigin,
+      cfg.direction,
+      hit ? Vector3.Distance(traceOrigin, worldEndpoint) : range,
+      this.localLightningContact,
+    );
+    const endpoint = playerHit ? this.localLightningContact : worldEndpoint;
+    const impactKind = playerHit ? "player" : hit ? "world" : "none";
     this.voltaicRenderer.updateHero({
       start: cfg.origin,
       end: endpoint,
       color,
       impactKind,
-      impactNormal,
+      impactNormal: playerHit ? undefined : hit?.normal,
     });
     return impactKind === "none" ? null : endpoint;
   }
 
-  /** Starts a new local activation without inheriting a late packet from the previous beam. */
-  beginLightning(): void {
-    this.localVoltaicTruthAt = -Infinity;
-    this.localVoltaicImpactKind = "none";
-    this.localVoltaicHasNormal = false;
-    this.localVoltaicHasDirection = false;
+  setLocalLightningTargetResolver(resolver: LocalLightningTargetResolver): void {
+    this.localLightningTargetResolver = resolver;
   }
 
-  /** Reconcile the hero beam to the exact server damage ray/contact. */
-  updateLocalLightningTruth(cfg: VoltaicBeamTruthConfig): void {
-    this.localVoltaicEndpoint.copyFrom(cfg.endpoint);
-    this.localVoltaicDirection.copyFrom(cfg.direction);
-    const directionLengthSquared = this.localVoltaicDirection.lengthSquared();
-    this.localVoltaicHasDirection = directionLengthSquared > 0.000001;
-    if (this.localVoltaicHasDirection) this.localVoltaicDirection.scaleInPlace(1 / Math.sqrt(directionLengthSquared));
-    this.localVoltaicImpactKind = cfg.impactKind;
-    this.localVoltaicHasNormal = !!cfg.impactNormal;
-    if (cfg.impactNormal) this.localVoltaicNormal.copyFrom(cfg.impactNormal);
-    this.localVoltaicTruthAt = this.now();
+  clearLocalLightningTargetResolver(resolver: LocalLightningTargetResolver): void {
+    if (this.localLightningTargetResolver === resolver) this.localLightningTargetResolver = null;
   }
 
   /** Stop the local player's lightning beam. */
   stopLightning(): void {
     this.voltaicRenderer?.stopHero();
-    this.localVoltaicTruthAt = -Infinity;
-    this.localVoltaicImpactKind = "none";
-    this.localVoltaicHasNormal = false;
-    this.localVoltaicHasDirection = false;
   }
 
   /** One-shot procedural arc between actual chain-lightning points. */
@@ -633,7 +595,12 @@ export class HitscanEffects {
     // Pellets cross the whole view: one cone's bounds would cull them
     mesh.alwaysSelectAsActiveMesh = true;
 
-    if (!this.pelletMaterial || this.pelletMaterial.getScene() !== scene) {
+    if (
+      !this.pelletMaterial ||
+      this.pelletMaterial.getScene() !== scene ||
+      !scene.materials.includes(this.pelletMaterial)
+    ) {
+      this.pelletMaterial?.dispose();
       // White emissive, tinted per instance: the instance colour multiplies it
       const mat = new StandardMaterial("pellet_mat", scene);
       mat.emissiveColor = Color3.White();
@@ -1074,7 +1041,11 @@ export class HitscanEffects {
 
   /** Shared wall mark material — created once, reused by all marks. */
   private ensureWallMarkMaterial(color: Color3): void {
-    if (this.wallMarkMaterial || !this.scene) return;
+    if (!this.scene) return;
+    if (this.wallMarkMaterial?.getScene() === this.scene && this.scene.materials.includes(this.wallMarkMaterial))
+      return;
+    this.wallMarkMaterial?.dispose();
+    this.wallMarkColored = false;
     this.wallMarkMaterial = new StandardMaterial("wallmark_shared_mat", this.scene);
     this.wallMarkMaterial.emissiveColor = new Color3(color.r * 0.3, color.g * 0.3, color.b * 0.3);
     this.wallMarkMaterial.diffuseColor = Color3.Black();

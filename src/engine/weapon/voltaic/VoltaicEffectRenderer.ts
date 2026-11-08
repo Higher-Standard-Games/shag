@@ -453,6 +453,18 @@ export class VoltaicEffectRenderer {
     return this.clock();
   }
 
+  /** Map clearing can retire the meshes while retaining their scene. */
+  isDisposed(): boolean {
+    return (
+      this.heroBeam.isDisposed() ||
+      this.heroImpact.isDisposed() ||
+      this.remoteBatch.beamMesh.isDisposed() ||
+      this.remoteBatch.impactMesh.isDisposed() ||
+      this.chainBatch.beamMesh.isDisposed() ||
+      this.chainBatch.impactMesh.isDisposed()
+    );
+  }
+
   private bindHeroSample(sample: VoltaicEffectSample, life: number): void {
     const fallbackX = sample.start.x - sample.end.x;
     const fallbackY = sample.start.y - sample.end.y;

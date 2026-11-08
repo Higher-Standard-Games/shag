@@ -1,9 +1,10 @@
 # Highlight video export
 
-Date: 2026-10-22. Status updated 2026-11-07: the integrated developer exporter
-produces synchronized picture/game audio; optional OST music and yellow export UI
-are implemented. Broader public acceptance remains open. The implementation and
-review sections below supersede the historical planning scope.
+Date: 2026-10-22. Status updated 2026-11-08: the integrated exporter produces
+synchronized picture/game audio with optional OST music and yellow export UI.
+The owner approved release-build access with `developer 0`; the menu, command,
+dialog and isolated-page boot no longer require developer mode or a development
+build. The implementation and review sections below supersede historical scope.
 
 Planning review: 2026-10-26. Public target narrowed to existing 1/2/3-minute
 highlight reels. The review below supersedes the earlier interval/HUD scope;
@@ -1326,3 +1327,319 @@ Screenshots are `export-dialog-desktop.png`, `export-dialog-narrow.png`,
 The OST movie proof used dm2 Duel and an isolated client-only WebGL2 renderer;
 it does not add broader map/mode, OS-picker, memory-plateau or device-fault
 acceptance. Those public-rollout recommendations above remain open.
+
+### Owner dm5 movie findings and follow-up
+
+The exporter/UI/music checkpoint was committed before these investigations, as
+requested: FPS `8031eb3`, engine `faca2aa8`, both on
+`feature/highlight-video-export`. Neither was pushed. Unrelated `public/shag.glb`
+and `server-data-mapcheck/` were excluded. The fixes below are subsequent working
+changes, not part of those checkpoint commits.
+
+The owner identified `washoi_dm5_duel_20261103_213207-highlights.mp4`, from
+Player_7050 vs Dashi. Its local source recording is
+`public/data/demos/washoi_dm5_duel_20261103_213207.shagdemo`: version 6, 125 Hz,
+37,501 frames, with 618 `voltaic_beam` events. The three-minute-target recipe
+has 18 scenes / 48 segments. Browser checks use this exact recording in isolated
+Edge/WebGL2 documents without joining a live match.
+
+1. **Music mix:** selected music gain is fixed at 0.8. SFX requests retain their
+   relative cue gains but are multiplied by 0.35 while music is selected. The
+   None path retains its game-only gain. Fade timing, normal music tempo and
+   combined clipping protection are unchanged. Native decoding/mixing of Washiki
+   Washoi at 0:30 agrees with expected PCM ×0.8 within 1.79e-8; measured fixture
+   energy is 1082.06944 versus 81.83150 at the previous 0.22 gain. Two additional
+   tests cover selected-music versus game-only SFX gain. The owner subsequently
+   requested a smaller export label; only that label is reduced to 22 px.
+2. **Held weapons:** inspected actual Riotgun, Plasma, Rocket, Grenade and
+   Voltaic GLBs. They share a +X barrel axis and glTF handedness root; the gun
+   path detached skinned geometry, reset child transforms and moved the muzzle
+   joint separately. The blade's working path kept its complete hierarchy.
+   Guns now retain their mesh/joint/muzzle hierarchy under a separate hand grip;
+   the holder replaces only the loader's outer catalog scale. Handedness-aware
+   alignment, gun recycling, muzzle following, barrel model space and showcase
+   attachment use that same hierarchy. Shader warm-up visits all child meshes,
+   and rejected parking releases the entire grip. No new shader/material is
+   created per frame. Two handedness tests, the existing blade test and seven
+   weapon ownership/cache tests pass. Close-camera dm5 images for Riotgun,
+   Plasma, Grenade, Rocket, Voltaic and Blade are `world-<weapon>.png` under
+   `.agent/video-fixes/`; the Voltaic image also shows an active beam leaving its
+   muzzle. No GPU errors or failed HTTP requests were logged in those probes.
+   The final up-axis measurement caught an intermediate 180-degree roll left
+   by reusing the blade's symmetric alignment. The gun-only alignment now keeps
+   its +Y on the hand's thumb side: measured world-up Y changed from about
+   -0.994 to +0.993–0.995 for all five guns. Both forward and up axes are asserted
+   in the two-handedness tests. The blade alignment is unchanged.
+3. **Airborne run:** the dm5 reel reproduced `expected=jump` while the cached
+   run group was playing during a blade attack, including the region around
+   output time 2:38. The attack stops locomotion, but visibility activation
+   immediately restarted it. A real AnimationGroup test reproduced the failure.
+   Visibility now leaves locomotion stopped while an attack owns the bones.
+   Locomotion selection also continues during the attack, with its group stopped,
+   so the attack returns to the current jump/walk/strafe rather than stale run.
+   The intermediate guard-only probe reduced the conflict to one natural-end
+   transition frame; staging the current locomotion corrects that handoff too.
+   All 12 clip-group, pose-stepping and demo-timeline tests pass. Attack animation
+   still has intentional pose priority over locomotion; this does not introduce
+   upper/lower-body animation blending.
+   The final exact dm5 traversal through 2:40 found zero airborne run loops and
+   zero GPU errors. All sampled airborne states around 2:38 retain `jump` as
+   their pending locomotion while the active attack owns the bones.
+4. **Missing Voltaic beam:** native decoding of the owner's Desktop MP4 confirms
+   missing beams at output 0:50–0:51 despite sustained fire and damage. A one-pass
+   probe displayed the beam, isolating the difference to export's map reload
+   between passes. Scene clearing disposes meshes while retaining the scene;
+   HitscanEffects reused its persistent controllers because scene identity had
+   not changed. Initialization now detects disposed Voltaic resources and
+   rebuilds the persistent effect controllers. Intact same-scene initialization
+   still reuses them. The new lifecycle regression failed before the fix and
+   passes afterward; the focused lifecycle/clock/Voltaic batch passes 10 tests.
+   A complete replacement MP4 finalized at 1920×1080, 174.634667 seconds and
+   432,853,710 bytes. Native video decoding sampled 0:48 through 0:53, with no
+   decoder errors. The decoded replacement frame at exactly 0:50 visibly shows
+   the yellow beam and impact missing from the original frame. The original
+   Desktop file was read only. The replacement is
+   `.agent/video-fixes/artifacts/dm5-followup-fixed.mp4`; paired decoded images
+   are `original-50.png` and `new-50.png` in the same probe directory.
+
+The changed files for this follow-up are:
+
+```text
+docs/changelog/v1.0.0-beta.8.md
+docs/manual/guides/model-loading.md
+docs/research/highlight_video_export.md
+docs/research/v1.0.0-beta6-papercuts.md
+src/engine/animation/PlayerModelManager.ts
+src/engine/__tests__/PlayerModelClipGroups.test.ts
+src/engine/weapon/HitscanEffects.ts
+src/engine/weapon/voltaic/VoltaicEffectRenderer.ts
+src/engine/weapon/__tests__/HitscanSceneReinit.test.ts
+src/games/fps/client/AttachedGun.ts
+src/games/fps/client/RemotePlayerRenderer.ts
+src/games/fps/client/__tests__/AttachedGun.test.ts
+src/games/fps/client/__tests__/RemoteWeaponLeak.test.ts
+src/games/fps/client/styles/Demos.css
+src/games/fps/client/video/ExportAudioMixer.ts
+src/games/fps/client/video/__tests__/ExportMusic.test.ts
+src/games/fps/docs/manual/multiplayer/demos.md
+```
+
+Focused validation commands:
+
+```text
+node node_modules/vitest/vitest.mjs run src/games/fps/client/video/__tests__/ExportMusic.test.ts src/games/fps/client/__tests__/AttachedGun.test.ts src/games/fps/client/__tests__/AttachedBlade.test.ts src/games/fps/client/__tests__/RemoteWeaponLeak.test.ts
+node node_modules/vitest/vitest.mjs run src/engine/__tests__/PlayerModelClipGroups.test.ts src/engine/__tests__/PlayerModelPoseStepping.test.ts src/games/fps/client/__tests__/DemoAnimationTimeline.test.ts
+node node_modules/vite-node/vite-node.mjs .agent/video-fixes/weapon-import.ts
+node node_modules/vite-node/vite-node.mjs .agent/video-fixes/demo-inspect.ts
+node .agent/video-fixes/playback-probe.mjs
+node .agent/video-fixes/pose-probe.mjs
+node .agent/video-fixes/reel-probe.mjs
+node .agent/video-fixes/reel-fixed-probe.mjs
+node .agent/video-fixes/music-80-probe.mjs
+node node_modules/vitest/vitest.mjs run src/engine/weapon/__tests__/HitscanSceneReinit.test.ts src/engine/weapon/__tests__/HitscanPresentationClock.test.ts src/engine/weapon/__tests__/VoltaicEffectRenderer.test.ts
+node .agent/video-fixes/export-full.mjs
+node .agent/video-fixes/decode-video.mjs original
+node .agent/video-fixes/decode-video.mjs new
+```
+
+The focused test batches pass 26 and 12 tests respectively. The first new
+hand-space fixture read an uncomputed player world matrix; updating the matrix
+before querying its hand corrected that fixture's scale assertion. The animation
+test failed before the ownership correction and passes afterward. Existing
+NullEngine barrel fixtures log unavailable browser XHR; renderer-extension and
+packaged weapon common-root warnings are retained in the logs. PowerShell can
+report failure on native stderr even when Vitest's summary passes; consolidated
+gates capture the actual child exit code. Final reel and consolidated gate
+results are recorded after completion below.
+
+The replacement export logged no GPU errors or failed HTTP requests. Its
+instrumented beam draws were present in both passes at matching sampled movie
+times from 48.0167 to 53.0167 seconds. Native decoding of the finalized file,
+rather than the raw render buffer, provides the visibility confirmation above.
+The log retains one ProjectileSync warning: `proj_10516` appears in snapshot
+88438 without its spawn event and is not drawn. That separate recorded-event
+gap has not been investigated in this fix; it does not establish a general
+projectile-rendering failure. Live multiplayer was not manually retested; these
+checks use the owner's local dm5 Duel recording and shared presentation code.
+
+
+Final validation commands for the owner dm5 follow-up:
+
+```text
+npm --prefix src/games/fps run test:simulation
+npm --prefix src/games/fps run test:physics
+npm --prefix src/games/fps run server:tick
+npm --prefix src/games/fps run server:fuzz -- --ticks 1000
+npm --prefix src/games/fps run cli:game -- --exec "developer 1; bsp load washoi_dm5; bsp info; quit"
+npm --prefix src/games/fps run cli:game -- --exec "developer 1; bsp load washoi_dm2; bsp info; quit"
+npm --prefix src/games/fps run cli:game -- --exec 'sim replay "W+CROUCH 60; JUMP 1; W 30"; quit'
+npm run typecheck
+npm run gate:biome
+npm run build
+npm run docs:build
+npm --prefix src/games/fps run docs:build
+npm run test:run
+```
+
+The five headless regressions pass: dm5 has 1,353 faces, tick checksum is
+2768943778, and the earlier 1,000-tick fuzz run repeats checksum 2236476843.
+The additional required dm2 load and movement replay passed with 7,475 faces
+and 91 simulated ticks. Typecheck, production build and both manual builds
+pass; Biome remains at zero errors and 47 baseline warnings. The first final
+runner attempt was blocked by sandbox `spawn EPERM` before esbuild could run;
+its headless checks were rerun with child-process permission and passed.
+Reports and native exit codes are in `.agent/video-fixes/gates.json` and
+`*-final.log`. The pre-beam-fix consolidated suite passed 808 files and 6,291
+tests with one skipped test; the post-fix suite result is recorded below.
+
+
+### Release access (owner decision, 2026-11-08)
+
+All rendering, audio mixing, encoding and temporary video storage happen on the
+user's computer. The server serves the demo/assets; it does not encode or receive
+the exported MP4. The owner therefore requested normal user access. Removed the
+Demos menu's developer/development-build condition, the console command's developer
+flag, the dialog's development-build rejection and the isolated boot route's
+build condition. The existing browser capability checks and live-match guard
+still apply. The menu regression now exercises a release environment and expects
+the export button alongside the minute buttons; both Demos test files pass 20
+tests. No recording, network protocol or server behavior changed.
+
+Additional files changed for release access:
+
+```text
+src/games/fps/client/DemosView.ts
+src/games/fps/client/boot.ts
+src/games/fps/client/video/HighlightVideoExporter.ts
+src/games/fps/console/commands/VideoExportCommand.ts
+src/games/fps/client/__tests__/DemosView.test.ts
+src/games/fps/docs/manual/developer/server-commands.md
+```
+
+The preceding full suite encountered one mixed-version menu assertion because
+this access change was applied while its transforms were running: the old
+three-button menu was compared with the new four-button expectation. Its other
+808 files passed. The focused menu batch passes against the final source; a
+fresh consolidated run is recorded below. No test assertion was relaxed.
+
+
+Production access proof: `node .agent/video-fixes/production-access.mjs` served
+the final `dist/` with Vite preview and opened `/?videoexport=1` in native
+headless Edge. The built page displayed **Export highlights**, **Generate video**
+and **Choose a recording**, with zero browser log errors or failed requests.
+Evidence: `.agent/video-fixes/production-access-report.json` and
+`production-export.png`. The preview server and browser closed afterward.
+This verifies the release boot path; the full replacement MP4 above used the
+same exporter before the access-only changes, through the private source server.
+
+
+Final clean run after release-access changes: all 809 test files pass, with
+6,292 tests passed and one skipped (269.81 seconds). All eleven entries in
+`gates.json` are zero: simulation, physics, server tick, 1,000-tick fuzz, dm5 BSP,
+typecheck, Biome, production build, engine docs, FPS docs and the full suite.
+The final fuzz run repeats checksum 3036614408; its random seed differs from
+prior runs, so only each run's own repeat is compared. Both repository diff
+checks pass. No probe browser or listener remains on 3107, 3108 or 3191.
+
+Checkpoint commits remain `8031eb3` (FPS) and `faca2aa8` (engine). All follow-up
+fixes and release-access changes documented above remain uncommitted on the
+feature branch. Nothing was pushed or merged; unrelated `public/shag.glb` and
+`server-data-mapcheck/` were left untouched.
+
+
+### Local Voltaic presentation follow-up (2026-11-08)
+
+Owner scope: improve only the live local player's firing feel. Remote players,
+demo POV, highlights and exported movies keep their existing server-endpoint
+path. `DemoService.makeEventContext` has no local entity; a followed recorded
+player therefore continues through `handleVoltaicBeam(..., false)`.
+
+The muzzle already updates before the main camera renders. The endpoint was
+instead held at the latest aligned server contact for up to 100 ms. Removed
+that local endpoint cache, alignment helper and activation-reset plumbing.
+`updateLightningBeam` now traces the current eye/aim every render frame, while
+starting the visual at the current projected muzzle. `GameEvents` ignores local
+beam-contact samples for presentation; damage, ammo, confirmed hits and chain
+arcs still use their unchanged authoritative events.
+
+A map-only prediction would draw through players, so the existing
+`RemotePlayerRenderer` supplies a local contact resolver. A bounded three-axis
+ray/box test checks its existing interpolated player centres and current crouch
+heights, capped at the world hit distance. The debug wireframe need not be
+enabled. It uses no scene picks, skeleton tests, matrices, new meshes, materials
+or shader variants per target. Disposal unregisters the callback by identity.
+Predicted contacts are visual approximations of the displayed players; server
+rewind, spread and damage remain authoritative.
+
+The new server-sample regression failed before the routing change and passed
+after it. The focused nine-file batch passes 30 tests, covering 240 consecutive
+local view samples, world occlusion/range/sky, nearest player contact, movement,
+crouch/death, resolver disposal, remote endpoint routing, camera ordering,
+presentation clocks and effect resource reuse. The first numeric fixture used
+exact floating-point equality for two equivalent interpolation expressions;
+it now compares geometric error below 1e-10. A disabled-mesh fixture also showed
+why debug wireframe matrices are unsuitable for contact prediction; the final
+resolver reads the live centre/height directly.
+
+Files added/changed by this local-only follow-up (earlier follow-up files remain
+listed above):
+
+```text
+src/engine/weapon/HitscanEffects.ts
+src/engine/weapon/WeaponViewManager.ts
+src/engine/weapon/__tests__/HitscanEffectsVoltaicTruth.test.ts (removed obsolete alignment tests)
+src/engine/weapon/__tests__/HitscanEffectsLocalBeam.test.ts (new)
+src/games/fps/client/GameEvents.ts
+src/games/fps/client/RemotePlayerRenderer.ts
+src/games/fps/client/__tests__/RemoteVoltaicFallback.test.ts
+src/games/fps/client/__tests__/WeaponViewManagerBeamRouting.test.ts
+src/games/fps/client/__tests__/LocalWaterReflection.test.ts
+src/games/fps/client/__tests__/LocalVoltaicContact.test.ts (new)
+docs/manual/guides/weapon-system.md
+src/games/fps/docs/manual/player/weapons.md
+docs/changelog/v1.0.0-beta.8.md
+docs/research/v1.0.0-beta6-papercuts.md
+docs/research/highlight_video_export.md
+```
+
+Focused validation command:
+
+```text
+node node_modules/vitest/vitest.mjs run src/engine/weapon/__tests__/HitscanEffectsLocalBeam.test.ts src/engine/weapon/__tests__/HitscanShotTrace.test.ts src/engine/weapon/__tests__/HitscanSceneReinit.test.ts src/engine/weapon/__tests__/HitscanPresentationClock.test.ts src/engine/weapon/__tests__/VoltaicEffectRenderer.test.ts src/games/fps/client/__tests__/RemoteVoltaicFallback.test.ts src/games/fps/client/__tests__/WeaponViewManagerBeamRouting.test.ts src/games/fps/client/__tests__/LocalVoltaicContact.test.ts src/games/fps/client/__tests__/LocalWaterReflection.test.ts
+```
+
+Consolidated validation uses the same required command list above, loading
+washoi_dm2 for the BSP regression. Native child exit codes and complete output
+are under `.agent/local-voltaic/gates.json` and `*-final.log`. The change is
+client presentation only, applies to live local fire in all existing gametypes,
+and adds no cvar or server/protocol change. It remains available at developer 0.
+
+
+Native GPU proof: `node .agent/local-voltaic/gpu-probe.mjs` loaded the actual dm5
+assets and Voltaic viewmodel, then exercised an independent first-person camera
+for 240 strafe/turn frames. It injected stale local server contacts every 12
+frames. All 240 frames drew the hero beam; all 239 consecutive endpoint pairs
+changed with the view. Maximum eye-ray alignment error was 6.12e-14 world units,
+and muzzle alignment error was zero. Mesh/material counts stayed 768/570 before
+and after; zero GPU errors and zero failed HTTP requests were observed. The
+local beam update had p95 approximately 0.2 ms and maximum 0.3 ms in this
+specific two-player fixture. Evidence: `.agent/local-voltaic/gpu-report.json`
+and `local-beam.png`. Existing map-handler, water fallback and packaged GLB
+common-root warnings remain in the log.
+
+The initial probe moved the demo-owned camera, whose observer restored it each
+render, so it correctly failed the motion assertion (zero changed endpoints).
+The corrected fixture uses its own camera without changing any demo code.
+This is an instrumented local presentation check using real map assets, rather
+than a manual live multiplayer match. Owner confirmation of mouse feel remains
+useful; the code change does not require a developer cvar or settings toggle.
+
+
+Final local-beam validation passed: 810 test files, 6,296 tests passed and one
+skipped, in 310.76 seconds. Typecheck, Biome (zero errors/47 baseline warnings),
+production build and both manuals pass. All five headless regressions pass,
+including dm2 BSP (7,475 faces); the explicit movement replay passes 91 ticks.
+The deterministic tick checksum is 2768943778 and this fuzz run repeats
+117276942. Both repository diff checks pass. Task-owned GPU browser and private
+Vite server are closed. Follow-up changes remain uncommitted on
+`feature/highlight-video-export`; nothing was pushed or merged.

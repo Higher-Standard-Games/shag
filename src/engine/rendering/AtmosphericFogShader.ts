@@ -11,6 +11,7 @@
 
 import type { ShaderMaterial } from "@babylonjs/core/Materials/shaderMaterial";
 import { ATM_FOG_GLSL, ATM_FOG_UNIFORMS } from "./AtmosphericFogGlsl";
+import { markSnapshotMaterialDynamic } from "./SnapshotFrames";
 import { WorldFogController } from "./WorldFogController";
 
 export { ATM_FOG_GLSL };
@@ -81,6 +82,8 @@ export function atmFogUniformValues(
 
 /** Keep a ShaderMaterial's world fog uniforms current on every bind, for the camera drawing it. */
 export function bindAtmosphericFog(material: ShaderMaterial): void {
+  // The eye changes from the first replay, before normal frames can learn it.
+  markSnapshotMaterialDynamic(material);
   const controller = WorldFogController.getInstance();
   const values = new Float32Array(ATM_FOG_UNIFORMS.length * 4);
   material.onBindObservable.add((mesh) => {

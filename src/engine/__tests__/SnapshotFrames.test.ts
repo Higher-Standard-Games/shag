@@ -2,13 +2,16 @@ import fs from "node:fs";
 import path from "node:path";
 import type { AbstractEngine } from "@babylonjs/core/Engines/abstractEngine";
 import { NullEngine } from "@babylonjs/core/Engines/nullEngine";
+import { ShaderMaterial } from "@babylonjs/core/Materials/shaderMaterial";
 import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
 import { MeshBuilder } from "@babylonjs/core/Meshes/meshBuilder";
 import { Scene } from "@babylonjs/core/scene";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { bindAtmosphericFog } from "../rendering/AtmosphericFogShader";
 import {
   drawListSignature,
   installSnapshotFrames,
+  markSnapshotMaterialDynamic,
   snapshotFramesRequested,
   supportsSnapshotFrames,
 } from "../rendering/SnapshotFrames";
@@ -22,6 +25,7 @@ beforeEach(() => {
 afterEach(() => {
   scene.dispose();
   engine.dispose();
+  vi.unstubAllGlobals();
 });
 
 describe("drawListSignature", () => {
@@ -57,6 +61,56 @@ describe("drawListSignature", () => {
 });
 
 describe("whole-frame snapshots", () => {
+  it("refreshes declared and fog shader uniforms from their first recording without promoting unmarked materials", () => {
+    vi.stubGlobal("location", { search: "" });
+    Object.defineProperty(engine, "isWebGPU", { value: true, configurable: true });
+    Object.defineProperty(engine, "compatibilityMode", { value: false, configurable: true });
+    Object.assign(engine, {
+      _snapshotRendering: { endRenderPass() {}, _allBundleLists: [] },
+    });
+    const materials = ["declared", "fog", "unmarked"].map((name) => new ShaderMaterial(name, scene, "fixture"));
+    markSnapshotMaterialDynamic(materials[0]);
+    bindAtmosphericFog(materials[1]);
+    const meshes = materials.map((material) => {
+      const mesh = MeshBuilder.CreateBox(material.name, {}, scene);
+      mesh.material = material;
+      const context = { buffers: { LeftOver: {} } };
+      const uniforms = {
+        _uniformLocations: { uOffset: 0 },
+        _uniformSizes: { uOffset: 1 },
+        _slotByOwner: new Map([[context, 0]]),
+        _slotFrameId: [0],
+      };
+      const subMesh = mesh.subMeshes[0] as unknown as { _drawWrappers: unknown[] };
+      subMesh._drawWrappers = [{ effect: { _pipelineContext: { uniformBuffer: uniforms } }, drawContext: context }];
+      return mesh;
+    });
+    const handle = installSnapshotFrames(
+      scene,
+      meshes[0],
+      () => null,
+      () => {},
+    );
+    try {
+      expect(handle).not.toBeNull();
+      const internals = handle as unknown as {
+        recorded: typeof meshes;
+        recordingFrame: number;
+        slotDraws(): unknown[];
+        dynamicMaterials: WeakSet<ShaderMaterial>;
+      };
+      internals.recorded = meshes;
+      internals.recordingFrame = 0;
+      expect(internals.slotDraws()).toHaveLength(3);
+      expect(materials.map((material) => internals.dynamicMaterials.has(material))).toEqual([true, true, false]);
+    } finally {
+      handle?.dispose();
+      for (const mesh of meshes) (mesh.subMeshes[0] as unknown as { _drawWrappers: unknown[] })._drawWrappers = [];
+      delete (engine as unknown as { isWebGPU?: boolean }).isWebGPU;
+      delete (engine as unknown as { compatibilityMode?: boolean }).compatibilityMode;
+    }
+  });
+
   it("start unless the session turns them off, on an engine that records bundles", () => {
     expect(snapshotFramesRequested("?snapshot=1")).toBe(true);
     expect(snapshotFramesRequested("?renderer=webgpu")).toBe(true);

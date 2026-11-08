@@ -2297,12 +2297,8 @@ export class WeaponViewManager {
 
   /** Called by FPSPlayer to start/stop beam rendering */
   public setBeamActive(active: boolean, color?: Color3): void {
-    const wasActive = this.beamActive;
     this.beamActive = active;
     if (color) this.beamColor = color;
-    if (active && !wasActive) {
-      getHitscanEffects().beginLightning();
-    }
     if (!active) {
       getHitscanEffects().stopLightning();
       this.beamChargeProgress = 0;

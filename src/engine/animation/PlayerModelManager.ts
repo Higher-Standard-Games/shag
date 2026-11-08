@@ -476,7 +476,7 @@ export class PlayerModelManager {
    */
   setAnimationActive(instance: PlayerModelInstance, active: boolean): void {
     const group = instance.masterGroup;
-    if (!group) return;
+    if (!group || this.activeOneShots.has(instance)) return;
     this.leaveStepped(instance, group);
 
     if (active) {
@@ -537,7 +537,10 @@ export class PlayerModelManager {
   }
 
   playAnimation(instance: PlayerModelInstance, name: string): boolean {
-    return PlayerModelManager.playAnimationOn(instance, name);
+    const changed = PlayerModelManager.playAnimationOn(instance, name);
+    // Prepare current locomotion for the attack's end without sharing its bones.
+    if (this.activeOneShots.has(instance)) instance.masterGroup?.stop();
+    return changed;
   }
 
   /**
