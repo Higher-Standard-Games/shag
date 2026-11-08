@@ -1,29 +1,8 @@
 /**
- * TriggerTable — single source of truth for BSP trigger volumes
- * (teleporters and jumppads).
- *
- * Both the server (FPSMovementSubsystem → per-entity MovementProfile) and the
- * client (V2NetworkClient prediction) derive their trigger list from the SAME
- * BSP entity + model arrays via `extractTriggerVolumes`, so trigger evaluation
- * is identical on both sides — client-predicted, replay-idempotent, and exact
- * under demo re-simulation. Same design as PickupTable (see
- * docs/research/triggerbrushes-and-targets.md).
- *
- * Ground truth (Warsow FBSP maps, verified against wdm2/wdm7):
- *   trigger_teleport { model "*N", target "tX" } → misc_teleporter_dest
- *     { targetname "tX", origin, angle }
- *   trigger_push     { model "*N", target "X"  } → target_position
- *     { targetname "X", origin }
- * Triggers have NO origin — the volume is BSP submodel N's AABB.
- *
- * NOTE: destination entities are NOT always the "canonical" classname above.
- * A survey of all 38 shipping maps (v0.9.21) found mappers also point triggers
- * at `target_location` (wdm12/17/18/19, wbomb6, wda1, wdm11, wtutorial1) and at
- * Quake 3's `info_teleport_destination` (wbomb2, wctf1, wda4). The engine's
- * G_PickTarget resolves target→targetname to ANY entity and uses its origin, so
- * our classname filter is a safety allow-list (see DEST_CLASSNAMES), not an
- * engine rule — it must include every point-entity class used as a dest, or the
- * trigger is silently dropped and the pad/teleporter does nothing.
+ * Shared extraction of BSP teleporter and jumppad volumes.
+ * Both server movement and client prediction use this ordered trigger table.
+ * The brush submodel supplies the volume; target -> targetname supplies the
+ * destination point origin. Coordinates convert from Z-up to Y-up here.
  */
 
 export type TriggerType = "teleport" | "push";
@@ -62,7 +41,8 @@ interface BspModelLike {
  * a new map introduces another (a dropped trigger warns via console).
  */
 const DEST_CLASSNAMES: readonly string[] = [
-  "target_position", // canonical jumppad / aim target
+  "target_position", // jumppad / aim target
+  "target_push", // point origin used as a ballistic target
   "misc_teleporter_dest", // Warsow/QF teleport dest
   "info_teleport_destination", // Quake 3 teleport dest (wbomb2, wctf1, wda4)
   "target_location", // used as push/teleport dest in many Warsow maps

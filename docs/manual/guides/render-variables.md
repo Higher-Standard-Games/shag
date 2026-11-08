@@ -37,7 +37,10 @@ only adapter is a software (fallback) one, or when the device fails to start;
 the console logs the reason. Washoi shows it as **Video → Advanced → Renderer**. `?renderer=webgl2` or
 `?renderer=webgpu` in the page address overrides it for one session without
 changing the saved value. Under WebGPU, whole-frame snapshots are on unless the
-address says `?snapshot=0`.
+address says `?snapshot=0`. Timed shader stages declare their material updates
+before the first recording, so scrolling, rotation, stretch, brightness and alpha
+waves continue during replay. This uses the existing material-update path;
+static materials do not require those per-frame binds.
 
 ### Frame-cost switches
 

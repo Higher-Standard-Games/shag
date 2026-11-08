@@ -1,3 +1,4 @@
+import { VertexBuffer } from "@babylonjs/core/Buffers/buffer";
 import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
 import type { Texture } from "@babylonjs/core/Materials/Textures/texture";
 import { Color3 } from "@babylonjs/core/Maths/math.color";
@@ -8,12 +9,13 @@ import type { Scene } from "@babylonjs/core/scene";
 import { devLog } from "../../../core/DevLog";
 import { applySafeMaxSimultaneousLights } from "../../../lighting/DynamicLightSafety";
 import { RenderVars } from "../../../rendering/RenderVars";
+import { configureQ3Alpha } from "../../shader/Q3Blend";
 import { PACKAGED_TEXTURE_EXTENSION, stripTextureExtension } from "../../texture/TextureExtensions";
 import { configureBspBakedLighting } from "../BspBakedLightingPlugin";
 import { bspLightingProfile, scaleBspLighting } from "../BspLightingProfile";
 import type { BspFile } from "../BspLoader";
 import { buildPatchFace, buildPolygonFace } from "./faceBuilders";
-import { createBspLightmapTexture } from "./lightmaps";
+import { createBspLightmapTexture, scaleBspVertexColors } from "./lightmaps";
 
 interface InlineLightmaps {
   users: number;
@@ -93,6 +95,7 @@ export async function buildBrushModel(
       uvs: number[];
       uv2s: number[];
       indices: number[];
+      colors: number[];
       vertexOffset: number;
       lightmapIndex: number;
     }
@@ -119,6 +122,7 @@ export async function buildBrushModel(
         uvs: [],
         uv2s: [],
         indices: [],
+        colors: [],
         vertexOffset: 0,
         lightmapIndex,
       };
@@ -131,6 +135,7 @@ export async function buildBrushModel(
     group.normals.push(...geometry.normals);
     group.uvs.push(...geometry.uvs);
     group.uv2s.push(...geometry.uv2s);
+    group.colors.push(...geometry.colors);
     for (const index of geometry.indices) group.indices.push(index + vertexOffset);
     group.vertexOffset += geometry.positions.length / 3;
   }
@@ -190,6 +195,25 @@ export async function buildBrushModel(
 
       const pathsToTry: string[] = [];
       const shader = shaderRegistry.getShader(texName);
+      if (shader) {
+        const props = shaderRegistry.resolveMaterialProps(texName, { worldSurface: true });
+        if (props.diffuseTexture) pathsToTry.push(props.diffuseTexture);
+        configureQ3Alpha(mat, props);
+        mat.backFaceCulling = props.backFaceCulling;
+        mat.twoSidedLighting = props.twoSidedLighting;
+        if (props.polygonOffset) {
+          mat.zOffset = -2;
+          mat.zOffsetUnits = -2;
+        }
+        if (props.usesVertexRgb || props.usesVertexAlpha) {
+          const colors = props.usesVertexRgb
+            ? scaleBspVertexColors(group.colors, bsp.header?.isFBSP ? bspLightingProfile(bsp).gain : 1)
+            : group.colors.map((value, i) => (i % 4 === 3 ? value : 1));
+          childMesh.setVerticesData(VertexBuffer.ColorKind, colors);
+          childMesh.hasVertexAlpha = props.usesVertexAlpha ?? false;
+          childMesh.metadata.usesVertexRgb = props.usesVertexRgb;
+        }
+      }
       // `nofog` keeps world fog off this surface
       if (shader?.noFog) childMesh.applyFog = false;
       if (shader && shader.stages.length > 0) {

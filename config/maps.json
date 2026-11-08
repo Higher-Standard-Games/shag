@@ -97,6 +97,20 @@
     "displayName": "Washoi DM11",
     "gametypes": []
   },
+  "washoi_dm1": {
+    "displayName": "Washoi DM1",
+    "gametypes": [
+      "duel",
+      "ffa"
+    ]
+  },
+  "washoi_dm3": {
+    "displayName": "Washoi DM3",
+    "gametypes": [
+      "duel",
+      "ffa"
+    ]
+  },
   "washoi_dm2": {
     "displayName": "Washoi DM2",
     "gametypes": [

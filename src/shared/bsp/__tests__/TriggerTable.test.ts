@@ -218,3 +218,15 @@ describe("q3AngleToGameYaw", () => {
     expect(q3AngleToGameYaw(-2)).toBeCloseTo(Math.PI / 2, 9);
   });
 });
+
+it("resolves DM3's trigger_push through the target_push point origin", () => {
+  const volumes = extractTriggerVolumes(
+    [
+      ent("target_push", { targetname: "j1_2", origin: "978 -320 192" }),
+      ent("trigger_push", { model: "*3", target: "j1_2" }),
+    ],
+    WDM2_MODELS,
+  );
+  expect(volumes).toHaveLength(1);
+  expect(volumes[0]).toMatchObject({ id: 0, type: "push", dest: { x: 978, y: 192, z: -320 } });
+});

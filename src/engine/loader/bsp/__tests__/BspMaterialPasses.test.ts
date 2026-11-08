@@ -12,8 +12,52 @@ import { RenderVars } from "../../../rendering/RenderVars";
 import { PK3TextureLoader } from "../../pk3/PK3TextureLoader";
 import { parseShaderFile } from "../../shader/Q3ShaderParser";
 import { Q3ShaderRegistry } from "../../shader/Q3ShaderRegistry";
-import type { Q3Shader } from "../../shader/Q3ShaderTypes";
+import type { Q3Shader, ResolvedMaterialProps } from "../../shader/Q3ShaderTypes";
 import { BspMeshBuilder, type BspMeshBuildResult } from "../BspMeshBuilder";
+
+it.each(["opaque", "add", "filter"])(
+  "keeps %s polygon-offset surfaces separated at zero depth slope",
+  async (blend) => {
+    const engine = new NullEngine(),
+      scene = new Scene(engine);
+    const registry = Q3ShaderRegistry.getInstance();
+    registry.clear();
+    const stage = blend === "opaque" ? "" : blend === "add" ? "blendFunc GL_SRC_ALPHA GL_ONE" : "blendFunc filter";
+    const [shader] = parseShaderFile(`textures/qa/decal { polygonOffset\n { map textures/qa/base\n ${stage}\n } }`);
+    (registry as unknown as { shaders: Map<string, Q3Shader> }).shaders.set(shader.name, shader);
+    const image = RawTexture.CreateRGBATexture(new Uint8Array([128, 128, 128, 255]), 1, 1, scene);
+    const loader = PK3TextureLoader.getInstance();
+    const init = vi.spyOn(loader, "init").mockImplementation(() => {});
+    const load = vi.spyOn(loader, "resolveAndLoadTexture").mockResolvedValue(image);
+    const factory = BspMeshBuilder as unknown as {
+      createMaterialFromProps(name: string, scene: Scene, props: ResolvedMaterialProps): StandardMaterial;
+    };
+    try {
+      const root = new Mesh("world", scene),
+        mesh = CreatePlane("bsp_tex_0", {}, scene);
+      mesh.parent = root;
+      mesh.metadata = { textureName: shader.name, lightmapIndex: -1 };
+      mesh.material = factory.createMaterialFromProps("decal", scene, registry.resolveMaterialProps(shader.name));
+      const result = {
+        worldMesh: root,
+        textureGroups: [{ textureIndex: 0, textureName: shader.name }],
+        lightmapTextures: [],
+      } as unknown as BspMeshBuildResult;
+      await BspMeshBuilder.applyTextures(result, result.bspData, scene);
+      expect(mesh.material!.zOffset).toBeLessThan(0);
+      expect(mesh.material!.zOffsetUnits).toBeLessThan(0);
+      const wall = factory.createMaterialFromProps("wall", scene, registry.resolveMaterialProps("textures/qa/wall"));
+      expect(wall.zOffset).toBe(0);
+      expect(wall.zOffsetUnits).toBe(0);
+    } finally {
+      init.mockRestore();
+      load.mockRestore();
+      registry.clear();
+      scene.dispose();
+      engine.dispose();
+    }
+  },
+);
 
 it.each([
   ["", "", 2],

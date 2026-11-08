@@ -1,5 +1,5 @@
 /**
- * ShaderAnimationSystem - Manages animated Q3/Warsow shader effects
+ * ShaderAnimationSystem - Updates animated map and model shader stages
  *
  * Handles tcMod (texture coordinate animation), rgbGen wave, and alphaGen wave
  * for BSP materials. Runs as a centralized system with one render observer.
@@ -12,6 +12,7 @@ import type { Color3 } from "@babylonjs/core/Maths/math.color";
 import type { Observer } from "@babylonjs/core/Misc/observable";
 import type { Scene } from "@babylonjs/core/scene";
 import { devLog } from "../../core/DevLog";
+import { markSnapshotMaterialDynamic } from "../../rendering/SnapshotFrames";
 import { createFlipbook, type Flipbook } from "../../rendering/TextureArrays";
 import type { AlphaGen, RgbGen, TcMod } from "./Q3ShaderTypes";
 
@@ -148,6 +149,16 @@ export class ShaderAnimationSystem {
       return;
     }
 
+    // UV and colour animation can live in the material UBO, outside the
+    // loose uniforms that snapshot learning compares during normal frames.
+    if (
+      frames?.textures.length ||
+      rgbGen?.type === "wave" ||
+      alphaGen?.type === "wave" ||
+      tcMods.some((mod) => mod.type !== "scale")
+    ) {
+      markSnapshotMaterialDynamic(material);
+    }
     const tcState = createTcState(tcMods);
 
     const stage: AnimatedStage = {

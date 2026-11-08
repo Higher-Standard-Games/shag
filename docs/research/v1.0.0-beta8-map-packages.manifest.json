@@ -1,0 +1,151 @@
+{
+  "date": "2026-11-08",
+  "status": "local; author-corrected DM3 and custom DM1/DM3 levelshots",
+  "warforkMaps": "4067818bb3225062a389eafa49819bcb8fe21dae",
+  "sourceBsps": [
+    {
+      "map": "washoi_dm1",
+      "source": "~/Desktop/warfork-qfusion/assets/data1_21pure/maps/wfdm1.bsp",
+      "bytes": 31044704,
+      "sha256": "68a0c8bcf6c7a76a6e028fd338dc56e170c24b8d9d26b5a2d63d1929018078ce"
+    },
+    {
+      "map": "washoi_dm3",
+      "source": "~/Desktop/warfork-qfusion/assets/data1_21pure/maps/wfdm3.bsp",
+      "bytes": 35894652,
+      "sha256": "674107f73c00d6d4c04d68978dd16598993ac4aa47a80341dfa2ccf548807c49"
+    },
+    {
+      "map": "washoi_dm5",
+      "source": "~/Desktop/warfork-qfusion/assets/data1_21pure/maps/wfdm5.bsp",
+      "bytes": 67105028,
+      "sha256": "6dfdadb42a1d4e8b33fb1e8c157ef6f611d4f28989ba65eed9ba7aa6c04ab335"
+    },
+    {
+      "map": "washoi_dm7",
+      "source": "~/Desktop/warfork-qfusion/assets/data1_21pure/maps/wfdm7.bsp",
+      "bytes": 25222120,
+      "sha256": "a67c502b851c6d3afc01c8cf8bb079ba0a54ab8374fc4ff89c131451754b309a"
+    }
+  ],
+  "packages": [
+    {
+      "filename": "map_washoi_dm1.pk3",
+      "bytes": 21160006,
+      "sha256": "09987df46b935dd3e453e0e6c5935c79ab9ae8a3beeea4e8dc3047b74fa65082"
+    },
+    {
+      "filename": "tex_washoi_dm1.pk3",
+      "bytes": 7973730,
+      "sha256": "90489058c800b479877b7f3b31764d7f05eb24e2683f101671c48b6db90737a6"
+    },
+    {
+      "filename": "map_washoi_dm3.pk3",
+      "bytes": 16467181,
+      "sha256": "2ed0643a67470e4b8a3eadc5f8d6f679ccbc1b3e78622c76b21bf36aafef27da"
+    },
+    {
+      "filename": "tex_washoi_dm3.pk3",
+      "bytes": 5973827,
+      "sha256": "43eded33edb3a8356df25dcdbb8b6f28b2a808dbe1fe8bd8f0c94651efdd2212"
+    },
+    {
+      "filename": "map_washoi_dm5.pk3",
+      "bytes": 22546644,
+      "sha256": "f0bbfc52185220a3038ac6bfd64774a4c5efc90cf2968404436cc62184e848b8"
+    },
+    {
+      "filename": "tex_washoi_dm5.pk3",
+      "bytes": 12528443,
+      "sha256": "2760101f297060bde8d166a901c002837d377cc774adc33b983f199e06cdb8fe"
+    },
+    {
+      "filename": "map_washoi_dm7.pk3",
+      "bytes": 12707590,
+      "sha256": "54160b2701af904e6f534ed7c79cd6813cf4e7e76a3756ad85cc4ba504144c6e"
+    },
+    {
+      "filename": "tex_washoi_dm7.pk3",
+      "bytes": 7780305,
+      "sha256": "fac5f950fef4ff149edb2c90894a611cd8d2655db6b4de025fd30eea19610836"
+    }
+  ],
+  "sourceBank": {
+    "filename": "washoi_textures.pk3",
+    "beforeSha256": "2f8f94baea067b3c14cb85a40c730d366834aad6489ec6cc2302811631834562",
+    "sha256": "10f5fc082103053a0e91b45eda6e1a2b6dbc8e09e450ea2f9c0c5e41c826229d",
+    "bytes": 198337802,
+    "published": false
+  },
+  "materialDefinitions": "config/map-material-aliases.shader",
+  "optimizedSidecars": {
+    "current": 1181,
+    "initialRegenerated": 417,
+    "authorRefreshRegenerated": 8,
+    "levelshotRefreshRegenerated": 2,
+    "errors": 0
+  },
+  "compiledRevision": "d931ca061c39e6a39ab7f3a17cb159e48101ed7b",
+  "authorAssets": [
+    {
+      "file": "textures/bricks/bricks_05_black_decal.tga",
+      "bytes": 4194348,
+      "sha256": "8765a1903060613558abf062bf4473d583e748e6119ffdc7b411ef6d2ab06f3e",
+      "encoding": "alpha"
+    },
+    {
+      "file": "textures/decals/lights/decal_blacktrim01.tga",
+      "bytes": 32812,
+      "sha256": "f140c34ca4efce3728875d6f479a2890166eee15292351957a137a8af7985962",
+      "encoding": "alpha"
+    },
+    {
+      "file": "textures/decals/lights/decal_blacktrim02.tga",
+      "bytes": 16428,
+      "sha256": "328f3fbd22099ef31e16814f8609ad7a96ab410bc718ed1d4739b56fdbdcc2d6",
+      "encoding": "alpha"
+    },
+    {
+      "file": "textures/factory/factory_pillar2.tga",
+      "bytes": 12332,
+      "sha256": "3ab45e0168bb574760abc3ad202c01937ec508228db72c5ecab080f41e7569a4",
+      "encoding": "colour",
+      "reason": "New DM3 BSP material dependency"
+    },
+    {
+      "file": "textures/factory/factory_pillar2_norm.tga",
+      "bytes": 12332,
+      "sha256": "39c6b0167c16cc1888fac2d23155aea34a766e6568259f09713958f03845c728",
+      "encoding": "normal",
+      "reason": "New DM3 BSP material dependency"
+    }
+  ],
+  "levelshots": [
+    {
+      "map": "washoi_dm1",
+      "file": "levelshots/washoi_dm1.png",
+      "width": 2511,
+      "height": 1310,
+      "bytes": 4014826,
+      "sha256": "c72635df55aeedb1398ed347679d6fac2ab761adf3c565631b5a65ca702711cc",
+      "preview": {
+        "file": "public/data/levelshots/washoi_dm1.jpg",
+        "bytes": 107679,
+        "sha256": "20558261ce5e32c172b908a0ca74474e799b785159691311584868cd92a41d65"
+      }
+    },
+    {
+      "map": "washoi_dm3",
+      "file": "levelshots/washoi_dm3.png",
+      "width": 2505,
+      "height": 1312,
+      "bytes": 2598490,
+      "sha256": "2ec474c3495ffb9c0cf4a74cb9afa96d330a8bf78c57aeb513007c2cab5e4042",
+      "preview": {
+        "file": "public/data/levelshots/washoi_dm3.jpg",
+        "bytes": 82312,
+        "sha256": "847d63248767a411fcaa6012cddaf30e7a337c12acb7620bbd0443e0889b307d"
+      }
+    }
+  ]
+}
