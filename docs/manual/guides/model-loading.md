@@ -68,6 +68,24 @@ Ragdolls use a dedicated transform with matching local/world export scale for
 bone rotation updates. It follows the actor anchor and is disposed with the
 corpse; the live model hierarchy remains intact.
 
+Some ragdoll deaths first play a shared death clip once, chosen in
+`src/games/fps/client/ragdoll/DeathClip.ts` from the death event and the
+victim's facing. Gib deaths never do.
+
+| Death | Clip |
+| --- | --- |
+| Pushed from within 60° of straight behind, any weapon | `death_from_back` |
+| Headshot from the front or side | `death_headshot` |
+| Riotgun or explosion from the front or side | `death_flying_back` |
+| Anything else, or a push with no horizontal direction | none: limp at once |
+
+The body turns to face the shot (away from it for `death_from_back`), and one
+Havok capsule at the hips flies the same launch arc the ragdoll would. The clip
+is posed from the ragdoll clock, with root motion cancelled. The per-bone
+ragdoll takes over from the clip's pose, at the capsule's velocity, when the
+capsule touches any surface after its first 0.1 seconds or the clip ends. The
+death camera and the speed trail follow the capsule, then the hips.
+
 Washoi's relative ally/enemy choices use `cl_team_ally_model` and
 `cl_team_enemy_model`: `police`, `female` (Female Police), `cartel`, `riotkitty`
 and `robot`. Police and Cartel use male sounds; Female Police and RiotKitty use

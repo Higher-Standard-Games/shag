@@ -1166,17 +1166,7 @@ export class PlayerModelManager {
       owner.resetRootMotion(instance);
       return;
     }
-    instance.mesh.position.set(0, instance.modelOffsetY ?? 0, 0);
-
-    instance.rootMotionNodes ??= findRootMotionNodes(instance.mesh);
-    for (const node of instance.rootMotionNodes) node.position.set(0, 0, 0);
-
-    // Hips: restore the bind pose, killing both horizontal drift and the
-    // vertical bob that would otherwise float the body off the ground.
-    const bind = instance.hipsBind;
-    if (bind) {
-      bind.node.position.set(bind.x, bind.y, bind.z);
-    }
+    cancelRootMotion(instance);
   }
 
   // ── Cleanup ──────────────────────────────────────────────────
@@ -1347,6 +1337,26 @@ export class PlayerModelManager {
     }
 
     return channels;
+  }
+}
+
+/**
+ * Put the body back on its anchor after a clip has posed it: the mesh at its
+ * offset, root nodes at the origin and the hips at their bind position (see
+ * `PlayerModelManager.resetRootMotion`). Needs no manager, so a detached
+ * corpse can use it.
+ */
+export function cancelRootMotion(instance: PlayerModelInstance): void {
+  instance.mesh.position.set(0, instance.modelOffsetY ?? 0, 0);
+
+  instance.rootMotionNodes ??= findRootMotionNodes(instance.mesh);
+  for (const node of instance.rootMotionNodes) node.position.set(0, 0, 0);
+
+  // Hips: restore the bind pose, killing both horizontal drift and the
+  // vertical bob that would otherwise float the body off the ground.
+  const bind = instance.hipsBind;
+  if (bind) {
+    bind.node.position.set(bind.x, bind.y, bind.z);
   }
 }
 
