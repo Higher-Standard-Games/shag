@@ -574,10 +574,12 @@ class SnapshotFrames implements SnapshotFramesHandle {
       this.stableFrames = 0;
       this.passKeys = [];
       this.recordedSignature = signature;
+      // Map surfaces PVS hides now still draw in the recording, which runs
+      // without culling: replayed frames write their per-draw camera too
       this.recorded = this.scene.meshes.filter(
         (mesh) =>
           mesh.subMeshes?.length &&
-          (instanceStorage(mesh) || this.inPlace.has(mesh) || (mesh.isEnabled() && mesh.isVisible)),
+          (instanceStorage(mesh) || this.isInPlace(mesh) || (mesh.isEnabled() && mesh.isVisible)),
       );
       this.recordNext = true;
     }

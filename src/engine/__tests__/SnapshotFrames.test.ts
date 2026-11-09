@@ -170,6 +170,36 @@ describe("whole-frame snapshots", () => {
     }
   });
 
+  it("record map surfaces PVS hides, so replayed frames write their per-draw camera", () => {
+    vi.stubGlobal("location", { search: "" });
+    Object.defineProperty(engine, "isWebGPU", { value: true, configurable: true });
+    Object.defineProperty(engine, "compatibilityMode", { value: false, configurable: true });
+    Object.assign(engine, { _snapshotRendering: { endRenderPass() {}, _allBundleLists: [] } });
+    const world = MeshBuilder.CreateBox("world", {}, scene);
+    const water = MeshBuilder.CreateBox("water", {}, scene);
+    water.parent = world;
+    water.material = new ShaderMaterial("water", scene, "fixture");
+    const handle = installSnapshotFrames(
+      scene,
+      world,
+      () => null,
+      () => {},
+    );
+    try {
+      // PVS hides the surface; the recording frame, without culling, draws it
+      water.isVisible = false;
+      const internals = handle as unknown as { endOfFrame(): void; recordNext: boolean; recorded: unknown[] };
+      internals.endOfFrame();
+      internals.endOfFrame();
+      expect(internals.recordNext).toBe(true);
+      expect(internals.recorded).toContain(water);
+    } finally {
+      handle?.dispose();
+      delete (engine as unknown as { isWebGPU?: boolean }).isWebGPU;
+      delete (engine as unknown as { compatibilityMode?: boolean }).compatibilityMode;
+    }
+  });
+
   it("start unless the session turns them off, on an engine that records bundles", () => {
     expect(snapshotFramesRequested("?snapshot=1")).toBe(true);
     expect(snapshotFramesRequested("?renderer=webgpu")).toBe(true);
