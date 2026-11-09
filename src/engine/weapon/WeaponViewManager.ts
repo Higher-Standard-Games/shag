@@ -1472,6 +1472,7 @@ export class WeaponViewManager {
   }
 
   private clearCurrentWeapon(): void {
+    this.setBeamActive(false);
     if (this.parkCurrentWeapon()) return;
     this.disposeAmmoCounter();
     this.muzzleSocket = null;
@@ -1942,6 +1943,7 @@ export class WeaponViewManager {
       baseRot.x +
         (bob.sprintTilt * sprintFactor * Math.PI) / 180 +
         reloadOffsets.pitch +
+        chargeResult.pitchOffset +
         slashOffsets.pitch -
         this.weaponRecoil.pitchOffset,
       baseRot.y + (bob.sprintYaw * sprintFactor * Math.PI) / 180 + slashOffsets.yaw,
@@ -2068,8 +2070,8 @@ export class WeaponViewManager {
     this.weaponRecoil.fire(recoilScale, this.adsProgress, def?.adsRecoilScale, refireSeconds);
     this.weaponBarrels.fire(refireSeconds);
 
-    // Trigger slash animation for melee weapons (skip for charged projectile fire)
-    if (this.currentWeaponDef?.meleeRadius && !opts?.isProjectileFire) {
+    // Both melee strikes and charged releases use the first-person throwing slash.
+    if (this.currentWeaponDef?.meleeRadius) {
       this.weaponSlash.trigger();
     }
 
@@ -2273,26 +2275,24 @@ export class WeaponViewManager {
 
   /** The continuous beam from this frame's muzzle, along this frame's view. */
   private updateBeam(): void {
-    if (this.beamActive && this.mainCamera) {
-      const forward = this.mainCamera.getDirection(Vector3.Forward());
-      const muzzlePos = this.getMuzzleWorldPosition();
-      if (muzzlePos) {
-        const cfg = {
-          origin: muzzlePos,
-          // Damage is traced from the eye; only the visible start follows the muzzle.
-          traceOrigin: this.mainCamera.position,
-          direction: forward,
-          maxRange: this.currentWeaponDef?.range ?? 850,
-          color: this.beamColor,
-        };
-        // Every continuous beam weapon uses the procedural Voltaic presentation.
-        // Legacy `lasergun` input is canonicalized before this point; chainCount
-        // is gameplay only and must never select a separate renderer.
-        if (this.currentWeaponDef?.hitscanType === "beam") {
-          getHitscanEffects().updateLightningBeam(cfg);
-        }
-      }
+    if (!this.beamActive) return;
+    if (!this.mainCamera || this.currentWeaponDef?.hitscanType !== "beam") {
+      this.setBeamActive(false);
+      return;
     }
+    const muzzlePos = this.getMuzzleWorldPosition();
+    if (!muzzlePos) {
+      this.setBeamActive(false);
+      return;
+    }
+    getHitscanEffects().updateLightningBeam({
+      origin: muzzlePos,
+      // Damage traces from the eye; only the visible start follows the muzzle.
+      traceOrigin: this.mainCamera.position,
+      direction: this.mainCamera.getDirection(Vector3.Forward()),
+      maxRange: this.currentWeaponDef.range ?? 850,
+      color: this.beamColor,
+    });
   }
 
   /** Called by FPSPlayer to start/stop beam rendering */

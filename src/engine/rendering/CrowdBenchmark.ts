@@ -2,14 +2,14 @@ import { Color3 } from "@babylonjs/core/Maths/math.color";
 import type { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh";
 import { Mesh } from "@babylonjs/core/Meshes/mesh";
 import type { Scene } from "@babylonjs/core/scene";
-import { VANGUARD_ROOT } from "../animation/PlayerModelAssets";
+import { isPackagedPlayerModelRoot, PLAYER_ANIMATION_ROOT } from "../animation/PlayerModelAssets";
 import { type PlayerModelInstance, type PlayerModelManager, wrapFrame } from "../animation/PlayerModelManager";
 
 export interface CrowdRecipe {
-  schemaVersion: 1;
+  schemaVersion: 2;
   id: string;
   model: { root: string; file: string; scale: number };
-  animation: { name: string; file: string; presentationHz: number; poseHz: number };
+  animation: { name: string; root: string; file: string; presentationHz: number; poseHz: number };
   render: { width: number; height: number; fov: number };
   camera: { position: number[]; target: number[] };
   positions: number[][];
@@ -27,13 +27,14 @@ export function validateCrowdRecipe(value: unknown): asserts value is CrowdRecip
   const vector = (v: unknown): v is number[] => Array.isArray(v) && v.length === 3 && v.every(Number.isFinite);
   const integer = (v: number, min: number, max: number) => Number.isInteger(v) && v >= min && v <= max;
   if (
-    r?.schemaVersion !== 1 ||
+    r?.schemaVersion !== 2 ||
     !/^[a-z0-9-]+$/.test(r.id) ||
-    (r.model?.root !== VANGUARD_ROOT && !r.model?.root?.startsWith("/games/")) ||
+    (!isPackagedPlayerModelRoot(r.model?.root) && !r.model?.root?.startsWith("/games/")) ||
     !/^[\w-]+\.glb$/.test(r.model.file) ||
     !Number.isFinite(r.model.scale) ||
     r.model.scale <= 0 ||
     !r.animation?.name ||
+    (r.animation.root !== PLAYER_ANIMATION_ROOT && !r.animation.root?.startsWith("/games/")) ||
     !r.animation.file?.endsWith(".glb") ||
     r.animation.file.includes("/") ||
     !integer(r.animation.presentationHz, 1, 240) ||

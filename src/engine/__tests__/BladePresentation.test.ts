@@ -118,3 +118,25 @@ it("tints the metal specular light from the world camera lightgrid with a visibi
     engine.dispose();
   }
 });
+
+it("smoothly lowers the charging blade and restores its carry pose on cancellation or reset", () => {
+  const charge = new WeaponCharge();
+  const time = vi.spyOn(performance, "now").mockReturnValue(0);
+  const sample = (charging: boolean) => charge.update(charging, 1, [], 30, 0, Color3.White(), false).pitchOffset;
+  expect(sample(true)).toBeCloseTo(0);
+  time.mockReturnValue(70);
+  const entering = sample(true);
+  expect(entering).toBeLessThan(0);
+  expect(entering).toBeGreaterThan(-0.25);
+  time.mockReturnValue(700);
+  const held = sample(true);
+  expect(held).toBeCloseTo(-0.25, 3);
+  time.mockReturnValue(716);
+  const returning = sample(false);
+  expect(returning).toBeGreaterThan(held);
+  expect(returning).toBeLessThan(0);
+  time.mockReturnValue(1400);
+  expect(sample(false)).toBeCloseTo(0, 4);
+  charge.reset();
+  expect(sample(false)).toBeCloseTo(0);
+});

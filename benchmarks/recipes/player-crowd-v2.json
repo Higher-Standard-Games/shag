@@ -1,8 +1,8 @@
 {
-  "schemaVersion": 1,
-  "id": "player-crowd-v1",
-  "model": { "root": "models/players/vanguard/", "file": "vanguard.glb", "scale": 36 },
-  "animation": { "name": "run", "file": "rifle run.glb", "presentationHz": 60, "poseHz": 30 },
+  "schemaVersion": 2,
+  "id": "player-crowd-v2",
+  "model": { "root": "models/players/police/", "file": "police.glb", "scale": 36 },
+  "animation": { "name": "run", "root": "models/players/animations/", "file": "rifle run.glb", "presentationHz": 60, "poseHz": 30 },
   "render": { "width": 1280, "height": 720, "fov": 90 },
   "camera": { "position": [0, 100, -400], "target": [0, 42, 70] },
   "positions": [

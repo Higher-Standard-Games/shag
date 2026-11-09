@@ -66,6 +66,7 @@ import type { Observer } from "@babylonjs/core/Misc/observable";
 import type { Node } from "@babylonjs/core/node";
 import type { Scene } from "@babylonjs/core/scene";
 import { devLog } from "../core/DevLog";
+import { playerOutlineSnapshotMeshes } from "./PlayerOutlineProxy";
 
 /** Babylon's SNAPSHOTRENDERING_FAST. */
 const FAST = 1;
@@ -286,10 +287,26 @@ export function drawListSignature(
     )._drawWrappers;
     let unready = 0;
     for (const wrapper of wrappers) if (wrapper && !wrapper._wasPreviouslyReady) unready++;
+    // Outline effects compile independently of the body material, including
+    // on off-scene proxies. A recording must change when those draws become ready.
+    let outlineReady = 0;
+    if (mesh.renderOutline) {
+      for (const part of playerOutlineSnapshotMeshes(mesh as Mesh)) {
+        for (const subMesh of part.subMeshes ?? []) {
+          const passes = (
+            subMesh as unknown as {
+              _drawWrappers: ({ effect?: { isReady?(): boolean } } | undefined)[];
+            }
+          )._drawWrappers;
+          for (const pass of passes) if (pass?.effect?.isReady?.()) outlineReady++;
+        }
+      }
+    }
     const instances = batch ? (batch.matrixBuffer?.getBuffer()?.uniqueId ?? 0) : 0;
     hash = (Math.imul(hash, 31) + mesh.uniqueId) | 0;
     hash = (Math.imul(hash, 31) + (material?.uniqueId ?? -1)) | 0;
     hash = (Math.imul(hash, 31) + unready) | 0;
+    hash = (Math.imul(hash, 31) + outlineReady) | 0;
     hash = (Math.imul(hash, 31) + instances) | 0;
     hash = (Math.imul(hash, 31) + mesh.renderingGroupId) | 0;
     // Below full visibility an opaque mesh moves to the transparent queue
@@ -747,7 +764,7 @@ class SnapshotFrames implements SnapshotFramesHandle {
     if (this.draws) return this.draws;
     const draws: SlotDraw[] = [];
     for (const mesh of this.recorded) {
-      for (const subMesh of mesh.subMeshes ?? []) {
+      for (const subMesh of playerOutlineSnapshotMeshes(mesh as Mesh).flatMap((part) => part.subMeshes ?? [])) {
         (subMesh as unknown as { _drawWrappers: (DrawWrapperLike | undefined)[] })._drawWrappers.forEach(
           (wrapper, pass) => {
             const effect = wrapper?.effect;

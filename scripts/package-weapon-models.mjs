@@ -3,7 +3,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
 import JSZip from 'jszip';
-import { validateEmbeddedGlb } from './package-player-model.mjs';
+import { validateEmbeddedGlb } from './validate-glb.mjs';
 import { buildRuntimeWeaponGlb } from './weapon-textures.mjs';
 
 const repoRoot = fileURLToPath(new URL('../', import.meta.url));

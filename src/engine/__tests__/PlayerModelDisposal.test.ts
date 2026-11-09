@@ -17,7 +17,7 @@ import { TransformNode } from "@babylonjs/core/Meshes/transformNode";
 import { Scene } from "@babylonjs/core/scene";
 import { afterEach, describe, expect, it } from "vitest";
 import { disposePlayerModel, type PlayerModelInstance, PlayerModelManager } from "../animation/PlayerModelManager";
-import { bindLoaderLeftovers } from "../loader/model/ModelSourceCache";
+import { bindLoaderLeftovers, disposeModelResources, setModelRecycler } from "../loader/model/ModelSourceCache";
 
 let scene: Scene;
 
@@ -46,6 +46,27 @@ function playerModel(id: string, shared: StandardMaterial): PlayerModelInstance 
 }
 
 describe("disposing a player model", () => {
+  it("returns a held weapon to its pool before disposing its hand frame", () => {
+    scene = new Scene(new NullEngine());
+    const player = playerModel("pooled", new StandardMaterial("source", scene));
+    const hand = new TransformNode("hand_frame", scene);
+    const parking = new TransformNode("weapon_pool", scene);
+    const gun = player.attachedWeapon!;
+    player.weaponHand = hand;
+    gun.parent = hand;
+    setModelRecycler(gun, () => {
+      gun.parent = parking;
+      return true;
+    });
+    disposePlayerModel(player);
+    expect(hand.isDisposed()).toBe(true);
+    expect(gun.isDisposed()).toBe(false);
+    expect(gun.parent).toBe(parking);
+    setModelRecycler(gun, null);
+    disposeModelResources([gun]);
+    parking.dispose();
+  });
+
   it("shares the source's textures across respawns and keeps them for the source and surviving players", () => {
     scene = new Scene(new NullEngine());
     const manager = new PlayerModelManager(scene);

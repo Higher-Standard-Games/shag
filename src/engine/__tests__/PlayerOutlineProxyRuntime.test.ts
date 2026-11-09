@@ -12,7 +12,7 @@ import { TransformNode } from "@babylonjs/core/Meshes/transformNode";
 import { Scene } from "@babylonjs/core/scene";
 import JSZip from "jszip";
 import { afterEach, expect, it, vi } from "vitest";
-import { VANGUARD_MODEL, VANGUARD_ROOT } from "../animation/PlayerModelAssets";
+import { PLAYER_MODEL_FILE, PLAYER_MODEL_ROOT } from "../animation/PlayerModelAssets";
 import { disposePlayerModel, PlayerModelManager } from "../animation/PlayerModelManager";
 import { PK3Loader } from "../loader/pk3/PK3Loader";
 import { PlayerOutlineProxyRuntime } from "../rendering/PlayerOutlineProxyRuntime";
@@ -57,7 +57,7 @@ async function assets(scene: Scene) {
     .map((v) => v.toString(16).padStart(2, "0"))
     .join("");
   const zip = new JSZip();
-  zip.file(VANGUARD_ROOT + VANGUARD_MODEL, bytes);
+  zip.file(PLAYER_MODEL_ROOT + PLAYER_MODEL_FILE, bytes);
   const packageBytes = await zip.generateAsync({ type: "arraybuffer" });
   vi.stubGlobal(
     "fetch",
@@ -82,8 +82,8 @@ it("loads only after opt-in, shares one scene adapter, follows late spawns and r
     scene = new Scene(engine),
     a = new PlayerModelManager(scene),
     b = new PlayerModelManager(scene);
-  Object.assign(a, { sourceContainer: model(scene) });
-  Object.assign(b, { sourceContainer: model(scene) });
+  Object.assign(a, { sourceContainer: model(scene), modelUrl: PLAYER_MODEL_ROOT + PLAYER_MODEL_FILE });
+  Object.assign(b, { sourceContainer: model(scene), modelUrl: PLAYER_MODEL_ROOT + PLAYER_MODEL_FILE });
   const first = a.createInstance("player_a")!,
     second = b.createInstance("player_b")!;
   const original = scene.getOutlineRenderer().render;
@@ -139,6 +139,7 @@ it("keeps full outlines on provenance failure and disposes a source that complet
     const lateManager = new PlayerModelManager(scene),
       proxy = await assets(scene),
       dispose = vi.spyOn(proxy, "dispose");
+    Object.assign(lateManager, { modelUrl: PLAYER_MODEL_ROOT + PLAYER_MODEL_FILE });
     let deliver!: (value: AssetContainer) => void;
     vi.mocked(LoadAssetContainerAsync).mockReturnValue(
       new Promise((resolve) => {

@@ -1,15 +1,19 @@
 import fs from "node:fs";
 import path from "node:path";
+import { Bone } from "@babylonjs/core/Bones/bone";
+import { Skeleton } from "@babylonjs/core/Bones/skeleton";
 import type { AbstractEngine } from "@babylonjs/core/Engines/abstractEngine";
 import { NullEngine } from "@babylonjs/core/Engines/nullEngine";
 import { ShaderMaterial } from "@babylonjs/core/Materials/shaderMaterial";
 import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
 import { Texture } from "@babylonjs/core/Materials/Textures/texture";
+import { Matrix } from "@babylonjs/core/Maths/math.vector";
 import { MeshBuilder } from "@babylonjs/core/Meshes/meshBuilder";
 import { Scene } from "@babylonjs/core/scene";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ShaderAnimationSystem } from "../loader/shader/ShaderAnimationSystem";
 import { bindAtmosphericFog } from "../rendering/AtmosphericFogShader";
+import { PlayerOutlineProxy, playerOutlineSnapshotMeshes } from "../rendering/PlayerOutlineProxy";
 import {
   drawListSignature,
   installSnapshotFrames,
@@ -63,6 +67,66 @@ describe("drawListSignature", () => {
 });
 
 describe("whole-frame snapshots", () => {
+  it("includes off-scene outline uniform slots using the live body's world matrix", () => {
+    vi.stubGlobal("location", { search: "" });
+    Object.defineProperty(engine, "isWebGPU", { value: true, configurable: true });
+    Object.defineProperty(engine, "compatibilityMode", { value: false, configurable: true });
+    Object.assign(engine, { _snapshotRendering: { endRenderPass() {}, _allBundleLists: [] } });
+    const body = MeshBuilder.CreateBox("body", {}, scene);
+    body.skeleton = new Skeleton("rig", "rig", scene);
+    new Bone("hips", body.skeleton, null, Matrix.Identity());
+    const template = body.clone("template");
+    const adapter = new PlayerOutlineProxy(scene, true);
+    adapter.attach(body, template);
+    const proxy = playerOutlineSnapshotMeshes(body)[1];
+    let outlineReady = false;
+    body.renderOutline = true;
+    const context = { buffers: { LeftOver: {} } };
+    const uniforms = {
+      _uniformLocations: { world: 0 },
+      _uniformSizes: { world: 16 },
+      _slotByOwner: new Map([[context, 0]]),
+      _slotFrameId: [0],
+    };
+    const subMesh = proxy.subMeshes[0] as unknown as { _drawWrappers: unknown[] };
+    subMesh._drawWrappers = [
+      { effect: { isReady: () => outlineReady, _pipelineContext: { uniformBuffer: uniforms } }, drawContext: context },
+    ];
+    const compiling = drawListSignature([body]);
+    outlineReady = true;
+    const ready = drawListSignature([body]);
+    expect(ready).not.toBe(compiling);
+    body.renderOutline = false;
+    expect(drawListSignature([body])).toBe(compiling);
+    body.renderOutline = true;
+
+    const handle = installSnapshotFrames(
+      scene,
+      body,
+      () => null,
+      () => {},
+    );
+    try {
+      const internals = handle as unknown as {
+        recorded: (typeof body)[];
+        recordingFrame: number;
+        slotDraws(): { mesh: typeof body }[];
+      };
+      internals.recorded = [body];
+      internals.recordingFrame = 0;
+      const draws = internals.slotDraws();
+      expect(draws).toHaveLength(1);
+      expect(draws[0].mesh).toBe(body);
+      expect(scene.meshes).not.toContain(proxy);
+    } finally {
+      subMesh._drawWrappers = [];
+      handle?.dispose();
+      adapter.dispose();
+      delete (engine as unknown as { isWebGPU?: boolean }).isWebGPU;
+      delete (engine as unknown as { compatibilityMode?: boolean }).compatibilityMode;
+    }
+  });
+
   it("refreshes declared and fog shader uniforms from their first recording without promoting unmarked materials", () => {
     vi.stubGlobal("location", { search: "" });
     Object.defineProperty(engine, "isWebGPU", { value: true, configurable: true });

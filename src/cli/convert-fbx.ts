@@ -13,7 +13,7 @@
 import { execSync } from "node:child_process";
 import { existsSync, readdirSync, statSync } from "node:fs";
 import { basename, dirname, extname, join } from "node:path";
-import playerRecipe from "../../config/player-model-vanguard.json";
+import playerRecipe from "../../config/player-animations.json";
 
 const TOOL_DIR = join(process.cwd(), "tools");
 const FBX2GLTF_EXE = join(TOOL_DIR, "FBX2glTF-windows-x86_64", "FBX2glTF-windows-x86_64.exe");

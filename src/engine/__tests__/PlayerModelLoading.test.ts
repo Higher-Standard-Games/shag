@@ -3,7 +3,15 @@ import { Scene } from "@babylonjs/core/scene";
 import "@babylonjs/loaders/glTF";
 import JSZip from "jszip";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { VANGUARD_ANIMATIONS, VANGUARD_MODEL, VANGUARD_ROOT } from "../animation/PlayerModelAssets";
+import {
+  FEMALE_MODEL_ROOT,
+  PLAYER_ANIMATION_PACKAGE,
+  PLAYER_ANIMATION_ROOT,
+  PLAYER_ANIMATIONS,
+  PLAYER_MODEL_FILE,
+  PLAYER_MODEL_PACKAGE,
+  PLAYER_MODEL_ROOT,
+} from "../animation/PlayerModelAssets";
 import { PlayerModelManager } from "../animation/PlayerModelManager";
 import { PK3Loader } from "../loader/pk3/PK3Loader";
 
@@ -94,11 +102,12 @@ describe("player model loading in a shared scene", () => {
     glb.set(json, 20);
     const glbBytes = new Uint8Array(glb.buffer, glb.byteOffset, glb.byteLength);
     const zip = new JSZip();
-    zip.file(VANGUARD_ROOT + VANGUARD_MODEL, glbBytes);
-    for (const clip of VANGUARD_ANIMATIONS.filter((clip) => !clip.optional))
-      zip.file(VANGUARD_ROOT + clip.file, glbBytes);
+    zip.file(PLAYER_MODEL_ROOT + PLAYER_MODEL_FILE, glbBytes);
+    zip.file(`${FEMALE_MODEL_ROOT}female.glb`, glbBytes);
+    for (const clip of PLAYER_ANIMATIONS.filter((clip) => !clip.optional))
+      zip.file(PLAYER_ANIMATION_ROOT + clip.file, glbBytes);
     const bytes = await zip.generateAsync({ type: "arraybuffer" });
-    const fetchMock = vi.fn(async () => new Response(bytes));
+    const fetchMock = vi.fn(async (_url: string) => new Response(bytes));
     const loader = PK3Loader.getInstance();
     loader.unloadAll();
     loader.configure({ basePath: "data/", additionalPaths: [] });
@@ -110,16 +119,31 @@ describe("player model loading in a shared scene", () => {
         players.loadModel(),
         ghosts.loadModel(undefined, undefined, [{ name: "idle", file: "rifle aiming idle.glb" }]),
       ]);
+      await players.loadVariant("female", FEMALE_MODEL_ROOT, "female.glb", PLAYER_ANIMATION_ROOT);
+      const female = players.createInstance("variant-player", 36, "female")!;
+      // Every shared clip, and the body's embedded one
+      const clips = PLAYER_ANIMATIONS.filter((clip) => !clip.optional).length + 1;
+      expect(female.anims).toHaveLength(clips);
+      expect(players.playOnce(female, "reload")).toBe(true);
+      expect(players.isOneShotPlaying(female)).toBe(true);
+      players.stopOneShot(female);
+      expect(players.isOneShotPlaying(female)).toBe(false);
+      players.releaseInstance(female);
+      expect(players.createInstance("variant-player", 36, "female")).toBe(female);
+      players.disposeInstance(female);
       expect(players.isLoaded).toBe(true);
       expect(ghosts.isLoaded).toBe(true);
       const player = players.createInstance("player")!;
       const ghost = ghosts.createInstance("ghost")!;
-      expect(player.anims).toHaveLength(18);
+      expect(player.anims).toHaveLength(clips);
       expect(ghost.anims).toHaveLength(2);
       players.playAnimation(player, "idle");
       ghosts.playAnimation(ghost, "idle");
       expect(player.anims[1].animations[0].target).not.toBe(ghost.anims[1].animations[0].target);
-      expect(fetchMock).toHaveBeenCalledTimes(1);
+      // One download per archive, bodies and clips, however many managers load
+      expect(fetchMock.mock.calls.map(([url]) => url).sort()).toEqual(
+        [`data/${PLAYER_ANIMATION_PACKAGE}`, `data/${PLAYER_MODEL_PACKAGE}`].sort(),
+      );
       ghosts.dispose();
       expect(player.masterGroup!.isPlaying).toBe(true);
       players.disposeInstance(player);

@@ -1,11 +1,11 @@
 {
-  "package": "washoi_player_model.pk3",
-  "root": "models/players/vanguard/",
+  "package": "washoi_player_animations.pk3",
+  "root": "models/players/animations/",
   "sourceDir": "assets-source/players/vanguard",
-  "model": "vanguard.glb",
   "animations": [
     { "name": "idle", "file": "rifle aiming idle.glb" },
     { "name": "run", "file": "rifle run.glb" },
+    { "name": "run_back", "file": "backwards_run.glb" },
     { "name": "strafe_l", "file": "strafe left.glb" },
     { "name": "strafe_r", "file": "strafe right.glb" },
     { "name": "jump", "file": "rifle jump.glb" },

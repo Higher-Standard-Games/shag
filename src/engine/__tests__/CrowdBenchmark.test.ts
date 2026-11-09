@@ -11,7 +11,7 @@ import { CreateBox } from "@babylonjs/core/Meshes/Builders/boxBuilder";
 import { TransformNode } from "@babylonjs/core/Meshes/transformNode";
 import { Scene } from "@babylonjs/core/scene";
 import { describe, expect, it } from "vitest";
-import savedRecipe from "../../../benchmarks/recipes/player-crowd-v1.json";
+import savedRecipe from "../../../benchmarks/recipes/player-crowd-v2.json";
 import { PlayerModelManager } from "../animation/PlayerModelManager";
 import { CrowdActors, crowdSchedule, validateCrowdRecipe } from "../rendering/CrowdBenchmark";
 
@@ -33,6 +33,7 @@ describe("fixed player crowd benchmark", () => {
     expect(JSON.stringify(recipe)).toBe(before);
     for (const change of [
       { model: { ...recipe.model, root: "models/players/unknown/" } },
+      { animation: { ...recipe.animation, root: "models/players/vanguard/" } },
       { counts: [11] },
       { counts: [5, 5] },
       { repeats: 0 },

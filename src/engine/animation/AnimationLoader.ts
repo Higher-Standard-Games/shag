@@ -11,7 +11,7 @@ import { ImportAnimationsAsync } from "@babylonjs/core/Loading/sceneLoader";
 import type { Scene } from "@babylonjs/core/scene";
 import { devLog } from "../core/DevLog";
 import "@babylonjs/loaders/glTF";
-import { resolvePlayerModelAsset, VANGUARD_ROOT } from "./PlayerModelAssets";
+import { PLAYER_ANIMATION_ROOT, resolvePlayerModelAsset } from "./PlayerModelAssets";
 
 /**
  * Animation clip metadata
@@ -54,7 +54,7 @@ export class AnimationLoader {
   private static instance: AnimationLoader;
 
   private scene: Scene | null = null;
-  private animationsPath: string = VANGUARD_ROOT;
+  private animationsPath: string = PLAYER_ANIMATION_ROOT;
   private loadedAnimations: Map<string, AnimationGroup[]> = new Map();
   private loading: Map<string, Promise<AnimationGroup[]>> = new Map();
 

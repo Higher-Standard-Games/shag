@@ -1,0 +1,5 @@
+{
+  "package": "washoi_player_model.pk3",
+  "root": "models/players/police/",
+  "model": "police.glb"
+}
