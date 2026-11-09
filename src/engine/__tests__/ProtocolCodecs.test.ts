@@ -821,6 +821,60 @@ describe("BinaryProtocol — event serialization", () => {
     expect(ev.damageType).toBe("splash");
     expect(ev.finalDamage).toBe(120);
     expect(ev.kbDirZ).toBeCloseTo(-1);
+    // Code 11: no killing weapon or hit location, as a demo recorded before them decodes
+    expect(ev.killWeapon).toBeUndefined();
+    expect(ev.hitLocation).toBeUndefined();
+  });
+
+  const deathAt = (extra: Record<string, unknown>) => ({
+    type: "death",
+    entityId: "victim",
+    killerId: "killer",
+    weaponId: "bullet",
+    damageType: "bullet",
+    finalDamage: 40,
+    x: 1,
+    y: 2,
+    z: 3,
+    velX: 0,
+    velY: 0,
+    velZ: 0,
+    kbDirX: 0.6,
+    kbDirY: 0.8,
+    kbDirZ: 0,
+    ...extra,
+  });
+
+  it("death: the killing weapon and a head hit travel, and the next event stays aligned", () => {
+    const [death, next] = roundtripEvents([
+      deathAt({ killWeapon: "machinegun", hitLocation: "head" }),
+      { type: "pickup_notify", entityId: "player_4", label: "Green Armor" },
+    ]);
+    expect(death).toMatchObject({ type: "death", killWeapon: "machinegun", hitLocation: "head", finalDamage: 40 });
+    expect(death.kbDirX as number).toBeCloseTo(0.6);
+    expect(next).toEqual({ type: "pickup_notify", entityId: "player_4", label: "Green Armor" });
+  });
+
+  it("death: a body hit names its weapon and leaves the location out, as damage events do", () => {
+    const [death] = roundtripEvents([deathAt({ killWeapon: "riotgun", hitLocation: "body" })]);
+    expect(death.killWeapon).toBe("riotgun");
+    expect(death.hitLocation).toBeUndefined();
+  });
+
+  it("death: a body hit with no weapon keeps code 11's bytes", () => {
+    const encode = (event: Record<string, unknown>) => {
+      const s = new GameState();
+      s.tick = 1;
+      s.events = [event] as GameState["events"];
+      return Array.from(BinaryProtocol.encodeSnapshot(s));
+    };
+    // The header carries the server clock; hold it so only the events can differ
+    const now = vi.spyOn(Date, "now").mockReturnValue(1_000);
+    try {
+      expect(encode(deathAt({ hitLocation: "body" }))).toEqual(encode(deathAt({})));
+    } finally {
+      now.mockRestore();
+    }
   });
 
   it("award: stable fields", () => {

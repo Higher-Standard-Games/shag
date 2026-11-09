@@ -889,6 +889,8 @@ export class BinaryProtocol {
     "weapon_fire",
     // 25: a damage event that carries the victim's pain tier. Same logical type as 10; see DAMAGE_PAINED.
     "damage",
+    // 26: a death event that names the killing weapon and where the blow landed. Same logical type as 11; see DEATH_LOCATED.
+    "death",
   ];
 
   /**
@@ -922,14 +924,29 @@ export class BinaryProtocol {
   private static readonly DAMAGE_PAINED = 25;
 
   /**
+   * Wire code of a `death` event that names the killing weapon and where the blow landed: code
+   * 11's layout, then the hit location byte (HIT_LOCATIONS index) and the weapon id string.
+   *
+   * A death with neither keeps code 11 and its layout, so a demo recorded before this existed
+   * decodes exactly as it did. Both codes decode to `type: "death"`.
+   */
+  private static readonly DEATH_LOCATED = 26;
+
+  /**
    * The code an event travels under: its type's code, 25 for a damage event with a pain tier,
-   * 23 for one without but with a head or leg hit, or 24 for a weapon_fire event with a pellet
-   * seed.
+   * 23 for one without but with a head or leg hit, 24 for a weapon_fire event with a pellet
+   * seed, or 26 for a death event with a killing weapon or a head or leg hit.
    */
   private static eventTypeCode(event: GameState["events"][number]): number {
     if (event.type === "damage" && event.painTier !== undefined) return BinaryProtocol.DAMAGE_PAINED;
     if (event.type === "damage" && (event.hitLocation === "head" || event.hitLocation === "legs")) {
       return BinaryProtocol.DAMAGE_LOCATED;
+    }
+    if (
+      event.type === "death" &&
+      (!!event.killWeapon || event.hitLocation === "head" || event.hitLocation === "legs")
+    ) {
+      return BinaryProtocol.DEATH_LOCATED;
     }
     if (event.type === "weapon_fire" && event.pelletSeed !== undefined) {
       return BinaryProtocol.FIRE_SEEDED;
@@ -1070,6 +1087,7 @@ export class BinaryProtocol {
           break;
 
         case 11: // death: entityId, killerId, weaponId, damageType, finalDamage, xyz, vel xyz, kb dir xyz
+        case 26: // death with code 11's fields, then hit location and the killing weapon
           encoder.writeString(event.entityId);
           encoder.writeString(event.killerId ?? "");
           encoder.writeString(event.weaponId ?? "");
@@ -1084,6 +1102,10 @@ export class BinaryProtocol {
           encoder.writeFloat32(event.kbDirX ?? 0);
           encoder.writeFloat32(event.kbDirY ?? 0);
           encoder.writeFloat32(event.kbDirZ ?? 0);
+          if (typeCode === BinaryProtocol.DEATH_LOCATED) {
+            encoder.writeUint8(Math.max(0, BinaryProtocol.HIT_LOCATIONS.indexOf(event.hitLocation ?? "body")));
+            encoder.writeString(event.killWeapon ?? "");
+          }
           break;
 
         case 12: // award: awardType, playerId, playerName, targetName, value
@@ -1327,7 +1349,9 @@ export class BinaryProtocol {
         }
 
         case 11: // death
-          state.events.push({
+        case 26: {
+          // Code 26 adds the hit location and the killing weapon; code 11 has neither
+          const deathEvent: GameState["events"][number] = {
             type,
             entityId: decoder.readString(),
             killerId: decoder.readString(),
@@ -1343,8 +1367,17 @@ export class BinaryProtocol {
             kbDirX: decoder.readFloat32(),
             kbDirY: decoder.readFloat32(),
             kbDirZ: decoder.readFloat32(),
-          });
+          };
+          if (typeCode === BinaryProtocol.DEATH_LOCATED) {
+            // A body hit is left without a location, as code 11 leaves it
+            const location = BinaryProtocol.HIT_LOCATIONS[decoder.readUint8()];
+            if (location && location !== "body") deathEvent.hitLocation = location;
+            const killWeapon = decoder.readString();
+            if (killWeapon) deathEvent.killWeapon = killWeapon;
+          }
+          state.events.push(deathEvent);
           break;
+        }
 
         case 12: // award
           state.events.push({

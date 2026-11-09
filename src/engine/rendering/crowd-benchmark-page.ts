@@ -247,7 +247,7 @@ async function run(): Promise<void> {
   document.addEventListener("keydown", keyboard);
   try {
     PK3Loader.getInstance().configure({ basePath: "/data/" });
-    const response = await fetch("/benchmarks/recipes/player-crowd-v1.json");
+    const response = await fetch("/benchmarks/recipes/player-crowd-v2.json");
     if (!response.ok) throw new Error("Crowd recipe unavailable");
     const recipe: unknown = await response.json();
     validateCrowdRecipe(recipe);
@@ -260,7 +260,7 @@ async function run(): Promise<void> {
     const proxyFile = "/data/benchmarks/outline-proxy/player-outline-proxy-v1.glb";
     for (const file of [
       recipe.model.root + recipe.model.file,
-      recipe.model.root + recipe.animation.file,
+      recipe.animation.root + recipe.animation.file,
       ...(recipe.outlineGeometry ? [proxyFile, `${proxyFile}.json`] : []),
     ]) {
       const bytes = await readPlayerModelAsset(file);
@@ -304,9 +304,12 @@ async function run(): Promise<void> {
       occluder.setEnabled(false);
     }
     manager = new PlayerModelManager(scene);
-    await manager.loadModel(recipe.model.root, recipe.model.file, [
-      { name: recipe.animation.name, file: recipe.animation.file },
-    ]);
+    await manager.loadModel(
+      recipe.model.root,
+      recipe.model.file,
+      [{ name: recipe.animation.name, file: recipe.animation.file }],
+      recipe.animation.root,
+    );
     if (!manager.isLoaded) throw new Error("Crowd player model failed to load");
     actors = new CrowdActors(manager, recipe);
     report.inventory = actors.inventory();

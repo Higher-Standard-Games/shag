@@ -282,9 +282,9 @@ npm --prefix src/games/fps run benchmark:crowd -- --repeats 1 --counts 0,10
 npm --prefix src/games/fps run benchmark:crowd -- --repeats 5 --out public/data/benchmarks/results/my-crowd-series
 ```
 
-The [saved recipe](https://github.com/Higher-Standard-Games/shag/blob/main/benchmarks/recipes/player-crowd-v1.json) builds a fixed
-0/2/5/10-player scene through the production player manager, with independent rigs,
-normal FFA styling and a 30 Hz run pose driven by fixed 60 Hz presentation ticks.
+The [saved recipe](https://github.com/Higher-Standard-Games/shag/blob/main/benchmarks/recipes/player-crowd-v2.json) builds a fixed
+0/2/5/10-player scene of the Police body through the production player manager, with independent rigs,
+normal FFA styling and a 30 Hz pose of the shared run clip driven by fixed 60 Hz presentation ticks.
 There is one near actor and a staggered distant group. No map, network connection,
 bot AI, weapons or game simulation runs. This isolates player drawing; its numbers
 are not gameplay FPS. Ten clones stay loaded across all cases, and the requested
@@ -312,7 +312,8 @@ To inspect it manually, start `npm run dev`, then open
 (or `renderer=webgl2`). Escape stops the test; completion retires its scene/engine.
 The standalone page loads PK3 packages from `/data/`, independent of its nested URL.
 This is a development-server benchmark entry, not a separate game mode or a
-default production page. It needs `player_model_vanguard.pk3` in `public/data/`
+default production page. It needs `washoi_player_model.pk3` and
+`washoi_player_animations.pk3` in `public/data/`
 (see [Model loading](./model-loading.md#packaged-player-model)); no recorded demo
 or server is needed. The JSON
 recipe is sufficient to rebuild the scene after model changes, with new asset

@@ -1,7 +1,19 @@
+import { AnimatorAvatar } from "@babylonjs/core/Animations/animatorAvatar";
+import { PLAYER_HEIGHT } from "../physics/PlayerPhysicsConstants";
+import { PlayerOutlineSmoothing } from "../rendering/PlayerOutlineSmoothing";
+import { PlayerAimPose } from "./PlayerAimPose";
+import {
+  type BladeStance,
+  type GunSupport,
+  measureBladeStance,
+  measureGunSupport,
+  measurePlayerModelFit,
+  type PlayerModelFit,
+} from "./PlayerModelFit";
 /**
  * PlayerModelManager — Shared player model loading, animation, and instancing
  *
- * Loads vanguard.glb once, filters root-motion from animations, and creates
+ * Loads the selected player GLB once, filters root-motion from animations, and creates
  * clean cloned instances for any consumer (debug player, remote players, bots).
  *
  * Design:
@@ -13,13 +25,14 @@
 
 import type { Animation } from "@babylonjs/core/Animations/animation";
 import { AnimationGroup } from "@babylonjs/core/Animations/animationGroup";
+import { AnimationGroupMask, AnimationGroupMaskMode } from "@babylonjs/core/Animations/animationGroupMask";
 import type { AssetContainer } from "@babylonjs/core/assetContainer";
 import type { Skeleton } from "@babylonjs/core/Bones/skeleton";
 import { BoundingInfo } from "@babylonjs/core/Culling/boundingInfo";
 import { LoadAssetContainerAsync } from "@babylonjs/core/Loading/sceneLoader";
 import type { Material } from "@babylonjs/core/Materials/material";
 import { Color3 } from "@babylonjs/core/Maths/math.color";
-import { Matrix, Vector3 } from "@babylonjs/core/Maths/math.vector";
+import { Matrix, Quaternion, Vector3 } from "@babylonjs/core/Maths/math.vector";
 import type { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh";
 import { Mesh } from "@babylonjs/core/Meshes/mesh";
 import { TransformNode } from "@babylonjs/core/Meshes/transformNode";
@@ -32,7 +45,14 @@ import { devLog } from "../core/DevLog";
 import { disposeModelResources } from "../loader/model/ModelSourceCache";
 import { cloneModelMaterial } from "../rendering/MaterialCloneBatch";
 import { PlayerOutlineProxyRuntime } from "../rendering/PlayerOutlineProxyRuntime";
-import { resolvePlayerModelAsset, VANGUARD_ANIMATIONS, VANGUARD_MODEL, VANGUARD_ROOT } from "./PlayerModelAssets";
+import { markSnapshotMaterialDynamic } from "../rendering/SnapshotFrames";
+import {
+  PLAYER_ANIMATION_ROOT,
+  PLAYER_ANIMATIONS,
+  PLAYER_MODEL_FILE,
+  PLAYER_MODEL_ROOT,
+  resolvePlayerModelAsset,
+} from "./PlayerModelAssets";
 
 // ─── Types ───────────────────────────────────────────────────────
 
@@ -68,6 +88,24 @@ function forgetPendingJump(group: AnimationGroup): void {
     (animatable as unknown as { _goToFrame: number | null })._goToFrame = null;
 }
 
+/** Sample only locomotion-owned joints; AnimationGroup.goToFrame also writes masked targets. */
+function poseLocomotionFrame(group: AnimationGroup, frame: number): void {
+  if (!group.mask) {
+    group.goToFrame(frame);
+    return;
+  }
+  for (const animatable of group.animatables) {
+    if (group.mask.retainsTarget(animatable.target.name)) animatable.goToFrame(frame);
+  }
+}
+
+function locomotionFrame(group: AnimationGroup): number {
+  return (
+    group.animatables.find((animatable) => !group.mask || group.mask.retainsTarget(animatable.target.name))
+      ?.masterFrame ?? group.getCurrentFrame()
+  );
+}
+
 /** A looping clip's frame, wrapped into [from, to) in either direction. */
 export function wrapFrame(frame: number, from: number, to: number): number {
   const range = to - from;
@@ -88,8 +126,10 @@ export interface PlayerModelInstance {
    * `masterGroup` is whichever of them is current.
    */
   clipGroups?: Map<string, AnimationGroup>;
+  /** Excludes upper-body joints from locomotion while an overlay owns them. */
+  upperBodyMask?: AnimationGroupMask;
   currentAnim: string;
-  /** Timestamp (performance.now) until which a one-shot anim has priority over locomotion */
+  /** Wall-clock deadline for a live one-shot; demos use their recorded timeline. */
   oneshotUntil: number;
   /**
    * Weapon mesh bone-attached to this model's hand (3rd-person view weapon).
@@ -98,6 +138,20 @@ export interface PlayerModelInstance {
    * floating after death/ragdoll cleanup).
    */
   attachedWeapon?: TransformNode | null;
+  /** Normalized hand frame for weapon attachments across exported rig units. */
+  weaponHand?: TransformNode;
+  /** What a held gun is fitted to in the weapon hand's frame; see measureGunSupport. */
+  gunSupport?: GunSupport;
+  /** How the blade stands in its stance, in the weapon hand's frame; see measureBladeStance. */
+  bladeStance?: BladeStance;
+  /** Skinned mesh whose world transform converts joint units to world units. */
+  rigMesh?: Mesh;
+  /** Calibrated root scale and feet offset for the standing silhouette. */
+  modelScale?: number;
+  modelScaleFactor?: number;
+  modelOffsetY?: number;
+  /** Asset variant selected when the instance was created. */
+  modelKey?: string;
   /**
    * Bind-pose local position of the Hips node, captured at instance creation.
    * `resetRootMotion` restores it every frame so root motion can never move the
@@ -152,6 +206,7 @@ interface GlowableMaterial {
 /** GlowableMaterial plus the albedo tint applyVisualStyle writes (PBR only). */
 interface TintableMaterial extends GlowableMaterial {
   albedoColor?: Color3;
+  __playerModelBaseAlbedoColor?: Color3;
 }
 
 export interface PlayerModelVisualStyle {
@@ -174,10 +229,14 @@ export interface AnimFileConfig {
 
 // Shared with the package builder. Missing optional victory dances fall back
 // to idle without HTTP errors or re-downloading the archive for every clip.
-export const DEFAULT_ANIM_FILES: AnimFileConfig[] = VANGUARD_ANIMATIONS;
+export const DEFAULT_ANIM_FILES: AnimFileConfig[] = PLAYER_ANIMATIONS;
 
 /** Victory-dance pool for the post-game winner showcase (random pick). */
 export const DANCE_ANIMS = ["dance_1", "dance_2", "dance_3"];
+/** The upper-body clip a player holding the blade loops; see setUpperBodyStance. */
+export const BLADE_STANCE = "blade_idle";
+/** The blade in its stance stands up from the fist, leaning this far (radians) toward the body's front. */
+const BLADE_STANCE_LEAN = (35 * Math.PI) / 180;
 
 // ─── Manager ─────────────────────────────────────────────────────
 
@@ -194,21 +253,69 @@ export class PlayerModelManager {
   private readonly glowMeshes = new WeakMap<PlayerModelInstance, AbstractMesh[]>();
 
   private scene: Scene;
-  private readonly activeOneShots = new Map<PlayerModelInstance, { group: AnimationGroup; baseSpeedRatio: number }>();
+  private readonly activeOneShots = new Map<
+    PlayerModelInstance,
+    { group: AnimationGroup; baseSpeedRatio: number; upperBodyOnly?: boolean }
+  >();
+  private readonly upperBodyTargets = new WeakMap<PlayerModelInstance, ReadonlySet<TransformNode>>();
+  private readonly lowerBodyMasks = new WeakMap<PlayerModelInstance, AnimationGroupMask>();
+  /** A looping upper-body clip held over locomotion (the blade stance); see setUpperBodyStance. */
+  private readonly stances = new Map<PlayerModelInstance, { name: string; group: AnimationGroup; frame: number }>();
   /** Clip phase kept by hand for instances whose pose is sampled at a reduced rate; see stepAnimation. */
   private readonly stepped = new WeakMap<
     PlayerModelInstance,
-    { group: AnimationGroup; frame: number; since: number }
+    { group: AnimationGroup; frame: number; upperFrame: number; since: number }
   >();
+  /** Share of the locomotion clip's speed its upper-body joints play at; see setUpperBodyShare. */
+  private readonly upperBodyShares = new WeakMap<PlayerModelInstance, number>();
+
+  private readonly aimPoses = new Map<PlayerModelInstance, PlayerAimPose>();
+  private aimBefore?: ReturnType<Scene["onBeforeAnimationsObservable"]["add"]>;
+  private aimAfter?: ReturnType<Scene["onAfterAnimationsObservable"]["add"]>;
+
+  /** View pitch is visual only; the anchor and lower-body locomotion stay upright. */
+  setAimPitch(instance: PlayerModelInstance, pitch: number): void {
+    const owner = modelOwners.get(instance);
+    if (owner && owner !== this) {
+      owner.setAimPitch(instance, pitch);
+      return;
+    }
+    const safePitch = Number.isFinite(pitch) ? Math.max(-1.4, Math.min(1.4, pitch)) : 0;
+    let pose = this.aimPoses.get(instance);
+    if (!safePitch) {
+      pose?.restore();
+      this.aimPoses.delete(instance);
+      return;
+    }
+    if (!pose) {
+      pose = new PlayerAimPose(instance);
+      this.aimPoses.set(instance, pose);
+    }
+    pose.pitch = safePitch;
+    if (!this.aimBefore) {
+      this.aimBefore = this.scene.onBeforeAnimationsObservable.add(() => {
+        for (const item of this.aimPoses.values()) item.restore();
+      });
+      this.aimAfter = this.scene.onAfterAnimationsObservable.add(() => {
+        for (const item of this.aimPoses.values()) item.apply();
+      });
+    }
+  }
 
   private loaded = false;
   private disposed = false;
   private loadPromise: Promise<void> | null = null;
   private sourceContainer: AssetContainer | null = null;
-  private modelUrl = VANGUARD_ROOT + VANGUARD_MODEL;
+  private modelFit?: PlayerModelFit;
+  private gunSupport?: GunSupport;
+  private bladeStance?: BladeStance;
+  private handBasis: { rotation: Quaternion; scale: Vector3 } | null = null;
+  private modelUrl = PLAYER_MODEL_ROOT + PLAYER_MODEL_FILE;
   private outlineProxyWanted = false;
   private outlineRuntime?: PlayerOutlineProxyRuntime;
+  private outlineSmoothing?: PlayerOutlineSmoothing;
   private readonly instances = new Map<PlayerModelInstance, ReturnType<Mesh["onDisposeObservable"]["add"]>>();
+  private readonly variants = new Map<string, PlayerModelManager>();
   /**
    * Bodies put away by player id, whole (rig, clip groups, materials), for
    * that player's next body: building one took 3.5 ms and its frames about
@@ -233,19 +340,25 @@ export class PlayerModelManager {
    * Idempotent — calling multiple times is safe; only loads once.
    */
   loadModel(
-    modelPath: string = VANGUARD_ROOT,
-    modelFile: string = VANGUARD_MODEL,
+    modelPath: string = PLAYER_MODEL_ROOT,
+    modelFile: string = PLAYER_MODEL_FILE,
     animFiles: AnimFileConfig[] = DEFAULT_ANIM_FILES,
+    animationPath = modelPath === PLAYER_MODEL_ROOT ? PLAYER_ANIMATION_ROOT : modelPath,
   ): Promise<void> {
     if (this.disposed || this.loaded) return Promise.resolve();
     this.modelUrl = modelPath + modelFile;
-    this.loadPromise ??= this.loadAssets(modelPath, modelFile, animFiles).finally(() => {
+    this.loadPromise ??= this.loadAssets(modelPath, modelFile, animFiles, animationPath).finally(() => {
       this.loadPromise = null;
     });
     return this.loadPromise;
   }
 
-  private async loadAssets(modelPath: string, modelFile: string, animFiles: AnimFileConfig[]): Promise<void> {
+  private async loadAssets(
+    modelPath: string,
+    modelFile: string,
+    animFiles: AnimFileConfig[],
+    animationPath: string,
+  ): Promise<void> {
     let container: AssetContainer | null = null;
     try {
       // Keep both model and clip imports out of the live scene. ImportAnimationsAsync
@@ -256,10 +369,7 @@ export class PlayerModelManager {
       const pluginOptions = { gltf: { animationStartMode: 0 } };
       container = await LoadAssetContainerAsync(model.source, this.scene, { ...model.options, pluginOptions });
       if (this.disposed) return;
-      // One skeleton per SKIN, and an exporter emits a skin per skinned submesh:
-      // vanguard.glb ships three over one 65-joint rig. They share the joint
-      // nodes, so the first skeleton's nodes drive every mesh and the rest are
-      // redundant — createInstance collapses them once it can prove they match.
+      // Multiple skins may share the same linked joint nodes.
       const [sourceSkeleton] = container.skeletons;
       if (!sourceSkeleton) throw new Error("Player model has no skeleton");
       const boneMap = new Map<string, TransformNode>();
@@ -271,18 +381,61 @@ export class PlayerModelManager {
       const embedded = container.animationGroups.splice(0);
       try {
         if (embedded[0]) this.storeAnimation(container, embedded[0], "embedded", boneMap);
+        const running = embedded.find((group) => group.name === "Running");
+        if (running) this.storeAnimation(container, running, "run_relaxed", boneMap);
       } finally {
         for (const group of embedded) group.dispose();
       }
+      const avatar = new AnimatorAvatar("player", undefined, false);
+      avatar.skeletons.add(sourceSkeleton);
+      avatar.showWarnings = false;
       for (const anim of animFiles) {
         let clip: AssetContainer | null = null;
         try {
-          const asset = await resolvePlayerModelAsset(modelPath, anim.file, anim.optional);
+          const asset = await resolvePlayerModelAsset(animationPath, anim.file, anim.optional);
           if (!asset || this.disposed) continue;
           clip = await LoadAssetContainerAsync(asset.source, this.scene, { ...asset.options, pluginOptions });
           if (this.disposed) return;
           if (!clip.animationGroups[0]) throw new Error(`No animation group in ${anim.file}`);
-          this.storeAnimation(container, clip.animationGroups[0], anim.name, boneMap);
+          const source = clip.animationGroups[0];
+          if (animationPath !== modelPath && !this.handBasis) {
+            const referenceHand = source.targetedAnimations.find(
+              (channel) => channel.target.name === "mixamorig:RightHand",
+            )?.target as TransformNode | undefined;
+            const hand = boneMap.get("mixamorig:RightHand");
+            if (referenceHand && hand) {
+              sourceSkeleton.returnToRest();
+              sourceSkeleton.prepare(true);
+              referenceHand.computeWorldMatrix(true);
+              hand.computeWorldMatrix(true);
+              // Include handedness reflections as well as export scale in the basis.
+              const correction = referenceHand.getWorldMatrix().multiply(hand.getWorldMatrix().clone().invert());
+              const rotation = new Quaternion();
+              const scale = new Vector3();
+              correction.decompose(scale, rotation);
+              this.handBasis = { rotation, scale };
+            }
+          }
+          if (animationPath !== modelPath) {
+            // Finger and terminal toe tracks have no counterpart on the compact rig.
+            for (const channel of source.targetedAnimations) {
+              const name = (channel.target as TransformNode).name;
+              if (
+                !boneMap.has(name) &&
+                !/^mixamorig:(Left|Right)(Hand(Thumb|Index|Middle|Ring|Pinky)[1-4]|Toe_End)$/.test(name)
+              ) {
+                throw new Error(`Unmapped source animation target: ${name}`);
+              }
+            }
+            const retargeted = avatar.retargetAnimationGroup(source, { fixRootPosition: false });
+            try {
+              this.storeAnimation(container, retargeted, anim.name, boneMap);
+            } finally {
+              retargeted.dispose();
+            }
+          } else {
+            this.storeAnimation(container, source, anim.name, boneMap);
+          }
         } catch (error) {
           console.warn(`[PlayerModelManager] Failed to load ${anim.name}:`, error);
         } finally {
@@ -291,6 +444,15 @@ export class PlayerModelManager {
       }
       // Only our template nodes are cleaned. Never stop/clear scene-wide animation.
       for (const node of [...container.meshes, ...container.transformNodes]) node.animations = [];
+      if (animationPath !== modelPath) {
+        // Slight visual oversize keeps animated silhouettes readable around the fixed player hull.
+        this.modelFit = measurePlayerModelFit(container, (PLAYER_HEIGHT * 1.1) / 36);
+        if (this.handBasis) {
+          this.gunSupport = measureGunSupport(container, this.handBasis);
+          this.bladeStance = measureBladeStance(container, this.handBasis, BLADE_STANCE, BLADE_STANCE_LEAN);
+        }
+        this.outlineSmoothing = new PlayerOutlineSmoothing(this.scene);
+      }
       this.sourceContainer = container;
       this.loaded = true;
       devLog(`[PlayerModelManager] Ready: ${container.animationGroups.length} animations`);
@@ -316,8 +478,25 @@ export class PlayerModelManager {
     container.animationGroups.push(group);
   }
 
+  /** Load a named body with its own containers and instance pool. */
+  async loadVariant(key: string, root: string, file: string, animationRoot: string): Promise<void> {
+    if (this.disposed) return;
+    let manager = this.variants.get(key);
+    if (!manager) {
+      manager = new PlayerModelManager(this.scene);
+      this.variants.set(key, manager);
+    }
+    await manager.loadModel(root, file, DEFAULT_ANIM_FILES, animationRoot);
+    if (!manager.isLoaded && !this.disposed) throw new Error(`Player model variant failed: ${key}`);
+  }
+
   /** Create an independent player; Babylon owns hierarchy, skeleton and clip retargeting. */
-  createInstance(id: string, scale: number = 36): PlayerModelInstance | null {
+  createInstance(id: string, scale: number = 36, variant?: string): PlayerModelInstance | null {
+    if (variant) {
+      const model = this.variants.get(variant)?.createInstance(id, scale) ?? null;
+      if (model) model.modelKey = variant;
+      return model;
+    }
     const container = this.sourceContainer;
     if (!container || this.disposed) return null;
     const parked = this.takeParked(id);
@@ -371,8 +550,11 @@ export class PlayerModelManager {
       for (const group of entries.animationGroups) group.dispose();
       const anchor = new TransformNode(`anchor_${id}`, this.scene);
       mesh.parent = anchor;
-      mesh.position.set(0, 0, 0);
-      mesh.scaling.set(scale, scale, scale);
+      const modelScaleFactor = this.modelFit?.scale ?? 1;
+      const modelScale = scale * modelScaleFactor;
+      const modelOffsetY = scale * (this.modelFit?.offsetY ?? 0);
+      mesh.position.set(0, modelOffsetY, 0);
+      mesh.scaling.setAll(modelScale);
       mesh.rotationQuaternion = null;
       mesh.rotation.set(0, 0, 0);
       for (const child of [mesh, ...mesh.getChildMeshes()]) {
@@ -383,6 +565,16 @@ export class PlayerModelManager {
       }
       const hips = skeleton.bones.find((bone) => bone.name.toLowerCase().includes("hips"))?.getTransformNode();
       const boneNodes = skeleton.bones.map((bone) => bone.getTransformNode());
+      let weaponHand: TransformNode | undefined;
+      const handBone = skeleton.bones.find((bone) => bone.name === "mixamorig:RightHand");
+      const rigMesh = mesh.getChildMeshes().find((part) => part.skeleton === skeleton) as Mesh | undefined;
+      const hand = handBone?.getTransformNode();
+      if (this.handBasis && hand) {
+        weaponHand = new TransformNode(`${id}/weapon_hand`, this.scene);
+        weaponHand.attachToBone(handBone!, rigMesh ?? mesh);
+        weaponHand.rotationQuaternion = this.handBasis.rotation.clone();
+        weaponHand.scaling.copyFrom(this.handBasis.scale);
+      }
       const instance: PlayerModelInstance = {
         id,
         anchor,
@@ -394,6 +586,13 @@ export class PlayerModelManager {
         oneshotUntil: 0,
         hipsBind: hips ? { node: hips, x: hips.position.x, y: hips.position.y, z: hips.position.z } : null,
         boneNodes,
+        weaponHand,
+        gunSupport: weaponHand ? this.gunSupport : undefined,
+        bladeStance: weaponHand ? this.bladeStance : undefined,
+        rigMesh,
+        modelScale,
+        modelScaleFactor,
+        modelOffsetY,
       };
       const parts = [mesh, ...mesh.getChildMeshes()];
       instance.restore = { anims, name: mesh.name, pickable: parts.map((part) => part.isPickable) };
@@ -402,9 +601,11 @@ export class PlayerModelManager {
         instance,
         mesh.onDisposeObservable.add(() => {
           this.outlineRuntime?.unregister(this, instance);
+          this.aimPoses.delete(instance);
           this.instances.delete(instance);
         }),
       );
+      this.outlineSmoothing?.attach(mesh, container);
       if (this.outlineProxyWanted) this.outlineRuntime?.register(this, instance);
       return instance;
     } catch (error) {
@@ -429,6 +630,11 @@ export class PlayerModelManager {
    * from it and must go back to {@link selectAlways}.
    */
   useConservativeBounds(instance: PlayerModelInstance): void {
+    const owner = modelOwners.get(instance);
+    if (owner && owner !== this) {
+      owner.useConservativeBounds(instance);
+      return;
+    }
     const { radius, minY, maxY } = PLAYER_POSE_BOUNDS;
     const anchorToPart = new Matrix();
     const corner = new Vector3();
@@ -456,6 +662,11 @@ export class PlayerModelManager {
 
   /** Draw the body regardless of bounds, as created: for poses that leave the anchor. */
   selectAlways(instance: PlayerModelInstance): void {
+    const owner = modelOwners.get(instance);
+    if (owner && owner !== this) {
+      owner.selectAlways(instance);
+      return;
+    }
     for (const part of [instance.mesh, ...instance.mesh.getChildMeshes()]) part.alwaysSelectAsActiveMesh = true;
   }
 
@@ -475,15 +686,24 @@ export class PlayerModelManager {
    * resumes mid-stride rather than snapping to a bind pose.
    */
   setAnimationActive(instance: PlayerModelInstance, active: boolean): void {
+    const owner = modelOwners.get(instance);
+    if (owner && owner !== this) {
+      owner.setAnimationActive(instance, active);
+      return;
+    }
     const group = instance.masterGroup;
-    if (!group || this.activeOneShots.has(instance)) return;
+    if (!group || this.isFullBodyOneShotPlaying(instance)) return;
     this.leaveStepped(instance, group);
+    // A stance under a swing waits for the swing to end
+    const stance = this.activeOneShots.has(instance) ? undefined : this.stances.get(instance)?.group;
 
     if (active) {
       if (!group.isPlaying) group.play(true);
+      if (stance && !stance.isPlaying) stance.play(true);
       return;
     }
     if (group.isPlaying) group.pause();
+    if (stance?.isPlaying) stance.pause();
   }
 
   /**
@@ -498,27 +718,53 @@ export class PlayerModelManager {
    * `goToFrame` only when a step is due, which is also when the skeleton is
    * re-prepared. Movement is untouched: the anchor still moves every frame.
    *
-   * A one-shot owns the bones while it plays; the clip waits until it ends.
+   * A full-body one-shot suspends this clip; an upper-body overlay masks only its joints.
    * Returning to {@link setAnimationActive} resumes from the stepped phase.
    */
   stepAnimation(instance: PlayerModelInstance, dtSeconds: number, stepSeconds: number): void {
+    const owner = modelOwners.get(instance);
+    if (owner && owner !== this) {
+      owner.stepAnimation(instance, dtSeconds, stepSeconds);
+      return;
+    }
     const group = instance.masterGroup;
-    if (!group || this.activeOneShots.has(instance)) return;
+    if (!group || this.isFullBodyOneShotPlaying(instance)) return;
     let state = this.stepped.get(instance);
     if (!state || state.group !== group) {
-      const frame = group.isPlaying ? group.getCurrentFrame() : group.from;
-      state = { group, frame, since: Number.POSITIVE_INFINITY };
+      const frame = group.isPlaying ? locomotionFrame(group) : group.from;
+      const upperFrame = group.isPlaying ? (this.upperBodyFrame(instance, group) ?? frame) : frame;
+      state = { group, frame, upperFrame, since: Number.POSITIVE_INFINITY };
       this.stepped.set(instance, state);
     }
     if (group.isPlaying) group.pause();
     const fps = group.targetedAnimations[0]?.animation.framePerSecond ?? 30;
-    state.frame = wrapFrame(state.frame + dtSeconds * fps * group.speedRatio, group.from, group.to);
+    const advance = dtSeconds * fps * group.speedRatio;
+    state.frame = wrapFrame(state.frame + advance, group.from, group.to);
+    // While an overlay owns the upper body it rejoins the legs' phase, as a played clip does
+    const share = this.upperBodyShares.get(instance) ?? 1;
+    state.upperFrame = group.mask ? state.frame : wrapFrame(state.upperFrame + advance * share, group.from, group.to);
+    // A held stance keeps its own phase at its own speed, posed with the legs
+    const stance = this.activeOneShots.has(instance) ? undefined : this.stances.get(instance);
+    if (stance) {
+      if (stance.group.isPlaying) {
+        stance.frame = stance.group.animatables[0]?.masterFrame ?? stance.frame;
+        stance.group.pause();
+      }
+      const stanceFps = stance.group.targetedAnimations[0]?.animation.framePerSecond ?? 30;
+      stance.frame = wrapFrame(
+        stance.frame + dtSeconds * stanceFps * stance.group.speedRatio,
+        stance.group.from,
+        stance.group.to,
+      );
+    }
     state.since += dtSeconds;
     if (state.since >= stepSeconds) {
       // Carry the remainder so the rate holds on any frame clock, but never
       // bank more than one step: a long hitch is followed by one pose, not a burst.
       state.since = Number.isFinite(state.since) ? Math.min(state.since - stepSeconds, stepSeconds) : 0;
-      group.goToFrame(state.frame);
+      poseLocomotionFrame(group, state.frame);
+      if (state.upperFrame !== state.frame) this.poseUpperBody(instance, group, state.upperFrame);
+      stance?.group.goToFrame(stance.frame);
       // Written after this frame's reset, so cancel root motion again.
       this.resetRootMotion(instance);
       forgetPendingJump(group);
@@ -531,15 +777,61 @@ export class PlayerModelManager {
     if (!state) return;
     this.stepped.delete(instance);
     if (state.group === group) {
-      group.goToFrame(state.frame);
+      poseLocomotionFrame(group, state.frame);
+      if (state.upperFrame !== state.frame) this.poseUpperBody(instance, group, state.upperFrame);
       this.resetRootMotion(instance);
     }
   }
 
+  /**
+   * Play the locomotion clip's spine, arms and head at `share` of the clip's
+   * speed, and its hips and legs at the clip's speed; 1 plays the body as one.
+   * Call after every change of the clip's speed ratio, which puts every joint
+   * back on the clip's speed. The halves drift apart in phase; when an
+   * upper-body overlay ends, the upper body rejoins the legs' phase.
+   */
+  setUpperBodyShare(instance: PlayerModelInstance, share: number): void {
+    const owner = modelOwners.get(instance);
+    if (owner && owner !== this) {
+      owner.setUpperBodyShare(instance, share);
+      return;
+    }
+    this.upperBodyShares.set(instance, share);
+    const group = instance.masterGroup;
+    const upper = group && this.getUpperBodyTargets(instance);
+    if (!group || !upper) return;
+    for (const animatable of group.animatables) {
+      const speed = upper.has(animatable.target) ? group.speedRatio * share : group.speedRatio;
+      if (animatable.speedRatio !== speed) animatable.speedRatio = speed;
+    }
+  }
+
+  /** The upper body's frame in a playing clip, when the clip owns an upper-body joint. */
+  private upperBodyFrame(instance: PlayerModelInstance, group: AnimationGroup): number | undefined {
+    const upper = this.getUpperBodyTargets(instance);
+    return group.animatables.find(
+      (animatable) =>
+        upper?.has(animatable.target) && (!group.mask || group.mask.retainsTarget(animatable.target.name)),
+    )?.masterFrame;
+  }
+
+  /** Pose the upper-body joints the clip owns at their own phase. */
+  private poseUpperBody(instance: PlayerModelInstance, group: AnimationGroup, frame: number): void {
+    const upper = this.getUpperBodyTargets(instance);
+    if (!upper) return;
+    for (const animatable of group.animatables) {
+      if (upper.has(animatable.target) && (!group.mask || group.mask.retainsTarget(animatable.target.name))) {
+        animatable.goToFrame(frame);
+      }
+    }
+  }
+
   playAnimation(instance: PlayerModelInstance, name: string): boolean {
+    const owner = modelOwners.get(instance);
+    if (owner && owner !== this) return owner.playAnimation(instance, name);
     const changed = PlayerModelManager.playAnimationOn(instance, name);
-    // Prepare current locomotion for the attack's end without sharing its bones.
-    if (this.activeOneShots.has(instance)) instance.masterGroup?.stop();
+    // Full-body one-shots own every joint; upper-body swings leave the legs running.
+    if (this.isFullBodyOneShotPlaying(instance)) instance.masterGroup?.stop();
     return changed;
   }
 
@@ -560,9 +852,14 @@ export class PlayerModelManager {
    * which is correct, and makes this evaluation the caller's job.
    */
   settlePose(instance: PlayerModelInstance): void {
+    const owner = modelOwners.get(instance);
+    if (owner && owner !== this) {
+      owner.settlePose(instance);
+      return;
+    }
     const group = instance.masterGroup;
     if (!group) return;
-    group.goToFrame(group.from);
+    poseLocomotionFrame(group, group.from);
   }
 
   /**
@@ -575,13 +872,8 @@ export class PlayerModelManager {
 
   static playAnimationOn(instance: PlayerModelInstance, name: string): boolean {
     if (instance.currentAnim === name) return false;
-
     const animData = instance.anims.find((a) => a.name === name);
     if (!animData) {
-      // A clip that did not load leaves the PREVIOUS one playing — it does not
-      // fall back to idle. That reads in game as a player sliding in whatever
-      // pose they last held, which is indistinguishable from a physics bug and
-      // was silent, so say it once per missing clip.
       if (!PlayerModelManager.warnedMissingAnims.has(name)) {
         PlayerModelManager.warnedMissingAnims.add(name);
         console.warn(
@@ -590,25 +882,17 @@ export class PlayerModelManager {
       }
       return false;
     }
-
     instance.masterGroup?.stop();
-
-    // One group per clip, built the first time it is needed and kept. Remote
-    // players switch clips constantly (every bunnyhop toggles jump), and each
-    // switch used to dispose the old group and build a new one, channel by
-    // channel. A kept group starts over from its first frame on play(), and at
-    // normal speed, exactly like a fresh one did.
     instance.clipGroups ??= new Map();
     let group = instance.clipGroups.get(name);
     if (!group) {
       group = new AnimationGroup(`anim_${instance.id}_${name}`, instance.mesh.getScene());
       for (const item of animData.animations) {
-        if (item.target) {
-          group.addTargetedAnimation(item.animation, item.target);
-        }
+        if (item.target) group.addTargetedAnimation(item.animation, item.target);
       }
       instance.clipGroups.set(name, group);
     }
+    group.mask = instance.upperBodyMask ?? null;
     group.speedRatio = 1;
     instance.masterGroup = group;
     group.play(true);
@@ -616,58 +900,144 @@ export class PlayerModelManager {
     return true;
   }
 
-  /**
-   * Play a one-shot animation on an instance (e.g. attack, hit reaction).
-   * Uses an OVERLAY approach — does NOT touch the existing masterGroup.
-   * The one-shot plays on top and auto-disposes when complete.
-   * @param speedRatio - Optional playback speed multiplier (default 1.0, higher = faster)
-   */
+  /** Play an exclusive one-shot, or a spine-and-arms overlay for the blade swing. */
   playOnce(instance: PlayerModelInstance, name: string, speedRatio: number = 1.0): boolean {
+    const owner = modelOwners.get(instance);
+    if (owner && owner !== this) return owner.playOnce(instance, name, speedRatio);
     const animData = instance.anims.find((a) => a.name === name);
     if (!animData || animData.animations.length === 0) return false;
     this.stopOneShot(instance, false);
-
-    // Create overlay animation group (separate from masterGroup)
+    const upperTargets = name === "blade_slash" ? this.getUpperBodyTargets(instance) : undefined;
+    const upperBodyOnly = !!upperTargets?.size;
     const group = new AnimationGroup(`anim_${instance.id}_${name}_overlay`, this.scene);
     for (const item of animData.animations) {
-      if (item.target) {
+      if (item.target && (!upperBodyOnly || upperTargets?.has(item.target))) {
         group.addTargetedAnimation(item.animation, item.target);
       }
     }
-
-    // Apply speed ratio (higher = faster animation)
-    group.speedRatio = speedRatio;
-
-    // Stop the locomotion masterGroup while the one-shot plays.
-    // This prevents both groups writing to the same bones simultaneously.
-    if (instance.masterGroup) {
-      instance.masterGroup.stop();
-    }
-
-    const durationMs = this.getOneShotDurationMs(instance, name, speedRatio);
-    instance.oneshotUntil = performance.now() + durationMs;
-    this.activeOneShots.set(instance, { group, baseSpeedRatio: speedRatio });
-
-    // Play once (loop = false), auto-dispose when complete
-    group.play(false);
-
-    group.onAnimationEndObservable.addOnce(() => {
-      if (this.activeOneShots.get(instance)?.group !== group) return;
-      this.activeOneShots.delete(instance);
-      group.stop();
+    if (!group.targetedAnimations.length) {
       group.dispose();
-      instance.oneshotUntil = 0;
-      // Resume locomotion masterGroup after one-shot completes
-      if (instance.masterGroup) {
-        instance.masterGroup.play(true);
-      }
+      return false;
+    }
+    group.speedRatio = speedRatio;
+    this.activeOneShots.set(instance, { group, baseSpeedRatio: speedRatio, upperBodyOnly });
+    // The swing owns the upper body until it ends; the stance resumes after it
+    this.stances.get(instance)?.group.pause();
+    if (upperBodyOnly && upperTargets) {
+      this.setUpperBodyMask(instance, this.lowerBodyMask(instance, upperTargets));
+    } else {
+      instance.masterGroup?.stop();
+    }
+    instance.oneshotUntil = performance.now() + this.getOneShotDurationMs(instance, name, speedRatio);
+    group.play(false);
+    group.onAnimationEndObservable.addOnce(() => {
+      if (this.activeOneShots.get(instance)?.group === group) this.stopOneShot(instance);
     });
-
     return true;
+  }
+
+  private getUpperBodyTargets(instance: PlayerModelInstance): ReadonlySet<TransformNode> | undefined {
+    let targets = this.upperBodyTargets.get(instance);
+    if (targets) return targets;
+    const spine = instance.skeleton?.bones.find((bone) => bone.name === "mixamorig:Spine")?.getTransformNode();
+    if (!spine) return;
+    targets = new Set([
+      spine,
+      ...spine.getDescendants(false).filter((node): node is TransformNode => node instanceof TransformNode),
+    ]);
+    this.upperBodyTargets.set(instance, targets);
+    return targets;
+  }
+
+  /** The mask that leaves locomotion only the hips and legs. */
+  private lowerBodyMask(instance: PlayerModelInstance, upperTargets: ReadonlySet<TransformNode>): AnimationGroupMask {
+    let mask = this.lowerBodyMasks.get(instance);
+    if (!mask) {
+      mask = new AnimationGroupMask(
+        [...upperTargets].map((target) => target.name),
+        AnimationGroupMaskMode.Exclude,
+      );
+      this.lowerBodyMasks.set(instance, mask);
+    }
+    return mask;
+  }
+
+  /**
+   * Loop `name` on the spine, arms and head over the locomotion clip, which
+   * keeps the hips and legs; null returns the upper body to locomotion. The
+   * blade holds its stance this way. An upper-body swing plays over the stance
+   * and hands the joints back when it ends; `timeScale` carries the demo clock.
+   */
+  setUpperBodyStance(instance: PlayerModelInstance, name: string | null, timeScale: number = 1): void {
+    const owner = modelOwners.get(instance);
+    if (owner && owner !== this) {
+      owner.setUpperBodyStance(instance, name, timeScale);
+      return;
+    }
+    const current = this.stances.get(instance);
+    if (current && current.name === name) {
+      current.group.speedRatio = timeScale;
+      return;
+    }
+    if (!current && !name) return;
+    if (current) {
+      this.stances.delete(instance);
+      current.group.stop();
+      current.group.dispose();
+    }
+    const swinging = !!this.activeOneShots.get(instance)?.upperBodyOnly;
+    const upperTargets = this.getUpperBodyTargets(instance);
+    const animData = name ? instance.anims.find((a) => a.name === name) : undefined;
+    if (!name || !upperTargets || !animData) {
+      if (!swinging) this.setUpperBodyMask(instance, undefined);
+      return;
+    }
+    const group = new AnimationGroup(`anim_${instance.id}_${name}_stance`, this.scene);
+    for (const item of animData.animations) {
+      if (item.target && upperTargets.has(item.target)) group.addTargetedAnimation(item.animation, item.target);
+    }
+    if (!group.targetedAnimations.length) {
+      group.dispose();
+      if (!swinging) this.setUpperBodyMask(instance, undefined);
+      return;
+    }
+    group.speedRatio = timeScale;
+    this.stances.set(instance, { name, group, frame: group.from });
+    this.setUpperBodyMask(instance, this.lowerBodyMask(instance, upperTargets));
+    group.play(true);
+    if (swinging || this.isFullBodyOneShotPlaying(instance)) group.pause();
+  }
+
+  private setUpperBodyMask(instance: PlayerModelInstance, mask: AnimationGroupMask | undefined): void {
+    instance.upperBodyMask = mask;
+    const group = instance.masterGroup;
+    if (!group || group.mask === (mask ?? null)) return;
+    const previous = group.mask;
+    const frame = locomotionFrame(group);
+    const playing = group.isPlaying;
+    group.mask = mask ?? null;
+    if (!mask && previous) {
+      // Resume upper joints at the legs' current phase, without restarting the stride.
+      for (const animatable of group.animatables) {
+        if (!previous.retainsTarget(animatable.target.name)) animatable.goToFrame(frame);
+      }
+    }
+    if (!playing) group.pause();
+    forgetPendingJump(group);
+  }
+
+  /** Full-body clips suspend locomotion; upper-body overlays do not. */
+  isFullBodyOneShotPlaying(instance: PlayerModelInstance): boolean {
+    const owner = modelOwners.get(instance);
+    if (owner && owner !== this) return owner.isFullBodyOneShotPlaying(instance);
+    const active = this.activeOneShots.get(instance);
+    return !!active && !active.upperBodyOnly;
   }
 
   /** Duration of a named one-shot at its authored 30fps and base speed. */
   getOneShotDurationMs(instance: PlayerModelInstance, name: string, speedRatio: number = 1.0): number {
+    const owner = modelOwners.get(instance);
+    if (owner && owner !== this) return owner.getOneShotDurationMs(instance, name, speedRatio);
     const animData = instance.anims.find((a) => a.name === name);
     if (!animData || speedRatio <= 0) return 0;
     let maxFrames = 0;
@@ -682,16 +1052,28 @@ export class PlayerModelManager {
 
   /** Multiply an active one-shot's authored speed by an external clock scale. */
   setOneShotTimeScale(instance: PlayerModelInstance, timeScale: number): void {
+    const owner = modelOwners.get(instance);
+    if (owner && owner !== this) {
+      owner.setOneShotTimeScale(instance, timeScale);
+      return;
+    }
     const active = this.activeOneShots.get(instance);
     if (active) active.group.speedRatio = active.baseSpeedRatio * timeScale;
   }
 
   isOneShotPlaying(instance: PlayerModelInstance): boolean {
+    const owner = modelOwners.get(instance);
+    if (owner && owner !== this) return owner.isOneShotPlaying(instance);
     return this.activeOneShots.has(instance);
   }
 
   /** Stop and dispose an active overlay, optionally resuming locomotion. */
   stopOneShot(instance: PlayerModelInstance, resumeLocomotion: boolean = true): void {
+    const owner = modelOwners.get(instance);
+    if (owner && owner !== this) {
+      owner.stopOneShot(instance, resumeLocomotion);
+      return;
+    }
     const active = this.activeOneShots.get(instance);
     if (active) {
       this.activeOneShots.delete(instance);
@@ -699,9 +1081,12 @@ export class PlayerModelManager {
       active.group.dispose();
     }
     instance.oneshotUntil = 0;
-    if (resumeLocomotion && instance.masterGroup) {
-      instance.masterGroup.play(true);
-    }
+    // A held stance takes the upper body back; otherwise locomotion does
+    const stance = this.stances.get(instance);
+    const upperTargets = stance && this.getUpperBodyTargets(instance);
+    this.setUpperBodyMask(instance, upperTargets ? this.lowerBodyMask(instance, upperTargets) : undefined);
+    if (stance && !this.stepped.has(instance)) stance.group.play(true);
+    if (resumeLocomotion && instance.masterGroup && !active?.upperBodyOnly) instance.masterGroup.play(true);
   }
 
   // --- Player Visibility Styling ------------------------------------------
@@ -727,6 +1112,7 @@ export class PlayerModelManager {
 
     const cloned = cloneModelMaterial(material, visibilityCloneName);
     if (!cloned) return null;
+    markSnapshotMaterialDynamic(cloned);
     // Babylon clones texture wrappers along with a material. They share GPU
     // storage with the source but hold their own references to it. Release
     // only those wrappers when this player's style material goes away.
@@ -745,6 +1131,11 @@ export class PlayerModelManager {
    * small emissive lift so armor and fabric detail remain visible.
    */
   applyVisualStyle(instance: PlayerModelInstance, style: PlayerModelVisualStyle): void {
+    const owner = modelOwners.get(instance);
+    if (owner && owner !== this) {
+      owner.applyVisualStyle(instance, style);
+      return;
+    }
     const allMeshes: AbstractMesh[] = [instance.mesh, ...instance.mesh.getChildMeshes()];
     const tint = style.tintColor ?? Color3.White();
     const outlineWidth = Math.max(0, style.outlineWidth);
@@ -754,9 +1145,8 @@ export class PlayerModelManager {
       const pbrMat = material as unknown as TintableMaterial | null;
 
       if (pbrMat?.albedoColor) {
-        pbrMat.albedoColor.r = tint.r;
-        pbrMat.albedoColor.g = tint.g;
-        pbrMat.albedoColor.b = tint.b;
+        pbrMat.__playerModelBaseAlbedoColor ??= pbrMat.albedoColor.clone();
+        pbrMat.albedoColor.copyFrom(style.tintColor ?? pbrMat.__playerModelBaseAlbedoColor);
       }
 
       if (pbrMat?.emissiveColor) {
@@ -779,7 +1169,7 @@ export class PlayerModelManager {
 
       mesh.renderOutline = style.outlineEnabled && outlineWidth > 0;
       mesh.outlineColor = style.outlineColor;
-      mesh.outlineWidth = outlineWidth;
+      mesh.outlineWidth = outlineWidth / (instance.modelScaleFactor ?? 1);
     }
   }
 
@@ -796,6 +1186,11 @@ export class PlayerModelManager {
    * material clone and `__playerModelBaseEmissiveColor` both exist.
    */
   applyPowerupGlow(instance: PlayerModelInstance, color: Color3, intensity: number, outlineWidth: number): void {
+    const owner = modelOwners.get(instance);
+    if (owner && owner !== this) {
+      owner.applyPowerupGlow(instance, color, intensity, outlineWidth);
+      return;
+    }
     // Listed once per model: this runs every frame for every quad carrier, and
     // walking the rig (every bone node) built two arrays each time. The rig is
     // cloned once and never gains or loses a mesh.
@@ -821,12 +1216,17 @@ export class PlayerModelManager {
 
       mesh.renderOutline = outlineWidth > 0;
       mesh.outlineColor = color;
-      mesh.outlineWidth = outlineWidth;
+      mesh.outlineWidth = outlineWidth / (instance.modelScaleFactor ?? 1);
     }
   }
 
   /** Back-compat wrapper for older callers that only know about team colors. */
   applyTeamColor(instance: PlayerModelInstance, team: PlayerModelTeamColor | null): void {
+    const owner = modelOwners.get(instance);
+    if (owner && owner !== this) {
+      owner.applyTeamColor(instance, team);
+      return;
+    }
     const color = team ? PlayerModelManager.TEAM_COLORS[team] : null;
     this.applyVisualStyle(instance, {
       tintColor: color ? new Color3(color.r, color.g, color.b) : null,
@@ -862,17 +1262,12 @@ export class PlayerModelManager {
    * mesh origin, dropping the legs ~35 units through the floor.
    */
   resetRootMotion(instance: PlayerModelInstance): void {
-    instance.mesh.position.set(0, 0, 0);
-
-    instance.rootMotionNodes ??= findRootMotionNodes(instance.mesh);
-    for (const node of instance.rootMotionNodes) node.position.set(0, 0, 0);
-
-    // Hips: restore the bind pose, killing both horizontal drift and the
-    // vertical bob that would otherwise float the body off the ground.
-    const bind = instance.hipsBind;
-    if (bind) {
-      bind.node.position.set(bind.x, bind.y, bind.z);
+    const owner = modelOwners.get(instance);
+    if (owner && owner !== this) {
+      owner.resetRootMotion(instance);
+      return;
     }
+    cancelRootMotion(instance);
   }
 
   // ── Cleanup ──────────────────────────────────────────────────
@@ -898,6 +1293,13 @@ export class PlayerModelManager {
   }
 
   disposeInstance(instance: PlayerModelInstance): void {
+    const owner = modelOwners.get(instance);
+    if (owner && owner !== this) {
+      owner.disposeInstance(instance);
+      return;
+    }
+    this.setAimPitch(instance, 0);
+    this.setUpperBodyStance(instance, null);
     this.stopOneShot(instance, false);
     disposePlayerModel(instance);
     devLog(`[PlayerModelManager] Disposed instance: ${instance.id}`);
@@ -911,6 +1313,12 @@ export class PlayerModelManager {
    * disabled ancestor).
    */
   releaseInstance(instance: PlayerModelInstance): void {
+    const owner = modelOwners.get(instance);
+    if (owner && owner !== this) {
+      owner.releaseInstance(instance);
+      return;
+    }
+    this.setAimPitch(instance, 0);
     const kept = this.parked.get(instance.id) ?? [];
     if (
       this.disposed ||
@@ -922,6 +1330,7 @@ export class PlayerModelManager {
       this.disposeInstance(instance);
       return;
     }
+    this.setUpperBodyStance(instance, null);
     this.stopOneShot(instance, false);
     if (instance.attachedWeapon) {
       disposeModelResources([instance.attachedWeapon]);
@@ -976,6 +1385,7 @@ export class PlayerModelManager {
 
   /** Dispose the bodies kept for a player who has gone. */
   disposeParked(id: string): void {
+    for (const manager of this.variants.values()) manager.disposeParked(id);
     for (const instance of this.parked.get(id) ?? []) disposePlayerModel(instance);
     this.parked.delete(id);
   }
@@ -983,11 +1393,19 @@ export class PlayerModelManager {
   /** Dispose the manager and source model */
   dispose(): void {
     this.disposed = true;
+    if (this.aimBefore) this.scene.onBeforeAnimationsObservable.remove(this.aimBefore);
+    if (this.aimAfter) this.scene.onAfterAnimationsObservable.remove(this.aimAfter);
+    for (const pose of this.aimPoses.values()) pose.restore();
+    this.aimPoses.clear();
+    for (const manager of this.variants.values()) manager.dispose();
+    this.variants.clear();
     for (const id of [...this.parked.keys()]) this.disposeParked(id);
     this.outlineRuntime?.release(this);
     this.outlineRuntime = undefined;
     for (const [instance, observer] of this.instances) instance.mesh.onDisposeObservable.remove(observer);
     this.instances.clear();
+    this.outlineSmoothing?.dispose();
+    this.outlineSmoothing = undefined;
     this.sourceContainer?.dispose();
     this.sourceContainer = null;
     this.loaded = false;
@@ -1022,6 +1440,26 @@ export class PlayerModelManager {
     }
 
     return channels;
+  }
+}
+
+/**
+ * Put the body back on its anchor after a clip has posed it: the mesh at its
+ * offset, root nodes at the origin and the hips at their bind position (see
+ * `PlayerModelManager.resetRootMotion`). Needs no manager, so a detached
+ * corpse can use it.
+ */
+export function cancelRootMotion(instance: PlayerModelInstance): void {
+  instance.mesh.position.set(0, instance.modelOffsetY ?? 0, 0);
+
+  instance.rootMotionNodes ??= findRootMotionNodes(instance.mesh);
+  for (const node of instance.rootMotionNodes) node.position.set(0, 0, 0);
+
+  // Hips: restore the bind pose, killing both horizontal drift and the
+  // vertical bob that would otherwise float the body off the ground.
+  const bind = instance.hipsBind;
+  if (bind) {
+    bind.node.position.set(bind.x, bind.y, bind.z);
   }
 }
 
@@ -1072,6 +1510,7 @@ export function disposePlayerModel(instance: PlayerModelInstance): void {
     disposeModelResources([instance.attachedWeapon]);
     instance.attachedWeapon = null;
   }
+  instance.weaponHand?.dispose();
   releaseLocomotionGroups(instance);
   const cloned = clonedMaterialsOf(instance);
   if (instance.mesh && !instance.mesh.isDisposed()) instance.mesh.dispose();

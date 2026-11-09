@@ -6,7 +6,7 @@ import { Matrix } from "@babylonjs/core/Maths/math.vector";
 import { CreateBox } from "@babylonjs/core/Meshes/Builders/boxBuilder";
 import { Scene } from "@babylonjs/core/scene";
 import { expect, it, vi } from "vitest";
-import { PlayerOutlineProxy } from "../rendering/PlayerOutlineProxy";
+import { PlayerOutlineProxy, playerOutlineSnapshotMeshes } from "../rendering/PlayerOutlineProxy";
 
 it("routes both outline passes with the live skeleton, preserves body/overlay/fallback and restores ownership", () => {
   const engine = new NullEngine(),
@@ -42,6 +42,7 @@ it("routes both outline passes with the live skeleton, preserves body/overlay/fa
     expect(proxy.skeleton).toBe(body.skeleton);
     expect(proxy.getWorldMatrix().equalsWithEpsilon(body.computeWorldMatrix(true))).toBe(true);
     expect(scene.meshes).not.toContain(proxy);
+    expect(playerOutlineSnapshotMeshes(body)).toEqual([body, proxy]);
     expect(body.getChildMeshes()).not.toContain(proxy);
     expect(proxy.parent).toBeNull();
     body.position.x = 7;
@@ -64,6 +65,7 @@ it("routes both outline passes with the live skeleton, preserves body/overlay/fa
     adapter.dispose();
     expect(renderer.render).toBe(original);
     expect(proxy.isDisposed()).toBe(true);
+    expect(playerOutlineSnapshotMeshes(body)).toEqual([body]);
     expect(scene.skeletons).toContain(body.skeleton);
     expect(body.geometry).toBe(geometry);
     template.skeleton!.bones[0].name = "wrong";

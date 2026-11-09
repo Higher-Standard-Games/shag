@@ -681,7 +681,12 @@ Server sends gameplay data to clients via snapshot events:
 |-------|------|-----------|
 | `combat_state` | Health, armor | Owner only (private) |
 | `damage` | Amount, attacker, weapon | Victim |
-| `death` | Victim, attacker, weapon | All clients |
+| `death` | Victim, attacker, damage type, killing weapon and hit location | All clients |
+
+A `death` event naming a killing weapon (hitscan and melee kills) or a head or
+leg hit travels as event code 26: code 11's fields followed by the hit location
+byte and the weapon id. Other deaths keep code 11, so demos recorded before code
+26 existed decode unchanged and their deaths carry neither field.
 | `projectile_spawn` | Entity ID, weapon def | All clients |
 
 **Client-side:** `HUDState` singleton aggregates all events into a queryable state object (health, armor, scoreboard, kill feed, damage numbers).

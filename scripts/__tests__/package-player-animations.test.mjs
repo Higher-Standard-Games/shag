@@ -4,9 +4,10 @@ import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import JSZip from 'jszip';
-import { buildPlayerModelPackage, validateEmbeddedGlb } from '../package-player-model.mjs';
+import { buildPlayerAnimationPackage } from '../package-player-animations.mjs';
+import { validateEmbeddedGlb } from '../validate-glb.mjs';
 
-const recipe = JSON.parse(await fs.readFile(new URL('../../config/player-model-vanguard.json', import.meta.url), 'utf8'));
+const recipe = JSON.parse(await fs.readFile(new URL('../../config/player-animations.json', import.meta.url), 'utf8'));
 function glb(extra = {}) {
   const json = Buffer.from(JSON.stringify({ asset: { version: '2.0' }, ...extra }));
   const length = Math.ceil(json.length / 4) * 4, bytes = Buffer.alloc(20 + length, 32);
@@ -15,26 +16,26 @@ function glb(extra = {}) {
   return bytes;
 }
 
-test('player archive is reproducible, preserves GLB bytes and excludes authoring inputs', async () => {
-  const source = await fs.mkdtemp(path.join(os.tmpdir(), 'shag-player-package-'));
+test('animation archive is reproducible, preserves GLB bytes and excludes authoring inputs', async () => {
+  const source = await fs.mkdtemp(path.join(os.tmpdir(), 'shag-player-animations-'));
   try {
     const bytes = glb();
-    for (const name of new Set([recipe.model, ...recipe.animations.filter(clip => !clip.optional).map(clip => clip.file), 'extra.glb']))
-      await fs.writeFile(path.join(source, name), bytes);
-    await fs.writeFile(path.join(source, 'vanguard.fbx'), 'source only');
-    const first = await buildPlayerModelPackage(source), second = await buildPlayerModelPackage(source);
+    const required = recipe.animations.filter(clip => !clip.optional).map(clip => clip.file);
+    for (const name of [...required, 'extra.glb']) await fs.writeFile(path.join(source, name), bytes);
+    await fs.writeFile(path.join(source, 'backwards_run.fbx'), 'source only');
+    const first = await buildPlayerAnimationPackage(source), second = await buildPlayerAnimationPackage(source);
     assert.deepEqual(first.bytes, second.bytes);
     const zip = await JSZip.loadAsync(first.bytes);
-    assert.deepEqual(await zip.file(recipe.root + recipe.model).async('nodebuffer'), bytes);
-    assert.equal(zip.file(recipe.root + 'vanguard.fbx'), null);
-    assert.equal(Object.keys(first.manifest.files).length, 19);
-    assert.ok(first.manifest.animations.every(clip => !clip.optional));
-    assert.equal(first.manifest.files[recipe.model].sha256.length, 64);
+    assert.deepEqual(await zip.file(recipe.root + 'rifle run.glb').async('nodebuffer'), bytes);
+    assert.equal(zip.file(recipe.root + 'backwards_run.fbx'), null);
+    assert.equal(zip.file(recipe.root + 'extra.glb'), null);
+    assert.deepEqual(Object.keys(first.files).sort(), [...required].sort());
+    assert.equal(first.files['rifle run.glb'].sha256.length, 64);
     await fs.unlink(path.join(source, 'rifle run.glb'));
-    await assert.rejects(buildPlayerModelPackage(source), /Required player asset missing/);
+    await assert.rejects(buildPlayerAnimationPackage(source), /Required player animation missing/);
   } finally {
     assert.equal(path.dirname(path.resolve(source)), path.resolve(os.tmpdir()));
-    assert.ok(path.basename(source).startsWith('shag-player-package-'));
+    assert.ok(path.basename(source).startsWith('shag-player-animations-'));
     await fs.rm(source, { recursive: true, force: true });
   }
 });

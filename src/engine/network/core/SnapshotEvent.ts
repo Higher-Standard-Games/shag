@@ -186,6 +186,14 @@ export interface DeathEvent {
   kbDirX: number;
   kbDirY: number;
   kbDirZ: number;
+  /**
+   * The weapon that dealt the killing blow ("riotgun", "machinegun", ...), when a
+   * hitscan or melee weapon did. `weaponId` carries the damage type instead.
+   * Absent for projectiles and the world, and from an older server or demo.
+   */
+  killWeapon?: string;
+  /** Where the killing blow landed: present only for a head or leg hit, as on damage events. */
+  hitLocation?: "head" | "legs" | "body";
 }
 
 export interface AwardSnapshotEvent {

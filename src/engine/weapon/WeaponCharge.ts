@@ -1,15 +1,4 @@
-/**
- * WeaponCharge — Blade/melee weapon charge-up effects.
- *
- * Extracted from WeaponViewManager to keep charge shake and outline
- * logic self-contained.
- *
- * Manages:
- *   - Charge progress tracking (0 → 1 over chargeTime)
- *   - Sinusoidal weapon shake (intensity scales with charge)
- *   - Turquoise pulsing outline on weapon meshes during charge
- *   - Outline state save/restore on charge start/end
- */
+/** Blade charge progress, shake, outline and a smoothly lowered holding pose. */
 
 import { Color3 } from "@babylonjs/core/Maths/math.color";
 import type { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh";
@@ -33,6 +22,8 @@ export class WeaponCharge {
   private active = false;
   private startTime = 0;
   progress = 0; // 0-1, public so WeaponViewManager can read
+  private poseBlend = 0;
+  private poseUpdatedAt: number | undefined;
 
   // Saved outline state (restored on release)
   private savedOutlineWidth = 0;
@@ -65,14 +56,18 @@ export class WeaponCharge {
     savedWidth: number;
     savedColor: Color3;
     savedEnabled: boolean;
+    pitchOffset: number;
   } {
+    const now = performance.now();
+    const elapsedPose = this.poseUpdatedAt === undefined ? 0 : Math.max(0, now - this.poseUpdatedAt);
+    this.poseUpdatedAt = now;
+    const poseTarget = isCharging ? 1 : 0;
+    this.poseBlend = poseTarget + (this.poseBlend - poseTarget) * Math.exp(-elapsedPose / 70);
     let shakeX = 0,
       shakeY = 0;
     let needsOutlineRestore = false;
 
     if (isCharging) {
-      const now = performance.now();
-
       if (!this.active) {
         // Just started charging — save current outline state
         this.active = true;
@@ -120,6 +115,7 @@ export class WeaponCharge {
       savedWidth: this.savedOutlineWidth,
       savedColor: this.savedOutlineColor,
       savedEnabled: this.savedOutlineEnabled,
+      pitchOffset: -0.25 * this.poseBlend,
     };
   }
 
@@ -127,5 +123,7 @@ export class WeaponCharge {
   reset(): void {
     this.active = false;
     this.progress = 0;
+    this.poseBlend = 0;
+    this.poseUpdatedAt = undefined;
   }
 }

@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { NodeIO } from '@gltf-transform/core';
 import { ALL_EXTENSIONS } from '@gltf-transform/extensions';
 import { getBounds } from '@gltf-transform/functions';
-import { validateEmbeddedGlb } from './package-player-model.mjs';
+import { validateEmbeddedGlb } from './validate-glb.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const input = process.argv[2];

@@ -14,41 +14,156 @@ presentation has its own transform and is unaffected.
 ## Packaged player model
 
 Live players, bots, demo playback and teleport ghosts use `PlayerModelManager`
-with the embedded GLBs in `public/data/washoi_player_model.pk3`. Its virtual
-root is `models/players/vanguard/`; that is a PK3 entry prefix, not a loose HTTP
-directory. The archive is fetched lazily through the regular mirror-aware PK3
+with the embedded GLBs in `public/data/washoi_player_model.pk3`. Its default
+body is selected by `config/player-model.json`: `models/players/police/police.glb`.
+Shared animation clips use `models/players/animations/`. These are PK3 entry
+prefixes, not loose HTTP directories. The archive is fetched lazily through the regular mirror-aware PK3
 loader, once for concurrent imports, and the GLB bytes are passed to Babylon.
-Each manager still owns its containers, skeletons and animation groups.
+Each manager owns its containers, skeletons and animation groups. Clips are
+retargeted once at load time to account for different joint orientations; position
+tracks are excluded from playback. The compact bodies omit finger and terminal
+toe tracks. A normalized hand frame preserves attachment scale and orientation.
+The Draco mesh decoder is served with the application.
 
-The shared recipe is `config/player-model-vanguard.json`. Original FBX files,
-conversion intermediates and the exported GLBs live in the ignored, unserved
-`assets-source/players/vanguard/` directory. The package and source media are
-external assets and must be copied separately from a clean Git checkout.
+Bodies using a separate animation package are fitted once from the first
+standing idle pose: the default actor scale gives 70.4 units from feet to head
+(10% visual oversize relative to the 64-unit standing hull).
+The per-body scale and foot offset stay with pooled instances. Held weapons
+compensate for that body scale, preserving their own world size. Physics and
+projectile origins keep their existing gameplay values.
+
+Split normals are averaged only for the outline, at coincident vertices with
+matching skin influences. The lit body retains its authored normals. Cached outline templates stay outside the source hierarchy so subsequent
+instances contain only the authored body parts. One
+outline geometry is shared per source mesh; the ordinary outline passes use
+it with the body's live skeleton. Snapshot replay refreshes these off-scene
+outline draw uniforms from the visible body. Outline effect readiness is part
+of the recorded draw signature, so a cold shader compilation cannot leave an
+outline absent from later replayed frames. No extra render pass or per-frame
+normal calculation is added.
+
+Remote running uses the body's embedded `Running` clip as `run_relaxed` when
+available, unless sights are held or a shot arrived within 0.6 seconds. Fire
+readiness uses recorded time in demos and clears on a playback discontinuity.
+Other locomotion and missing embedded clips retain the shared animation path.
+Walking or running backwards plays the shared `run_back` clip
+(`backwards_run.glb`), speed-matched like the forward run; other clips moving
+backwards play reversed. Running clips play their hips and legs at
+`cl_player_run_legs` (default 0.75) and their spine, arms and head at
+`cl_player_run_upper` (default 0.5) of the rate that matches the player's
+speed, including at the reduced pose rate. The halves drift apart in phase; an
+upper-body blade swing ends with the upper body back on the legs' phase.
+Weapon-ready poses distribute interpolated view pitch across the three spine
+joints, clamped to 1.4 radians in either direction. Hips, anchor and gameplay
+collision remain upright. Swimming, climbing, walljump and slide poses keep
+their authored orientation. The additive rotation is restored before animation
+evaluation and reapplied afterward, including paused/stepped clips; unlinked
+ragdoll bones do not receive it. Hand attachments follow the posed skeleton.
+
+A held gun rests on the supporting hand and points along the body's front. When
+a body loads, `measureGunSupport` (`src/engine/animation/PlayerModelFit.ts`)
+poses it in the first frame of its standing idle and records the other palm and
+the body's front in the weapon hand's frame. Each gun records its muzzle tag
+and rear end when its grip is built. On pickup, `gunHold`
+(`src/games/fps/client/AttachedGun.ts`) turns the gun so its bore line passes
+4.3 model units above the palm, which rests the barrel's underside there
+without letting a magazine or grip below it tip the gun. It then swings the gun
+about its own up axis, around its rear end, until the barrel points along the
+body's front. A gun with no muzzle tag aims its barrel axis at the palm.
+
+While a player holds the blade, `setUpperBodyStance` loops the shared
+`blade_idle` clip on the spine, arms and head, and the movement clip keeps the
+hips and legs. In the stance the blade stands up, leaning 35° toward the body's
+front, with an edge leading and the gun hand's fist on the handle just below the
+guard. `measureBladeStance` takes the direction, the body's sideways axis and
+the fist from the clip's first frame; each blade measures its thin axis and its
+guard when it is attached. A blade swing plays over the stance with the blade
+along the fingers, and hands the joints back when it ends. The stance steps with
+the legs at a reduced pose rate. Swimming, climbing, walljump and slide keep
+their own arms.
+
+Player style materials declare dynamic snapshot uniforms so tint, brightness
+and powerup changes remain visible during replay. World materials retain their
+existing snapshot policy.
+
+Ragdolls use a dedicated transform with matching local/world export scale for
+bone rotation updates. It follows the actor anchor and is disposed with the
+corpse; the live model hierarchy remains intact.
+
+Some ragdoll deaths first play a shared death clip once, chosen in
+`src/games/fps/client/ragdoll/DeathClip.ts` from the death event and the
+victim's facing. Gib deaths never do.
+
+| Death | Clip |
+| --- | --- |
+| Pushed from within 60° of straight behind, any weapon | `death_from_back` |
+| Headshot from the front or side | `death_headshot` |
+| Riotgun or explosion from the front or side | `death_flying_back` |
+| Anything else, or a push with no horizontal direction | none: limp at once |
+
+The body turns to face the shot (away from it for `death_from_back`), and one
+Havok sphere at the hips, as wide as the body reaches from them, flies the same
+launch arc the ragdoll would. The clip is posed from the ragdoll clock, with root
+motion cancelled. When the sphere touches any surface after its first 0.1
+seconds, or the clip ends, the per-bone ragdoll takes over from the clip's pose
+at the sphere's velocity, less any part of it into the surface touched. The
+sphere meets a floor or wall before a limb can, so the ragdoll never starts
+inside the world. The death camera and the speed trail follow the sphere, then
+the hips.
+
+Washoi's relative ally/enemy choices use `cl_team_ally_model` and
+`cl_team_enemy_model`: `police`, `female` (Female Police), `cartel`, `riotkitty`
+and `robot`. Police and Cartel use male sounds; Female Police and RiotKitty use
+female sounds; Robot uses Bobot sounds. The renderer keeps a source container
+and instance pool per body. Changes replace visible bodies and their held
+weapons without changing collision or network/demo formats.
+
+Gameplay settings show Your team and Enemy team cards with an animated model
+above each model selector and colour row. Both camera viewports share one lazy
+WebGL canvas and source cache, capped at 30 scene updates per second. Hidden
+previews and background tabs stop the render loop; disposal disconnects the
+observers and releases the scene, models and engine. Model, colour, outline and
+brightness changes use the same style path as gameplay. Replaced preview bodies
+return to the manager pool, and failed variant imports can retry on a subsequent
+refresh rather than retaining a rejected load. Static images or a
+model-name placeholder remain available while live rendering loads or if it
+cannot start.
+
+The five body GLBs are supplied in `public/data/washoi_player_model.pk3`.
+Shared clips are packaged separately in `washoi_player_animations.pk3`, under
+`models/players/animations/`. The package index resolves each asset's owner. The
+clip list, archive and source directory come from `config/player-animations.json`,
+and the default body and its archive from `config/player-model.json`. The clip
+authoring files live in the ignored `assets-source/players/vanguard/`.
+Both runtime archives must be copied alongside a clean checkout.
+
+To add a clip, put its Mixamo FBX in the source directory, convert it, and list
+the GLB under a clip name in `config/player-animations.json`:
 
 ```bash
-# Optional: convert updated FBX sources first.
-npm run tools:convert -- --all
-# Package all exported GLBs, validating the required model/clips.
-npm run tools:player-model
+# FBX to self-contained GLB beside the source (FBX2glTF, downloaded on first use).
+npm run tools:convert -- "assets-source/players/vanguard/backwards_run.fbx"
+# Build shared clips without rewriting the supplied body archive.
+npm run tools:player-animations
 # Publish archive discovery after changing packages (also runs before build).
 npm run tools:pk3-index
 ```
 
-The builder accepts `--source-dir <directory>` for an alternate export folder,
-validates that GLBs embed their image/buffer dependencies, and excludes FBX,
-PNG/BIN export trees and other authoring files. Fixed ZIP timestamps and sorted
-entries make unchanged inputs reproduce the same package. The package includes
-`models/players/vanguard/manifest.json` with hashes and available clip metadata.
-Missing optional victory dances are skipped; required clips must exist when
-building the package. Standard builds consume an existing package and do not
-require the authoring directory.
+The animation builder validates embedded GLB dependencies and all required
+clips, skips missing optional dances, and writes fixed ZIP timestamps and
+`models/players/animations/animations-manifest.json` with content hashes. Standard
+builds consume the existing archives and do not require authoring sources.
+The body archive is supplied as is; no tool rebuilds it.
 
-Headless `anim bones` and `anim inspect [file|all]` inspect the packaged GLBs.
-Browser `developer 1; animtest load` uses the same package. Explicit custom URL
+Headless `anim inspect [file|all]` lists each shared clip's channels and flags
+root-motion position tracks; `anim bones` lists the default body's skin joints.
+Browser `developer 1; animtest load <police|female|cartel|riotkitty|robot>` uses the selected body and the same
+manager as player rendering. Use `animtest list`, `animtest play run`,
+`animtest play slide`, and `animtest dispose` to inspect and clean up. Explicit custom URL
 or data-source arguments to `PlayerModelManager.loadModel()` remain available.
-The optional outline proxy stays a separate loose pair; its build recipe
-extracts its model source from this package, and benchmark hashes cover the
-packaged player inputs.
+The optional outline proxy stays a separate loose pair. Its build recipe names
+the vanguard reference body, which no supplied archive contains, so the proxy
+cannot be rebuilt from the supplied data.
 
 ## Packaged weapon models
 
@@ -289,8 +404,12 @@ nodes under a separate grip. The grip replaces the loader's catalog scale with
 the holder's visual scale and aligns the authored +X barrel with the right
 hand's finger direction, including the scene's handedness conversion. Barrel
 sub-models attach in the same imported model space. The winner showcase uses
-the same grip. A visibility/LOD update leaves locomotion stopped while an
-attack animation owns the bones.
+the same grip. Blade swings own the spine and its descendants only; hips and
+legs continue their locomotion clip, including airborne poses. A cached target
+mask prevents both clips writing the same joints. Manual/reduced-rate posing
+also respects the mask. Ending or cancelling the swing restores upper-body
+locomotion at the current stride phase. Full-body one-shots keep exclusive
+ownership and suspend locomotion. Visibility/LOD updates preserve that distinction.
 
 The hitscan effect manager validates its persistent mesh resources during
 initialization. Map clearing can dispose those meshes while retaining the
@@ -318,3 +437,9 @@ Routine cached pickup/drop clone and player-instance disposal/team-colour
 diagnostics and successful tag-load messages also require `developer 1`. Keep
 `developer 0` for normal-play profiling; map-loading summaries and warnings/errors
 remain visible.
+
+
+A first-person beam belongs to an active beam weapon. Frozen round phases,
+disabled controls, death, reload, weapon switching or losing that weapon clear
+its local presentation. Parking or clearing a viewmodel also clears the beam.
+Continuous modes retain firing during their non-frozen pre-match countdown.

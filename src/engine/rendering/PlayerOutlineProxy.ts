@@ -4,7 +4,14 @@ import { Mesh } from "@babylonjs/core/Meshes/mesh";
 import type { Scene } from "@babylonjs/core/scene";
 import "@babylonjs/core/Rendering/outlineRenderer";
 
-/** Experimental opaque, single-submesh player outlines. Never changes the ordinary body draw. */
+const snapshotParts = new WeakMap<Mesh, readonly Mesh[]>();
+
+/** Outline-only draws whose matrices must follow the body during snapshot replay. */
+export function playerOutlineSnapshotMeshes(body: Mesh): readonly Mesh[] {
+  return snapshotParts.get(body) ?? [body];
+}
+
+/** Route single-submesh outlines without changing the ordinary body draw. */
 export class PlayerOutlineProxy {
   enabled = false;
   routedPasses = 0;
@@ -17,7 +24,10 @@ export class PlayerOutlineProxy {
   private readonly original;
   private readonly wrapper;
 
-  constructor(scene: Scene) {
+  constructor(
+    scene: Scene,
+    private readonly sameSurface = false,
+  ) {
     this.renderer = scene.getOutlineRenderer();
     this.original = this.renderer.render;
     this.wrapper = ((subMesh, batch, overlay, pass) => {
@@ -27,8 +37,7 @@ export class PlayerOutlineProxy {
       const material = subMesh.getMaterial();
       if (
         !material ||
-        material.needAlphaBlendingForMesh(body) ||
-        material.needAlphaTestingForMesh(body) ||
+        (!this.sameSurface && (material.needAlphaBlendingForMesh(body) || material.needAlphaTestingForMesh(body))) ||
         material.fillMode !== Material.TriangleFillMode ||
         body.hasThinInstances ||
         batch.visibleInstances[subMesh._id] != null ||
@@ -97,6 +106,7 @@ export class PlayerOutlineProxy {
     proxy.setEnabled(false);
     body.getScene().removeMesh(proxy); // Explicit outline submissions only; no ordinary draw/active-mesh work.
     this.meshes.set(body, proxy);
+    snapshotParts.set(body, [body, proxy]);
     this.disposeObservers.set(
       body,
       body.onDisposeObservable.add(() => this.detach(body)),
@@ -121,6 +131,7 @@ export class PlayerOutlineProxy {
     this.disposeObservers.delete(body);
     this.meshes.get(body)?.dispose(true, false);
     this.meshes.delete(body);
+    snapshotParts.delete(body);
   }
 
   inventory() {
