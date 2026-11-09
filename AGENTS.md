@@ -124,7 +124,9 @@ A feature is done only when all are true:
 The repository is two repositories: the outer engine and `src/games/fps`, a git
 submodule. Both carry the same branch names and move together.
 
-- Feature branches are created from `main` in **both** repositories.
+- Feature branches are created from `staging` in **both** repositories, never
+  from `main`: `staging` carries the integrated work that local media and the
+  next feature are built against.
 - `staging` is the integration and review checkpoint in both repositories.
   Merge feature work into `staging` before any merge to `main`.
 - `main` is the production branch and is automatically deployed; a request to

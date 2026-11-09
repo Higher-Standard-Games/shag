@@ -17,6 +17,11 @@ pushing publishes it.
 
 ## Staging before production
 
+Start every feature branch from `staging` in both repositories, never from
+`main`: `staging` holds the integrated work that local media and tests are
+built against, and a branch from `main` can miss it (a player-model package
+move once left a `main`-based branch unable to load players).
+
 Feature work must pass through `staging` in both repositories before any merge
 to `main`. `main` automatically deploys to production. A request to commit,
 merge or push `staging` authorizes only that checkpoint; promote to `main` only

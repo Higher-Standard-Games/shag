@@ -269,13 +269,13 @@ lobby, and which names its changelog (`v1.0.0-alpha.md`) and tag (`v1.0.0-alpha`
 
 - Named for the version and the topic: `v1.0.0-alpha-lobby-ui`, or
   `v1.0.0-alpha-qa` for a QA/bugfix cycle.
-- Created from `main` in **both** repositories.
+- Created from `staging` in **both** repositories, never from `main`.
 
 ## Feature Branches
 
 - Named for the version and the topic: `v1.0.0-alpha-lobby-ui`, or
   `v1.0.0-alpha-qa` for a QA/bugfix cycle.
-- Created from `main` in **both** repositories.
+- Created from `staging` in **both** repositories, never from `main`.
 
 ## The Living Changelog
 

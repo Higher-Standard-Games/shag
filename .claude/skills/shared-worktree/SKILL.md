@@ -52,7 +52,7 @@ changes; `M src/games/fps` means its checked-out commit differs from the pin.
 ## Branches
 
 Both repositories carry the same branch name for a piece of work, created from
-`main` in each. Integrate feature work into matching `staging` branches before
+`staging` in each (never from `main`). Integrate feature work into matching `staging` branches before
 any merge to `main`. `main` auto-deploys to production: committing or pushing
 `staging` does not authorize promoting it. Don't switch branches in a tree where
 another agent has uncommitted work without checking with the user: their files follow the switch
