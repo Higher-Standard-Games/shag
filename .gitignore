@@ -113,3 +113,5 @@ sourcemaps/
 
 # Server state: player accounts and the bot secret (see docs/research/PLAYER_IDENTITY.md)
 server-data/
+# Scratch server state from local test runs (server-data-mapcheck/ and the like)
+server-data-*/
