@@ -223,6 +223,8 @@ export class PhysicsSystem {
   // ==================== BSP Collision ====================
 
   private bspCollisionBodies: PhysicsAggregate[] = [];
+  /** The world mesh the BSP collision was built from. */
+  private bspCollisionWorld: Mesh | null = null;
 
   /**
    * Create static Havok collision from BSP worldMesh.
@@ -245,8 +247,9 @@ export class PhysicsSystem {
 
     for (const child of childMeshes) {
       if (!(child instanceof Mesh)) continue;
-      // Skip invisible/empty meshes
+      // Skip invisible/empty meshes, and ones that already carry a body
       if (!child.isVisible || !child.getTotalVertices || child.getTotalVertices() === 0) continue;
+      if (child.physicsBody) continue;
 
       try {
         // Make mesh non-pickable so it doesn't interfere with game raycasts
@@ -269,8 +272,27 @@ export class PhysicsSystem {
       }
     }
 
+    this.bspCollisionWorld = worldMesh;
     devLog(`[PhysicsSystem] BSP collision created: ${count} trimesh bodies from ${childMeshes.length} child meshes`);
     return count;
+  }
+
+  /**
+   * Give the loaded map's world (`bsp_world`) Havok collision once its meshes
+   * are final, and again when the map changes. Collision made for each map
+   * mesh while the map is built does not survive surfaces that are merged into
+   * texture-array meshes afterwards: the originals are disposed and their
+   * bodies with them. Cheap to call every frame once built.
+   */
+  ensureBspCollision(): void {
+    if (!this.isInitialized() || !this.scene) return;
+    const built = this.bspCollisionWorld;
+    if (built && !built.isDisposed() && this.bspCollisionBodies.every((body) => !body.transformNode.isDisposed())) {
+      return;
+    }
+    const world = this.scene.getMeshByName("bsp_world");
+    if (!(world instanceof Mesh) || world.isDisposed() || world.getChildMeshes(false).length === 0) return;
+    this.createBspCollision(world);
   }
 
   /**
@@ -292,6 +314,7 @@ export class PhysicsSystem {
       }
     }
     this.bspCollisionBodies = [];
+    this.bspCollisionWorld = null;
   }
 
   /**

@@ -12,6 +12,7 @@
     { "name": "walk", "file": "walking.glb" },
     { "name": "reload", "file": "reloading.glb" },
     { "name": "blade_slash", "file": "blade_slash.glb" },
+    { "name": "blade_idle", "file": "blade_idle.glb" },
     { "name": "slide", "file": "slide.glb" },
     { "name": "crouch_walk", "file": "crouch_walk_forward.glb" },
     { "name": "crouch_walk_back", "file": "crouch_walk_backward.glb" },

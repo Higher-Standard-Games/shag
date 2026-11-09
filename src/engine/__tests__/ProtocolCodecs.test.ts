@@ -868,7 +868,13 @@ describe("BinaryProtocol — event serialization", () => {
       s.events = [event] as GameState["events"];
       return Array.from(BinaryProtocol.encodeSnapshot(s));
     };
-    expect(encode(deathAt({ hitLocation: "body" }))).toEqual(encode(deathAt({})));
+    // The header carries the server clock; hold it so only the events can differ
+    const now = vi.spyOn(Date, "now").mockReturnValue(1_000);
+    try {
+      expect(encode(deathAt({ hitLocation: "body" }))).toEqual(encode(deathAt({})));
+    } finally {
+      now.mockRestore();
+    }
   });
 
   it("award: stable fields", () => {

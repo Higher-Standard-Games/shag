@@ -60,6 +60,28 @@ their authored orientation. The additive rotation is restored before animation
 evaluation and reapplied afterward, including paused/stepped clips; unlinked
 ragdoll bones do not receive it. Hand attachments follow the posed skeleton.
 
+A held gun rests on the supporting hand and points along the body's front. When
+a body loads, `measureGunSupport` (`src/engine/animation/PlayerModelFit.ts`)
+poses it in the first frame of its standing idle and records the other palm and
+the body's front in the weapon hand's frame. Each gun records its muzzle tag
+and rear end when its grip is built. On pickup, `gunHold`
+(`src/games/fps/client/AttachedGun.ts`) turns the gun so its bore line passes
+4.3 model units above the palm, which rests the barrel's underside there
+without letting a magazine or grip below it tip the gun. It then swings the gun
+about its own up axis, around its rear end, until the barrel points along the
+body's front. A gun with no muzzle tag aims its barrel axis at the palm.
+
+While a player holds the blade, `setUpperBodyStance` loops the shared
+`blade_idle` clip on the spine, arms and head, and the movement clip keeps the
+hips and legs. In the stance the blade stands up, leaning 35° toward the body's
+front, with an edge leading and the gun hand's fist on the handle just below the
+guard. `measureBladeStance` takes the direction, the body's sideways axis and
+the fist from the clip's first frame; each blade measures its thin axis and its
+guard when it is attached. A blade swing plays over the stance with the blade
+along the fingers, and hands the joints back when it ends. The stance steps with
+the legs at a reduced pose rate. Swimming, climbing, walljump and slide keep
+their own arms.
+
 Player style materials declare dynamic snapshot uniforms so tint, brightness
 and powerup changes remain visible during replay. World materials retain their
 existing snapshot policy.
@@ -80,11 +102,14 @@ victim's facing. Gib deaths never do.
 | Anything else, or a push with no horizontal direction | none: limp at once |
 
 The body turns to face the shot (away from it for `death_from_back`), and one
-Havok capsule at the hips flies the same launch arc the ragdoll would. The clip
-is posed from the ragdoll clock, with root motion cancelled. The per-bone
-ragdoll takes over from the clip's pose, at the capsule's velocity, when the
-capsule touches any surface after its first 0.1 seconds or the clip ends. The
-death camera and the speed trail follow the capsule, then the hips.
+Havok sphere at the hips, as wide as the body reaches from them, flies the same
+launch arc the ragdoll would. The clip is posed from the ragdoll clock, with root
+motion cancelled. When the sphere touches any surface after its first 0.1
+seconds, or the clip ends, the per-bone ragdoll takes over from the clip's pose
+at the sphere's velocity, less any part of it into the surface touched. The
+sphere meets a floor or wall before a limb can, so the ragdoll never starts
+inside the world. The death camera and the speed trail follow the sphere, then
+the hips.
 
 Washoi's relative ally/enemy choices use `cl_team_ally_model` and
 `cl_team_enemy_model`: `police`, `female` (Female Police), `cartel`, `riotkitty`
