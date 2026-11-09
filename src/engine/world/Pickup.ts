@@ -72,7 +72,12 @@ export interface PickupOptions {
    * explicitly suspended), so skip a second, client-only floor raycast.
    */
   landedOnFloor?: boolean;
-  /** Enable bobbing/rotation animation (default true). */
+  /**
+   * Float, bob and turn the model like a classic Quake item (default off):
+   * lifted so its lowest point clears its rest position, bobbing 4 units
+   * around a point 4 above that, turning once every 4.096 seconds in step
+   * with every other item. Not for tossed pickups.
+   */
   bobbing?: boolean;
   /** Optional glow light color (RGB 0-1). */
   glowColor?: { r: number; g: number; b: number };
@@ -93,6 +98,11 @@ export interface PickupOptions {
   /** Free-form game metadata (FPS uses this for weapon type/value/ammoCount). */
   metadata?: Record<string, unknown>;
 }
+
+/** Milliseconds per full turn of a bobbing item, the same for all so they turn together. */
+const ITEM_TURN_MS = 4096;
+/** How far a bobbing item rises and falls, around a point this far above its rest height. */
+const ITEM_BOB = 4;
 
 /** This frame's player position, shared by every pickup (see getPlayerPosition). */
 const framePlayer: { scene: Scene | null; frame: number; known: boolean; position: Vector3 } = {
@@ -126,6 +136,9 @@ export class Pickup extends TransformNode {
 
   /** Per-frame proximity/glow observer. Captured so dispose() can detach it. */
   private _renderObserver: Observer<Scene> | null = null;
+
+  /** Height a bobbing model floats around, once placed; null when it does not bob. */
+  private bobRestY: number | null = null;
 
   /** Model/procedural construction is part of map loading, not detached work. */
   private readonly modelReady: Promise<void>;
@@ -320,6 +333,7 @@ export class Pickup extends TransformNode {
           this.settled = true;
           if (leaderMesh) {
             leaderMesh.position.copyFrom(this.getAbsolutePosition());
+            if (this.options.bobbing) this.bobRestY = this.floatHeight(leaderMesh);
           }
         }
 
@@ -452,6 +466,7 @@ export class Pickup extends TransformNode {
       this.visual.update(dt, this.visualElapsed);
     } else if (this.mesh) {
       this.applyModelInView(this.isInView());
+      if (this.bobRestY !== null) this.bob(this.mesh);
     }
     if (this.glowLight && this.isActive) {
       const dt = this.getScene().getEngine().getDeltaTime() / 1000;
@@ -460,6 +475,21 @@ export class Pickup extends TransformNode {
       this.glowLight.intensity = pulseValue;
     }
     this.runProximityCheck();
+  }
+
+  /** The height a model floats at: lifted so its lowest point sits at its rest position. */
+  private floatHeight(leader: Mesh): number {
+    leader.computeWorldMatrix(true);
+    const { min } = leader.getHierarchyBoundingVectors(true);
+    return leader.position.y + Math.max(0, leader.position.y - min.y);
+  }
+
+  /** Classic item motion: bob on a phase of this pickup's own, turn in step with all others. */
+  private bob(leader: Mesh): void {
+    const now = performance.now();
+    const rate = 0.005 + (this.options.pickupId ?? 0) * 0.00001;
+    leader.position.y = this.bobRestY! + ITEM_BOB + Math.cos((now + 1000) * rate) * ITEM_BOB;
+    leader.rotation.y = (this.options.yaw ?? 0) + ((now % ITEM_TURN_MS) / ITEM_TURN_MS) * Math.PI * 2;
   }
 
   protected runProximityCheck(): void {
