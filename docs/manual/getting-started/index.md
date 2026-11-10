@@ -42,7 +42,9 @@ Game PK3s are not committed. Put compatible assets under `public/data/` and gene
 npm run tools:manifest
 ```
 
-The manifest makes archives discoverable in a browser. The runtime `PK3Index` builds its searchable index from that manifest; use `pk3 index` in a developer console when it needs rebuilding.
+This generates both `pk3_manifest.json` for browser discovery and
+`pk3_index.json` for file lookups. `npm run tools:pk3-index` runs the same
+generator. See [PK3 Filesystem](../guides/pk3-filesystem.md).
 
 ## First browser check
 
@@ -67,7 +69,7 @@ The `map` command uses the configured gameplay/lobby launcher. See [Map launchin
 ## Headless check
 
 ```bash
-npm --prefix src/games/fps run cli:game -- --exec 'bsp load washoi_dm2; bsp info; quit'
+npm --prefix src/games/fps run cli:game -- --exec 'developer 1; bsp load washoi_dm2; bsp info; quit'
 npm --prefix src/games/fps run test:simulation
 npm --prefix src/games/fps run test:physics
 ```
@@ -108,4 +110,7 @@ docs/
   research/     design investigations
 ```
 
-The build can select a game through the `GAME` environment variable, but the repository remains FPS-centric and the TypeScript `@game/*` path maps to `src/games/fps/*`.
+Browser application selection uses `SHAG_APP` or `.shag-application.json`.
+Vite resolves `@game` to the selected application directory; engine modules
+must use service registries for game integration. See
+[Configuration](../guides/configuration.md#browser-application-selection).

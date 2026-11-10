@@ -32,7 +32,10 @@ browser / CLI / server compositions
 
 `src/engine/` should not depend on a game module. Game-specific integrations belong under `src/games/fps/` unless a task explicitly calls for a separate game.
 
-The repository can select a build game through `GAME`, but it is still architecturally FPS-centric: `src/main.ts` wires FPS flow and `@game/*` points to `src/games/fps/*`.
+`src/main.ts` launches the neutral engine example. A game supplies its own
+browser entry and HTML through `browser.json`, selected with `SHAG_APP` or
+`.shag-application.json`. Washoi's package commands select its composition
+automatically. See [Configuration](../guides/configuration.md#browser-application-selection).
 
 ## Content workflow
 

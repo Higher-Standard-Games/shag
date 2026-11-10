@@ -27,14 +27,17 @@ npm run build:prod
 
 ## Game selection
 
-Vite reads `GAME` and defaults to the configured FPS game. In PowerShell:
+Vite selects the browser application through `SHAG_APP`, then the ignored
+`.shag-application.json` file, defaulting to the engine example. To build Washoi
+from the assembled checkout:
 
 ```powershell
-$env:GAME = 'fps'
-npm run build
+npm --prefix src/games/fps run build
 ```
 
-The build-time alias does not by itself make every runtime path game-agnostic. Check `vite.config.ts`, `tsconfig.json`, and `src/main.ts` when adding a game composition.
+The game command sets `SHAG_APP` to its own directory. For the engine example,
+set `$env:SHAG_APP = 'engine'` before `npm run build`. A custom application uses
+a directory containing `browser.json`; see [Configuration](../guides/configuration.md#browser-application-selection).
 
 ## Documentation builds
 

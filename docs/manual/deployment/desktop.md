@@ -17,7 +17,16 @@ npm run electron:preview
 npm run electron:build
 ```
 
-Installers are written to `release/<version>/`, with the electron-builder targets configured in `electron-builder.config.cjs`. The `.cjs` extension matters: this package is `"type": "module"`, so a `.js` config's `module.exports` would assign nothing and electron-builder would receive an empty object. The config picks its game manifest the way `vite.config.ts` does — `GAME`, else `engine.json`'s `defaultGame` — and takes the app's name from that game's `displayName`.
+Installers are written to `release/<version>/`, with the electron-builder targets
+configured in `electron-builder.config.cjs`. The config uses CommonJS in this
+ES-module package. It selects the application through `SHAG_APP`, then
+`.shag-application.json`, defaulting to `engine`. A selected application's
+`game.json` supplies desktop metadata; the product name uses `displayName`,
+then `display.title`, then `name`. The engine example uses neutral SHAG metadata.
+
+To package Washoi from the assembled checkout, run
+`npm --prefix src/games/fps run electron:build`. Its package command selects
+the game for both the web build and Electron packaging.
 
 ## Security model
 

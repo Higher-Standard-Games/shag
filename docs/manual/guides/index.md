@@ -6,7 +6,7 @@ In-depth explanations of SHAG Engine systems. These guides explain concepts and 
 
 | Guide | Description |
 |-------|-------------|
-| [Configuration](./configuration.md) | Build-time `GAME` selection, `.env` runtime networking, game submodules |
+| [Configuration](./configuration.md) | Browser application selection with `SHAG_APP`, runtime paths and networking environment |
 | [BSP Map System](./bsp-system.md) | How BSP maps are loaded and rendered |
 | [Q3 Shader System](./shader-system.md) | Shader parsing and material application |
 | [PK3 Filesystem](./pk3-filesystem.md) | Virtual filesystem and archive loading |
