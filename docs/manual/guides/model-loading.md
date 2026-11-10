@@ -113,7 +113,8 @@ the hips.
 
 Washoi's relative ally/enemy choices use `cl_team_ally_model` and
 `cl_team_enemy_model`: `police`, `female` (Female Police), `cartel`, `riotkitty`
-and `robot`. Police and Cartel use male sounds; Female Police and RiotKitty use
+and `robot`, and for enemies `random` (the default), which draws one of the
+bodies your side does not wear each time you connect. Police and Cartel use male sounds; Female Police and RiotKitty use
 female sounds; Robot uses Bobot sounds. The renderer keeps a source container
 and instance pool per body. Changes replace visible bodies and their held
 weapons without changing collision or network/demo formats.
