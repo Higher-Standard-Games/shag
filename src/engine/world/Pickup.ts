@@ -79,6 +79,8 @@ export interface PickupOptions {
    * with every other item. Not for tossed pickups.
    */
   bobbing?: boolean;
+  /** With `bobbing`, how much higher (world units) than its lowest point clearing the rest position the model floats. */
+  floatLift?: number;
   /** Optional glow light color (RGB 0-1). */
   glowColor?: { r: number; g: number; b: number };
   /** Initial linear velocity — if set, the pickup is given a Havok dynamic body and tossed. */
@@ -477,11 +479,11 @@ export class Pickup extends TransformNode {
     this.runProximityCheck();
   }
 
-  /** The height a model floats at: lifted so its lowest point sits at its rest position. */
+  /** The height a model floats at: lifted so its lowest point sits at its rest position, plus `floatLift`. */
   private floatHeight(leader: Mesh): number {
     leader.computeWorldMatrix(true);
     const { min } = leader.getHierarchyBoundingVectors(true);
-    return leader.position.y + Math.max(0, leader.position.y - min.y);
+    return leader.position.y + Math.max(0, leader.position.y - min.y) + (this.options.floatLift ?? 0);
   }
 
   /** Classic item motion: bob on a phase of this pickup's own, turn in step with all others. */

@@ -46,6 +46,8 @@ export interface EntityDef {
   // === PICKUP GLOW ===
   /** Glow light color for pickups (RGB 0-1). If omitted, no glow light is added. */
   glowColor?: { r: number; g: number; b: number };
+  /** Extra height (world units) a floating pickup model rests above the floor clearance. */
+  floatLift?: number;
 }
 
 /**
