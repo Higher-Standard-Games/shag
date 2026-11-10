@@ -7,7 +7,7 @@ All notable changes to this project are documented in version-specific files.
 | Version | Date | Summary |
 |---------|------|---------|
 | [v1.0.0-beta.10](./v1.0.0-beta.10.md) | unreleased | Living changelog for the next beta cycle |
-| [v1.0.0-beta.9.1](./v1.0.0-beta.9.1.md) | unreleased | Fixes for beta.9: missing third-person weapons in highlights, and map reloads timing out |
+| [v1.0.0-beta.9.1](./v1.0.0-beta.9.1.md) | Nov 11, 2026 | Point release: third-person weapons no longer go missing in demos and highlights, video export and a second demo no longer time out loading the map, and a welcome guide styled as a wizard |
 | [v1.0.0-beta.9](./v1.0.0-beta.9.md) | Nov 10, 2026 | Five player bodies with matching voices, a random enemy model and white enemies, packaged item models with a spinning Quad, timeouts, rejoining a played seat with its score, map gametype keys on items, gun size, the new app icon, and bot routes on DM1 and DM3 |
 | [v1.0.0-beta.8](./v1.0.0-beta.8.md) | Nov 8, 2026 | Browser highlight video export with OST music, smooth local Voltaic beams, DM1/DM3 and refreshed DM5/DM7, animated shaders, door decals and jumppad fixes |
 | [v1.0.0-beta.7](./v1.0.0-beta.7.md) | Nov 7, 2026 | Next-spawn loadout changes, continuous Voltaic audio, visible reload cues, lightweight slide dust, and gameplay, bot, console and manual fixes |
