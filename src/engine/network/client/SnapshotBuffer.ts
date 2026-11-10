@@ -225,6 +225,9 @@ export class SnapshotBuffer {
   /** getLatestEntityIds' answer, for the snapshot it was built from. */
   private latestIds: { snapshot: BufferedSnapshot; ids: Set<string> } | null = null;
 
+  /** While the match is paused: the newest snapshot is where everything stands. */
+  private held = false;
+
   /** Highest tick accepted in this session; null before the first push. */
   private lastTick: number | null = null;
 
@@ -296,7 +299,19 @@ export class SnapshotBuffer {
     this.latestIds = null;
     this.lastReceiveTime = 0;
     this.lastTick = null;
+    this.held = false;
     this.interpDelay = DEFAULT_INTERP_DELAY_MS;
+  }
+
+  /**
+   * Hold the render time at the newest snapshot while the match is paused, so
+   * nothing is extrapolated past where the server stopped it. On release the
+   * pause's gap is not taken for network jitter.
+   */
+  hold(held: boolean): void {
+    if (held === this.held) return;
+    this.held = held;
+    if (!held) this.lastReceiveTime = 0;
   }
 
   /**
@@ -346,7 +361,9 @@ export class SnapshotBuffer {
     const clInterp = Cvar.getNumber("cl_interp");
     const delay = clInterpOverride ?? (clInterp > 0 ? clInterp : this.interpDelay);
     const timenudge = Cvar.getNumber("cl_timenudge");
-    return performance.now() - delay + timenudge;
+    const time = performance.now() - delay + timenudge;
+    const newest = this.buffer[this.buffer.length - 1];
+    return this.held && newest ? Math.min(time, this.getSnapTime(newest)) : time;
   }
 
   /** The two snapshots bracketing renderTime (serverLocalTime when available, for more accurate timing). */

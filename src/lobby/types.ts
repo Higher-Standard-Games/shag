@@ -356,7 +356,7 @@ export interface LeaderboardError extends LobbyMessage {
   reason: "unavailable" | "invalid_query" | "rate_limited";
 }
 
-/** Recover the original unplayed human seat after its short initial ticket expires. */
+/** Ask for your own seat's recovery ticket, to come back into a running match. */
 export interface SeatReissueRequest extends LobbyMessage {
   type: "match:seat_reissue";
   requestId: string;

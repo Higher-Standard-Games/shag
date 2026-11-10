@@ -176,8 +176,11 @@ Ammo-crate artwork ships in `washoi_gfx.pk3` at its existing virtual paths
 owner before resolving the texture. Rebuild the eight used icons with
 `npm run tools:gfx` from `archive/media/gfx/`, or pass
 `-- --source-dir <directory> --output <file>`. The source directory mirrors
-virtual paths. The unused gunblade icon stays archived. The packager checks TGA
-headers, ZIP CRCs and unchanged byte hashes; regenerate the index after rebuilding.
+virtual paths. The unused gunblade icon stays archived. The same package holds
+the weapon symbols on the ammo-box sides, `gfx/simpleitems/weapon/*.webp`,
+converted from the TGA sources at the same paths under `archive/media/gfx/`.
+The packager checks TGA headers, ZIP CRCs and unchanged byte hashes; regenerate
+the index after rebuilding.
 
 Shared cartoon hit artwork ships in `washoi_effects.pk3`, with virtual paths
 `effects/cartoonhit1.png` and `effects/cartoonhit2.png`. Rebuild it with

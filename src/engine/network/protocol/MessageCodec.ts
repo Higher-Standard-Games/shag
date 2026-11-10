@@ -35,6 +35,23 @@ const SNAPSHOT_HEADER_BYTES = 6; // type + full/delta byte + baseline tick
  * Message codec for network protocol
  * All messages are prefixed with a MessageType byte for proper routing
  */
+/**
+ * Whether the match is paused: `timeout` holds it still until someone calls
+ * time in or the timeout runs out, `timein` counts back in, `running` plays.
+ */
+export type MatchPauseState = "running" | "timeout" | "timein";
+const PAUSE_STATES: readonly MatchPauseState[] = ["running", "timeout", "timein"];
+
+export interface MatchPauseNotice {
+  state: MatchPauseState;
+  /** Until the timeout runs out, or the count ends; 0 while running. */
+  msLeft: number;
+  /** Who called the timeout, or who dropped for one called on their behalf. */
+  caller: string;
+  /** Called by the server for a player whose connection dropped. */
+  forDrop: boolean;
+}
+
 /** Player preferences the server acts on; see `MessageCodec.encodeClientPrefs`. */
 export interface ClientPrefs {
   /** Switch to a weapon when it is picked up (the default). */
@@ -260,6 +277,77 @@ export class MessageCodec {
       throw new Error(`Expected ResumeToken message, got 0x${messageType.toString(16)}`);
     }
     return { token: decoder.readString(), graceMs: decoder.readUint32() };
+  }
+
+  /**
+   * Encode the match's pause state (Server → Client), sent to everyone when it
+   * changes and to each client that joins or resumes while paused. No snapshot
+   * goes out while the match is paused, so this is how a client learns it.
+   */
+  static encodePause(notice: MatchPauseNotice): Uint8Array {
+    const encoder = envelope();
+    encoder.writeUint8(MessageType.Pause);
+    encoder.writeUint8(PAUSE_STATES.indexOf(notice.state));
+    encoder.writeUint32(Math.max(0, Math.round(notice.msLeft)));
+    encoder.writeString(notice.caller);
+    encoder.writeUint8(notice.forDrop ? 1 : 0);
+    return encoder.getData();
+  }
+
+  static decodePause(data: Uint8Array): MatchPauseNotice {
+    const decoder = new BinaryDecoder(data);
+    const messageType = decoder.readUint8();
+    if (messageType !== MessageType.Pause) {
+      throw new Error(`Expected Pause message, got 0x${messageType.toString(16)}`);
+    }
+    const state = PAUSE_STATES[decoder.readUint8()];
+    if (!state) throw new Error("Unknown pause state");
+    return { state, msLeft: decoder.readUint32(), caller: decoder.readString(), forDrop: decoder.readUint8() === 1 };
+  }
+
+  /**
+   * Encode one chat line sent while the match is paused (Server → Client). A
+   * running match carries chat in its snapshots; a paused one sends none.
+   */
+  static encodePausedChat(chat: { senderId: string; senderName: string; team: string; text: string }): Uint8Array {
+    const encoder = envelope();
+    encoder.writeUint8(MessageType.PausedChat);
+    encoder.writeString(chat.senderId);
+    encoder.writeString(chat.senderName);
+    encoder.writeString(chat.team);
+    encoder.writeString(chat.text);
+    return encoder.getData();
+  }
+
+  static decodePausedChat(data: Uint8Array): { senderId: string; senderName: string; team: string; text: string } {
+    const decoder = new BinaryDecoder(data);
+    const messageType = decoder.readUint8();
+    if (messageType !== MessageType.PausedChat) {
+      throw new Error(`Expected PausedChat message, got 0x${messageType.toString(16)}`);
+    }
+    return {
+      senderId: decoder.readString(),
+      senderName: decoder.readString(),
+      team: decoder.readString(),
+      text: decoder.readString(),
+    };
+  }
+
+  /** Encode a player calling a timeout (`true`) or time in (Client → Server). */
+  static encodeCallPause(timeout: boolean): Uint8Array {
+    const encoder = envelope();
+    encoder.writeUint8(MessageType.CallPause);
+    encoder.writeUint8(timeout ? 1 : 0);
+    return encoder.getData();
+  }
+
+  static decodeCallPause(data: Uint8Array): { timeout: boolean } {
+    const decoder = new BinaryDecoder(data);
+    const messageType = decoder.readUint8();
+    if (messageType !== MessageType.CallPause) {
+      throw new Error(`Expected CallPause message, got 0x${messageType.toString(16)}`);
+    }
+    return { timeout: decoder.readUint8() === 1 };
   }
 
   /** Encode a claim on a suspended session (Client → Server). */

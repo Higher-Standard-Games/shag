@@ -273,9 +273,10 @@ export function registerBspEntityHandlers(): void {
   EntityHandlerRegistry.register("func_plat", handleLift);
   EntityHandlerRegistry.register("func_explosive", handleExplosive);
   EntityHandlerRegistry.register("func_door", handleFuncDoor);
+  EntityHandlerRegistry.register("func_static", handleStatic);
   registerAmbientEntityHandlers();
   devLog(
-    "[BspEntityHandlers] Registered BSP entity handlers: func_door, func_plat, func_explosive, func_rotating, target_speaker",
+    "[BspEntityHandlers] Registered BSP entity handlers: func_door, func_plat, func_explosive, func_static, func_rotating, target_speaker",
   );
 }
 
@@ -286,8 +287,28 @@ export function unregisterBspEntityHandlers(): void {
   EntityHandlerRegistry.unregister("func_plat");
   EntityHandlerRegistry.unregister("func_explosive");
   EntityHandlerRegistry.unregister("func_door");
+  EntityHandlerRegistry.unregister("func_static");
   unregisterAmbientEntityHandlers();
   doorGroups.clear();
+}
+
+/**
+ * A brush model that stands where it was built: scenery kept out of the world
+ * model, such as a structure standing in the sky.
+ */
+async function handleStatic(entity: EntityData, scene: Scene): Promise<EntityHandlerResult> {
+  const bsp = currentBsp;
+  const modelIndex = parseModelIndex(entity.properties.model);
+  if (!bsp || modelIndex < 1 || modelIndex >= bsp.models.length) return { handled: false };
+  const mesh = await buildBrushModel(bsp, modelIndex, scene, `func_static_${modelIndex}`);
+  if (!mesh) return { handled: false };
+  mesh.metadata = { ...mesh.metadata, mapOwned: true, entityType: "func_static" };
+  for (const child of mesh.getChildMeshes()) child.metadata = { ...child.metadata, mapOwned: true };
+  const materials = mesh.getChildMeshes().map((child) => child.material);
+  mesh.onDisposeObservable.addOnce(() => {
+    for (const material of materials) material?.dispose(false, false);
+  });
+  return { handled: true, node: mesh };
 }
 
 async function handleExplosive(entity: EntityData, scene: Scene): Promise<EntityHandlerResult> {

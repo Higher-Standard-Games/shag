@@ -50,3 +50,26 @@ describe("explosive brush rendering", () => {
     }
   });
 });
+
+describe("static brush rendering", () => {
+  it("builds a func_static's brush model as map scenery, and refuses the world model", async () => {
+    const engine = new NullEngine(),
+      scene = new Scene(engine),
+      bsp = liftBsp();
+    setCurrentBspForHandlers(bsp);
+    registerBspEntityHandlers();
+    try {
+      const handler = EntityHandlerRegistry.getHandler("func_static");
+      const result = await handler!({ classname: "func_static", properties: { model: "*1" } }, scene);
+      expect(result.handled).toBe(true);
+      expect(result.node?.name).toBe("func_static_1");
+      expect(result.node?.metadata).toMatchObject({ mapOwned: true, entityType: "func_static" });
+      expect((await handler!({ classname: "func_static", properties: { model: "*0" } }, scene)).handled).toBe(false);
+    } finally {
+      unregisterBspEntityHandlers();
+      setCurrentBspForHandlers(null);
+      scene.dispose();
+      engine.dispose();
+    }
+  });
+});

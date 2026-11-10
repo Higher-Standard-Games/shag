@@ -321,17 +321,18 @@ export class GameServerSpawner {
     return [...this.activeServers.values()];
   }
 
-  /** Privately release one reserved credential to its original verified account. */
-  reissueUnclaimedSeat(
+  /**
+   * Privately hand a seat's recovery ticket to its own verified account, as
+   * often as they ask while it is valid: they may drop more than once.
+   */
+  reissueSeat(
     matchId: string,
     accountId: number,
     now = Date.now(),
   ): { admissionTicket: string; serverUrl: string } | null {
     const server = this.activeServers.get(matchId);
-    const byAccount = this.recoveryByMatch.get(matchId);
-    const reserved = byAccount?.get(accountId);
-    if (!server || !reserved || now < reserved.availableAt || now > reserved.expiresAt) return null;
-    byAccount!.delete(accountId);
+    const reserved = this.recoveryByMatch.get(matchId)?.get(accountId);
+    if (!server || !reserved || now > reserved.expiresAt) return null;
     return { admissionTicket: reserved.ticket, serverUrl: server.url };
   }
 

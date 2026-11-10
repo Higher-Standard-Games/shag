@@ -56,7 +56,7 @@ function setup(): any {
     onServerExit: undefined as unknown,
     spawn: vi.fn(),
     shutdownAll: vi.fn(),
-    reissueUnclaimedSeat: vi.fn(),
+    reissueSeat: vi.fn(),
   };
   const server = new LobbyServer(0, spawner as never) as any;
   server.gametypes = [DUEL, SND];

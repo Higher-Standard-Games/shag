@@ -49,7 +49,7 @@ function makePlayer(overrides: Partial<any> = {}): { player: any; sent: any[] } 
 
 // biome-ignore lint/suspicious/noExplicitAny: reaches private lobby internals
 function setup(spawn: any = vi.fn()): { server: any; spawn: any } {
-  const spawner = { onServerExit: undefined as unknown, spawn, shutdownAll: vi.fn(), reissueUnclaimedSeat: vi.fn() };
+  const spawner = { onServerExit: undefined as unknown, spawn, shutdownAll: vi.fn(), reissueSeat: vi.fn() };
   const server = new LobbyServer(0, spawner as never) as any;
   server.gametypes = [GAMETYPE];
   server.mapNames = MAP_NAMES;
@@ -84,7 +84,7 @@ describe("LobbyServer lifecycle", () => {
         ? { admissionTicket: "private-fallback", serverUrl: "ws://localhost:7777" }
         : null,
     );
-    server.spawner.reissueUnclaimedSeat = release;
+    server.spawner.reissueSeat = release;
     server.handleSeatReissue(impostor.player, "req_1", "m_1");
     expect(lastMessage(impostor.sent)).toEqual({
       type: "match:seat_reissue_error",

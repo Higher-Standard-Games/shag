@@ -232,10 +232,17 @@ Duel and Amphi require their two seats.
    sends identifies nobody; the token does.
 4. A seat survives a dropped socket, so a reload before the match starts can
    claim the same seat rather than a new one. Mid-match, the game server holds
-   a dropped player's seat for 20 seconds against a resume token.
-5. A connection with no ticket is allowed to watch; it takes a seat only with a
+   a dropped player's seat for 60 seconds against a resume token.
+5. Each human seat also has a recovery ticket, valid for 30 minutes, which the
+   lobby hands back to that account alone whenever **Rejoin match** asks
+   (`match:seat_reissue`). It claims a seat nobody took, and it takes back a
+   seat its owner already played: a connection still open on the seat is
+   dropped, a held seat is resumed with its entity and score, and a seat
+   released after the hold comes back under its old player id, so the score
+   carries on as one result seat.
+6. A connection with no ticket is allowed to watch; it takes a seat only with a
    ticket (see *Joining a match under way*).
-6. If the child does not report ready within `SHAG_SPAWN_TIMEOUT_MS` (45
+7. If the child does not report ready within `SHAG_SPAWN_TIMEOUT_MS` (45
    seconds by default), the lobby terminates it — SIGTERM, then SIGKILL — so
    the port is released, and tells the room why.
 
@@ -334,8 +341,8 @@ every player's before and after state, in separate Public and Private pools for
 Duel, Amphi, S&D and FFA. The original roster must play from the first active
 tick on unchanged sides. Late joins, missing participation evidence and
 interrupted play keep their records but are excluded from skill, with the
-reason stored. A spectator departure stays marked after rejoining; an entity
-held through a reconnect keeps participating. A valid final Duel or Amphi
+reason stored. A spectator departure, or a seat released after its hold, stays
+marked after rejoining; an entity held through a reconnect keeps participating. A valid final Duel or Amphi
 forfeit is eligible. S&D rates by team standings; FFA rates every placement,
 including ties.
 
@@ -539,7 +546,8 @@ Demo format v4 added the room's privacy flag to the header; v5 keeps that
 header and adds each player's view to the frames (their keys, slide and ledge
 grab phases and crouch eye height, so a watched view leans, dips and crouches
 as their screen did). Format v6 retains that layout and adds optional persistent
-disabled brush models to S&D objective snapshots. The reader accepts v1–v6,
+disabled brush models to S&D objective snapshots; v7 adds each free-for-all
+player's server-assigned body and colour. The reader accepts v1–v7,
 including v1–v3 recordings, which have no
 privacy flag and count as public. Featured picks leave out recordings marked
 private, even those featuring a public top-ten account. Private recordings

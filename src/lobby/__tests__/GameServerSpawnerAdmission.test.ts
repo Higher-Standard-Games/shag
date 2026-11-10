@@ -61,7 +61,8 @@ describe("GameServerSpawner admission handoff", () => {
         name: "Player",
         team: "alpha",
         isBot: false,
-        notBefore: expect.any(Number),
+        recovery: true,
+        expiresAt: expect.any(Number),
       }),
       expect.objectContaining({ accountId: null, name: "Bot", team: "bravo", isBot: true }),
     ]);
@@ -69,12 +70,14 @@ describe("GameServerSpawner admission handoff", () => {
     expect(rawManifest).not.toContain(server.admissionTickets?.get("human"));
     expect(rawManifest).not.toContain(server.admissionTickets?.get("bot"));
     expect(vi.mocked(spawn).mock.calls.at(-1)?.[1]).not.toContain(rawManifest);
-    expect(spawner.reissueUnclaimedSeat(server.matchId, 8, manifest.expiresAt + 1)).toBeNull();
-    expect(spawner.reissueUnclaimedSeat(server.matchId, 7, manifest.expiresAt - 1)).toBeNull();
-    const recovered = spawner.reissueUnclaimedSeat(server.matchId, 7, manifest.expiresAt + 1);
+    expect(spawner.reissueSeat(server.matchId, 8, manifest.expiresAt + 1)).toBeNull();
+    // From the start, and as often as its own account asks while it is valid
+    const recovered = spawner.reissueSeat(server.matchId, 7, manifest.expiresAt - 1);
     expect(recovered?.serverUrl).toBe(server.url);
     expect(rawManifest).not.toContain(recovered?.admissionTicket);
-    expect(spawner.reissueUnclaimedSeat(server.matchId, 7, manifest.expiresAt + 2)).toBeNull();
+    expect(spawner.reissueSeat(server.matchId, 7, manifest.expiresAt + 2)).toEqual(recovered);
+    const recoveryExpiry = manifest.grants[1].expiresAt;
+    expect(spawner.reissueSeat(server.matchId, 7, recoveryExpiry + 1)).toBeNull();
   });
 
   it("leaves a standalone dev spawn ungated", async () => {
@@ -116,7 +119,7 @@ describe("GameServerSpawner admission handoff", () => {
         map: "wamphi1",
         endedAt: Date.now(),
         participants: manifest.grants
-          .filter((g: { notBefore?: number }) => !g.notBefore)
+          .filter((g: { recovery?: boolean }) => !g.recovery)
           .map((g: { tokenHash: string; accountId: number }, i: number) => ({
             tokenHash: g.tokenHash,
             accountId: g.accountId,

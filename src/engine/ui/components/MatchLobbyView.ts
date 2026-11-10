@@ -965,7 +965,7 @@ export class MatchLobbyView {
       if (this.disposed) return;
       await new ConnectingOverlay().show(serverUrl, false, admissionTicket);
     } catch {
-      if (!this.disposed) setRaisedKeyText(this.recoverBtn, "Rejoin match", "Unavailable yet or seat already used");
+      if (!this.disposed) setRaisedKeyText(this.recoverBtn, "Rejoin match", "No seat to return to");
     } finally {
       if (!this.disposed && this.recoverBtn) this.recoverBtn.disabled = false;
     }

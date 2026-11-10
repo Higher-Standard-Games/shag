@@ -2127,7 +2127,7 @@ export class LobbyServer {
       typeof matchId === "string" &&
       /^[A-Za-z0-9_-]{1,64}$/.test(matchId) &&
       this.matchToLobby.has(matchId)
-        ? this.spawner.reissueUnclaimedSeat(matchId, player.accountId)
+        ? this.spawner.reissueSeat(matchId, player.accountId)
         : null;
     if (ticket) this.send(player, { type: "match:seat_reissued", requestId, matchId, ...ticket });
     else this.send(player, { type: "match:seat_reissue_error", requestId, reason: "unavailable" });

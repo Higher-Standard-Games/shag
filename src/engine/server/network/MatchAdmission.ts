@@ -16,7 +16,8 @@ export interface AdmissionGrant extends Omit<MatchSeat, "lobbyPlayerId"> {
   tokenHash: string;
   /** Both credentials for one seat share a claim, even across socket drops. */
   seatId?: string;
-  notBefore?: number;
+  /** The seat's recovery ticket, which can also take the seat back after it was played. */
+  recovery?: true;
   expiresAt?: number;
 }
 
@@ -39,21 +40,22 @@ function hash(token: string): string {
   return createHash("sha256").update(token).digest("hex");
 }
 
-/** A recovery ticket: the same seat again, claimable later and for longer. */
+/**
+ * A recovery ticket: the same seat again, for longer. It claims a seat nobody
+ * took, and it takes back a seat its owner already played (see reclaim).
+ */
 export interface RecoveryTicket {
   ticket: string;
-  availableAt: number;
   expiresAt: number;
 }
 
 /**
  * The grants for one human or bot seat: its ticket, and for a human a recovery
- * ticket on the same seat that unlocks when the first one expires.
+ * ticket on the same seat, valid from the start and for longer.
  */
 function grantSeat(
   seat: Omit<MatchSeat, "lobbyPlayerId">,
   now: number,
-  lifetimeMs: number,
   recoveryLifetimeMs: number,
 ): { ticket: string; grants: AdmissionGrant[]; recovery: RecoveryTicket | null } {
   const ticket = randomBytes(32).toString("base64url");
@@ -65,10 +67,9 @@ function grantSeat(
   const grants: AdmissionGrant[] = [{ ...seat, seatId, tokenHash: hash(ticket) }];
   if (recoveryLifetimeMs <= 0 || seat.isBot) return { ticket, grants, recovery: null };
   const fallback = randomBytes(32).toString("base64url");
-  const availableAt = now + lifetimeMs;
   const expiresAt = now + recoveryLifetimeMs;
-  grants.push({ ...seat, seatId, tokenHash: hash(fallback), notBefore: availableAt, expiresAt });
-  return { ticket, grants, recovery: { ticket: fallback, availableAt, expiresAt } };
+  grants.push({ ...seat, seatId, tokenHash: hash(fallback), recovery: true, expiresAt });
+  return { ticket, grants, recovery: { ticket: fallback, expiresAt } };
 }
 
 function validLifetimes(now: number, lifetimeMs: number, recoveryLifetimeMs: number): boolean {
@@ -93,7 +94,7 @@ export function issueMatchAdmission(
 ): {
   manifest: AdmissionManifest;
   tickets: Map<string, string>;
-  recoveryTickets: Map<number, { ticket: string; availableAt: number; expiresAt: number }>;
+  recoveryTickets: Map<number, RecoveryTicket>;
 } {
   if (!matchId || seats.length === 0 || !validLifetimes(now, lifetimeMs, recoveryLifetimeMs)) {
     throw new Error("Invalid match admission metadata");
@@ -115,7 +116,7 @@ export function issueMatchAdmission(
       throw new Error("Invalid match seat");
     }
     if (!seat.isBot) humanAccounts.add(seat.accountId!);
-    const granted = grantSeat(seat, now, lifetimeMs, recoveryLifetimeMs);
+    const granted = grantSeat(seat, now, recoveryLifetimeMs);
     tickets.set(lobbyPlayerId, granted.ticket);
     grants.push(...granted.grants);
     if (granted.recovery) recoveryTickets.set(seat.accountId!, granted.recovery);
@@ -144,7 +145,7 @@ export function issueDropInSeat(
   ) {
     throw new Error("Invalid drop-in seat");
   }
-  const granted = grantSeat(seat, now, lifetimeMs, recoveryLifetimeMs);
+  const granted = grantSeat(seat, now, recoveryLifetimeMs);
   granted.grants[0].expiresAt = now + lifetimeMs;
   return granted;
 }
@@ -167,7 +168,7 @@ function isDropInGrant(value: unknown): value is AdmissionGrant {
     typeof grant.team === "string" &&
     grant.team.length > 0 &&
     Number.isSafeInteger(grant.expiresAt) &&
-    (grant.notBefore === undefined || Number.isSafeInteger(grant.notBefore))
+    (grant.recovery === undefined || grant.recovery === true)
   );
 }
 
@@ -215,12 +216,25 @@ export class MatchAdmission {
     if (!token) return null;
     const key = hash(token);
     const grant = this.grants.get(key);
-    if (!grant || now < (grant.notBefore ?? 0) || now > (grant.expiresAt ?? this.manifest.expiresAt)) return null;
+    if (!grant || now > (grant.expiresAt ?? this.manifest.expiresAt)) return null;
     const seatId = grant.seatId ?? key;
     if (this.claimedSeats.has(seatId)) return null;
     this.grants.delete(key);
     this.claimedSeats.set(seatId, key);
     return grant;
+  }
+
+  /**
+   * The seat a recovery ticket names when that seat is already claimed: its
+   * owner coming back on a new connection. The ticket stays valid until it
+   * expires, so a player can come back more than once; only the account it was
+   * issued to ever receives it.
+   */
+  reclaim(token: string | undefined, now = Date.now()): AdmissionGrant | null {
+    if (!token) return null;
+    const grant = this.issued.get(hash(token));
+    if (!grant?.recovery || grant.isBot || now > (grant.expiresAt ?? 0)) return null;
+    return this.claimedSeats.has(grant.seatId ?? grant.tokenHash) ? grant : null;
   }
 
   /** Restore a claim only if its socket dropped before becoming a player. */

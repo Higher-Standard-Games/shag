@@ -500,6 +500,8 @@ All messages use binary encoding for efficiency:
 | Pong | 0x0A | ClockSync pong (server → client) |
 | Snapshot | 0x0B | Game state update, delta-compressed against a **named** baseline |
 | ResumeToken | 0x0C | The token a dropped client presents to take its seat back |
+| Pause | 0x0D | The match's pause state: `running`, `timeout` or `timein` (the count back in), the milliseconds left, who called it, and whether the server called it for a dropped player. Sent to everyone on a change, and after JoinAccept while paused |
+| PausedChat | 0x0E | One chat line sent while the match is paused, when no snapshot carries it: sender id, name, team and text |
 
 ### Client → Server (0x81-0x8F)
 
@@ -517,6 +519,19 @@ All messages use binary encoding for efficiency:
 | SetLoadout | 0x8A | The kit chosen for the next round, in the modes that ask |
 | Resume | 0x8B | A reconnecting client claiming the session it was dropped from |
 | ClientPrefs | 0x8C | Player preferences the server acts on, as flag bits (bit 0: no auto-switch on pickup). Sent after every JoinAccept and on change; older servers ignore it |
+| CallPause | 0x8D | A player calls a timeout (1) or time in (0) |
+
+### Timeouts
+
+A timeout stops the server's loop: no tick runs, so the tick count, every
+entity and every timer stand still, and play resumes exactly where it stopped.
+No snapshot is sent while paused, so the server says so with `Pause`; the
+client stops predicting and sending input, holds its interpolation at the newest
+snapshot, and does not treat the silence as a stalled link. A client that joins
+or resumes during the pause is sent the frozen tick's snapshot. Chat goes out
+as `PausedChat`. A held seat's time stands still with the match. The rules
+(who may call one, how long it lasts) are in `MatchPause` and the game manual's
+Timeouts page.
 
 Snapshot one-shot events include `weapon_fire`, `projectile_spawn` / `projectile_impact`, `damage`, `death`, `award`, `weapon_chain`, and `chat` — all carried in the events section and captured verbatim into demo recordings (the snapshot is built once and shared by the broadcaster and recorder).
 
@@ -568,7 +583,10 @@ Players:
   for each player:
     id (string)
     flags (uint8)
-    ... (entity ID, name, score, deaths, ping)
+    ... (entity ID, name, score, deaths, ping, team)
+    if 0x40: look (uint8) - a free-for-all player's body (high four bits)
+             and colour (low four bits), assigned by the server so every
+             viewer and demo shows them the same; absent in team modes
 
 Events:
   count (uint16)

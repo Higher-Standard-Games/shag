@@ -24,6 +24,7 @@ import { InputSystem } from "../../input/InputSystem";
 import { getCollisionManager } from "../../physics";
 import { ContentFlags, SurfaceFlags } from "../../physics/ContentFlags";
 import { CameraInputHandler } from "../CameraInputHandler";
+import { currentBaseFov } from "../FovSettings";
 import { getFreeflyInput } from "../FreeflyInput";
 import { getGameFrameHook } from "../GameFrameHook";
 import type { CameraControllerConfig, ICameraController } from "./ICameraController";
@@ -70,7 +71,6 @@ export class FreeflyController implements ICameraController {
     speed: FreeflyController.defaultSpeed,
     mouseSensitivity: 0.002,
     invertY: false,
-    fov: 1.0, // Wider FOV for debugging
   };
 
   /**
@@ -193,10 +193,7 @@ export class FreeflyController implements ICameraController {
     // Always set as active camera (fixes blue screen when switching controllers)
     scene.activeCamera = this.camera;
 
-    // Apply FOV
-    if (this.config.fov && this.camera) {
-      this.camera.fov = this.config.fov;
-    }
+    this.camera.fov = this.config.fov ?? currentBaseFov();
 
     // Note: We handle collision ourselves via slideMove/nativeCollisionMove
     // Don't set checkCollisions here - it's managed by nativeCollisionMove when needed
@@ -257,6 +254,9 @@ export class FreeflyController implements ICameraController {
 
   update(deltaTime: number): void {
     if (!this.enabled || !this.camera) return;
+    // An explicit config FOV wins; otherwise the player's cl_fov, re-read each
+    // frame so a change shows at once
+    this.camera.fov = this.config.fov ?? currentBaseFov();
 
     // Tick the network and render remote players even when paused or spectating.
     // Via the injected game frame hook — no direct game import (QA-WO7).

@@ -54,7 +54,7 @@ function setup(admit: (...args: any[]) => Promise<unknown>): any {
     onServerExit: undefined as unknown,
     spawn: vi.fn(),
     shutdownAll: vi.fn(),
-    reissueUnclaimedSeat: vi.fn(),
+    reissueSeat: vi.fn(),
     admitDropIn: vi.fn(admit),
   };
   const server = new LobbyServer(0, spawner as never) as any;

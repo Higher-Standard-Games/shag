@@ -753,6 +753,8 @@ export class BinaryProtocol {
       if (!baselinePlayer || player.deaths !== baselinePlayer.deaths) flags |= 0x08;
       if (!baselinePlayer || player.ping !== baselinePlayer.ping) flags |= 0x10;
       if (!baselinePlayer || player.team !== baselinePlayer.team) flags |= 0x20;
+      // Absent from team modes and older recordings, so its bit is never set there
+      if (player.look !== undefined && player.look !== baselinePlayer?.look) flags |= 0x40;
 
       encoder.writeUint8(flags);
 
@@ -763,6 +765,7 @@ export class BinaryProtocol {
       if (flags & 0x08) encoder.writeUint32(player.deaths);
       if (flags & 0x10) encoder.writeUint16(player.ping);
       if (flags & 0x20) encoder.writeString(player.team);
+      if (flags & 0x40) encoder.writeUint8(player.look!);
     }
   }
 
@@ -828,6 +831,12 @@ export class BinaryProtocol {
         player!.team = decoder.readString();
       } else if (baselinePlayer) {
         player!.team = baselinePlayer.team;
+      }
+
+      if (flags & 0x40) {
+        player!.look = decoder.readUint8();
+      } else if (baselinePlayer) {
+        player!.look = baselinePlayer.look;
       }
     }
   }
@@ -1494,6 +1503,8 @@ export enum MessageType {
   Pong = 0x0a,
   Snapshot = 0x0b, // Baseline-identified envelope; raw demo snapshot format is unchanged
   ResumeToken = 0x0c, // The token a dropped client presents to take its seat back
+  Pause = 0x0d, // The match is paused (a timeout), counting back in, or running again
+  PausedChat = 0x0e, // A chat line while paused, when no snapshot carries it
 
   // Client → Server
   Join = 0x81,
@@ -1508,6 +1519,7 @@ export enum MessageType {
   SetLoadout = 0x8a, // Chosen kit for the player's next spawn.
   Resume = 0x8b, // Reconnecting client claims the session it was dropped from
   ClientPrefs = 0x8c, // Player preferences the server acts on (auto-switch on pickup)
+  CallPause = 0x8d, // A player calls a timeout, or time in
 }
 
 // Text encoder/decoder for UTF-8 strings (more efficient than UTF-16)

@@ -365,6 +365,13 @@ export class PlayerState {
   ping: number = 0;
 
   /**
+   * A free-for-all player's body and colour, from the server (see the fps
+   * game's shared/players/PlayerLook.ts); undefined in team modes and in
+   * recordings made before the server assigned them.
+   */
+  look?: number;
+
+  /**
    * Serialize player state
    */
   serialize(encoder: BinaryEncoder): void {
@@ -399,6 +406,7 @@ export class PlayerState {
     cloned.score = this.score;
     cloned.deaths = this.deaths;
     cloned.ping = this.ping;
+    cloned.look = this.look;
     return cloned;
   }
 }

@@ -374,3 +374,24 @@ describe("pitch interpolation", () => {
     expect(lerpPitch(undefined, undefined, 0.5)).toBeUndefined();
   });
 });
+
+describe("SnapshotBuffer held for a pause", () => {
+  it("stops at the newest snapshot instead of extrapolating, and does not take the pause for jitter", () => {
+    const clock = { now: 0 };
+    vi.spyOn(performance, "now").mockImplementation(() => clock.now);
+    const buffer = new SnapshotBuffer();
+    for (let i = 0; i < 6; i++) {
+      clock.now = 1000 + i * 16;
+      buffer.push(i + 1, new Map([["a", makeEntity({ x: i * 10, vx: 600, grounded: true })]]));
+    }
+    const delay = buffer.getInterpDelay();
+    buffer.hold(true);
+    clock.now += 5000;
+    expect(buffer.sample("a")?.x).toBe(50);
+    buffer.hold(false);
+    clock.now += 16;
+    buffer.push(7, new Map([["a", makeEntity({ x: 60, vx: 600, grounded: true })]]));
+    expect(buffer.getInterpDelay()).toBe(delay);
+    vi.restoreAllMocks();
+  });
+});

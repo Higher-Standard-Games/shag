@@ -43,7 +43,7 @@ import type { PlayerId } from "../../core/Entity";
 import type { GameEvent, GameState } from "../../core/GameState";
 import type { IGameHost } from "../../core/IGameHost";
 import type { Simulation, SimulationConfig } from "../../core/Simulation";
-import { type ClientPrefs, MessageCodec, MessageType } from "../../protocol/MessageCodec";
+import { type ClientPrefs, type MatchPauseNotice, MessageCodec, MessageType } from "../../protocol/MessageCodec";
 import { ClockSync } from "../ClockSync";
 import { ConnectionWatchdog } from "../ConnectionWatchdog";
 import { InterpolationBuffer } from "../InterpolationBuffer";
@@ -51,6 +51,14 @@ import { NetGraph } from "../NetGraph";
 import { SmoothCorrection } from "../SmoothCorrection";
 import { SnapshotReceiver } from "../SnapshotReceiver";
 import type { Transport } from "../transport/Transport";
+
+/** A chat line delivered while the match is paused. */
+export interface PausedChat {
+  senderId: string;
+  senderName: string;
+  team: string;
+  text: string;
+}
 
 // Component shapes for typed access
 interface Vec3 {
@@ -111,6 +119,10 @@ export class NetworkGameHost implements IGameHost {
   private eventCallbacks: ((event: GameEvent) => void)[] = [];
   private serverInfoCallbacks: ((info: ServerInfo) => void)[] = [];
   private serverMessageCallbacks: ((msg: { type: string; message: string }) => void)[] = [];
+  private pauseCallbacks: ((notice: MatchPauseNotice) => void)[] = [];
+  private pausedChatCallbacks: ((chat: PausedChat) => void)[] = [];
+  /** The server holds the match still: no snapshots come, and none are missed. */
+  private paused = false;
 
   private interpolationBuffer = new InterpolationBuffer();
   private smoothCorrection = new SmoothCorrection();
@@ -129,7 +141,7 @@ export class NetworkGameHost implements IGameHost {
   private playerName: string | null = null;
   /** The seat the server holds for this client after a drop, and for how long. */
   private resumeToken: string | null = null;
-  private resumeGraceMs = 20000;
+  private resumeGraceMs = 60000;
   /** Ticketed joins are not complete until the server sends the recovery token. */
   private waitForInitialResumeToken = false;
   /** True while reconnecting, so a stall and a close do not both start one. */
@@ -234,6 +246,35 @@ export class NetworkGameHost implements IGameHost {
       const index = this.serverMessageCallbacks.indexOf(callback);
       if (index >= 0) this.serverMessageCallbacks.splice(index, 1);
     };
+  }
+
+  /** Register for the match's pause state (timeouts). Returns unsubscribe. */
+  onPause(callback: (notice: MatchPauseNotice) => void): () => void {
+    this.pauseCallbacks.push(callback);
+    return () => {
+      const index = this.pauseCallbacks.indexOf(callback);
+      if (index >= 0) this.pauseCallbacks.splice(index, 1);
+    };
+  }
+
+  /** Register for chat lines sent while the match is paused. Returns unsubscribe. */
+  onPausedChat(callback: (chat: PausedChat) => void): () => void {
+    this.pausedChatCallbacks.push(callback);
+    return () => {
+      const index = this.pausedChatCallbacks.indexOf(callback);
+      if (index >= 0) this.pausedChatCallbacks.splice(index, 1);
+    };
+  }
+
+  /** Call a timeout (`true`) or time in. The server decides and answers everyone. */
+  sendCallPause(timeout: boolean): void {
+    if (!this._isConnected) return;
+    this.transport.send(MessageCodec.encodeCallPause(timeout), true);
+  }
+
+  private setPause(notice: MatchPauseNotice): void {
+    this.paused = notice.state !== "running";
+    for (const cb of this.pauseCallbacks) cb(notice);
   }
 
   /**
@@ -666,7 +707,8 @@ export class NetworkGameHost implements IGameHost {
     // A hidden page is throttled, and a blocked main thread leaves snapshots
     // queued unread: neither gap says anything about the connection.
     const hidden = typeof document !== "undefined" && document.visibilityState === "hidden";
-    if (hidden || sinceLastCheck > NetworkGameHost.WATCHDOG_INTERVAL_MS * 3) {
+    // A paused match sends no snapshots: silence then is not a stall
+    if (hidden || this.paused || sinceLastCheck > NetworkGameHost.WATCHDOG_INTERVAL_MS * 3) {
       this.watchdog.skipGap(now);
       return;
     }
@@ -731,6 +773,8 @@ export class NetworkGameHost implements IGameHost {
           // Update local player ID from server assignment
           this.localPlayerId = playerId;
           this.localEntityId = entityId;
+          // A new connection starts unpaused; a paused server says so straight after
+          if (this.paused) this.setPause({ state: "running", msLeft: 0, caller: "", forDrop: false });
           devLog(`[NetworkGameHost] Join accepted: ${playerId}, entity: ${entityId}`);
           this._isConnected = true;
           this.startWatchdog();
@@ -800,6 +844,14 @@ export class NetworkGameHost implements IGameHost {
         case MessageType.Pong: {
           const { clientSendTime, serverTime } = MessageCodec.decodePong(data);
           this.clockSync.processPong(clientSendTime, serverTime);
+          break;
+        }
+        case MessageType.Pause:
+          this.setPause(MessageCodec.decodePause(data));
+          break;
+        case MessageType.PausedChat: {
+          const chat = MessageCodec.decodePausedChat(data);
+          for (const cb of this.pausedChatCallbacks) cb(chat);
           break;
         }
         case MessageType.ServerMessage: {

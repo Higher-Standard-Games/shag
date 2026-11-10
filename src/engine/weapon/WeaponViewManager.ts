@@ -107,6 +107,9 @@ export const HAND_OFFSETS = {
   left: -12, // Left side of screen
 };
 
+/** The gun's scale for each cl_gunsize: normal, small and smallest. */
+const GUN_SIZES = [1, 0.9, 0.8];
+
 export const DEFAULT_POSITIONS: Record<string, WeaponPosition> = {
   hip: {
     // Right hand, lower on screen (right=12, down=25, forward=19)
@@ -449,6 +452,7 @@ export class WeaponViewManager {
   // CVar tracking for live updates
   private lastHandedness: number = 1;
   private lastWeaponFov: number = 60;
+  private lastDrawGun = true;
   /** The weapon position override CVars last applied, as `x,y,z,scale`. */
   private _lastWepKey: string | undefined;
   private cvarCheckTimer: number = 0;
@@ -1294,7 +1298,7 @@ export class WeaponViewManager {
 
     // Re-apply sticky visibility — a weapon loaded while the view is hidden
     // (e.g. the death reset to blade) must stay hidden until setVisible(true).
-    this.currentWeapon.root.setEnabled(this._visible && !this.holsterAnim.isFullyHolstered);
+    this.currentWeapon.root.setEnabled(this.gunDrawn());
 
     // Set rendering group and layer mask for each mesh
     // - renderingGroupId 1: renders after world with depth cleared
@@ -1412,7 +1416,42 @@ export class WeaponViewManager {
   }
 
   private applyVisibility(): void {
-    this.currentWeapon?.root.setEnabled(this._visible && !this.holsterAnim.isFullyHolstered);
+    this.currentWeapon?.root.setEnabled(this.gunDrawn());
+  }
+
+  /**
+   * Draw the whole first-person view smaller for cl_gunsize, shrinking it into
+   * the bottom corner of the screen on the gun's side, at the gun's depth, so
+   * the gun stays where it meets the screen edge. Aiming down sights grows it
+   * back to full size, so the sights stay on the centre of the screen.
+   */
+  private applyGunSize(setting: number): void {
+    const view = this.weaponRoot;
+    const camera = this.weaponCamera;
+    if (!view || !camera || !this.scene) return;
+    const size = GUN_SIZES[setting] ?? 1;
+    const scale = size + (1 - size) * this.adsProgress;
+    if (scale === 1) {
+      view.scaling.setAll(1);
+      view.position.setAll(0);
+      return;
+    }
+    const base = this.effectiveBasePosition;
+    const halfHeight = Math.tan(camera.fov / 2) * base.z;
+    const halfWidth = halfHeight * this.scene.getEngine().getAspectRatio(camera);
+    const pull = 1 - scale;
+    view.scaling.setAll(scale);
+    view.position.set(Math.sign(base.x) * halfWidth * pull, -halfHeight * pull, base.z * pull);
+  }
+
+  /** Whether the gun is drawn: shown, not stowed, and not turned off with cl_gun 0. */
+  private gunDrawn(): boolean {
+    if (!this._visible || this.holsterAnim.isFullyHolstered) return false;
+    try {
+      return MovementVars.getInstance().get("cl_gun") > 0;
+    } catch {
+      return true;
+    }
   }
 
   /**
@@ -1869,6 +1908,8 @@ export class WeaponViewManager {
     const adsY = (adsTargetY - basePos.y) * this.adsProgress; // Delta from base
     const adsZ = (adsTargetZ - basePos.z) * this.adsProgress; // Delta from base
 
+    this.applyGunSize(mv.get("cl_gunsize"));
+
     // === Blade charge effects (delegated) ===
     const isBladeCharging = !!(aiming && this.currentWeaponDef?.meleeRadius);
     const chargeResult = this.weaponCharge.update(
@@ -1982,6 +2023,12 @@ export class WeaponViewManager {
       if (wepKey !== this._lastWepKey) {
         this._lastWepKey = wepKey;
         this.applyPosition(this.currentPosition);
+      }
+
+      const drawGun = mv.get("cl_gun") > 0;
+      if (drawGun !== this.lastDrawGun) {
+        this.lastDrawGun = drawGun;
+        this.applyVisibility();
       }
 
       // Check weapon FOV

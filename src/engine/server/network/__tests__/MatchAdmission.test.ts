@@ -61,7 +61,7 @@ describe("match admission", () => {
     expect(gate.consume(ticket, 1201)).toBeNull();
   });
 
-  it("releases a time-gated fallback only for an unplayed logical seat", () => {
+  it("lets the recovery ticket claim an unplayed seat, or take back a played one, until it expires", () => {
     const { manifest, tickets, recoveryTickets } = issueMatchAdmission(
       "match-recovery",
       [{ lobbyPlayerId: "p1", accountId: 12, name: "Alice", team: "udon", isBot: false }],
@@ -72,22 +72,23 @@ describe("match admission", () => {
     const first = tickets.get("p1")!;
     const fallback = recoveryTickets.get(12)!.ticket;
     expect(JSON.stringify(manifest)).not.toContain(fallback);
-    const gate = new MatchAdmission(manifest);
-    expect(gate.consume(fallback, 1199)).toBeNull();
-    const firstGrant = gate.consume(first, 1199)!;
-    expect(gate.consume(fallback, 1200)).toBeNull();
-    expect(gate.releaseUnplayed(firstGrant, 1201)).toBe(false); // expiry prevents replay, but frees the seat
-    expect(gate.consume(first, 1201)).toBeNull();
-    const recovered = gate.consume(fallback, 1201)!;
-    expect(recovered).toMatchObject({ accountId: 12, name: "Alice", team: "udon" });
-    expect(gate.releaseUnplayed(firstGrant, 1202)).toBe(false); // stale release cannot clear a newer claim
-    expect(gate.consume(fallback, 1202)).toBeNull();
-    expect(gate.releaseUnplayed(recovered, 1203)).toBe(true);
-    expect(gate.consume(fallback, 3001)).toBeNull();
 
+    // Nobody took the seat: the recovery ticket claims it, from the start
+    const unplayed = new MatchAdmission(manifest);
+    expect(unplayed.reclaim(fallback, 1100)).toBeNull();
+    const recovered = unplayed.consume(fallback, 1100)!;
+    expect(recovered).toMatchObject({ accountId: 12, name: "Alice", team: "udon", recovery: true });
+    expect(unplayed.consume(first, 1100)).toBeNull(); // one claim per seat
+
+    // The seat was played: the recovery ticket names it again, as often as asked
     const played = new MatchAdmission(manifest);
-    expect(played.consume(first, 1100)).not.toBeNull();
-    expect(played.consume(fallback, 1201)).toBeNull(); // no pre-game release after JoinGame
+    const firstGrant = played.consume(first, 1100)!;
+    expect(played.consume(fallback, 1201)).toBeNull();
+    expect(played.reclaim(first, 1150)).toBeNull(); // only the recovery ticket
+    expect(played.reclaim("wrong", 1150)).toBeNull();
+    expect(played.reclaim(fallback, 1500)?.seatId).toBe(firstGrant.seatId);
+    expect(played.reclaim(fallback, 2500)?.seatId).toBe(firstGrant.seatId);
+    expect(played.reclaim(fallback, 3001)).toBeNull();
   });
 });
 
@@ -106,7 +107,7 @@ describe("drop-in seats", () => {
     expect(manifest.grants).toEqual(expect.arrayContaining(seat.grants));
     expect(gate.consume(seat.ticket, 50_100)).toMatchObject({ accountId: 30, name: "Bob", team: "soba" });
     expect(gate.consume(seat.ticket, 50_100)).toBeNull();
-    expect(seat.recovery).toMatchObject({ availableAt: 50_200, expiresAt: 55_000 });
+    expect(seat.recovery).toMatchObject({ expiresAt: 55_000 });
   });
 
   it("lets a drop-in ticket expire like any other", () => {
