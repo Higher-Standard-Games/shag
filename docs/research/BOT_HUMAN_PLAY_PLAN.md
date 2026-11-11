@@ -205,3 +205,74 @@ working session; phase 1.3 is the delicate part.
    commands.
 2. **Nav caches may rebuild** once when node positions and costs change.
 3. **Speed scales with difficulty.**
+
+## Progress
+
+### 2026-11-12 — phase 0 and phase 1.1–1.2 done
+
+- `bot:motion` reports, out of a fight and running: clearance from walls
+  (median, within 8 u and 24 u, by brain state), how often wall avoidance
+  steers, running speed, and the map cells where bots run closest to walls.
+- Floor nodes are moved up to 64 u off walls toward 48 u of clearance, staying
+  on their floor and walkable from where they were sampled. Straight walk
+  edges cost up to 0.6 extra per unit of run that touches a wall. Both are in
+  `BOT_NAV_MOVEMENT_FINGERPRINT`, so caches rebuild.
+
+Two 120 s runs each, 4 medium bots:
+
+| | dm1 within 24 u | dm2 within 24 u | dm2 wall avoidance steering |
+| --- | --- | --- | --- |
+| Before | 21–25% | 19–20% | 24–27% |
+| After | 19–22% | 17% | 20–23% |
+
+A small gain, as expected: the bot still runs straight at each waypoint and
+turns for the next one 100 u before it, so it still takes the inside of the
+corner. Speed, pickups and deaths did not change.
+
+The dm1 cell at (-640, -640) is a plasmagun in an alcove with a spawn point
+and a teleporter exit beside it. Running close to walls there is the room's
+shape, not a fault.
+
+### 2026-11-12 — player keys and steering by view: tried, not yet better
+
+Kept out of the branch on the local fps branch `bot/player-keys-wip` until
+it beats the numbers above. What it does:
+
+- `PlayerKeys.asPlayerKeys` turns each decision into the keys a player could
+  press for the view sent. A bot running where it looks holds forward while
+  the wanted heading is within 67.5° of the view, and moves along the view.
+  A bot with a heading of its own presses the nearest of eight directions and
+  loses sprint off plain forward. Scripts stay exact.
+- Route steering aims the view, and with it the movement, at a point 200,
+  100 or 50 u along the route from the bot's projection onto it, pushed off
+  walls closer than 48 u, with a wide-lane sweep first.
+- The open-space look became glances: about every 2 s, 0.32 s, at most 45°.
+- Route turns out of a fight skip the aim's reaction wait (`planned` in
+  `BotAimController.step`).
+
+Last measurement (two 120 s runs each):
+
+| | dm1 within 24 u | dm2 within 24 u | flip-backs dm1 / dm2 | speed dm1 / dm2 |
+| --- | --- | --- | --- | --- |
+| Phase 1.1–1.2 | 19–22% | 17% | about 13–17 | 400 / 402 |
+| Player keys + steering | 27–28% | 20–23% | 31–34 / 18–19 | 376–388 / 403 |
+
+What went wrong along the way:
+
+1. Snapping to eight directions while the view trails a turn pressed
+   diagonals and cost sprint: speed fell to about 340 u/s. Holding forward
+   for a bot running where it looks brought it back.
+2. Measuring the steer point from the next waypoint pulled a bot that had run
+   past it back round. Measuring from the bot's projection onto the route
+   fixed that.
+3. About 35–41% of roaming commands wanted a view more than 67° from the one
+   sent. The reaction wait on route turns was much of it; skipping it brought
+   that to about 22%.
+4. Pursuing a point ahead still cuts inside corners, and the wanted view still
+   jumps when the steer point falls back to a shorter distance. Hugging and
+   flip-backs stay above the baseline.
+
+Next: record paths near the worst cells (position, wanted and sent view,
+keys, steer distance chosen) to see where the view jumps and how corners are
+cut, then design corner handling: slow the look-ahead into a turn and pick
+the turn-in point, instead of a fixed distance.
