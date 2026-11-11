@@ -600,8 +600,9 @@ the bot service selects gametype, role and round-state policy from
 
 The Washoi bot application lives in `src/games/fps/bot/`, with startup at
 `src/games/fps/cli/bot-server.ts`. Its development tools also live in that game's
-`cli/`: `bot-analyze.ts`, `bot-learn.ts`, `bot-train.ts` and `bot-bench.ts`.
-Run their `bot:analyze`, `bot:learn`, `bot:train` and `bot:bench` npm commands
+`cli/`: `bot-analyze.ts`, `bot-learn.ts`, `bot-train.ts`, `bot-bench.ts` and
+`bot-motion.ts`. Run their `bot:analyze`, `bot:learn`, `bot:train`, `bot:bench`
+and `bot:motion` npm commands
 from the assembled root; model, route and report paths resolve from that cwd.
 
 Bot clients play over the same protocol as a browser and are bound by the same rules:
