@@ -6,7 +6,8 @@ All notable changes to this project are documented in version-specific files.
 
 | Version | Date | Summary |
 |---------|------|---------|
-| [v1.0.0-beta.11](./v1.0.0-beta.11.md) | unreleased | Living changelog for the next beta cycle |
+| [v1.0.0-beta.12](./v1.0.0-beta.12.md) | unreleased | Living changelog for the next beta cycle |
+| [v1.0.0-beta.11](./v1.0.0-beta.11.md) | Nov 12, 2026 | One leaderboard per mode that counts every match, public, private and against bots, with bots at fixed strengths by difficulty; native match settings no longer open behind the lobby |
 | [v1.0.0-beta.10.1](./v1.0.0-beta.10.1.md) | Nov 12, 2026 | Point release: free-for-all matches run their full ten minutes, with no score limit |
 | [v1.0.0-beta.10](./v1.0.0-beta.10.md) | Nov 12, 2026 | Bots that move more like players: route lines planned clear of walls, steadier views, shooting only once aimed, weapon swaps after slow shots and better item runs; a score-ordered FFA result screen, r_wireframe again, and a Windows installer and Linux AppImage for the native client |
 | [v1.0.0-beta.9.1](./v1.0.0-beta.9.1.md) | Nov 11, 2026 | Point release: third-person weapons no longer go missing in demos and highlights, video export and a second demo no longer time out loading the map, and a welcome guide styled as a wizard |
