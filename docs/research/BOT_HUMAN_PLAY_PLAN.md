@@ -325,3 +325,43 @@ when the bot is knocked off it. The view leads along the line and the keys
 follow as now. The work is in the path planner, not in each decision, and
 can be tested offline: draw the smoothed lines for every spawn-to-item route
 on a map and check their clearance before any match is run.
+
+### 2026-11-12 — route lines planned once: done, and better
+
+Built on `bot/human-movement` with the committed movement (not the player
+keys), so it could be measured against the same baseline.
+
+Found on the way, with the offline check (`bot:routes`):
+
+- **About 40% of walk edges were not straight.** 192 of 487 on dm2, 288 of
+  711 on dm1: walks the graph's flood found round a doorway or down a ledge,
+  kept as two nodes, which bots ran straight between into the wall. The flood
+  now records the way it walked (`FloodPosition.previous`) and the edge keeps
+  its string-pulled corners (`NavEdge.via`), which a path expands into plain
+  walk steps.
+- **The straight walk test passed ledges.** It swept the hull along the line
+  between the two ends, which rises over a 30-unit ledge; it now also needs
+  the floor under the line to rise a step (18) at a time.
+- Lines built once per walking stretch (`RouteLine`) with those corners:
+  within 24 u of a wall on 4–5% of their length, against 22–25% node to
+  node. Followed 64 u ahead at 300°/s by a runner using the game's movement:
+  6–10%, against 22–28%.
+- In the brain: the line ends only when the bot stands at its end on the
+  same floor. Measuring flat let a bot on the floor above the end take the
+  next step, an exact approach to the dm1 plasmagun below, and run at it
+  through the upper floor's walls.
+
+Two 120 s runs each, 4 medium bots:
+
+| | dm1 within 24 u | dm1 within 8 u | dm2 within 24 u | dm2 within 8 u | wall avoidance steering |
+| --- | --- | --- | --- | --- | --- |
+| 6287396 | 19–22% | 11–13% | 17–20% | 7–8% | 23–37% |
+| Route lines | 11% | 5–6% | 9–12% | 4–5% | 2–4% |
+
+Flip-backs, speed, pickups and deaths stayed level; view turning and
+reversals were slightly lower. dm1 still time is about 15% (12–13%
+before), most of it bots settling on learned trick marks.
+
+Next: the player keys on `bot/player-keys-wip` can now steer the view along
+these lines instead of the per-decision fallbacks that failed; then phase 2
+(strafe jumps on open stretches) can use the lines' straight runs.
