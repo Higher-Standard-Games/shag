@@ -573,3 +573,54 @@ Phase A is independent work and can be done in any order; BS-1 first so that
 the rest has targets. Phases B and C are the strategy layer for Duel, then
 FFA. BS-13 and BS-14 do not depend on the strategy layer and can be taken
 whenever there is room.
+
+## Progress
+
+### 2026-11-12 — BS-1: people measured
+
+`bot:demo-motion` (fps `bot/MotionStats.ts`, `cli/bot-demo-motion.ts`)
+measures every player in a demo by one code path; `bot:motion --keep-demo`
+keeps a headless match's demo for it.
+
+People: 121 minutes alive from 45 recorded matches with recorded inputs,
+mostly people against bots in Duel on dm5 and dm11 (old names `wfdm5`,
+`wfdm11`), October and November. Bots now: 180 s headless runs on the
+committed code, `washoi_dm5` Duel at medium and hard, `washoi_dm2` FFA with 4
+medium bots.
+
+| Measure | People | Bots: dm5 Duel medium | dm5 Duel hard | dm2 FFA medium |
+| --- | --- | --- | --- | --- |
+| Running speed, median | 399 u/s | 390 | 400 | 406 |
+| Running over 450 u/s | 17% | 9% | 12% | 15% |
+| Running airborne | 42% | 22% | 26% | 28% |
+| Within 24 u of a wall, running | 10% | 7% | 12% | 14% |
+| Within 8 u of a wall, running | 4% | 3% | 6% | 5% |
+| Pitch running, median | 11.1° | 0.3° | 0.1° | 0.7° |
+| View turning out of a fight | 35°/s | 110 | 145 | 115 |
+| Turn reversals per minute | 21 | 49 | 62 | 41 |
+| Flicks per minute | 14 | 41 | 67 | 44 |
+| Flick size, median | 49° | 46° | 87° | 55° |
+| Flicks ending in a correction | 18% | 19% | 21% | 10% |
+| Take-offs per running minute | 76 | 57 | 53 | 77 |
+| Take-offs chained from a landing | 42% | 40% | 36% | 26% |
+
+What it says:
+
+- **The view is the biggest tell.** Out of a fight bots turn three to four
+  times as fast as people, reverse two to three times as often and flick three
+  to five times as often. People mostly look where they go and turn when they
+  have a reason. This moves BS-5 (aim) and the glance work up: calming the
+  view out of a fight is the largest single gap.
+- **Bots run with the view dead level; people look about 11° down** (pitch
+  positive is down). People watch the floor ahead and the item they run to.
+- **People are in the air more while running** (42% against 22–28%) and
+  reach over 450 u/s more often: hop chains and strafe jumps (BS-13).
+- **Walls are solved.** Bots run within 24 u of a wall as often as people do
+  (7–14% against 10%), so the old target of under 8% would have been less
+  than people manage. No more wall work is needed.
+- **Speed in a straight line is already human**: the medians match.
+
+Caveats: the people are a few players against bots, on two maps; "still" for
+people includes warmup and countdown, so it is left out of the table. The
+October demos were recorded against older bots, which do not enter the
+people column.
