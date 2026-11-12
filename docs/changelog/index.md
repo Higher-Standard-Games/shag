@@ -6,7 +6,8 @@ All notable changes to this project are documented in version-specific files.
 
 | Version | Date | Summary |
 |---------|------|---------|
-| [v1.0.0-beta.10](./v1.0.0-beta.10.md) | unreleased | Living changelog for the next beta cycle |
+| [v1.0.0-beta.11](./v1.0.0-beta.11.md) | unreleased | Living changelog for the next beta cycle |
+| [v1.0.0-beta.10](./v1.0.0-beta.10.md) | Nov 12, 2026 | Bots that move more like players: route lines planned clear of walls, steadier views, shooting only once aimed, weapon swaps after slow shots and better item runs; a score-ordered FFA result screen, r_wireframe again, and a Windows installer and Linux AppImage for the native client |
 | [v1.0.0-beta.9.1](./v1.0.0-beta.9.1.md) | Nov 11, 2026 | Point release: third-person weapons no longer go missing in demos and highlights, video export and a second demo no longer time out loading the map, and a welcome guide styled as a wizard |
 | [v1.0.0-beta.9](./v1.0.0-beta.9.md) | Nov 10, 2026 | Five player bodies with matching voices, a random enemy model and white enemies, packaged item models with a spinning Quad, timeouts, rejoining a played seat with its score, map gametype keys on items, gun size, the new app icon, and bot routes on DM1 and DM3 |
 | [v1.0.0-beta.8](./v1.0.0-beta.8.md) | Nov 8, 2026 | Browser highlight video export with OST music, smooth local Voltaic beams, DM1/DM3 and refreshed DM5/DM7, animated shaders, door decals and jumppad fixes |
