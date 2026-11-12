@@ -38,9 +38,11 @@ export interface FloodTrigger {
   dest: FloodVec3;
 }
 
-/** A reached standing position and the distance travelled to it. */
+/** A reached standing position, the distance travelled to it, and the position it was reached from. */
 export interface FloodPosition extends FloodVec3 {
   distance: number;
+  /** Absent at the start. Following these back gives the way walked. */
+  previous?: FloodPosition;
 }
 
 export interface WalkFloodOptions {
@@ -103,12 +105,12 @@ export function walkFlood(world: FloodWorld, start: FloodVec3, options: WalkFloo
   const queue = [first];
   const move = (from: FloodVec3, dir: { x: number; z: number }) =>
     world.stepSlideMove(from, { x: dir.x * step * 8, y: 0, z: dir.z * step * 8 }, 1 / 8, PLAYER_HULL).endPos;
-  const visit = (landed: FloodVec3, distance: number) => {
+  const visit = (landed: FloodVec3, distance: number, previous: FloodPosition) => {
     if (Math.hypot(landed.x - first.x, landed.z - first.z) > radius) return;
     const k = key(landed);
     if (seen.has(k)) return;
     seen.add(k);
-    const position = { ...landed, distance };
+    const position: FloodPosition = { ...landed, distance, previous };
     reached.push(position);
     queue.push(position);
   };
@@ -118,7 +120,7 @@ export function walkFlood(world: FloodWorld, start: FloodVec3, options: WalkFloo
     for (const trigger of triggers) {
       if (!touches(p, trigger)) continue;
       const arrived = settle(world, trigger.dest);
-      if (arrived) visit(arrived, p.distance);
+      if (arrived) visit(arrived, p.distance, p);
     }
     for (const dir of DIRECTIONS) {
       let end = move(p, dir);
@@ -140,7 +142,7 @@ export function walkFlood(world: FloodWorld, start: FloodVec3, options: WalkFloo
       // The movement step can stair-step a further 18 units at the apex; count
       // only landings within jump height, so the flood never overstates.
       if (hopped && landed.y - p.y > hop) continue;
-      visit(landed, p.distance + moved);
+      visit(landed, p.distance + moved, p);
     }
   }
   return reached;

@@ -14,6 +14,11 @@ The `render` inspection/import command requires it too. Direct cvar writes and
 config imports enforce the same policy. Production browser builds use authored
 defaults for developer-only variables even if older preferences contain overrides.
 
+A live change reaches post-processing at once. The walk over scene materials
+that applies material, lighting and debug variables (`r_normalmap`,
+`r_wireframe`, `r_showtris`, ...) runs only with `developer 1`; other variables
+take effect where their own systems read them.
+
 ## Current groups
 
 | Category | Representative variables |
@@ -23,6 +28,12 @@ defaults for developer-only variables even if older preferences contain override
 | Display | `r_renderer`, `r_bsp_freeze`, `r_ssr`, `r_softhalos`, `r_glow`, `r_bloom`, `r_exposure`, `r_contrast`, `r_renderscale`, `r_msaa`, `r_marks`, `r_gibs`, `r_teleport_ghost` |
 | Lighting | `r_ambient`, `r_lightintensity`, `r_lightmapscale`, `r_dynamiclight`, god-ray, area-light, and day/night groups |
 | Debug | `r_wireframe`, `r_showtris`, `r_water_debug` |
+
+`r_wireframe 1` draws standard and PBR materials (the map and models) as
+wireframe; turning it off
+gives each material back its own fill mode. `r_showtris 1` sets the scene-wide
+wireframe that `debug wireframe` also toggles. A map viewed from outside its
+walls needs `pvs off` as well, or visibility culling hides it.
 
 The defaults use bloom off (`r_bloom 0`) and 4× anisotropic filtering
 (`r_anisotropy 4`), matching Washoi's Balanced preset. Zero bloom intensity

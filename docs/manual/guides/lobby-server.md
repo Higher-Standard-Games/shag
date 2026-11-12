@@ -600,8 +600,9 @@ the bot service selects gametype, role and round-state policy from
 
 The Washoi bot application lives in `src/games/fps/bot/`, with startup at
 `src/games/fps/cli/bot-server.ts`. Its development tools also live in that game's
-`cli/`: `bot-analyze.ts`, `bot-learn.ts`, `bot-train.ts` and `bot-bench.ts`.
-Run their `bot:analyze`, `bot:learn`, `bot:train` and `bot:bench` npm commands
+`cli/`: `bot-analyze.ts`, `bot-learn.ts`, `bot-train.ts`, `bot-bench.ts` and
+`bot-motion.ts`. Run their `bot:analyze`, `bot:learn`, `bot:train`, `bot:bench`
+and `bot:motion` npm commands
 from the assembled root; model, route and report paths resolve from that cwd.
 
 Bot clients play over the same protocol as a browser and are bound by the same rules:
@@ -615,6 +616,10 @@ Bot clients play over the same protocol as a browser and are bound by the same r
   pain, pickups). Item state is what the bot saw or heard; a heard pickup is
   timed at its `itemTimingSkill`. Sound ranges are the same at every
   difficulty.
+- **Firing.** The fire button is sent only once the view sent is within 12° of
+  where the brain aims, and stays down until it is 25° off, so a bot turning to
+  an enemy behind it shoots when it has turned. Alt-fire (sights, the blade's
+  charge) is not held back.
 - **Pursuit.** Fresh sound tracks immediately supply a chase target. Prediction
   and memory durations use the 125 Hz physics clock. Hearing can prompt a
   line-of-sight check behind the bot; it still respects the notice delay and
@@ -637,8 +642,11 @@ Bot clients play over the same protocol as a browser and are bound by the same r
   their elevation when fighting or tracking an opponent below. Timed-item
   waits use nearby patrols rather than standing at the pickup.
 - **Recovery.** Navigation without position progress for two seconds abandons
-  the approach, temporarily avoids the failed edge or pickup, and tries a
-  supported escape direction. A motionless airborne hang also crouches to
+  the approach, temporarily avoids the failed edge and pickup, and tries a
+  supported escape direction. A missed jump, a failed trick or an unsafe drop
+  avoids only that edge, for 5 s, doubling with each further failure of the
+  same edge up to 40 s; the item stays the goal and the next route goes
+  another way. A motionless airborne hang also crouches to
   release a ledge grab. Objective holds, including planting and defusing,
   retain their required stationary input.
 - **Ledge boosts.** Skilled bots can slide toward a route's ledge and jump

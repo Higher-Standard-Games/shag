@@ -50,6 +50,21 @@ describe("walkFlood", () => {
     expect(far.distance).toBeGreaterThanOrEqual(Math.hypot(far.x - 50, far.z) - 1);
   });
 
+  it("keeps the way walked: each position leads back to the start", () => {
+    const w = world(() => 0);
+    const reached = walkFlood(w, { x: 50, y: 24, z: 0 }, { radius: 200 });
+    const far = reached.reduce((a, b) => (b.distance > a.distance ? b : a));
+    let steps = 0;
+    let p = far;
+    while (p.previous) {
+      expect(p.previous.distance).toBeLessThan(p.distance);
+      p = p.previous;
+      steps++;
+    }
+    expect(p).toBe(reached[0]);
+    expect(steps).toBeGreaterThan(1);
+  });
+
   it("does not climb a ledge without hops", () => {
     const w = world((x) => (x >= 200 ? 40 : 0));
     expect(at(walkFlood(w, { x: 50, y: 24, z: 0 }), 300, 40)).toBe(false);

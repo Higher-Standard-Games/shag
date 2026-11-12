@@ -7,6 +7,7 @@
  * as config blocks.
  */
 
+import type { Material } from "@babylonjs/core/Materials/material";
 import { PBRMaterial } from "@babylonjs/core/Materials/PBR/pbrMaterial";
 import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
 import type { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh";
@@ -48,6 +49,21 @@ function getProp<T>(obj: object, key: string): T | undefined {
 /** Set a runtime property on a Babylon object (for untyped API access) */
 function setProp(obj: object, key: string, value: unknown): void {
   (obj as PropertyBag)[key] = value;
+}
+
+/**
+ * r_wireframe: force a material to wireframe, and give it back its own fill mode when turned off.
+ * The fill mode is kept rather than `wireframe`, which also reads true while scene.forceWireframe is on.
+ */
+function applyWireframe(mat: Material, on: boolean): void {
+  const own = getStashed<number>(mat, "_originalFillMode");
+  if (on) {
+    if (own === undefined) setStashed(mat, "_originalFillMode", mat.fillMode);
+    mat.wireframe = true;
+  } else if (own !== undefined) {
+    mat.fillMode = own;
+    deleteStashed(mat, "_originalFillMode");
+  }
 }
 
 // ==================== Types ====================
@@ -720,6 +736,8 @@ export class RenderVars {
 
   private vars: Map<string, RenderVar> = new Map();
   private scene: Scene | null = null;
+  /** The r_showtris value last written to the scene, so other changes leave forceWireframe alone. */
+  private appliedShowTris = false;
   private updateScheduled = false;
 
   /** Listeners for var changes */
@@ -851,8 +869,14 @@ export class RenderVars {
   /**
    * Set the active scene for applying material updates
    */
-  public setScene(scene: Scene): void {
+  public setScene(scene: Scene | null): void {
     this.scene = scene;
+    this.appliedShowTris = false;
+  }
+
+  /** Forget `scene` if it is the one live changes apply to (called when it is disposed). */
+  public clearScene(scene: Scene): void {
+    if (this.scene === scene) this.setScene(null);
   }
 
   // ==================== Get/Set ====================
@@ -1038,7 +1062,8 @@ export class RenderVars {
   // ==================== Live Updates ====================
 
   /**
-   * Schedule a material update (batched for performance)
+   * Schedule a material update (batched for performance). Live changes reach
+   * post-processing for everyone; the walk over scene materials needs developer 1.
    */
   private scheduleUpdate(): void {
     if (this.updateScheduled) return;
@@ -1046,7 +1071,7 @@ export class RenderVars {
 
     const apply = () => {
       this.updateScheduled = false;
-      this.applyToScene();
+      this.applyToScene(Cvar.getBool("developer"));
     };
     if (typeof requestAnimationFrame === "function") requestAnimationFrame(apply);
     else apply();
@@ -1057,9 +1082,9 @@ export class RenderVars {
   }
 
   /**
-   * Apply current vars to all scene materials
+   * Apply current vars to post-processing and, when `materials` is set, to all scene materials
    */
-  public applyToScene(): void {
+  public applyToScene(materials = true): void {
     const normalIntensity = this.get("r_normalmap") ?? 1.0;
     const glossIntensity = this.get("r_glossmap") ?? 1.0;
     const lightmapIntensity = this.get("r_lightmap") ?? 1.0;
@@ -1074,7 +1099,7 @@ export class RenderVars {
     const contrastMul = this.get("r_contrast") ?? 1.0;
     this.applyToPostProcessing(bloomMul, exposureMul, contrastMul);
 
-    if (!this.scene) return;
+    if (!this.scene || !materials) return;
 
     // Deduplicate: many meshes share the same material. Track processed materials to skip redundant work.
     const processedMaterials = new Set<number>();
@@ -1141,7 +1166,10 @@ export class RenderVars {
 
     // Force wireframe (r_showtris) - scene-level toggle
     const showTris = (this.get("r_showtris") ?? 0) >= 0.5;
-    this.scene.forceWireframe = showTris;
+    if (showTris !== this.appliedShowTris) {
+      this.scene.forceWireframe = showTris;
+      this.appliedShowTris = showTris;
+    }
   }
 
   private applyToMesh(
@@ -1163,7 +1191,7 @@ export class RenderVars {
     };
 
     if (mat instanceof StandardMaterial) {
-      setProp(mat, "wireframe", wireframe);
+      applyWireframe(mat, wireframe);
 
       const shouldApplyNormal = normalIntensity !== 1.0;
       const shouldApplyGloss = glossIntensity !== 1.0;
@@ -1260,7 +1288,7 @@ export class RenderVars {
       setAniso(getProp(mat, "lightmapTexture"));
       setAniso(getProp(mat, "emissiveTexture"));
     } else if (mat instanceof PBRMaterial) {
-      setProp(mat, "wireframe", wireframe);
+      applyWireframe(mat, wireframe);
 
       const shouldApplyNormal = normalIntensity !== 1.0;
       const shouldApplyGloss = glossIntensity !== 1.0;
