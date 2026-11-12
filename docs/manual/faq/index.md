@@ -59,9 +59,11 @@ See the [Lobby server guide](../guides/lobby-server.md).
 
 ## How do I change rendering settings?
 
-Individual variables apply immediately:
+Individual variables apply immediately (debug and material variables such as
+`r_wireframe` need `developer 1` first):
 
 ```text
+developer 1
 r_wireframe 1
 r_wireframe 0
 r_bloom 1.2

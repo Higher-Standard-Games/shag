@@ -551,4 +551,109 @@ describe("RenderVars", () => {
       expect(() => rv.set("r_normalmap", 2.0)).not.toThrow();
     });
   });
+
+  // ── Debug views ───────────────────────────────────────────
+
+  describe("debug views", () => {
+    function sceneWithMaterial() {
+      const engine = new NullEngine();
+      const scene = new Scene(engine);
+      const mesh = MeshBuilder.CreateBox("box", {}, scene);
+      const material = new StandardMaterial("mat", scene);
+      mesh.material = material;
+      return { engine, scene, material };
+    }
+
+    it("leaves scene materials alone on a live change without developer 1", () => {
+      const { engine, scene, material } = sceneWithMaterial();
+      try {
+        const rv = getRV();
+        rv.setScene(scene);
+        rv.set("r_wireframe", 1);
+        expect(material.wireframe).toBe(false);
+      } finally {
+        scene.dispose();
+        engine.dispose();
+      }
+    });
+
+    it("toggles r_wireframe live with developer 1 and gives materials back their own setting", () => {
+      const { engine, scene, material } = sceneWithMaterial();
+      const debugMesh = MeshBuilder.CreateBox("debug", {}, scene);
+      const debugMaterial = new StandardMaterial("debug", scene);
+      debugMaterial.wireframe = true;
+      debugMesh.material = debugMaterial;
+      try {
+        Cvar.register("developer", 1);
+        const rv = getRV();
+        rv.setScene(scene);
+        rv.set("r_wireframe", 1);
+        expect(material.wireframe).toBe(true);
+        expect(debugMaterial.wireframe).toBe(true);
+        rv.set("r_wireframe", 0);
+        expect(material.wireframe).toBe(false);
+        expect(debugMaterial.wireframe).toBe(true);
+      } finally {
+        scene.dispose();
+        engine.dispose();
+      }
+    });
+
+    it("restores a material's fill mode after r_wireframe while the scene forces wireframe", () => {
+      const { engine, scene, material } = sceneWithMaterial();
+      try {
+        Cvar.register("developer", 1);
+        const rv = getRV();
+        rv.setScene(scene);
+        scene.forceWireframe = true;
+        rv.set("r_wireframe", 1);
+        rv.set("r_wireframe", 0);
+        scene.forceWireframe = false;
+        expect(material.wireframe).toBe(false);
+      } finally {
+        scene.dispose();
+        engine.dispose();
+      }
+    });
+
+    it("forgets a disposed scene but not a newer one", () => {
+      const first = sceneWithMaterial();
+      const second = sceneWithMaterial();
+      try {
+        const rv = getRV();
+        rv.setScene(second.scene);
+        rv.clearScene(first.scene);
+        // biome-ignore lint/suspicious/noExplicitAny: reading private state
+        expect((rv as any).scene).toBe(second.scene);
+        rv.clearScene(second.scene);
+        // biome-ignore lint/suspicious/noExplicitAny: reading private state
+        expect((rv as any).scene).toBeNull();
+      } finally {
+        first.scene.dispose();
+        first.engine.dispose();
+        second.scene.dispose();
+        second.engine.dispose();
+      }
+    });
+
+    it("writes forceWireframe only when r_showtris changes", () => {
+      const { engine, scene } = sceneWithMaterial();
+      try {
+        Cvar.register("developer", 1);
+        const rv = getRV();
+        rv.setScene(scene);
+        rv.set("r_showtris", 1);
+        expect(scene.forceWireframe).toBe(true);
+        rv.set("r_showtris", 0);
+        expect(scene.forceWireframe).toBe(false);
+        // `debug wireframe` sets the scene directly; another r_* change must not undo it.
+        scene.forceWireframe = true;
+        rv.set("r_normalmap", 2);
+        expect(scene.forceWireframe).toBe(true);
+      } finally {
+        scene.dispose();
+        engine.dispose();
+      }
+    });
+  });
 });

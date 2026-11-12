@@ -50,6 +50,9 @@ export function createBrowserScene(engine: AbstractEngine): Scene {
 export async function initializeBrowserScene(scene: Scene, onStatus: (status: string) => void): Promise<void> {
   // Initialize texture systems
   TextureManager.getInstance().init(scene);
+  // Live r_* changes (r_wireframe, r_showtris and the developer material vars) apply to this scene
+  RenderVars.getInstance().setScene(scene);
+  scene.onDisposeObservable.addOnce(() => RenderVars.getInstance().clearScene(scene));
   // Initialize TextureMemoryManager with auto-detected quality
   const qualityDetector = QualityDetector.getInstance();
   const { quality, deviceInfo } = qualityDetector.detectQuality();
