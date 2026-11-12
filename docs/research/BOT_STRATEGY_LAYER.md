@@ -624,3 +624,45 @@ Caveats: the people are a few players against bots, on two maps; "still" for
 people includes warmup and countdown, so it is left out of the table. The
 October demos were recorded against older bots, which do not enter the
 people column.
+
+### 2026-11-13 — BS-5 first part: a calm view out of a fight
+
+Moved ahead of BS-2 to BS-4 because BS-1 put the view first. Two runs each of
+`washoi_dm2` FFA (4 medium, 150 s) and `washoi_dm5` Duel (2 medium, 180 s),
+against the BS-1 runs of the code before:
+
+| Measure | FFA before → after | Duel before → after | People |
+| --- | --- | --- | --- |
+| Turning out of a fight | 115 → 102°/s | 110 → 96 | 35 |
+| Turn reversals per minute | 41 → 30 | 49 → 28 | 21 |
+| Flicks per minute | 44 → 40 | 41 → 38 | 14 |
+| Pitch running | 0.7° → 9.0° | 0.3° → 9.2° | 11.1° |
+| Running within 24 u of a wall | 14% → 12% | 7% → 8% | 10% |
+
+Health and armor picked up and deaths stayed within run-to-run spread.
+
+What was found on the way, with a probe splitting the turning into the
+brain's wanted view, its travel heading, the view sent and the actual
+movement direction:
+
+- **People's movement weaves more than their view.** Their movement direction
+  turns 93°/s while running (air strafing); their view 35°/s. The view is a
+  steady intent with movement under it, not the movement.
+- **Bots' wanted view swings 150–500°/s out of a fight** while their actual
+  movement turns 65–110°/s. Turning off the open-space lean or the route
+  look-ahead changed little: most of it is the route itself (the route-line
+  steering point is 64 u ahead), replans after pickups, and in Duel goals
+  flipping between two items, which turned the bot back and forth on the
+  spot (130 view reversals a minute in Duel ITEM_RUN).
+- **Easing alone cannot hide a swinging goal.** With the goal eased at 0.6 s
+  and capped at 120°/s, the view sent still turned 66°/s in ITEM_RUN.
+- **Easing a turnaround is wrong.** With every turn eased, a bot whose new
+  route pointed behind it ran backwards for over a second while its view came
+  round. Turns over 90° now go the ordinary way (reaction, then a fast turn),
+  as people flick round.
+- Glances instead of a held lean made no measurable difference; they are
+  kept because watch points (BS-14) build on them.
+
+What is left, for later work orders: goals that flip between items (the
+strategy layer's commitment, BS-9), replans that turn the bot round, and
+flicks when an enemy comes into sight, which are reactions and partly right.
