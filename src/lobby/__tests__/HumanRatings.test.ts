@@ -8,7 +8,13 @@ import {
   signMatchResult,
   verifyMatchResult,
 } from "../../engine/server/network/MatchResultReport";
-import { conservativeScore, displayRating, isProvisional, type RatingMode } from "../../shared/ranking/RatingPolicy";
+import {
+  conservativeScore,
+  displayRating,
+  isProvisional,
+  RATING_POLICY,
+  type RatingMode,
+} from "../../shared/ranking/RatingPolicy";
 import { MatchResultStore } from "../MatchResultStore";
 import { PlayerStore } from "../PlayerStore";
 import type { ResultContext } from "../ResultSnapshot";
@@ -128,7 +134,7 @@ describe("signed human results to transactional skill", () => {
         });
         expect(page).toMatchObject({
           system: "trueskill",
-          policyVersion: "shag-trueskill-v1",
+          policyVersion: RATING_POLICY.version,
           total: 2,
           entries: [
             {
@@ -147,7 +153,9 @@ describe("signed human results to transactional skill", () => {
       }
       results.close();
       results = MatchResultStore.open(dir);
-      expect(results.ratings.verifyReplay()).toEqual({ consistent: true, matches: 2, updates: 4, ratings: 4 });
+      // Each pool's two updates, and Overall's four from both matches.
+      expect(results.ratings.verifyReplay()).toEqual({ consistent: true, matches: 2, updates: 8, ratings: 6 });
+      expect(results.ratings.getRating(ids[0], mode, "overall")?.state.ratedMatches).toBe(2);
       expect(results.ratings.getRating(ids[0], mode === "ffa" ? "duel" : "ffa", "public")).toBeNull();
     },
   );
@@ -161,7 +169,7 @@ describe("signed human results to transactional skill", () => {
     expect(states[0].sigma).toBeCloseTo(8.115, 2);
     for (const s of states.slice(0, 5)) expect(s).toEqual(states[0]);
     for (const s of states.slice(5)) expect(s).toEqual(states[5]);
-    expect(results.ratings.verifyReplay()).toEqual({ consistent: true, matches: 1, updates: 10, ratings: 10 });
+    expect(results.ratings.verifyReplay()).toEqual({ consistent: true, matches: 1, updates: 20, ratings: 20 });
   });
 
   it("retains each FFA placement and both tie groups for numerical updates", () => {
@@ -178,7 +186,7 @@ describe("signed human results to transactional skill", () => {
     expect(states[0].mu).toBeGreaterThan(states[2].mu);
     expect(states[2].mu).toBeGreaterThan(states[4].mu);
     expect(states.every((s) => s.ratedMatches === 1)).toBe(true);
-    expect(results.ratings.verifyReplay().updates).toBe(5);
+    expect(results.ratings.verifyReplay().updates).toBe(10);
     expect(
       results
         .leaderboard({ gametype: "ffa", scope: "private", period: "all", offset: 0, limit: 10, now })

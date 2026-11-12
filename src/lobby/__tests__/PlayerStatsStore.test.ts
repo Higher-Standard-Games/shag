@@ -140,7 +140,7 @@ describe("durable own-account gameplay stats", () => {
     results.close();
     sql.exec("DROP TABLE ranking_stats; UPDATE ranking_schema SET version = 1");
     results = MatchResultStore.open(dir);
-    expect(sql.prepare("SELECT version FROM ranking_schema").get()?.version).toBe(3);
+    expect(sql.prepare("SELECT version FROM ranking_schema").get()?.version).toBe(4);
     expect(results.ratings.verifyReplay().matches).toBe(1);
     expect(results.playerStats.summary(ids[0], query)).toMatchObject({ matches: 1, statsMatches: 0, totals: null });
     sql.exec("DROP TABLE ranking_stats");

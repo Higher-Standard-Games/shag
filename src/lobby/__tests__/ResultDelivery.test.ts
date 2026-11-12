@@ -144,7 +144,7 @@ describe("private durable result outbox", () => {
     expect(fs.existsSync(c.file)).toBe(false);
     expect(results.deliveries.has(c.report.matchId)).toBe(false);
     expect(results.deliveries.retryAll().delivered).toBe(0);
-    expect(results.ratings.verifyReplay()).toEqual({ consistent: true, matches: 1, updates: 2, ratings: 2 });
+    expect(results.ratings.verifyReplay()).toEqual({ consistent: true, matches: 1, updates: 4, ratings: 4 });
   });
   it("keeps a failed ingest for retry and acknowledges a committed duplicate after restart", () => {
     const c = prepare();
@@ -160,7 +160,7 @@ describe("private durable result outbox", () => {
     results.close();
     results = MatchResultStore.open(dir);
     expect(results.deliveries.retryAll().delivered).toBe(1);
-    expect(results.ratings.statistics()).toMatchObject({ receipts: 1, updates: 2 });
+    expect(results.ratings.statistics()).toMatchObject({ receipts: 1, updates: 4 });
   });
   it("rejects forged, off-roster and changed reports without deleting evidence", () => {
     const c = prepare();
@@ -245,7 +245,7 @@ describe("private durable result outbox", () => {
       results.close();
       results = MatchResultStore.open(dir);
       expect(results.deliveries.retryAll().delivered).toBe(1);
-      expect(results.ratings.verifyReplay().updates).toBe(2);
+      expect(results.ratings.verifyReplay().updates).toBe(4);
     } finally {
       child.stdout!.off("data", read);
       if (child.exitCode === null && child.signalCode === null) child.kill();

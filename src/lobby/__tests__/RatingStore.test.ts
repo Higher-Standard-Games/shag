@@ -130,7 +130,7 @@ describe("fresh transactional rating journal", () => {
 
   it("initializes empty tables and pins a separate ranking schema/policy without changing account user_version", () => {
     expect(sql.prepare("PRAGMA user_version").get()?.user_version).toBe(1);
-    expect(sql.prepare("SELECT version FROM ranking_schema WHERE id = 1").get()?.version).toBe(3);
+    expect(sql.prepare("SELECT version FROM ranking_schema WHERE id = 1").get()?.version).toBe(4);
     expect(JSON.parse(String(sql.prepare("SELECT parameters FROM ranking_policies").get()?.parameters))).toEqual(
       RATING_POLICY,
     );
@@ -148,7 +148,7 @@ describe("fresh transactional rating journal", () => {
       tableCount("match_participants"),
       tableCount("ratings"),
       tableCount("rating_updates"),
-    ]).toEqual([2, 2, 2, 2]);
+    ]).toEqual([2, 2, 4, 4]);
     const expected = rateMatch(
       "duel",
       groups().map((g) => ({
@@ -164,7 +164,7 @@ describe("fresh transactional rating journal", () => {
       expect(
         sql
           .prepare(
-            "SELECT before_mu, before_sigma, before_matches, after_mu, after_sigma, after_matches, before_score, after_score FROM rating_updates WHERE account_id = ?",
+            "SELECT before_mu, before_sigma, before_matches, after_mu, after_sigma, after_matches, before_score, after_score FROM rating_updates WHERE account_id = ? AND scope = 'public'",
           )
           .get(Number(update.playerId)),
       ).toEqual({
@@ -182,7 +182,7 @@ describe("fresh transactional rating journal", () => {
       { accountId: ids[0], wins: 1 },
       { accountId: ids[1], losses: 1 },
     ]);
-    expect(results.ratings.verifyReplay()).toEqual({ consistent: true, matches: 1, updates: 2, ratings: 2 });
+    expect(results.ratings.verifyReplay()).toEqual({ consistent: true, matches: 1, updates: 4, ratings: 4 });
   });
 
   it("treats reordered copies as duplicates, before and after reopening", () => {
@@ -200,7 +200,7 @@ describe("fresh transactional rating journal", () => {
     expect(results.ratings.ingest(copy)).toEqual({ ...first, status: "duplicate" });
     expect(results.ratings.ingest(match("second"), { status: "applied", groups: groups() }).sequence).toBe(2);
     expect(results.ratings.getRating(ids[0], "duel", "public")?.state.ratedMatches).toBe(2);
-    expect(results.ratings.verifyReplay().updates).toBe(4);
+    expect(results.ratings.verifyReplay().updates).toBe(8);
   });
 
   it.each(["scope", "map", "roster", "time"])(
@@ -295,7 +295,7 @@ describe("fresh transactional rating journal", () => {
     expect(child.status).not.toBe(0);
     reopen();
     expect(results.ratings.getRating(ids[0], "duel", "public")).toEqual(before);
-    expect(results.ratings.verifyReplay()).toEqual({ consistent: true, matches: 1, updates: 2, ratings: 2 });
+    expect(results.ratings.verifyReplay()).toEqual({ consistent: true, matches: 1, updates: 4, ratings: 4 });
     expect(results.ratings.ingest(match()).status).toBe("duplicate");
   });
 
@@ -313,7 +313,7 @@ describe("fresh transactional rating journal", () => {
       return prepare(query);
     });
     try {
-      expect(results.ratings.verifyReplay()).toEqual({ consistent: true, matches: 1, updates: 2, ratings: 2 });
+      expect(results.ratings.verifyReplay()).toEqual({ consistent: true, matches: 1, updates: 4, ratings: 4 });
     } finally {
       spy.mockRestore();
       writer.close();
@@ -366,8 +366,11 @@ describe("fresh transactional rating journal", () => {
         );
       }
     expect(results.ratings.getRating(ids[2], "duel", "private")).toBeNull();
+    // Overall rates every match of the mode, public and private alike.
+    expect(results.ratings.getRating(ids[0], "duel", "overall")?.state.ratedMatches).toBe(3);
+    expect(results.ratings.getRating(ids[0], "snd", "overall")?.state.ratedMatches).toBe(2);
     reopen();
-    expect(results.ratings.verifyReplay()).toEqual({ consistent: true, matches: 9, updates: 18, ratings: 16 });
+    expect(results.ratings.verifyReplay()).toEqual({ consistent: true, matches: 9, updates: 36, ratings: 24 });
   });
 
   it("retains an excluded human receipt without inventing skill, and duplicates cannot activate it", () => {
@@ -382,7 +385,7 @@ describe("fresh transactional rating journal", () => {
     expect(results.ratings.verifyReplay().matches).toBe(0);
   });
 
-  it("rates a private bot game against the bot's preset account, keeping the seat's snapshot", () => {
+  it("rates a private bot game against the preset's fixed strength, keeping the seat's snapshot", () => {
     const input = match("bot", "duel", "private");
     input.bots = 1;
     input.botReferenceChanged = false;
@@ -391,9 +394,11 @@ describe("fresh transactional rating journal", () => {
     input.startingRoster![0] = { accountId: null, isBot: true, team: "udon", botReference: botReference() };
     expect(results.ratings.ingest(input)).toMatchObject({ ratingStatus: "applied", ratingReason: "eligible" });
     expect(results.ratings.getResult("bot")?.snapshot.seats[0].accountId).toBeNull();
-    const bot = results.ratings.bots.get("medium");
-    expect(results.ratings.getRating(bot, "duel", "private")?.state.ratedMatches).toBe(1);
-    // Rated, but the board lists people only
+    // The bot plays at its preset's strength and is never rated itself.
+    expect(results.ratings.getRating(results.ratings.bots.get("medium"), "duel", "private")).toBeNull();
+    for (const pool of ["private", "overall"] as const)
+      expect(results.ratings.getRating(ids[1], "duel", pool)?.state.ratedMatches).toBe(1);
+    // Its record is kept, but the board lists people only
     expect(board("private").entries.map((e) => e.accountId)).toEqual([ids[1]]);
     expect(results.ratings.verifyReplay()).toMatchObject({ consistent: true, matches: 1, updates: 2 });
   });
@@ -513,11 +518,11 @@ describe("fresh transactional rating journal", () => {
     const before = sql.prepare("SELECT * FROM ranking_results").all();
     expect(RatingStore.inspect(dir, true)).toMatchObject({
       status: "ready",
-      version: 3,
+      version: 4,
       receipts: 1,
-      ratings: 2,
-      updates: 2,
-      replay: { consistent: true, matches: 1, updates: 2, ratings: 2 },
+      ratings: 4,
+      updates: 4,
+      replay: { consistent: true, matches: 1, updates: 4, ratings: 4 },
     });
     expect(sql.prepare("SELECT * FROM ranking_results").all()).toEqual(before);
     const missing = path.join(dir, "absent");

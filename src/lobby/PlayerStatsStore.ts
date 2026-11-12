@@ -3,11 +3,16 @@ import type { DatabaseSync } from "node:sqlite";
 import { canonicalMatchStats, type MatchStats } from "../shared/ranking/MatchStats";
 import { displayRating, isProvisional, RATING_POLICY, type RatingMode } from "../shared/ranking/RatingPolicy";
 import type { MatchResultStore } from "./MatchResultStore";
-import type { RankingScope } from "./types";
+import type { RankingScope, RatingPool } from "./types";
+
+export const RATING_POOLS: readonly RatingPool[] = ["public", "private", "overall"];
+
+/** SQL matching a result's visibility to a pool; Overall matches both. Binds the pool twice. */
+export const POOL_MATCHES = (column: string) => `(? = 'overall' OR ${column} = ?)`;
 
 export interface StatsQuery {
   gametype: RatingMode;
-  scope: RankingScope;
+  scope: RatingPool;
   period: "all" | "month";
 }
 export interface StatsSummary extends StatsQuery {
@@ -25,6 +30,7 @@ export interface HistoryEntry {
   matchId: string;
   map: string;
   gametype: RatingMode;
+  /** The match's own visibility. */
   scope: RankingScope;
   startedAt: number;
   endedAt: number;
@@ -40,7 +46,7 @@ export interface HistoryEntry {
 }
 export interface HistoryPage {
   gametype: RatingMode;
-  scope: RankingScope;
+  scope: RatingPool;
   entries: HistoryEntry[];
   nextBeforeSequence: number | null;
 }
@@ -55,7 +61,7 @@ export class PlayerStatsStore {
       !Number.isSafeInteger(accountId) ||
       accountId < 1 ||
       !Object.keys(RATING_POLICY.drawProbability).includes(query.gametype) ||
-      !["public", "private"].includes(query.scope)
+      !RATING_POOLS.includes(query.scope)
     )
       throw new Error("Invalid player stats query");
   }
@@ -93,8 +99,8 @@ export class PlayerStatsStore {
         COUNT(CASE WHEN rr.rating_status = 'excluded' THEN 1 END) AS excluded, ${sums}
         FROM ranking_seats s JOIN ranking_results rr ON rr.sequence = s.sequence
         LEFT JOIN ranking_stats st ON st.sequence = s.sequence AND st.seat_id = s.seat_id
-        WHERE s.account_id = ? AND rr.gametype = ? AND rr.scope = ? AND rr.ended_at >= ? AND rr.ended_at <= ?`)
-        .get(accountId, query.gametype, query.scope, start, now)!;
+        WHERE s.account_id = ? AND rr.gametype = ? AND ${POOL_MATCHES("rr.scope")} AND rr.ended_at >= ? AND rr.ended_at <= ?`)
+        .get(accountId, query.gametype, query.scope, query.scope, start, now)!;
       const wins = Number(row.wins ?? 0),
         losses = Number(row.losses ?? 0),
         draws = Number(row.draws ?? 0);
@@ -154,9 +160,17 @@ export class PlayerStatsStore {
       .prepare(`SELECT rr.*, s.outcome, s.score, st.stats, u.before_mu, u.before_sigma, u.before_matches, u.after_mu, u.after_sigma, u.after_matches
       FROM ranking_results rr JOIN ranking_seats s ON s.sequence = rr.sequence
       LEFT JOIN ranking_stats st ON st.sequence = s.sequence AND st.seat_id = s.seat_id
-      LEFT JOIN rating_updates u ON u.sequence = rr.sequence AND u.account_id = s.account_id AND u.policy_version = rr.policy_version
-      WHERE s.account_id = ? AND rr.gametype = ? AND rr.scope = ? AND rr.sequence < ? ORDER BY rr.sequence DESC LIMIT ?`)
-      .all(accountId, query.gametype, query.scope, beforeSequence ?? Number.MAX_SAFE_INTEGER, limit + 1);
+      LEFT JOIN rating_updates u ON u.sequence = rr.sequence AND u.account_id = s.account_id AND u.scope = ? AND u.policy_version = rr.policy_version
+      WHERE s.account_id = ? AND rr.gametype = ? AND ${POOL_MATCHES("rr.scope")} AND rr.sequence < ? ORDER BY rr.sequence DESC LIMIT ?`)
+      .all(
+        query.scope,
+        accountId,
+        query.gametype,
+        query.scope,
+        query.scope,
+        beforeSequence ?? Number.MAX_SAFE_INTEGER,
+        limit + 1,
+      );
     const entries = rows.slice(0, limit).map((row) => {
       const snapshot = this.results.ratings.getResult(String(row.match_id))!.snapshot;
       let ratingChange: HistoryEntry["ratingChange"] = null;
@@ -179,7 +193,8 @@ export class PlayerStatsStore {
         sequence: Number(row.sequence),
         matchId: snapshot.matchId,
         map: snapshot.map,
-        ...query,
+        gametype: query.gametype,
+        scope: snapshot.scope,
         startedAt: snapshot.startedAt,
         endedAt: snapshot.endedAt,
         completion: snapshot.completion,

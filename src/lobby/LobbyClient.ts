@@ -18,6 +18,7 @@ import type {
   LeaderboardResponse,
   LobbyMessage,
   LobbyServerMessages,
+  RatingPool,
   SeatReissueResponse,
   SettingsDataMessage,
   SettingsErrorCode,
@@ -331,7 +332,7 @@ export class LobbyClient {
       period: "month" | "all";
       offset: number;
       limit: number;
-      scope?: "public" | "private";
+      scope?: RatingPool;
       system?: "trueskill";
     },
     timeoutMs = 10_000,
@@ -353,7 +354,7 @@ export class LobbyClient {
         this.on("leaderboard:page", (msg: LeaderboardResponse) => {
           if (msg.requestId !== requestId) return;
           finish(() => {
-            if (msg.scope !== (query.scope ?? "public")) reject(new Error("Leaderboard: ranking_scope_mismatch"));
+            if (msg.scope !== (query.scope ?? "overall")) reject(new Error("Leaderboard: ranking_scope_mismatch"));
             else if (query.system && msg.system !== query.system)
               reject(new Error("Leaderboard: ranking_system_mismatch"));
             else resolve(msg);

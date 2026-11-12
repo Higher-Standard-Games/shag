@@ -17,15 +17,17 @@ thing.
 - **The ranking journal** (`src/lobby/RatingStore.ts`) has its own
   `SCHEMA_VERSION` in the `ranking_schema` table. Opening an older supported
   version upgrades it in place; an unknown or partial schema fails rather than
-  resetting. Coming from below 3, the upgrade re-rates every stored result in
-  sequence order (`rerate()`), because the bot preset accounts changed who is
-  rated.
+  resetting. Coming from below 4, the upgrade re-rates every stored result in
+  sequence order (`rerate()`). Each result is rated in its own visibility's
+  pool (`public` or `private`) and in `overall`, the pool the client shows;
+  `rating_updates` is keyed by pool.
 - **Each result is stored as a normalized snapshot.** Ratings are derived from
   those snapshots, so they can always be replayed; the snapshots themselves are
   never rewritten.
 - **The numerical policy** is `RATING_POLICY` in `src/shared/ranking/RatingPolicy.ts`,
-  versioned (`shag-trueskill-v1`). Rating states carry the policy version; a
-  state from another policy is refused.
+  versioned (`shag-trueskill-v2`). Rating states carry the policy version; a
+  state from another policy is refused. Bot presets play at the fixed
+  strengths in `RATING_POLICY.botReferences` and are never rated.
 - **Who is rated** is decided by `MatchRatingGroups.ts` and
   `BotMatchRatingGroups.ts` in `src/shared/ranking/`; exclusions carry a stored
   reason (`bot_custom`, `bot_reference_changed`, …).
@@ -40,13 +42,19 @@ thing.
 | New query or column read from existing data | Tests on a copy of real data |
 | New table or column | Bump `SCHEMA_VERSION`, an additive upgrade from every supported older version, tests on a copy |
 | Who is rated, or how (groups, eligibility, bots) | Bump `SCHEMA_VERSION` and re-rate on upgrade, so stored history follows the new rule |
-| Any number in the rating maths | A **new policy version**, not an edit to `shag-trueskill-v1`, and a separate replay |
+| Any number in the rating maths (bot strengths included) | A **new policy version**, not an edit to the current one, and a replay |
 
 When bumping `SCHEMA_VERSION`, extend the list of versions the store accepts as
 upgradable, and update the tests that assert the version
 (`src/lobby/__tests__/RatingStore.test.ts`,
 `src/lobby/__tests__/PlayerStatsStore.test.ts`; search `ranking_schema` for
 others).
+
+The read-only `--ratings-info` and `--ratings-verify` refuse a store at an
+older schema (`unsupported_schema`), so after a schema bump they cannot inspect
+the copy *before* the upgrade. Read the before-counts with `node:sqlite`, then
+open the copy with `PlayerStore.open` and `MatchResultStore.open` (through
+`vite-node`) to run the upgrade, and verify after.
 
 ## Test on a copy of the real data
 

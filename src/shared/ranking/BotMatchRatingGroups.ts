@@ -10,13 +10,10 @@ import {
 export const BOT_ACCOUNT_PRESETS = ["easy", "medium", "hard", "insane"] as const;
 export type BotPreset = (typeof BOT_ACCOUNT_PRESETS)[number];
 
-/**
- * A second bot of a preset already seated: it plays at that preset account's
- * current rating and leaves it unchanged, since one account takes one seat.
- */
+/** A bot seat: it plays at its preset's fixed strength and is never updated. */
 export interface FixedBotBinding {
   seatId: string;
-  accountId: number;
+  preset: BotPreset;
 }
 export interface BotAccountRatingGroup extends AccountRatingGroup {
   bots?: FixedBotBinding[];
@@ -41,14 +38,11 @@ export function botPreset(reference: BotReference | undefined): BotPreset | null
 }
 
 /**
- * Rate a match with its bots standing for their preset accounts, under the
- * human participation rules. The first bot of each preset is that account; a
- * further one plays fixed at its rating under a temporary ID never saved.
+ * Rate a match with its bots at their presets' fixed strengths, under the
+ * human participation rules. Each bot takes a temporary ID, never saved, so
+ * the participation rules see it as a seat; only the people are updated.
  */
-export function botMatchRatingGroups(
-  input: BotMatchInput,
-  accountFor: (preset: BotPreset) => number,
-): BotGroupDecision {
+export function botMatchRatingGroups(input: BotMatchInput): BotGroupDecision {
   const initial = matchRatingGroups(input);
   if (initial.status === "applied" || initial.reason !== UNMAPPED_BOT_SEATS) return initial;
   const exclude = (reason: string) => ({ status: "excluded" as const, reason });
@@ -60,20 +54,12 @@ export function botMatchRatingGroups(
   const accounts = new Set(input.seats.flatMap((p) => (p.accountId === null ? [] : [p.accountId])));
   for (const p of input.startingRoster) if (p.accountId !== null) accounts.add(p.accountId);
   let next = Number.MAX_SAFE_INTEGER;
-  const seatedPresets = new Set<BotPreset>();
-  const fixedOf = new Map<number, number>();
+  const fixedOf = new Map<number, BotPreset>();
   const ids = originals.map((o) => {
-    const preset = botPreset(o.botReference)!;
-    const account = accountFor(preset);
-    if (!seatedPresets.has(preset) && !accounts.has(account)) {
-      seatedPresets.add(preset);
-      accounts.add(account);
-      return account;
-    }
     while (accounts.has(next)) next--;
     const temporary = next--;
     accounts.add(temporary);
-    fixedOf.set(temporary, account);
+    fixedOf.set(temporary, botPreset(o.botReference)!);
     return temporary;
   });
 
@@ -88,8 +74,7 @@ export function botMatchRatingGroups(
     if (!original) return p;
     used.add(original.i);
     const id = ids[original.i];
-    const fixed = fixedOf.get(id);
-    if (fixed !== undefined) bindings.set(id, { seatId: p.seatId, accountId: fixed });
+    bindings.set(id, { seatId: p.seatId, preset: fixedOf.get(id)! });
     return { ...p, accountId: id };
   });
   if (seats.some((p) => p.accountId === null)) return exclude("bot_reference_missing");

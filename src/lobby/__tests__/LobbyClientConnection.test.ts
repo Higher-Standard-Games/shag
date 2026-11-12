@@ -183,7 +183,7 @@ describe("LobbyClient connections", () => {
       data: JSON.stringify({
         type: "leaderboard:page",
         requestId: request.requestId,
-        scope: "public",
+        scope: "overall",
         entries: [],
         total: 0,
       }),
@@ -259,7 +259,7 @@ describe("LobbyClient connections", () => {
       data: JSON.stringify({
         type: "leaderboard:page",
         requestId: request.requestId,
-        scope: "public",
+        scope: "overall",
         entries: [],
         total: 0,
       }),

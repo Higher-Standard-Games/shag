@@ -285,14 +285,18 @@ export interface DevSpawnServerMessage extends LobbyMessage {
   trainingDemo?: string;
 }
 
+/** A match's lobby visibility. */
 export type RankingScope = "public" | "private";
+/** A rating pool: one visibility, or Overall, which rates every match. */
+export type RatingPool = RankingScope | "overall";
 
 /** Own-account only: the lobby supplies the authenticated account, never the request. */
 export interface PlayerStatsRequest extends LobbyMessage {
   type: "stats:get" | "stats:history";
   requestId: string;
   gametype: import("../shared/ranking/RatingPolicy").RatingMode;
-  scope: RankingScope;
+  /** Omitted means Overall. */
+  scope?: RatingPool;
   period?: "month" | "all";
   limit?: number;
   beforeSequence?: number;
@@ -301,7 +305,7 @@ export interface PlayerStatsResponse extends LobbyMessage {
   type: "stats:summary" | "stats:history_page";
   requestId: string;
   gametype: import("../shared/ranking/RatingPolicy").RatingMode;
-  scope: RankingScope;
+  scope: RatingPool;
   data: import("./PlayerStatsStore").StatsSummary | import("./PlayerStatsStore").HistoryPage;
 }
 
@@ -313,8 +317,8 @@ export interface LeaderboardRequest extends LobbyMessage {
   period: "month" | "all";
   offset: number;
   limit: number;
-  /** Omitted means public. Each board contains only its own lobby visibility. */
-  scope?: RankingScope;
+  /** Omitted means Overall, which counts every match; Public and Private count one visibility each. */
+  scope?: RatingPool;
   /** Older clients omit this and receive records. New clients explicitly request skill. */
   system?: "trueskill";
 }
@@ -330,7 +334,7 @@ export interface LeaderboardEntry {
   conservativeScore?: number;
   provisional?: boolean;
   ratedMatches?: number;
-  /** A bot preset's account, rated in the Private pools. */
+  /** A bot preset's account. Boards leave bots out. */
   bot?: boolean;
 }
 
@@ -339,7 +343,7 @@ export interface LeaderboardResponse extends LobbyMessage {
   requestId: string;
   gametype: string;
   period: "month" | "all";
-  scope: RankingScope;
+  scope: RatingPool;
   entries: LeaderboardEntry[];
   system?: "trueskill";
   policyVersion?: string;

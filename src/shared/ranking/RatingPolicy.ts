@@ -1,6 +1,6 @@
 /** Changing any numerical rule requires a new policy version and a separate replay. */
 export const RATING_POLICY = Object.freeze({
-  version: "shag-trueskill-v1",
+  version: "shag-trueskill-v2",
   implementation: "ts-trueskill@5.1.0",
   initialMu: 25,
   initialSigma: 25 / 3,
@@ -14,9 +14,25 @@ export const RATING_POLICY = Object.freeze({
   displayScale: 40,
   provisionalMinMatches: 10,
   provisionalMaxSigma: 25 / 6,
+  // Each bot preset plays at a fixed strength, a standard step apart around a
+  // new player's start; bot results move only the human ratings. A starting
+  // assumption, not a measured bot skill.
+  botReferences: Object.freeze({
+    easy: Object.freeze({ mu: 25 - 25 / 3, sigma: 25 / 9 }),
+    medium: Object.freeze({ mu: 25, sigma: 25 / 9 }),
+    hard: Object.freeze({ mu: 25 + 25 / 3, sigma: 25 / 9 }),
+    insane: Object.freeze({ mu: 25 + 50 / 3, sigma: 25 / 9 }),
+  }),
 });
 
 export type RatingMode = keyof typeof RATING_POLICY.drawProbability;
+export type BotReferencePreset = keyof typeof RATING_POLICY.botReferences;
+
+/** The fixed strength a bot preset is rated against. */
+export function botReferenceRating(preset: BotReferencePreset): RatingState {
+  const { mu, sigma } = RATING_POLICY.botReferences[preset];
+  return { policyVersion: RATING_POLICY.version, mu, sigma, ratedMatches: 0 };
+}
 
 export interface RatingState {
   readonly policyVersion: string;

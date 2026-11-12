@@ -156,7 +156,7 @@ rating update and exits non-zero if the replay diverges. `--results-recover`
 commits signed results still waiting in the result outbox. Standalone game and
 demo tools do not produce account-backed results. See
 [Lobby server](./lobby-server.md#diagnosing-empty-boards) for what each reports,
-and how bots are rated as their preset accounts in the Private pools.
+and how bots play at fixed preset strengths in the Private and Overall pools.
 
 ## Demos and anti-cheat tools
 

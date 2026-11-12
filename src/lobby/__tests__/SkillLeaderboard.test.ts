@@ -3,7 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { displayRating } from "../../shared/ranking/RatingPolicy";
+import { displayRating, RATING_POLICY } from "../../shared/ranking/RatingPolicy";
 import { GameServerSpawner } from "../GameServerSpawner";
 import { LobbyServer } from "../LobbyServer";
 import { MatchResultStore } from "../MatchResultStore";
@@ -127,10 +127,10 @@ describe("career skill ladder reads", () => {
       accountId: ids[0],
     };
     handler.handleMessage(player, query);
-    const state = results.ratings.getRating(ids[1], "duel", "public")!.state;
+    const state = results.ratings.getRating(ids[1], "duel", "overall")!.state;
     expect(sent.at(-1)).toMatchObject({
       system: "trueskill",
-      policyVersion: "shag-trueskill-v1",
+      policyVersion: RATING_POLICY.version,
       total: 2,
       localPlayerRank: 2,
       localPlayerEntry: { playerId: String(ids[1]), rating: displayRating(state), provisional: true, ratedMatches: 1 },

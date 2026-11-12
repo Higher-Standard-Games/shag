@@ -11,6 +11,7 @@ import {
 } from "../shared/ranking/BotMatchRatingGroups";
 import { rateWithFixedReferences } from "../shared/ranking/FixedReferenceRating";
 import {
+  botReferenceRating,
   conservativeScore,
   initialRating,
   RATING_POLICY,
@@ -20,9 +21,14 @@ import {
 import type { RatingUpdate } from "../shared/ranking/TrueSkillRating";
 import { BotAccountStore } from "./BotAccountStore";
 import { canonicalSnapshot, type RecordExclusionReason, type ResultSnapshot } from "./ResultSnapshot";
-import type { RankingScope } from "./types";
+import type { RatingPool } from "./types";
 
-const SCHEMA_VERSION = 3;
+const SCHEMA_VERSION = 4;
+
+/** Every result is rated in its own visibility's pool and in Overall. */
+function poolsOf(snapshot: ResultSnapshot): RatingPool[] {
+  return [snapshot.scope, "overall"];
+}
 
 export type { AccountRatingGroup } from "../shared/ranking/MatchRatingGroups";
 export type RatingDecision =
@@ -39,7 +45,7 @@ export interface ResultReceipt {
 export interface StoredRating {
   accountId: number;
   gametype: RatingMode;
-  scope: RankingScope;
+  scope: RatingPool;
   state: RatingState;
   lastSequence: number;
   endedAt: number;
@@ -60,7 +66,7 @@ function ratingOf(row: Record<string, unknown>): StoredRating {
   return {
     accountId: Number(row.account_id),
     gametype: String(row.gametype) as RatingMode,
-    scope: String(row.scope) as RankingScope,
+    scope: String(row.scope) as RatingPool,
     state: stateOf(row),
     lastSequence: Number(row.last_sequence),
     endedAt: Number(row.ended_at),
@@ -98,7 +104,7 @@ export class RatingStore {
       previous = Number(this.db.prepare("SELECT version FROM ranking_schema WHERE id = 1").get()?.version);
       if (
         !existing.some((row) => row.name === "ranking_schema") ||
-        ![1, 2, SCHEMA_VERSION].includes(previous) ||
+        ![1, 2, 3, SCHEMA_VERSION].includes(previous) ||
         existing.length !== 6
       ) {
         throw new Error("Unsupported or incomplete ranking schema; no automatic reset or legacy import");
@@ -108,6 +114,8 @@ export class RatingStore {
     }
     this.db.exec("BEGIN IMMEDIATE");
     try {
+      // Schema 4 keys each rating update by its pool; the re-rate below refills it.
+      if (previous < 4) this.db.exec("DROP TABLE IF EXISTS rating_updates");
       this.db.exec(`
         CREATE TABLE IF NOT EXISTS ranking_schema (id INTEGER PRIMARY KEY CHECK(id = 1), version INTEGER NOT NULL);
         CREATE TABLE IF NOT EXISTS ranking_policies (version TEXT PRIMARY KEY, parameters TEXT NOT NULL);
@@ -140,7 +148,7 @@ export class RatingStore {
           gametype TEXT NOT NULL, scope TEXT NOT NULL, policy_version TEXT NOT NULL REFERENCES ranking_policies(version),
           before_mu REAL NOT NULL, before_sigma REAL NOT NULL, before_matches INTEGER NOT NULL,
           after_mu REAL NOT NULL, after_sigma REAL NOT NULL, after_matches INTEGER NOT NULL,
-          before_score REAL NOT NULL, after_score REAL NOT NULL, PRIMARY KEY(sequence, account_id, policy_version)
+          before_score REAL NOT NULL, after_score REAL NOT NULL, PRIMARY KEY(sequence, account_id, scope, policy_version)
         );
         CREATE INDEX IF NOT EXISTS ranking_results_pool ON ranking_results(gametype, scope, sequence);
         CREATE INDEX IF NOT EXISTS rating_updates_pool ON rating_updates(gametype, scope, policy_version, sequence);
@@ -165,9 +173,9 @@ export class RatingStore {
       )
         throw new Error("Stored rating policy differs from the pinned implementation");
       this.bots.initialize();
-      // Schema 3 rates private bot games through preset accounts, where
-      // schema 2 waited for calibrated references: rate every result again.
-      if (previous < 3) this.rerate();
+      // Schema 4 adds the Overall pool and rates bots at their presets' fixed
+      // strengths: rate every result again.
+      if (previous < 4) this.rerate();
       this.db.exec("DROP TABLE IF EXISTS bot_calibrations");
       this.db.exec("COMMIT");
     } catch (error) {
@@ -230,7 +238,7 @@ export class RatingStore {
     };
   }
 
-  getRating(accountId: number, gametype: RatingMode, scope: RankingScope): StoredRating | null {
+  getRating(accountId: number, gametype: RatingMode, scope: RatingPool): StoredRating | null {
     const row = this.db
       .prepare("SELECT * FROM ratings WHERE account_id = ? AND gametype = ? AND scope = ? AND policy_version = ?")
       .get(accountId, gametype, scope, RATING_POLICY.version);
@@ -351,7 +359,7 @@ export class RatingStore {
       if (this.db.prepare("SELECT id FROM matches WHERE id = ?").get(snapshot.matchId)) {
         throw new Error("Existing record has no verified snapshot; historical import is unsupported");
       }
-      const plan: RatingDecision = decision ?? botMatchRatingGroups(snapshot, (preset) => this.bots.ensure(preset));
+      const plan: RatingDecision = decision ?? botMatchRatingGroups(snapshot);
       if (
         !["excluded", "applied"].includes(plan.status) ||
         (plan.status !== "applied" && (!plan.reason || plan.reason.length > 128))
@@ -363,13 +371,7 @@ export class RatingStore {
       )
         throw new Error("Excluded records cannot update skill");
       const groups = plan.status === "applied" ? this.validateGroups(snapshot, plan.groups) : null;
-      const updates = groups
-        ? this.calculate(
-            snapshot,
-            groups,
-            (id) => this.getRating(id, snapshot.gametype, snapshot.scope)?.state ?? initialRating(),
-          )
-        : [];
+      const updates = groups ? this.calculatePools(snapshot, groups) : [];
       const reason = plan.status === "applied" ? "eligible" : plan.reason;
       const sequence = Number(
         this.db
@@ -416,7 +418,7 @@ export class RatingStore {
             .prepare("INSERT INTO ranking_stats (sequence, seat_id, stats) VALUES (?, ?, ?)")
             .run(sequence, seat.seatId, JSON.stringify(seat.stats));
       if (snapshot.record.status === "recorded") this.insertRecords(snapshot);
-      for (const update of updates) this.insertUpdate(snapshot, sequence, update);
+      for (const { pool, update } of updates) this.insertUpdate(snapshot, sequence, pool, update);
       this.verifyProjection(snapshot, sequence);
       this.db.exec("COMMIT");
       return {
@@ -435,7 +437,7 @@ export class RatingStore {
 
   private validateGroups(snapshot: ResultSnapshot, groups: BotAccountRatingGroup[]): BotAccountRatingGroup[] {
     if (snapshot.bots !== 0 || snapshot.seats.some((p) => p.accountId === null)) {
-      const expected = botMatchRatingGroups(snapshot, (preset) => this.bots.get(preset));
+      const expected = botMatchRatingGroups(snapshot);
       if (expected.status !== "applied" || JSON.stringify(groups) !== JSON.stringify(expected.groups))
         throw new Error("Bot skill updates require the preset accounts and eligible groups");
       return expected.groups;
@@ -478,10 +480,22 @@ export class RatingStore {
           ...(g.bots ?? []).map((binding) => ({
             playerId: `bot:${binding.seatId}`,
             fixed: true,
-            state: state(binding.accountId),
+            state: botReferenceRating(binding.preset),
           })),
         ],
       })),
+    );
+  }
+
+  /** The updates for each of the result's pools, from that pool's current states. */
+  private calculatePools(
+    snapshot: ResultSnapshot,
+    groups: BotAccountRatingGroup[],
+    state: (id: number, pool: RatingPool) => RatingState = (id, pool) =>
+      this.getRating(id, snapshot.gametype, pool)?.state ?? initialRating(),
+  ): Array<{ pool: RatingPool; update: RatingUpdate }> {
+    return poolsOf(snapshot).flatMap((pool) =>
+      this.calculate(snapshot, groups, (id) => state(id, pool)).map((update) => ({ pool, update })),
     );
   }
 
@@ -532,15 +546,8 @@ export class RatingStore {
       const sequence = Number(row.sequence);
       const snapshot = this.readSnapshot(row);
       if (snapshot.record.status === "recorded") this.insertBotRecords(snapshot, insert);
-      const plan = botMatchRatingGroups(snapshot, (preset) => this.bots.ensure(preset));
-      const updates =
-        plan.status === "applied"
-          ? this.calculate(
-              snapshot,
-              plan.groups,
-              (id) => this.getRating(id, snapshot.gametype, snapshot.scope)?.state ?? initialRating(),
-            )
-          : [];
+      const plan = botMatchRatingGroups(snapshot);
+      const updates = plan.status === "applied" ? this.calculatePools(snapshot, plan.groups) : [];
       this.db
         .prepare(
           "UPDATE ranking_results SET policy_version = ?, rating_status = ?, rating_reason = ?, groups_json = ? WHERE sequence = ?",
@@ -552,12 +559,12 @@ export class RatingStore {
           plan.status === "applied" ? JSON.stringify(plan.groups) : null,
           sequence,
         );
-      for (const update of updates) this.insertUpdate(snapshot, sequence, update);
+      for (const { pool, update } of updates) this.insertUpdate(snapshot, sequence, pool, update);
       this.verifyProjection(snapshot, sequence);
     }
   }
 
-  private insertUpdate(snapshot: ResultSnapshot, sequence: number, update: RatingUpdate): void {
+  private insertUpdate(snapshot: ResultSnapshot, sequence: number, pool: RatingPool, update: RatingUpdate): void {
     const accountId = Number(update.playerId);
     this.db
       .prepare(
@@ -566,7 +573,7 @@ export class RatingStore {
       .run(
         accountId,
         snapshot.gametype,
-        snapshot.scope,
+        pool,
         RATING_POLICY.version,
         update.after.mu,
         update.after.sigma,
@@ -582,7 +589,7 @@ export class RatingStore {
         sequence,
         accountId,
         snapshot.gametype,
-        snapshot.scope,
+        pool,
         RATING_POLICY.version,
         update.before.mu,
         update.before.sigma,
@@ -623,7 +630,7 @@ export class RatingStore {
     )
       throw new Error("Replay policy differs from the pinned implementation");
     const states = new Map<string, StoredRating>();
-    const key = (id: number, mode: RatingMode, scope: RankingScope) => `${id}:${mode}:${scope}`;
+    const key = (id: number, mode: RatingMode, scope: RatingPool) => `${id}:${mode}:${scope}`;
     let matches = 0;
     let count = 0;
     for (const row of this.db.prepare("SELECT * FROM ranking_results ORDER BY sequence").all()) {
@@ -641,30 +648,29 @@ export class RatingStore {
       if (snapshot.record.status !== "recorded" || row.rating_reason !== "eligible")
         throw new Error("Ineligible result has rating updates");
       const groups = this.validateGroups(snapshot, JSON.parse(String(row.groups_json)) as BotAccountRatingGroup[]);
-      const updates = this.calculate(
+      const updates = this.calculatePools(
         snapshot,
         groups,
-        (id) => states.get(key(id, snapshot.gametype, snapshot.scope))?.state ?? initialRating(),
+        (id, pool) => states.get(key(id, snapshot.gametype, pool))?.state ?? initialRating(),
       );
       if (updates.length !== journal.length) throw new Error("Replay journal is incomplete");
-      const entries = new Map(journal.map((entry) => [Number(entry.account_id), entry]));
-      for (const update of updates) {
+      const entries = new Map(journal.map((entry) => [`${entry.scope}:${entry.account_id}`, entry]));
+      for (const { pool, update } of updates) {
         const id = Number(update.playerId);
-        const entry = entries.get(id);
+        const entry = entries.get(`${pool}:${id}`);
         if (
           !entry ||
           entry.gametype !== snapshot.gametype ||
-          entry.scope !== snapshot.scope ||
           JSON.stringify(stateOf(entry, "before_")) !== JSON.stringify(update.before) ||
           JSON.stringify(stateOf(entry, "after_")) !== JSON.stringify(update.after) ||
           entry.before_score !== conservativeScore(update.before) ||
           entry.after_score !== conservativeScore(update.after)
         )
           throw new Error(`Rating journal diverged at sequence ${row.sequence}`);
-        states.set(key(id, snapshot.gametype, snapshot.scope), {
+        states.set(key(id, snapshot.gametype, pool), {
           accountId: id,
           gametype: snapshot.gametype,
-          scope: snapshot.scope,
+          scope: pool,
           state: update.after,
           lastSequence: Number(row.sequence),
           endedAt: snapshot.endedAt,

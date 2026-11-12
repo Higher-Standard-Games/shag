@@ -46,29 +46,33 @@ function match(mode: RatingMode, count = 2): BotMatchInput {
 const ACCOUNTS: Record<BotPreset, number> = { easy: 901, medium: 902, hard: 903, insane: 904 };
 const accountFor = (preset: BotPreset) => ACCOUNTS[preset];
 
-describe("private bot games rated through preset accounts", () => {
+describe("private bot games rated against fixed preset strengths", () => {
   it.each(["duel", "amphi", "ffa", "snd"] as const)(
-    "reuses full participation rules for %s with each bot as its preset's account",
+    "reuses full participation rules for %s with every bot seat fixed",
     (mode) => {
       const input = match(mode, mode === "snd" ? 4 : 2);
-      const result = botMatchRatingGroups(input, accountFor);
+      const result = botMatchRatingGroups(input);
       expect(result.status).toBe("applied");
       if (result.status !== "applied") throw new Error("Missing groups");
-      // One Medium account takes one seat; a second Medium in S&D plays fixed.
-      expect(result.groups.flatMap((g) => g.accountIds).sort()).toEqual(mode === "snd" ? [1, 3, 902] : [1, 902]);
+      // Only people are rated; each bot seat plays at its preset's strength.
+      expect(result.groups.flatMap((g) => g.accountIds).sort()).toEqual(mode === "snd" ? [1, 3] : [1]);
       expect(result.groups.flatMap((g) => g.bots ?? [])).toEqual(
-        mode === "snd" ? [{ seatId: "seat-3", accountId: 902 }] : [],
+        mode === "snd"
+          ? [
+              { seatId: "seat-1", preset: "medium" },
+              { seatId: "seat-3", preset: "medium" },
+            ]
+          : [{ seatId: "seat-1", preset: "medium" }],
       );
     },
   );
-  it("seats two presets as two accounts", () => {
+  it("keeps each bot seat's own preset", () => {
     const input = match("snd", 4);
     input.seats[3].botReference = { ...input.seats[3].botReference!, preset: "hard" };
     input.startingRoster![3].botReference = input.seats[3].botReference;
-    const result = botMatchRatingGroups(input, accountFor);
+    const result = botMatchRatingGroups(input);
     if (result.status !== "applied") throw new Error("Missing groups");
-    expect(result.groups.flatMap((g) => g.accountIds).sort()).toEqual([1, 3, 902, 903]);
-    expect(result.groups.some((g) => g.bots)).toBe(false);
+    expect(result.groups.flatMap((g) => g.bots ?? []).map((b) => b.preset)).toEqual(["medium", "hard"]);
   });
   it.each([
     ["unknown_changes", "bot_reference_missing"],
@@ -94,7 +98,7 @@ describe("private bot games rated through preset accounts", () => {
     if (kind === "interrupted") input.seats[0].participationInterrupted = true;
     if (kind === "side") input.seats[0].teamsPlayed = ["udon", "soba"];
     const copy = JSON.stringify(input);
-    expect(botMatchRatingGroups(input, accountFor)).toEqual({ status: "excluded", reason });
+    expect(botMatchRatingGroups(input)).toEqual({ status: "excluded", reason });
     expect(JSON.stringify(input)).toBe(copy);
   });
   it("rates a valid human forfeit against the connected bot but never public bot games", () => {
@@ -104,9 +108,9 @@ describe("private bot games rated through preset accounts", () => {
     input.seats[1].placement = 1;
     input.teams[0].placement = 2;
     input.teams[1].placement = 1;
-    expect(botMatchRatingGroups(input, accountFor).status).toBe("applied");
+    expect(botMatchRatingGroups(input).status).toBe("applied");
     input.scope = "public";
-    expect(botMatchRatingGroups(input, accountFor)).toEqual({
+    expect(botMatchRatingGroups(input)).toEqual({
       status: "excluded",
       reason: "public_roster_ineligible",
     });

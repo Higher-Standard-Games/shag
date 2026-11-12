@@ -25,6 +25,7 @@ import { MIN_LISTED_DEMO_MS, selectFeaturedDemos } from "./FeaturedDemos";
 import { GameServerSpawner } from "./GameServerSpawner";
 import type { MatchResultStore } from "./MatchResultStore";
 import { DELETED_ACCOUNT_NAME, type PlayerNameReservation } from "./PlayerIdentity";
+import { RATING_POOLS } from "./PlayerStatsStore";
 import { PlayerStore } from "./PlayerStore";
 import { RateLimiter } from "./RateLimiter";
 import { type ResultDiagnostic, ResultDiagnostics } from "./ResultDiagnostics";
@@ -2030,7 +2031,7 @@ export class LobbyServer {
     if (
       !requestId ||
       !["duel", "amphi", "ffa", "snd"].includes(msg.gametype) ||
-      !["public", "private"].includes(msg.scope) ||
+      (msg.scope !== undefined && !RATING_POOLS.includes(msg.scope)) ||
       (msg.period !== undefined && !["month", "all"].includes(msg.period)) ||
       (msg.limit !== undefined && (!Number.isSafeInteger(msg.limit) || msg.limit < 1 || msg.limit > 50)) ||
       (msg.beforeSequence !== undefined && (!Number.isSafeInteger(msg.beforeSequence) || msg.beforeSequence < 1))
@@ -2047,7 +2048,7 @@ export class LobbyServer {
       return;
     }
     try {
-      const query = { gametype: msg.gametype, scope: msg.scope };
+      const query = { gametype: msg.gametype, scope: msg.scope ?? ("overall" as const) };
       const data =
         msg.type === "stats:get"
           ? this.results.playerStats.summary(player.accountId, { ...query, period: msg.period ?? "all" })
@@ -2077,7 +2078,7 @@ export class LobbyServer {
       !Number.isSafeInteger(msg.limit) ||
       msg.limit < 1 ||
       msg.limit > 100 ||
-      (msg.scope !== undefined && msg.scope !== "public" && msg.scope !== "private") ||
+      (msg.scope !== undefined && !RATING_POOLS.includes(msg.scope)) ||
       (msg.system !== undefined && msg.system !== "trueskill") ||
       msg.includePrivate !== undefined
     ) {
@@ -2098,7 +2099,7 @@ export class LobbyServer {
       offset: msg.offset,
       limit: msg.limit,
       accountId: player.accountId ?? undefined,
-      scope: msg.scope ?? "public",
+      scope: msg.scope ?? ("overall" as const),
     };
     const page = msg.system === "trueskill" ? this.results.skillLeaderboard(query) : this.results.leaderboard(query);
     this.send(player, {
@@ -2106,7 +2107,7 @@ export class LobbyServer {
       requestId,
       gametype: msg.gametype,
       period: msg.period,
-      scope: msg.scope ?? "public",
+      scope: query.scope,
       system: page.system,
       policyVersion: page.policyVersion,
       localProcessing: page.localProcessing,

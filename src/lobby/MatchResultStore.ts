@@ -15,11 +15,11 @@ import type { MatchResultReport } from "../engine/server/network/MatchResultRepo
 import type { BotPreset } from "../shared/ranking/BotMatchRatingGroups";
 import { chooseBotPreset } from "../shared/ranking/BotPresetChoice";
 import { displayRating, isProvisional, RATING_POLICY, type RatingMode } from "../shared/ranking/RatingPolicy";
-import { PlayerStatsStore } from "./PlayerStatsStore";
+import { PlayerStatsStore, POOL_MATCHES, RATING_POOLS } from "./PlayerStatsStore";
 import { RatingStore } from "./RatingStore";
 import { ResultDeliveryStore } from "./ResultDeliveryStore";
 import { normalizeResult, type ResultContext } from "./ResultSnapshot";
-import type { RankingScope } from "./types";
+import type { RatingPool } from "./types";
 
 export type MatchOutcome = "win" | "loss" | "draw";
 
@@ -63,7 +63,7 @@ export interface RecordedMatch {
   map: string;
   endedAt: number;
   participants: Array<{ accountId: number; outcome: MatchOutcome; score: number }>;
-  /** Played in a private lobby: friends, bots. Ranked apart from public matches. */
+  /** Played in a private lobby: friends, bots. Counted in the Private and Overall boards. */
   private?: boolean;
   /** Bots that held seats. Only private lobbies have them. */
   bots?: number;
@@ -80,7 +80,7 @@ export interface RankingRow {
   conservativeScore?: number;
   provisional?: boolean;
   ratedMatches?: number;
-  /** A bot preset's account, rated in the Private pools. */
+  /** A bot preset's account. Boards leave bots out. */
   bot?: boolean;
 }
 
@@ -101,7 +101,8 @@ export interface RankingQuery {
   limit: number;
   accountId?: number;
   now?: number;
-  scope?: RankingScope;
+  /** Omitted means Overall. */
+  scope?: RatingPool;
 }
 
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
@@ -116,7 +117,7 @@ const RECORDS = `
     FROM match_participants mp
     JOIN matches m ON m.id = mp.match_id
     JOIN players p ON p.id = mp.account_id
-    WHERE m.gametype = ? AND m.ended_at >= ? AND m.ended_at <= ? AND m.private = ?
+    WHERE m.gametype = ? AND m.ended_at >= ? AND m.ended_at <= ? AND (? = 'overall' OR m.private = ?)
     GROUP BY p.id
   )`;
 
@@ -333,7 +334,7 @@ export class MatchResultStore {
       !Number.isSafeInteger(query.limit) ||
       query.limit < 1 ||
       query.limit > 100 ||
-      (query.scope !== undefined && query.scope !== "public" && query.scope !== "private")
+      (query.scope !== undefined && !RATING_POOLS.includes(query.scope))
     ) {
       throw new Error("Invalid leaderboard query");
     }
@@ -343,11 +344,13 @@ export class MatchResultStore {
   /** Compatibility endpoint for older clients that only understand records. */
   leaderboard(query: RankingQuery): RankingPage {
     const now = this.validateLeaderboard(query);
+    const scope = query.scope ?? "overall";
     const args = [
       query.gametype,
       query.period === "month" ? now - THIRTY_DAYS_MS : 0,
       now,
-      query.scope === "private" ? 1 : 0,
+      scope,
+      scope === "private" ? 1 : 0,
     ] as const;
     const entries = this.db
       .prepare(
@@ -368,12 +371,13 @@ export class MatchResultStore {
 
   skillLeaderboard(query: RankingQuery): RankingPage {
     const now = this.validateLeaderboard(query);
-    const scope = query.scope ?? "public";
+    const scope = query.scope ?? "overall";
     const start = query.period === "month" ? now - THIRTY_DAYS_MS : 0;
     const args = [
       query.gametype,
       start,
       now,
+      scope,
       scope === "private" ? 1 : 0,
       RATING_POLICY.conservativeMultiplier,
       query.gametype,
@@ -396,9 +400,9 @@ export class MatchResultStore {
             .prepare(`SELECT
         COUNT(DISTINCT CASE WHEN rr.rating_status = 'excluded' THEN rr.sequence END) AS excluded
         FROM ranking_results rr JOIN ranking_seats s ON s.sequence = rr.sequence
-        WHERE s.account_id = ? AND rr.gametype = ? AND rr.scope = ? AND rr.policy_version = ?
+        WHERE s.account_id = ? AND rr.gametype = ? AND ${POOL_MATCHES("rr.scope")} AND rr.policy_version = ?
           AND rr.ended_at >= ? AND rr.ended_at <= ?`)
-            .get(query.accountId, query.gametype, scope, RATING_POLICY.version, start, now)
+            .get(query.accountId, query.gametype, scope, scope, RATING_POLICY.version, start, now)
         : undefined;
       return {
         system: "trueskill",
@@ -414,15 +418,13 @@ export class MatchResultStore {
   }
 
   /**
-   * The bot preset to field against this account in a private room of this
-   * mode: the one whose Private rating is nearest theirs.
+   * The bot preset to field against this account in this mode: the one whose
+   * fixed strength is nearest their Overall rating.
    */
   botPresetFor(accountId: number | null, gametype: string): BotPreset {
     if (!(gametype in RATING_POLICY.drawProbability)) return "medium";
-    const mode = gametype as RatingMode;
-    const muOf = (id: number | null) =>
-      id === null ? null : (this.ratings.getRating(id, mode, "private")?.state.mu ?? null);
-    return chooseBotPreset(muOf(accountId), (preset) => muOf(this.ratings.bots.find(preset)));
+    const mu = accountId === null ? null : this.ratings.getRating(accountId, gametype as RatingMode, "overall");
+    return chooseBotPreset(mu?.state.mu ?? null);
   }
 
   /** Accounts proved by a stored result for this exact match, mode and map. */

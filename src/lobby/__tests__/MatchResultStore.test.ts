@@ -66,7 +66,7 @@ describe("MatchResultStore", () => {
     };
   }
 
-  const board = (scope?: "public" | "private") =>
+  const board = (scope: "public" | "private" | "overall" = "public") =>
     results.leaderboard({ gametype: "amphi", period: "all", offset: 0, limit: 10, now: NOW, scope });
 
   it("counts tied FFA leaders as draws and lower placements as losses", () => {
@@ -213,6 +213,14 @@ describe("MatchResultStore", () => {
       localPlayerRank: 1,
       localPlayerEntry: { wins: 1, losses: 0 },
     });
+    // Overall counts both, and is what an unscoped query reads.
+    expect(board("overall").entries.map((row) => [row.accountId, row.wins, row.losses])).toEqual([
+      [ids[0], 1, 1],
+      [ids[1], 1, 1],
+    ]);
+    expect(results.leaderboard({ ...query, limit: 10 })).toEqual(
+      results.leaderboard({ ...query, limit: 10, scope: "overall" }),
+    );
   });
 
   it("records a private match against bots with one account and any outcome, a loss included", () => {
@@ -399,7 +407,7 @@ describe("MatchResultStore", () => {
     });
     expect(sent.at(-1)).toMatchObject({
       type: "leaderboard:page",
-      scope: "public",
+      scope: "overall",
       requestId: "first",
       total: 2,
       localPlayerRank: 2,

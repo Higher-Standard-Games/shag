@@ -194,11 +194,11 @@ A room is one gametype, one map vote and up to that gametype's player count.
   actually installed are offered. Most votes wins, ties are random.
 - **Bots** play in private rooms only, invited through the bot server, at `easy`,
   `medium`, `hard` or `insane`. An invite that names no level (the room's
-  **+ Add bot**) fields the preset whose Private rating in the room's mode is
-  nearest the inviter's, with a minimum of Hard. A player with no rating meets
+  **+ Add bot**) fields the preset whose fixed strength is nearest the
+  inviter's Overall rating in the room's mode, with a minimum of Hard. A player with no rating meets
   Hard; a rating match to Insane selects Insane. Explicit preset requests can
-  still select any level. The room shows each bot's level on its seat. A bot plays its ratings
-  as its preset's account (see "Bots are rated accounts"). Once the last human
+  still select any level. The room shows each bot's level on its seat. A bot keeps its record
+  as its preset's account (see "Bots play at fixed strengths"). Once the last human
   leaves, the room's bots are evicted so a bot-only room can never linger or
   start a match.
 - **Chat** belongs to the room: members only, the last 50 messages handed over
@@ -328,7 +328,8 @@ because a majority alone would rank four people against three bots, which is
 people farming bots. The rule lives in `isRankedRoster()` in
 `src/lobby/LobbyServer.ts`.
 
-Private matches are kept separately from the public record. Against bots, one
+Private matches keep their own record beside the public one, and both count
+toward Overall (see "Skill ratings"). Against bots, one
 verified account is enough, and a loss to a bot counts too. A private
 human-only match still needs two verified accounts and consistent outcomes. The
 visibility and the bot-seat count are fixed from the room's starting roster,
@@ -337,8 +338,17 @@ and the result comes only from the authenticated game-server report.
 ### Skill ratings
 
 Each complete, eligible result updates TrueSkill ratings atomically, storing
-every player's before and after state, in separate Public and Private pools for
-Duel, Amphi, S&D and FFA. The original roster must play from the first active
+every player's before and after state. Every mode (Duel, Amphi, S&D and FFA) has
+three pools:
+
+| Pool | Rates |
+| --- | --- |
+| **Overall** | Every eligible match, public or private, against people or bots. The leaderboard and Profile show this pool. |
+| **Public** | Eligible public matches only. |
+| **Private** | Eligible private matches only, bot games included. |
+
+One result updates its own visibility's pool and Overall, each from that pool's
+current ratings, so the three never mix states. The original roster must play from the first active
 tick on unchanged sides. Late joins, missing participation evidence and
 interrupted play keep their records but are excluded from skill, with the
 reason stored. A spectator departure, or a seat released after its hold, stays
@@ -350,15 +360,28 @@ Lobby display sides use the same mapping as gameplay and result normalization:
 `alpha` is Soba and `bravo` is Udon. Duel keeps the assigned side regardless of
 connection order.
 
-### Bots are rated accounts
+### Bots play at fixed strengths
 
-Each bot preset is an account: **Bot · Easy**, **Bot · Medium**, **Bot · Hard**
-and **Bot · Insane**, rated in each mode's Private pool like a player but
-left off the leaderboards (see "Leaderboard"). A private match rates every seat, people and
-bots, under the same participation rules. The first bot of a preset in a match
-is that account; a second one of the same preset plays at the account's
-current rating and leaves it unchanged, since one account takes one seat. The
-first bot seat of each preset also carries the account's win, loss or draw.
+A bot is rated against, never rated. Each preset plays at a fixed strength set
+in `RATING_POLICY.botReferences` (`src/shared/ranking/RatingPolicy.ts`), one
+standard step (25/3) apart around a new player's starting skill of 25:
+
+| Preset | Skill (μ) | Uncertainty (σ) |
+| --- | --- | --- |
+| Easy | 16.7 | 2.8 |
+| Medium | 25 | 2.8 |
+| Hard | 33.3 | 2.8 |
+| Insane | 41.7 | 2.8 |
+
+A private bot match is rated under the same participation rules as one between
+people; only the people's ratings move. Beating Insane is therefore worth much
+more than beating Easy, and losing to Insane costs little. The strengths are a
+starting assumption, not measured bot skill; changing them needs a new policy
+version.
+
+Each preset also has an account, **Bot · Easy**, **Bot · Medium**, **Bot · Hard**
+and **Bot · Insane**, which holds the win, loss or draw of the first bot seat of
+that preset in a match. It has no rating and is left off the leaderboards.
 
 The account is made the first time its preset plays and has no key, so no one
 can log in to it. `bot_accounts` in `players.db` maps each preset to its
@@ -376,11 +399,14 @@ not rated:
 | `bot_custom` | A bot played with a custom difficulty: it names no account. |
 | `bot_reference_missing` | A bot's reference is absent from the result. |
 
-Ranking schema **3** introduced the accounts. Opening a schema 1 or 2 store
-rates every stored result again in sequence order, private bot games included,
-and drops the old `bot_calibrations` table; the stored snapshots are the
+Ranking schema **4** and policy `shag-trueskill-v2` added the Overall pool and
+the fixed bot strengths. Opening a schema 1, 2 or 3 store rebuilds
+`rating_updates` keyed by pool and rates every stored result again in sequence
+order, filling Overall from the start of history; it drops the old
+`bot_calibrations` table. The stored snapshots, records and accounts are the
 source and are not changed. Upgrade the bot server, the lobby and the
-game-server code together.
+game-server code together, and back up the data directory first: the upgrade
+runs the first time the new lobby opens `players.db`.
 
 Bot invitations give an unavailable bot service eight seconds to respond. A
 verified preparation announcement extends that once to 75 seconds, covering a
@@ -390,15 +416,11 @@ and prevents a late bot join.
 
 ### Leaderboard
 
-The leaderboard opens on **Public** matches. **Public / Private**, left of the
-gametype selector, selects independent boards: Private contains only private
-matches, including bot games. The bots' preset accounts are rated there (people
-are rated against them) but never listed: both boards show people only, ranked
-among themselves. The selection
-applies to every mode and is remembered in that browser; the board, your pinned
-row and the ranks in the rail all follow it.
+The leaderboard has one board per mode, the Overall pool: every match counts,
+public or private, against people or bots. It lists people only, ranked among
+themselves.
 
-The podium, rows, rail and profile rank by career skill in the selected pool.
+The podium, rows, rail and profile rank by career skill in Overall.
 Rows also show wins, losses, draws and matches, the rating, provisional status
 and the number of rated matches. **Last 30 days** lists accounts active in that
 window with their record over it; it does not reset or recalculate career
@@ -409,15 +431,17 @@ Clients ask for the skill ladder explicitly, using the advertised
 skill ratings answers with records only. Leaderboard queries are authenticated,
 bounded and read-only: a mode, a period of the last 30 days or all time, an
 offset and a page of at most 100. The answer carries the asking account's own
-rank and row even when that row falls outside the page. `scope` is `public` or
-`private`, defaulting to `public`; `leaderboard:page` echoes the resolved scope,
-and clients reject a reply with a missing or different scope. Requests that use
+rank and row even when that row falls outside the page. `scope` is `overall`,
+`public` or `private`, defaulting to `overall`; `leaderboard:page` echoes the
+resolved scope, and clients reject a reply with a missing or different scope.
+Public and Private remain available to diagnostics and tools; the client reads
+Overall only. Requests that use
 the obsolete `includePrivate` field are rejected.
 
 ### Player stats and recent results
 
-Lobbies that advertise `features.playerStats` show, in **Profile**, separate
-Public and Private records and career gameplay totals for each mode. These do
+Lobbies that advertise `features.playerStats` show, in **Profile**, the
+Overall record and career gameplay totals for each mode. These do
 not require a skill rating: a match excluded from rating still shows its
 win/loss/draw and gameplay totals. Selecting a mode name opens that account's
 ten most recent results; **Older matches** pages back through a stable sequence
@@ -441,9 +465,10 @@ gameplay data when only some do. Aborted and excluded results keep their stats
 for the player's own history but add nothing to career totals unless they have
 an eligible record.
 
-`stats:get` / `stats:summary` reads a mode and scope summary (`period: all`, or
-`month` for a rolling 30 days of records and gameplay; rating and rank are
-always career). `stats:history` / `stats:history_page` reads the account's own
+`stats:get` / `stats:summary` reads a mode and scope summary (scope as for the
+leaderboard, defaulting to `overall`; `period: all`, or `month` for a rolling
+30 days of records and gameplay; rating and rank are always career). In
+history, each entry's `scope` is that match's own visibility. `stats:history` / `stats:history_page` reads the account's own
 results for a mode and scope (limit 1–50, optional exclusive `beforeSequence`),
 including `ratingChange` when there is one. The connection's account decides
 whose stats are read; a request cannot name another account. Reads share the

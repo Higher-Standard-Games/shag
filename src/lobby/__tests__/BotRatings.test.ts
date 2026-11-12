@@ -4,13 +4,13 @@ import * as path from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { botReference } from "../../shared/ranking/__tests__/_botReference";
-import type { RatingMode } from "../../shared/ranking/RatingPolicy";
+import { RATING_POLICY, type RatingMode } from "../../shared/ranking/RatingPolicy";
 import { botAccountName } from "../BotAccountStore";
 import { MatchResultStore } from "../MatchResultStore";
 import { PlayerStore } from "../PlayerStore";
 import { canonicalSnapshot, type ResultSnapshot } from "../ResultSnapshot";
 
-describe("private bot games rated through preset accounts", () => {
+describe("private bot games rated against fixed preset strengths", () => {
   let dir: string;
   let players: PlayerStore;
   let results: MatchResultStore;
@@ -86,29 +86,32 @@ describe("private bot games rated through preset accounts", () => {
   const privateBoard = (mode: RatingMode = "duel", accountId?: number) =>
     results.skillLeaderboard({ gametype: mode, scope: "private", period: "all", offset: 0, limit: 10, accountId });
 
-  it.each(["duel", "amphi", "snd", "ffa"] as const)("rates %s humans and the Medium account, and replays", (mode) => {
+  it.each(["duel", "amphi", "snd", "ffa"] as const)("rates %s humans in Private and Overall, and replays", (mode) => {
     const input = match(mode);
     expect(results.ratings.ingest(input)).toMatchObject({ ratingStatus: "applied", ratingReason: "eligible" });
     expect(results.ratings.ingest(input)).toMatchObject({ status: "duplicate", ratingStatus: "applied" });
     const bot = results.ratings.bots.get("medium");
     const humans = input.seats.flatMap((p) => (p.accountId === null ? [] : [p.accountId]));
-    for (const id of [...humans, bot]) {
+    for (const id of humans) {
       expect(results.ratings.getRating(id, mode, "private")?.state.ratedMatches).toBe(1);
+      expect(results.ratings.getRating(id, mode, "overall")?.state.ratedMatches).toBe(1);
       expect(results.ratings.getRating(id, mode, "public")).toBeNull();
     }
-    // The bot account is rated but the board lists people only.
+    // The bot plays at a fixed strength: its account keeps a record but no rating.
+    for (const pool of ["public", "private", "overall"] as const)
+      expect(results.ratings.getRating(bot, mode, pool)).toBeNull();
     const listed = privateBoard(mode).entries.map((e) => e.accountId);
     expect(listed.sort()).toEqual([...humans].sort());
     expect(privateBoard(mode).entries.every((e) => !e.bot)).toBe(true);
     expect(sql.prepare("SELECT name FROM players WHERE id = ?").get(bot)?.name).toBe(botAccountName("medium"));
     results.close();
     results = MatchResultStore.open(dir);
-    // A second Medium (S&D, FFA) plays fixed: only the first seat's account updates.
+    // Each human is updated once in Private and once in Overall.
     expect(results.ratings.verifyReplay()).toEqual({
       consistent: true,
       matches: 1,
-      updates: humans.length + 1,
-      ratings: humans.length + 1,
+      updates: humans.length * 2,
+      ratings: humans.length * 2,
     });
   });
 
@@ -119,9 +122,7 @@ describe("private bot games rated through preset accounts", () => {
     expect(sql.prepare("SELECT name FROM players WHERE id = ?").get(results.ratings.bots.get("medium"))?.name).toBe(
       "Bot · Medium",
     );
-    expect(results.ratings.getRating(results.ratings.bots.get("medium"), "duel", "private")?.state.ratedMatches).toBe(
-      2,
-    );
+    expect(results.ratings.getRating(ids[0], "duel", "overall")?.state.ratedMatches).toBe(2);
   });
 
   it("rolls back every update, record and receipt if one update fails", () => {
@@ -134,7 +135,7 @@ describe("private bot games rated through preset accounts", () => {
     expect(results.statistics().totalMatches).toBe(0);
     sql.exec("DROP TRIGGER fail_update");
     expect(results.ratings.ingest(input).ratingStatus).toBe("applied");
-    expect(results.ratings.verifyReplay().updates).toBe(3);
+    expect(results.ratings.verifyReplay().updates).toBe(4);
   });
 
   it("excludes changed, missing and custom bots, keeping their records", () => {
@@ -181,23 +182,39 @@ describe("private bot games rated through preset accounts", () => {
       ratingStatus: "applied",
       ratingReason: "eligible",
     });
-    const bot = results.ratings.bots.get("medium");
     expect(privateBoard("duel", ids[0])).toMatchObject({ total: 1, localPlayerEntry: { wins: 1, ratedMatches: 1 } });
-    expect(results.ratings.getRating(bot, "duel", "private")?.state.ratedMatches).toBe(1);
+    expect(results.ratings.getRating(ids[0], "duel", "overall")?.state.ratedMatches).toBe(1);
     expect(results.ratings.verifyReplay()).toMatchObject({ consistent: true, matches: 1, updates: 2 });
     expect(sql.prepare("SELECT name FROM sqlite_master WHERE name = 'bot_calibrations'").get()).toBeUndefined();
   });
 
-  it("fields the preset nearest the inviter's Private rating", () => {
+  it("rates a win over a stronger preset higher than one over a weaker", () => {
+    // Each game is a different person's first, so both start from the same rating.
+    const against = (preset: "easy" | "insane", human: number) => {
+      const input = match("duel", preset);
+      for (const seat of [...input.seats, ...input.startingRoster!]) {
+        if (seat.accountId !== null) seat.accountId = human;
+        else seat.botReference = { ...seat.botReference!, preset };
+      }
+      return input;
+    };
+    results.ratings.ingest(against("easy", ids[0]));
+    results.ratings.ingest(against("insane", ids[1]));
+    const easy = results.ratings.getRating(ids[0], "duel", "overall")!.state.mu;
+    const insane = results.ratings.getRating(ids[1], "duel", "overall")!.state.mu;
+    expect(easy).toBeGreaterThan(RATING_POLICY.initialMu);
+    expect(insane).toBeGreaterThan(easy);
+  });
+
+  it("fields the preset nearest the inviter's Overall rating", () => {
     // No rating yet: Medium.
     expect(results.botPresetFor(ids[0], "duel")).toBe("medium");
     expect(results.botPresetFor(null, "duel")).toBe("medium");
-    // Five wins over Medium push the human above it and Medium below: the
-    // next bot is the one above Medium, in this mode only.
+    // Five wins over Medium push the human above it: the next bot is the one
+    // above Medium, in this mode only.
     for (const id of ["w1", "w2", "w3", "w4", "w5"]) results.ratings.ingest(match("duel", id));
-    const human = results.ratings.getRating(ids[0], "duel", "private")!.state.mu;
-    const medium = results.ratings.getRating(results.ratings.bots.get("medium"), "duel", "private")!.state.mu;
-    expect(human).toBeGreaterThan(medium);
+    const human = results.ratings.getRating(ids[0], "duel", "overall")!.state.mu;
+    expect(human).toBeGreaterThan(RATING_POLICY.botReferences.medium.mu);
     expect(results.botPresetFor(ids[0], "duel")).toBe("hard");
     expect(results.botPresetFor(ids[0], "amphi")).toBe("medium");
     expect(results.botPresetFor(ids[0], "not-a-mode")).toBe("medium");

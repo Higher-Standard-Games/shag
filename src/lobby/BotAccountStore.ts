@@ -2,13 +2,14 @@ import { randomBytes } from "node:crypto";
 import type { DatabaseSync } from "node:sqlite";
 import { BOT_ACCOUNT_PRESETS, type BotPreset } from "../shared/ranking/BotMatchRatingGroups";
 
-/** The account name a preset plays its ratings under, on the Private board. */
+/** The account name a preset keeps its win/loss record under. */
 export function botAccountName(preset: BotPreset): string {
   return `Bot · ${preset[0].toUpperCase()}${preset.slice(1)}`;
 }
 
 /**
- * One account per bot preset, rated in the Private pools like a player. Shares
+ * One account per bot preset, holding its records; the preset plays at a fixed
+ * strength and the account is never rated. Shares
  * the journal connection. The account has no key: its key hash is the hash of
  * nothing anyone holds, so it can never be logged in to.
  */
