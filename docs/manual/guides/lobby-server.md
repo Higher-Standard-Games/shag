@@ -637,7 +637,7 @@ Bot clients play over the same protocol as a browser and are bound by the same r
   full speed on hosts with coarse timers.
 - **Perception.** `BotPerception` filters each snapshot down to what a player
   in the bot's place would know: allies, enemies in line of sight inside its
-  view cone or revealed by sound with clear line of sight, and enemies heard (shots, explosions, footsteps, jumps, landings,
+  view cone or revealed by sound with clear line of sight, and enemies heard (shots, explosions, footsteps, jumps,
   pain, pickups). Item state is what the bot saw or heard; a heard pickup is
   timed at its `itemTimingSkill`. Sound ranges are the same at every
   difficulty.
