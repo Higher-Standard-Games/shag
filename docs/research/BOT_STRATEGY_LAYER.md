@@ -666,3 +666,32 @@ movement direction:
 What is left, for later work orders: goals that flip between items (the
 strategy layer's commitment, BS-9), replans that turn the bot round, and
 flicks when an enemy comes into sight, which are reactions and partly right.
+
+### 2026-11-13 — BS-2 and BS-3
+
+**BS-2, hearing.** Footsteps are heard from 70 u/s on the ground and not
+sliding, jumps from 60 u/s up, as the client plays them; ranges from the
+falloff formula and the sound's volume (footsteps 500 units, jumps 720), and
+landings are no longer heard. A person walking is no longer silent to bots.
+
+**BS-3, hunting.** `_shouldSeekItems` no longer sends every bot under 25
+armor shopping. Under 25 armor with a fresh enemy position (`_getHuntTarget`,
+2.4 s), it shops only for an item goal whose arbiter desire reaches
+`0.2 + 0.25 × aggression`; with no enemy known, it still shops. This is the
+first reader of the profile's `aggression` (part of BS-4).
+
+Measured with the view probe's time per brain state, 4 medium bots on
+washoi_dm2, 120 s: ITEM_RUN 95 s → 57–75 s, HUNT 2 s → 19–26 s, CHASE 26 s
+→ 39–50 s. Deaths and health and armor picked up stayed within spread.
+
+Typical desire, for a bot with 50+ health under 25 armor: median 0.33 in
+Deathmatch and 0.48 in Duel (p90 0.45 and 0.67).
+
+Two things found on the way:
+
+- A first version also sent armoured bots after very good items. In Duel
+  that cut fights (deaths a minute 5.7–6.0 → 3.7–4.0), against the point of
+  the change, and was dropped.
+- **Two-bot Duel results cannot be judged from single runs.** Two runs of
+  the same code gave 154 and 99 health and armor a minute, or 2.7 and 9.7
+  deaths. BS-7's harness, many matches per arm, is what Duel changes need.
