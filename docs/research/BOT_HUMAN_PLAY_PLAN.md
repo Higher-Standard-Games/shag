@@ -276,3 +276,52 @@ Next: record paths near the worst cells (position, wanted and sent view,
 keys, steer distance chosen) to see where the view jumps and how corners are
 cut, then design corner handling: slow the look-ahead into a turn and pick
 the turn-in point, instead of a fixed distance.
+
+### 2026-11-12 — path recording, second round on `bot/player-keys-wip`
+
+A probe recorded, for every command, what changed when the wanted view
+jumped more than 45°, and what steering was in use whenever a bot ran within
+24 u of a wall with room to keep 40 u from both sides ("avoidable"; nearly
+all of it was).
+
+Found and fixed on the branch:
+
+- Wall avoidance was on in over 70% of the samples close to walls: it saw
+  the wall beyond the lane steering had cleared and turned the bot off the
+  lane toward the other wall. It is skipped when steering found a clear
+  target.
+- A bot within 24 u of a wall could never clear the 40 u lane sweep, whose
+  box starts in the wall, so it fell back to the waypoint; it now uses the
+  hull sweep.
+- Most "no clear point" cases are a bot on the inside of a corner with
+  every point ahead behind the wall. A fan of headings round it, held to
+  one side for 0.4 s, takes it round.
+- What hugging remains with no route steering is mostly precise approaches
+  (jump and trick starts sit at walls by design) and stuck recovery.
+
+Still worse than 6287396 (2 × 120 s):
+
+| | dm1 within 24 u | dm2 within 24 u | flip-backs dm1 / dm2 |
+| --- | --- | --- | --- |
+| 6287396 | 19–22% | 17% | about 13–17 |
+| Branch `80ccc9e` | 25–30% | 25–26% | 42–60 / 16–23 |
+
+Why: the heading is chosen afresh each decision from a ladder of fallbacks
+(wide lane, hull, fan, hold, waypoint), and each switch between rungs is a
+jump in the wanted view. A player does not do this; the line through a
+room is decided before entering it.
+
+**Proposed instead: smooth the route when it is planned.** When A* returns
+a path, build the line to run along once:
+
+1. Pull the string: drop waypoints the hull can run past in a straight line.
+2. Round each remaining corner on its outside, keeping 48 u from walls where
+   the room allows, checking each piece with the hull sweep.
+3. Keep precise approaches and jump, pad and trick starts exact.
+
+Steering then pursues a point a fixed distance along that one line, which
+moves smoothly as the bot moves. There are no fallbacks, except re-planning
+when the bot is knocked off it. The view leads along the line and the keys
+follow as now. The work is in the path planner, not in each decision, and
+can be tested offline: draw the smoothed lines for every spawn-to-item route
+on a map and check their clearance before any match is run.
