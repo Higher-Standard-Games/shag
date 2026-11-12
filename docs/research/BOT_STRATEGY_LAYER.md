@@ -695,3 +695,17 @@ Two things found on the way:
 - **Two-bot Duel results cannot be judged from single runs.** Two runs of
   the same code gave 154 and 99 health and armor a minute, or 2.7 and 9.7
   deaths. BS-7's harness, many matches per arm, is what Duel changes need.
+
+### 2026-11-13 — BS-7: head to head
+
+`bot:ab` (fps `cli/bot-ab.ts`, `bot/AbStats.ts`) plays arm A against arm B
+over many matches in worker processes and reports wins, the frag gap with a
+95% interval, and a two-sided sign test on wins.
+
+First use, Hard against Easy, `washoi_dm5` Duel, 16 matches of 150 s: wins
+10–3 (3 drawn), frags 62–49, deaths 58–71, p = 0.09. **Even the largest skill
+difference barely shows in two-bot Duel on dm5.** Bots meet rarely and the
+first to see the other usually wins, so most of a match is not decided by
+skill. Two things follow: Duel changes need 30 or more matches to judge, and
+there is room for the strategy layer, which is about meeting on your own
+terms. The habit opponents move to BS-11, which they exist to test.
