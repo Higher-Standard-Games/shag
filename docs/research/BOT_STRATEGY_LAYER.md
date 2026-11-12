@@ -709,3 +709,15 @@ first to see the other usually wins, so most of a match is not decided by
 skill. Two things follow: Duel changes need 30 or more matches to judge, and
 there is room for the strategy layer, which is about meeting on your own
 terms. The habit opponents move to BS-11, which they exist to test.
+
+### 2026-11-13 — BS-5 second part: reactions and flicks
+
+Reaction waits are log-normal (σ 0.25 of the logarithm) round the preset's
+time, drawn through a logistic approximation of the normal quantile so a fixed
+random source still gives the preset's time. Reactive turns overshoot by
+4–12% with odds 0.15 + 0.35 × (1 − aimAccuracy) and correct once the view
+arrives (at most 1 s). Two FFA runs: deaths 25–27 a minute as before; flicks
+out of a fight ending in a correction stayed at 11% (people 18%), because the
+flicks out of a fight are mostly turnarounds and a small overshoot comes back
+slower than the measure's 45°/s. The change is in fights, which that measure
+leaves out by design.
