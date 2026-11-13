@@ -847,6 +847,7 @@ With the option fix in, `bot:ab` on washoi_dm5, Duels of 150 s:
 | Hard, strategist | Hard, no strategist | 32 | 16–12 (4) | 122–112 | +0.31 (−0.54 to 1.17) | p 0.57 |
 | Hard, strategist | Hard, no strategist, Red Armor habit | 24 | 12–8 (4) | 106–87 | +0.79 (−0.36 to 1.95) | p 0.50 |
 | Hard, no strategist | Hard, no strategist, Red Armor habit | 24 | 14–4 (6) | 106–78 | +1.17 (−0.05 to 2.39) | p 0.03 |
+| Hard, strategist | Hard, no strategist, matches of 480 s | 16 | 10–5 (1) | 95–85 | +0.63 (−0.56 to 1.81) | p 0.30 |
 
 **The strategist shows no measurable gain in 150 s Duels.** Its edge over
 the plain bot (+0.31) is smaller than two identical bots produced (+0.72).
@@ -856,13 +857,20 @@ did. Likely reasons, for the next round:
 
 - 150 s is short for it: a habit becomes contested only after the opponent's
   second Red Armor, the bandit judges 30 s episodes, and the item and score
-  diagnoses build slowly. A 480 s run is under way.
+  diagnoses build slowly. In 480 s matches it leaned the same way (10–5 in
+  wins) without being shown either.
 - Recover makes a bot more passive (retreats sooner, chases less), which
   costs frags in a match decided by frags; whether its stack gain pays back
   needs longer matches to show.
 - Contesting an item the opponent takes puts the bot where the opponent is
   going, which is a fight it may not want while understacked; the two
   strategies are not yet coordinated.
+- **It is idle most of the time.** Sampled each second in a 240 s Hard Duel
+  on dm5: Standard 88%, Pressure 6%, Recover 6%, Control never. Control needs
+  the opponent seen or heard taking two major items in 90 s, which on a map
+  this size rarely happens. Next: diagnoses that fire on weaker evidence (item
+  timers the bot believes were taken by someone, the stack trend), and
+  checking each strategy's effect alone with `bot:ab` before tuning the set.
 
 ### 2026-11-13 — BS-13: hops along the route line
 
