@@ -988,6 +988,35 @@ person leans on the curve by its staleness. Bots are left out, as they
 stack much lower. Bot-against-bot runs cannot measure it; the next match
 against a person can.
 
+### 2026-11-13 — the dm2 Red Armor, and learning from match demos
+
+Why the bot took one Red Armor to the owner's 16 on dm2: not timing. The owner
+takes it a median 10 s after it respawns (and waits at items about 0.4 s: a
+cycle run through, not camped). A traced bot believed it up for 50 s and never
+chose it: its route there cost 2–3.4 times the straight distance, against
+1.1–2 for the Mega. The owner climbs to it with a wall jump the nav graph did
+not know.
+
+`bot:learn` rejected all 144 of the owner's tricks in that Duel ("replay misses
+by" a median 254 units). It replayed one command per position sample; a match
+server samples every other tick, so half the commands were dropped. With every
+command replayed (`commandsBetween`), the Duel gives 89 tricks and the owner's
+climb demo 21 (it gave 21 before: training demos are sampled every tick). The
+learner now skips bots in match demos.
+
+Route libraries learned from the two Duels and the climb demo (dm2 77 → 161
+routes, dm5 46 → 121), Hard against Hard with the old libraries, each arm on
+its own bot server (`routesRoot`), 24 Duels of 240 s:
+
+| Map | Wins new–old | Frag gap | Deaths new–old |
+| --- | --- | --- | --- |
+| dm2 | 11–8, 5 drawn | +1.17 (−0.44 to 2.77) | 169–197 |
+| dm5 | 13–10, 1 drawn | +1.04 (−0.65 to 2.73) | 158–183 |
+
+Positive on both maps, not shown on either. Against the Red Armor hoarder the
+climb alone did not raise the bot's Red Armors (0.7 and 0.6 a match): the
+hoarder, a bot too, climbs with the same library.
+
 ### Gates, 2026-11-13
 
 In the worktree (no `node_modules` or `public/data` junctions, by design):
