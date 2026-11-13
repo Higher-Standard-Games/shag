@@ -27,6 +27,9 @@
     { "name": "death_headshot", "file": "death_headshot.glb" },
     { "name": "dance_1", "file": "dance_1.glb", "optional": true },
     { "name": "dance_2", "file": "dance_2.glb", "optional": true },
-    { "name": "dance_3", "file": "dance_3.glb", "optional": true }
+    { "name": "dance_3", "file": "dance_3.glb", "optional": true },
+    { "name": "taunt_1", "file": "taunt_1.glb", "optional": true },
+    { "name": "taunt_2", "file": "taunt_2.glb", "optional": true },
+    { "name": "taunt_3", "file": "taunt_3.glb", "optional": true }
   ]
 }

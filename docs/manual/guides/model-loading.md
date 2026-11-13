@@ -151,10 +151,17 @@ npm run tools:pk3-index
 ```
 
 The animation builder validates embedded GLB dependencies and all required
-clips, skips missing optional dances, and writes fixed ZIP timestamps and
+clips, skips missing optional clips (the victory dances and taunts), and
+writes fixed ZIP timestamps and
 `models/players/animations/animations-manifest.json` with content hashes. Standard
 builds consume the existing archives and do not require authoring sources.
 The body archive is supplied as is; no tool rebuilds it.
+
+The post-game screen plays one of six victory clips on the winner's model,
+each equally likely: `dance_1` to `dance_3` and `taunt_1` to `taunt_3`
+(`VICTORY_ANIMS` in `src/engine/animation/PlayerModelManager.ts`). It picks
+only among the clips that loaded, and a body with none of them keeps its idle
+pose.
 
 Headless `anim inspect [file|all]` lists each shared clip's channels and flags
 root-motion position tracks; `anim bones` lists the default body's skin joints.

@@ -227,12 +227,12 @@ export interface AnimFileConfig {
 
 // ─── Default animation set ──────────────────────────────────────
 
-// Shared with the package builder. Missing optional victory dances fall back
+// Shared with the package builder. Missing optional victory clips fall back
 // to idle without HTTP errors or re-downloading the archive for every clip.
 export const DEFAULT_ANIM_FILES: AnimFileConfig[] = PLAYER_ANIMATIONS;
 
-/** Victory-dance pool for the post-game winner showcase (random pick). */
-export const DANCE_ANIMS = ["dance_1", "dance_2", "dance_3"];
+/** The clips the post-game winner showcase picks one of at random: dances and taunts. */
+export const VICTORY_ANIMS = ["dance_1", "dance_2", "dance_3", "taunt_1", "taunt_2", "taunt_3"];
 /** The upper-body clip a player holding the blade loops; see setUpperBodyStance. */
 export const BLADE_STANCE = "blade_idle";
 /** The blade in its stance stands up from the fist, leaning this far (radians) toward the body's front. */
