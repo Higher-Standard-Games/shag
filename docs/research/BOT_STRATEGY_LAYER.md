@@ -1017,6 +1017,15 @@ Positive on both maps, not shown on either. Against the Red Armor hoarder the
 climb alone did not raise the bot's Red Armors (0.7 and 0.6 a match): the
 hoarder, a bot too, climbs with the same library.
 
+### Gates, 2026-11-13 evening (after merging staging)
+
+`staging` (victory dances and taunts) merged into the branch; the only conflict
+was the changelog, both sides kept. In the worktree: typecheck clean; Biome at
+baseline; bot tests 549 of 549; production build, server bundle and both
+manuals build. The full suite passed 6,538 tests and failed 10, the same
+environment-only set as below (Babylon internals and `vite-node` read from the
+worktree's missing `node_modules`, `public/wasm` missing), none in bot code.
+
 ### Gates, 2026-11-13
 
 In the worktree (no `node_modules` or `public/data` junctions, by design):
@@ -1026,7 +1035,7 @@ and failed 10, all reading `./node_modules`, `public/wasm` or spawning
 `./node_modules/vite-node` in the worktree, none in bot code. The bundled bot
 server opens `bot-intel.db` in a scratch data directory.
 
-## Status of the work orders, 2026-11-13
+## Status of the work orders, 2026-11-13 (evening)
 
 | WO | State | Notes |
 | --- | --- | --- |
@@ -1035,10 +1044,10 @@ server opens `bot-intel.db` in a scratch data directory.
 | BS-3 | done | hunt a known enemy; Duel unaffected by design |
 | BS-4 | partly | `aggression` read (BS-3); `mapControl` still read by nothing |
 | BS-5 | done | calm view, pitch, glances, log-normal reactions, overshoot |
-| BS-6 | partly | running starts done; tricks failing by skill not done |
+| BS-6 | partly | running starts done; tricks learned from match demos (dm2, dm5 libraries); failing by skill not done |
 | BS-7 | done | `bot:ab`; habit opponents via `habitItem` |
 | BS-8 | done | match read; pickup-taker fix |
-| BS-9 | done, not yet shown to help | acts now (blind to armor takes before); Control gated; at plain Hard's level |
+| BS-9 | done, not yet shown to help | acts now (blind to armor takes before); Control races for returning items; at plain Hard's level against bots |
 | BS-10 | done | finishing with the sure-kill gun |
 | BS-11 | done, not yet shown to help | opponent model, contested items, bandit |
 | BS-12 | done | fading and escape routes; not measured on its own |
@@ -1051,4 +1060,5 @@ server opens `bot-intel.db` in a scratch data directory.
 | BS-19 | not started | styles |
 | BS-20 | not started | player keys on route lines |
 | BS-21 | waiting | needs the strategist live and people's results |
-| BS-22–27 | not started | learned layers |
+| BS-22–26 | not started | learned layers |
+| BS-27 | started | `bot:people` and `people.json`: map-free rules from people's demos; first rule `stackByAge` |
