@@ -836,3 +836,87 @@ fps `ff9b0c2`.
 - Not done: the fight cells are recorded but nothing reads them yet (they are
   for positions and Danger, BS-18's second half); third-party and item-crowd
   diagnoses for FFA (BS-16) wait for the tactics that answer them.
+
+### 2026-11-13 — the strategist, measured properly
+
+With the option fix in, `bot:ab` on washoi_dm5, Duels of 150 s:
+
+| A | B | Matches | Wins A–B (drawn) | Frags A–B | Gap per match (95%) | Sign test |
+| --- | --- | --- | --- | --- | --- | --- |
+| Hard | Hard, same code (the earlier run) | 32 | 15–10 (7) | 128–105 | +0.72 (−0.15 to 1.59) | p 0.42 |
+| Hard, strategist | Hard, no strategist | 32 | 16–12 (4) | 122–112 | +0.31 (−0.54 to 1.17) | p 0.57 |
+| Hard, strategist | Hard, no strategist, Red Armor habit | 24 | 12–8 (4) | 106–87 | +0.79 (−0.36 to 1.95) | p 0.50 |
+| Hard, no strategist | Hard, no strategist, Red Armor habit | 24 | 14–4 (6) | 106–78 | +1.17 (−0.05 to 2.39) | p 0.03 |
+
+**The strategist shows no measurable gain in 150 s Duels.** Its edge over
+the plain bot (+0.31) is smaller than two identical bots produced (+0.72).
+The habit bot is weaker than a plain one (it beats itself running to the Red
+Armor), and the strategist did not exploit that better than the plain bot
+did. Likely reasons, for the next round:
+
+- 150 s is short for it: a habit becomes contested only after the opponent's
+  second Red Armor, the bandit judges 30 s episodes, and the item and score
+  diagnoses build slowly. A 480 s run is under way.
+- Recover makes a bot more passive (retreats sooner, chases less), which
+  costs frags in a match decided by frags; whether its stack gain pays back
+  needs longer matches to show.
+- Contesting an item the opponent takes puts the bot where the opponent is
+  going, which is a fight it may not want while understacked; the two
+  strategies are not yet coordinated.
+
+### 2026-11-13 — BS-13: hops along the route line
+
+fps `724d36b`. Counting why route strafe jumps started (one hop in 150 s
+across four bots): a straight 480-unit lane failed mostly because a later
+waypoint lay more than 80 units off it, since routes on these maps bend that
+soon, and next because of a jump or drop within reach. A hop now follows the
+route line itself: it may start where the next 640 units are plain walking
+turning at most 75° in all with 320 left, and steers for the line 160 units
+ahead, failing on drift from the line rather than from a straight one. Same
+load, 150–180 s:
+
+| | Running airborne | Take-offs per running minute | Running over 450 u/s |
+| --- | --- | --- | --- |
+| dm2 FFA before → after | 18% → 32% | 82 → 96 | 10% → 9% |
+| dm5 Duel before → after | 22% → 28% | 50 → 63 | 7% → 8% |
+| People | 42% | 76 | 17% |
+
+Airtime is most of the way to people's; speed is not. The hops hold speed
+but do not build it, so the next step is the air-strafe angle (the phase 2
+analytic optimum, or the RL controller of BS-25).
+
+### Gates, 2026-11-13
+
+In the worktree (no `node_modules` or `public/data` junctions, by design):
+typecheck clean; Biome at baseline; production build and server bundle build;
+both manuals build; bot tests 534 of 534. The full suite passed 6,515 tests
+and failed 10, all reading `./node_modules`, `public/wasm` or spawning
+`./node_modules/vite-node` in the worktree, none in bot code. The bundled bot
+server opens `bot-intel.db` in a scratch data directory.
+
+## Status of the work orders, 2026-11-13
+
+| WO | State | Notes |
+| --- | --- | --- |
+| BS-1 | done | `bot:demo-motion`; people baseline above |
+| BS-2 | done | hearing by the client's thresholds and the falloff |
+| BS-3 | done | hunt a known enemy; Duel unaffected by design |
+| BS-4 | partly | `aggression` read (BS-3); `mapControl` still read by nothing |
+| BS-5 | done | calm view, pitch, glances, log-normal reactions, overshoot |
+| BS-6 | partly | running starts done; tricks failing by skill not done |
+| BS-7 | done | `bot:ab`; habit opponents via `habitItem` |
+| BS-8 | done | match read; pickup-taker fix |
+| BS-9 | done, not yet shown to help | see the measurement above |
+| BS-10 | done | finishing with the sure-kill gun |
+| BS-11 | done, not yet shown to help | opponent model, contested items, bandit |
+| BS-12 | done | fading and escape routes; not measured on its own |
+| BS-13 | partly | hops bend with the route; airtime up, speed not |
+| BS-14 | not started | watch points |
+| BS-15 | not started | traps and ambushes |
+| BS-16 | partly | Focused; third party and item crowd wait for tactics |
+| BS-17 | done | `bot-intel.db`, `bot:intel`, baseline file, fingerprint |
+| BS-18 | partly | payoff priors read; fight cells recorded, not yet read |
+| BS-19 | not started | styles |
+| BS-20 | not started | player keys on route lines |
+| BS-21 | waiting | needs the strategist live and people's results |
+| BS-22–27 | not started | learned layers |
