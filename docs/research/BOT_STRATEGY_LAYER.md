@@ -893,6 +893,50 @@ Airtime is most of the way to people's; speed is not. The hops hold speed
 but do not build it, so the next step is the air-strafe angle (the phase 2
 analytic optimum, or the RL controller of BS-25).
 
+### 2026-11-13 — a person's Duel, and why the strategist was blind
+
+The owner played a full 600 s Duel on dm2 against a Hard bot on this branch
+and won 22–5 (24 frags to 6). From the demo: the owner took 12 Red, 16
+Yellow and 14 Green Armors, 5 Mega Healths and 26 Health; the bot took 2, 3,
+2, 4 and 1, and 44 weapons. `bot:demo-motion`: health and armor 318 a
+minute against 93; airborne running 53% against 35%; over 450 u/s 24%
+against 11%; pitch 14° against 6°.
+
+Two bugs found:
+
+- **The server names no taker of armor or health.** `item_pickup` is sent
+  for weapons only (`PickupSystem`); armor and health show only in the item
+  mask. Bots learned enemy takes from `item_pickup`, so no armor or Mega was
+  ever credited to an opponent: `losing_items` could not fire and the stack
+  estimate never counted armor. That, not the size of dm5, is why the
+  strategist was idle. Perception now credits a take as a person's eyes
+  would: a major item vanishing in sight goes to the seen enemy at it, or to
+  the one opponent in a Duel; an item found gone with one opponent goes to
+  that opponent, taken some time in the last respawn period. A pickup lands
+  90–150 u from the item's spot, so the bot's own takes are recognised within
+  180 u.
+- **Lobby-invited bots stored no match report**: the report listener was
+  attached only in `BotServer.addBot`. Fixed for both paths.
+
+Measured on dm2, 16 Duels of 240 s each, against a Hard bot with
+`habitItem: "ra"` (a Red Armor hoarder, the owner's pattern):
+
+| A | Wins A–B | Frag gap | A's time out of Standard |
+| --- | --- | --- | --- |
+| Hard, no strategist | 5–9, 2 drawn | −0.38 | — |
+| Hard, strategist | 4–12 | −1.25 | 67% |
+| only Control | 1–14, 1 drawn | −2.25 (p = 0.001) | 64% |
+| only Recover | 7–8, 1 drawn | −0.44 | 8% |
+| only Pressure | 8–7, 1 drawn | −0.13 | 54% |
+| only Control, gated | 4–7, 5 drawn | −0.63 | 19% |
+| Hard, strategist, gated Control | 7–7, 2 drawn | −0.44 | 64% |
+
+Control raised the weight on contesting the opponent's habitual item and sent
+the bot there as the opponent arrived, stacked from the last one. It is now
+played only with a stack at most 25 under the estimate of the opponent's, and
+left at once when that stops holding; otherwise the bot recovers. That
+removed the harm; the strategist is at plain Hard's level, not above it.
+
 ### Gates, 2026-11-13
 
 In the worktree (no `node_modules` or `public/data` junctions, by design):
@@ -914,7 +958,7 @@ server opens `bot-intel.db` in a scratch data directory.
 | BS-6 | partly | running starts done; tricks failing by skill not done |
 | BS-7 | done | `bot:ab`; habit opponents via `habitItem` |
 | BS-8 | done | match read; pickup-taker fix |
-| BS-9 | done, not yet shown to help | see the measurement above |
+| BS-9 | done, not yet shown to help | acts now (blind to armor takes before); Control gated; at plain Hard's level |
 | BS-10 | done | finishing with the sure-kill gun |
 | BS-11 | done, not yet shown to help | opponent model, contested items, bandit |
 | BS-12 | done | fading and escape routes; not measured on its own |
