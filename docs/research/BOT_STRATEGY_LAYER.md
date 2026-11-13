@@ -781,18 +781,14 @@ scored by the new `ContestedItem` attractor with `itemDenial`. Finishing:
 estimate, armor counted (BS-10). The first FFA diagnosis, Focused, is in;
 third party and crowded items wait for the tactics that answer them.
 
-Head to head, `bot:ab`, washoi_dm5, 32 Hard Duels of 150 s:
-
-| | Strategist on | off |
-| --- | --- | --- |
-| Wins | 15 | 10 (7 drawn) |
-| Frags | 128 | 105 |
-| Deaths | 119 | 142 |
-
-Frag gap +0.72 per match, 95% interval −0.15 to 1.59; sign test p = 0.42.
-The lean is about as large as Hard over Easy (+0.81) and not yet shown.
-Recover is the strategy that fires most; Control and Pressure rarely do in
-150 s matches, because the item and score evidence they need builds slowly.
+**Correction.** The first head-to-head of this (32 Hard Duels, "on" 15 wins
+against "off" 10, frags 128–105) compared two identical bots: `BotServer`
+passed only a fixed list of options to a bot, so `strategy: false` never
+arrived, and every preset ran at the default match sense of 0.5 because the
+rating reference drops fields it does not rate by. Both are fixed (fps
+`03a11fb`, see below). The run is still worth keeping as a measure of noise:
+**two copies of the same bot split 15–10 with a +0.72 frag gap.** A real
+difference has to beat that.
 
 ### 2026-11-13 — BS-6 first part: running into tricks
 
