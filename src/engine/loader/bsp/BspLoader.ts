@@ -173,7 +173,8 @@ export interface BspFace {
 export interface BspEffect {
   name: string;
   brushIndex: number;
-  unknown: number;
+  /** Fog: the brush side (0-based within the brush) its surface is drawn on, or -1 when none is. */
+  visibleSide: number;
 }
 
 export interface BspVisData {
@@ -923,7 +924,7 @@ export class BspLoader {
       effects.push({
         name,
         brushIndex: lump.data.getInt32(offset + 64, true),
-        unknown: lump.data.getInt32(offset + 68, true),
+        visibleSide: lump.data.getInt32(offset + 68, true),
       });
     }
 

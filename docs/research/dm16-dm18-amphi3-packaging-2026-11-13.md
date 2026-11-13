@@ -1,9 +1,9 @@
 # Packaging washoi_dm16, washoi_dm17, washoi_dm18 and washoi_amphi3
 
 November 13, 2026. Four maps compiled from the Warfork map sources and added
-to the map pools. Washoi DM18 was withdrawn the same day while its lighting is
-reworked (it relied on a q3map2 floodlight; see below); its packages are in
-`archive/media/retired-maps/`.
+to the map pools. Washoi DM18 was withdrawn for a day while its lighting was
+reworked (it relied on a q3map2 floodlight; see below) and is back in the FFA
+pool with the `ambient 24` build.
 
 | Release ID | Source | Title | Pools |
 | --- | --- | --- | --- |
@@ -163,10 +163,9 @@ authored.
 
 ## Packages
 
-The levelshots of DM16, DM17 and Amphi3 are owner screenshots at 1920 × 1080
-(Amphi3's, taken at 2727 × 1326, centre-cropped to 16:9 and resized; the
-sources are in `archive/media/levelshot-sources/`). DM18's is still Warfork's
-1024 × 1024 `levelshots/wfdm18.png`, a stand-in. The merge into the
+All four levelshots are owner screenshots at 1920 × 1080 (Amphi3's, taken at
+2727 × 1326, centre-cropped to 16:9 and resized; the sources are in
+`archive/media/levelshot-sources/`). The merge into the
 master adds no conflicts. 52 new images are classified in
 `config/map-texture-encoding.json` (23 colour, 11 normal, 9 gloss, 9 alpha);
 every existing entry and its order are kept.
@@ -177,7 +176,7 @@ every existing entry and its order are kept.
 | `tex_washoi_dm16.pk3` | 4,786,859 | `cdb950a18e6c037420720013caecc62c862a63cbb2f032f8aecedc0bd999d804` |
 | `map_washoi_dm17.pk3` | 15,365,569 | `e00e7ff7e02a8990936901ce5f877d3d917d04f88161b91820a42f87602021bb` |
 | `tex_washoi_dm17.pk3` | 6,732,420 | `f73de7ee9f24920ce70cb57e7fc5da20522011a820112e436f2512f8bfa95195` |
-| `map_washoi_dm18.pk3` | 7,901,055 | `cb2c451deb1109f14d6949827923f2dfc370ec2b8dc7365ff659bd6491f21516` |
+| `map_washoi_dm18.pk3` | 9,186,684 | `ffa7ad73a804046c0d4600c3db7bad40748c7e45a2e72e95bc5dfa99f7e2c7f0` |
 | `tex_washoi_dm18.pk3` | 2,818,963 | `fd707d8c97bddc2ad092c726a48095b67749ddbc6e926c517255502dde68693a` |
 | `map_washoi_amphi3.pk3` | 14,358,220 | `d35c6b10ebbf5f9a4b72d86eb13d22bb7f42507948ff9c988bf33f925d773932` |
 | `tex_washoi_amphi3.pk3` | 5,006,404 | `5746e0c6da10a0e7c75af7f37978c6fb551cefd707755e15063d374a4c35a3f2` |

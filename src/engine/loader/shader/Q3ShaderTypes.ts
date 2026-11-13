@@ -314,6 +314,8 @@ export interface Q3Shader {
   fogParms?: {
     color: [number, number, number];
     depthForOpaque: number;
+    /** Distance into the fog before it starts (qfusion's fourth value); 0 when absent. */
+    clearDist: number;
   };
 
   /** Portal shader */

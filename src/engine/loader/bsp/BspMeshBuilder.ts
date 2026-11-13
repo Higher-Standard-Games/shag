@@ -309,6 +309,11 @@ export class BspMeshBuilder {
       // Sky shader detection - track for skybox creation
       // Check both Q3 shader registry (surfaceparm sky / skyparms) and BSP surface flags (SURF_SKY = 0x4)
       const textureName = this.bsp.textures[face.textureIndex]?.name || "";
+      // A fog brush's surface is drawn by its fog volume (FogVolumes), not as a face
+      if (shaderRegistry.getShader(textureName)?.fogParms) {
+        skippedTextures++;
+        continue;
+      }
       const shaderProps = shaderRegistry.resolveMaterialProps(textureName, {
         deluxe: this.options.deluxe,
         worldSurface: true,
@@ -2203,16 +2208,13 @@ export class BspMeshBuilder {
     scene: Scene,
   ): Promise<{ success: boolean; fogMeshes: Mesh[]; error?: string }> {
     try {
-      const { FogVolumeManager } = await import("./BspFogVolume");
-      const fogManager = new FogVolumeManager();
-      const fogResult = await fogManager.buildFogVolumes(result.bspData, scene);
-
-      if (fogResult.meshes.length > 0) {
-        result.fogVolumes = fogResult.meshes;
-        return { success: true, fogMeshes: fogResult.meshes };
-      } else {
-        return { success: false, fogMeshes: [], error: "No fog volumes found in BSP" };
-      }
+      const { createFogVolumes } = await import("./FogVolumes");
+      result.fogVolumeSet?.dispose();
+      const set = createFogVolumes(result.bspData, scene, result.worldMesh);
+      result.fogVolumeSet = set ?? undefined;
+      result.fogVolumes = set?.meshes ?? [];
+      if (set?.meshes.length) return { success: true, fogMeshes: set.meshes };
+      return { success: false, fogMeshes: [], error: "No fog volumes found in BSP" };
     } catch (error) {
       console.error("[BspMeshBuilder] Failed to apply fog volumes:", error);
       return { success: false, fogMeshes: [], error: String(error) };

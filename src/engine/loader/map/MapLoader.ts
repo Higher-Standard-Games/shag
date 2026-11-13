@@ -532,6 +532,12 @@ export class MapLoader {
       devLog(`[MapLoader] World fog: 95% at ${fogDist}, from ${worldFog.minDist}, colour ${worldFog.color.join(" ")}`);
     }
 
+    // Fog volumes (`fogparms` brushes), fogging what lies inside them
+    if (!isHeadlessNullEngine) {
+      const fog = await BspMeshBuilder.applyFogVolumes(meshResult, scene);
+      if (fog.success) devLog(`[MapLoader] ${fog.fogMeshes.length} fog volume(s)`);
+    }
+
     // Phase 7: Apply lightmaps (baked lighting)
     progress("Lighting", "Applying lightmaps");
     try {
@@ -1121,6 +1127,9 @@ export class MapLoader {
     // Release the sources; the next map preloads the models it needs.
     const { AssetPreloader } = await import("../AssetPreloader");
     AssetPreloader.getInstance().clearCache();
+
+    // Fog volumes read the scene depth every frame; stop that before the meshes go
+    this.currentMeshResult?.fogVolumeSet?.dispose();
 
     // Hand liquid surfaces back before the meshes go, so nothing is left
     // pointing at a material that is about to be disposed.
