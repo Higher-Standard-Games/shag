@@ -34,6 +34,8 @@ const START_OFF = 64;
 /** Warsow ages local sprites in 100 ms frames and fades them in over two. */
 const FRAME_SECONDS = 0.1;
 const FADE_IN_FRAMES = 2;
+/** BspMeshBuilder gives blended map surfaces alphaIndex 0-999 and additive ones 1000+. */
+const PARTICLE_ALPHA_INDEX = 999.5;
 const GRAVITY_ACCEL = 175;
 /** Sprites live this close to the camera only. */
 const RANGE = 2500;
@@ -247,10 +249,12 @@ class SpriteBatch {
     private readonly fades: boolean,
   ) {
     const material = new StandardMaterial(`misc_particles:${name}`, scene);
+    // Sprites are unlit: the image times its sprite colour. With lighting off the
+    // diffuse term is zero, so the image reaches the screen through emissive.
     material.disableLighting = true;
-    material.diffuseColor = Color3.White();
+    material.diffuseColor = Color3.Black();
     material.specularColor = Color3.Black();
-    material.emissiveColor = Color3.Black();
+    material.emissiveColor = Color3.White();
     material.diffuseTexture = texture;
     texture.hasAlpha = true;
     material.useAlphaFromDiffuseTexture = true;
@@ -263,6 +267,9 @@ class SpriteBatch {
     this.mesh.isPickable = false;
     this.mesh.hasVertexAlpha = true;
     this.mesh.alwaysSelectAsActiveMesh = true;
+    // After the map's alpha-blended surfaces (alphaIndex 0-999), before its
+    // additive ones (1000 and up): additive glass in front of a puff adds over it.
+    this.mesh.alphaIndex = PARTICLE_ALPHA_INDEX;
     this.mesh.metadata = { mapOwned: true };
     this.mesh.thinInstanceSetBuffer("matrix", this.matrices, 16, false);
     this.mesh.thinInstanceSetBuffer("color", this.colors, 4, false);

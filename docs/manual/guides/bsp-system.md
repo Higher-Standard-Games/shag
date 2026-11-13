@@ -177,8 +177,10 @@ Map ambience is client-only (`AmbientEntityHandlers.ts`) and ends with the map:
   numbers, as in Warsow, so a `speed` below 1 stands still. Emitters with
   START_OFF (64) wait for a trigger and are skipped. The sprite image is the
   first image stage of the shader; `rgbGen const` tints it, and a stage with
-  `alphaGen vertex` (or none) fades. Each shader draws in one call, up to 512
-  sprites, from emitters within 2,500 units of the camera.
+  `alphaGen vertex` (or none) fades. Sprites are unlit. Each shader draws in
+  one call, up to 512 sprites, from emitters within 2,500 units of the camera,
+  after the map's alpha-blended surfaces and before its additive ones, so
+  additive glass in front of the smoke still shows over it.
 
 `func_button` is simulated with the lifts (`LiftSystem`): a button calls every
 door or plat it targets. One with `health` fires when shot (a hitscan or

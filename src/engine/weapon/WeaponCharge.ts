@@ -36,7 +36,7 @@ export class WeaponCharge {
    * @param isCharging     Whether the weapon is currently charging
    * @param chargeTime     Total charge time in seconds (from weapon def)
    * @param meshes         Weapon meshes to apply outline to
-   * @param rootScaleX     Root node X scale (for outline width normalisation)
+   * @param unitsOf        World units one unit of a mesh spans; outline widths are in mesh units
    * @param outlineWidth   Current outline width setting
    * @param outlineColor   Current outline color setting
    * @param outlineEnabled Current outline enabled setting
@@ -46,7 +46,7 @@ export class WeaponCharge {
     isCharging: boolean,
     chargeTime: number,
     meshes: AbstractMesh[],
-    rootScaleX: number,
+    unitsOf: (mesh: AbstractMesh) => number,
     outlineWidth: number,
     outlineColor: Color3,
     outlineEnabled: boolean,
@@ -92,14 +92,13 @@ export class WeaponCharge {
       const outlineMin = 0.6,
         outlineMax = 4.8;
       const scaledWidth = outlineMin + this.progress * (outlineMax - outlineMin);
-      const scale = rootScaleX || 1;
       const pulseRate = 4 + this.progress * 8;
       const pulse = 0.6 + 0.4 * Math.sin(now * 0.001 * pulseRate * Math.PI * 2);
       const turquoise = new Color3(0.05 * pulse, 1.0 * pulse, 0.9 * pulse);
 
       for (const mesh of meshes) {
         mesh.renderOutline = true;
-        mesh.outlineWidth = scaledWidth / scale;
+        mesh.outlineWidth = scaledWidth / unitsOf(mesh);
         mesh.outlineColor = turquoise;
       }
     } else if (this.active) {

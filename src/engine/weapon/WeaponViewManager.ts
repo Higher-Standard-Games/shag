@@ -498,6 +498,8 @@ export class WeaponViewManager {
 
   // Blade charge (extracted)
   private weaponCharge = new WeaponCharge();
+  /** Each view mesh's world scale over its weapon root's, fixed once the model is loaded. */
+  private readonly meshScaleUnderRoot = new WeakMap<AbstractMesh, number>();
 
   // Slash animation (extracted)
   private weaponSlash = new WeaponSlash();
@@ -1699,20 +1701,35 @@ export class WeaponViewManager {
   public applyWeaponOutlines(): void {
     if (!this.currentWeapon) return;
 
-    // GLB models are scaled much larger than MD3 (e.g. 30x), so outlines
-    // appear proportionally thicker. Divide by root scale to normalize.
-    const rootScale = this.currentWeapon.root.scaling.x || 1;
     const width = this._powerupOutlineActive ? this._powerupOutlineWidth : this._weaponOutlineWidth;
     const color = this._powerupOutlineActive ? this._powerupOutlineColor : this._weaponOutlineColor;
     const enabled = this._powerupOutlineActive || this._weaponOutlineEnabled;
-    const adjustedWidth = width / rootScale;
 
     for (const mesh of this.currentWeapon.meshes) {
       mesh.renderOutline = enabled && !drawsAddedLight(mesh);
-      mesh.outlineWidth = adjustedWidth;
+      mesh.outlineWidth = width / this.outlineUnits(mesh);
       mesh.outlineColor = color;
     }
   }
+
+  /**
+   * World units one unit of a view mesh spans, below the camera. An outline is
+   * pushed out along the normal in the mesh's own units, so a width is divided
+   * by this to draw equally thick on every weapon: the blade model's meshes sit
+   * under a 0.13 node scale inside a 30x root, the guns' directly under a 2x one.
+   */
+  private outlineUnits = (mesh: AbstractMesh): number => {
+    const root = this.currentWeapon?.root;
+    if (!root) return 1;
+    let ratio = this.meshScaleUnderRoot.get(mesh);
+    if (ratio === undefined) {
+      root.computeWorldMatrix(true);
+      mesh.computeWorldMatrix(true);
+      ratio = Math.abs(mesh.absoluteScaling.x) / (Math.abs(root.absoluteScaling.x) || 1) || 1;
+      this.meshScaleUnderRoot.set(mesh, ratio);
+    }
+    return (Math.abs(root.scaling.x) || 1) * ratio;
+  };
 
   /**
    * Apply a temporary gameplay outline without mutating the player's saved
@@ -1916,7 +1933,7 @@ export class WeaponViewManager {
       isBladeCharging,
       this.currentWeaponDef?.chargeTime || 1.0,
       this.currentWeapon.meshes,
-      this.currentWeapon.root.scaling.x,
+      this.outlineUnits,
       this._weaponOutlineWidth,
       this._weaponOutlineColor,
       this._weaponOutlineEnabled,

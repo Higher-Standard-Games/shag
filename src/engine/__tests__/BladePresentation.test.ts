@@ -69,14 +69,14 @@ it("grows a scale-normalized cyan charge and returns the saved outline on releas
     const charge = new WeaponCharge();
     const time = vi.spyOn(performance, "now").mockReturnValue(0);
     const saved = new Color3(0.2, 0.3, 0.4);
-    charge.update(true, 1, [mesh], 30, 0.2, saved, false);
+    charge.update(true, 1, [mesh], () => 30, 0.2, saved, false);
     expect(mesh.outlineWidth).toBeCloseTo(0.6 / 30);
     time.mockReturnValue(1000);
-    charge.update(true, 1, [mesh], 30, 0.2, saved, false);
+    charge.update(true, 1, [mesh], () => 30, 0.2, saved, false);
     expect(mesh.outlineWidth).toBeCloseTo(4.8 / 30);
     expect(mesh.outlineColor.g).toBeGreaterThan(mesh.outlineColor.r * 10);
     expect(mesh.outlineColor.b).toBeCloseTo(mesh.outlineColor.g * 0.9);
-    expect(charge.update(false, 1, [mesh], 30, 0.2, saved, false)).toMatchObject({
+    expect(charge.update(false, 1, [mesh], () => 30, 0.2, saved, false)).toMatchObject({
       needsOutlineRestore: true,
       savedWidth: 0.2,
       savedColor: saved,
@@ -122,7 +122,7 @@ it("tints the metal specular light from the world camera lightgrid with a visibi
 it("smoothly lowers the charging blade and restores its carry pose on cancellation or reset", () => {
   const charge = new WeaponCharge();
   const time = vi.spyOn(performance, "now").mockReturnValue(0);
-  const sample = (charging: boolean) => charge.update(charging, 1, [], 30, 0, Color3.White(), false).pitchOffset;
+  const sample = (charging: boolean) => charge.update(charging, 1, [], () => 30, 0, Color3.White(), false).pitchOffset;
   expect(sample(true)).toBeCloseTo(0);
   time.mockReturnValue(70);
   const entering = sample(true);

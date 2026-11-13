@@ -1,7 +1,9 @@
 # Packaging washoi_dm16, washoi_dm17, washoi_dm18 and washoi_amphi3
 
 November 13, 2026. Four maps compiled from the Warfork map sources and added
-to the map pools.
+to the map pools. Washoi DM18 was withdrawn the same day while its lighting is
+reworked (it relied on a q3map2 floodlight; see below); its packages are in
+`archive/media/retired-maps/`.
 
 | Release ID | Source | Title | Pools |
 | --- | --- | --- | --- |
@@ -39,6 +41,8 @@ are not edited. The staged sources, with the models they place, are in
 | wdm16 | 31 models placed as `maps/model_*.ase` (its readme's Radiant layout) | `models/mapobjects/wdm16/model_*.ase` |
 | wdm18 | `models/mapobjects/teleporter/tteleporter_01_a.obj` | `teleporter_01_a.obj` |
 | all | no lightmap or grid keys | `_lightmapImageSize 2048`, `gridsize 64 64 64` |
+| all | `_floodlight` | `ambient 6` with the floodlight colour as `_color` (below) |
+| wdm16, wdm17, wdm18, wda2 | texture scales sized for pre-2026 images | rescaled for the current images (below) |
 
 Collision follows q3map2's rule, as for the earlier maps: every `misc_model`
 without spawnflag 2 has `"collisiontype" "none"` (121 in wdm16, 172 in wdm17, all
@@ -47,6 +51,52 @@ wall pieces, the rock roof, a pipe corner and a wall light; wdm17: four
 handrails, a plate, two stair pieces, a wall stripe and `m_doorway4`) have
 `"collisiontype" "extrude"`, per-triangle collision, because a convex hull
 around a doorway or handrail fills the space it frames.
+
+DM16's five handrails were changed back to MakeBSP's default solid collision
+after play testing: `handrail_1.obj` is a flat sheet 2 units thick, and
+`extrude` pushed each side's prisms out through the other, so players stood on
+an invisible ledge beside the rails. Against Warfork's build, the space blocked
+by a rail and not by Warfork's dropped from 76-393 player positions per rail to
+0-90 (the 90 at the sloped stair rail). The playerclip that wrapped the rail at
+(1264, -1056) is removed.
+
+**Teleporters.** warfork-maps' 2026 `teleporter_01_b.obj` has its base 10.2
+units below its origin, where the old model's base was at the origin, and the
+maps still place it for the old model: the frames sank 10.2 units into the
+floor. DM16's two and DM17's four are raised 10.2 units; their bases now sit
+exactly where Warfork's builds have them (for example z -512.4 and 0.1). DM17's
+four `extrude` handrails also use the default collision; the map's own clips
+cover them, so the space they block is unchanged.
+
+**Upscaled images.** A standard-format face stores its texture scale in image
+pixels, so a compiler turns it into UVs with the image size it finds.
+warfork-qfusion replaced several images with larger ones in 2026 (refly_bricks
+on August 25, decals on September 23, more on October 3) without changing the
+map sources, so a fresh compile shows those textures 2-4 times too large: the
+teleporter signs showed a magnified corner of the image. Warfork's own 2015
+BSPs keep the old UVs. The staged sources divide the scale and multiply the
+shift of each such face by the upscale, measured against warfork-qfusion at
+`d6888dc4` (2023):
+
+| Texture | 2023 | Now | Faces |
+| --- | --- | --- | --- |
+| `decals/decal_telesign_left`, `_right` | 256 × 132 | 1024 × 528 | wdm16 4, wdm17 2 |
+| `decals/decal_drop` | 256 × 256 | 512 × 512 | wdm16 1 |
+| `terrain/rocks005_512x512` | 512 × 512 | 640 × 640 | wdm16 21 |
+| `refly_bricks/bricks2` | 256 × 256 | 1024 × 1024 | wda2 49 |
+| `refly_bricks/bricks4`, `cha0s_ws/cement_3` | 256 × 256 | 512 × 512 | wda2 94 |
+| `refly_bricks/bricksdark1org` | 256 × 256 | 1024 × 1024 | wdm18 79 |
+| `refly_bricks/bricksdark1` | 256 × 256 | 512 × 512 | wdm18 87 |
+
+`wsw_cave1/scratchedmetal1` (wdm16) now resolves to a different, square image
+(`metal/scratchedmetal`, 512 × 512, was 512 × 128) and is left as authored.
+
+**Floodlight.** MakeLight has no `_floodlight`; it ignores the key and reads
+`ambient` with `color` as macro-occlusion ambient. Each map's `_floodlight` is
+replaced by `"ambient" "6"` with the floodlight's colour as `_color`. This
+matters most on wdm18, whose warm look came from an orange floodlight
+(`0.96 0.27 0.03`, intensity 22); its `ambient 5` with a blue `_color` had
+become blue macro-occlusion ambient. On the advice of MakeBSP's author, wdm18 also has `_lightingIntensity 2.5`, `radiosity 0.5`, no `_extradist` on its 42 lights, and `ambient 24`, which leaves room for the ambient to show (ambient 6 to 24 raises red over blue by about 18 of 255). wdm16's 94 lights also have no `_extradist`.
 
 DM17's barrels (`wdm17/m_barrel1-3.ase`) name `textures/metal/orangewall_vertex`,
 which no media set defines. `config/map-material-aliases.shader` defines it with
@@ -59,10 +109,10 @@ then `makelight.exe -game washoi -threads 12`, full lighting.
 
 | BSP | Bytes | Time | Faces | Vertices | Lightmaps | PVS clusters |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| `washoi_dm16` | 31,802,240 | 145 s | 1,083 | 56,094 | 2 × 2048 | 571 |
-| `washoi_dm17` | 37,080,940 | 248 s | 1,450 | 106,509 | 2 × 2048 | 554 |
-| `washoi_dm18` | 28,787,036 | 69 s | 782 | 35,381 | 2 × 2048 | 296 |
-| `washoi_amphi3` | 31,523,972 | 153 s | 1,014 | 64,578 | 2 × 2048 | 439 |
+| `washoi_dm16` | 31,449,640 | 154 s | 1,083 | 56,098 | 2 × 2048 | 571 |
+| `washoi_dm17` | 36,290,960 | 246 s | 1,450 | 106,509 | 2 × 2048 | 554 |
+| `washoi_dm18` | 28,795,048 | 75 s | 782 | 35,439 | 2 × 2048 | 296 |
+| `washoi_amphi3` | 31,526,340 | 164 s | 1,014 | 64,626 | 2 × 2048 | 439 |
 
 No model or material is missing. The logs warn about the compiler helpers
 `noshader` and `tag_light`, one areaportal in wdm16 that does not touch two
@@ -95,7 +145,9 @@ button plays only its `noise` key.
 (`gfx/misc/smokepuff`, spherical and expanding, 6 a second for 3 s), and wdm17
 three bubbles over its slime (`gfx/misc/toxicbubble`, shrinking, 1 a second for
 10 s, standing still because `speed 0.25` truncates to 0). Amphi2 has five
-smoke emitters that drew nothing. `MapParticles.ts` draws them, and the
+smoke emitters that drew nothing. `MapParticles.ts` draws them unlit (the
+image through emissive; a diffuse-only material drew them black), between the
+map's blended and additive surfaces so the additive glass shows over them, and the
 map-media packager now collects `shaderName`, so the images and the
 `alphaBlendedPuff_Template` shader ship in the map banks. Amphi2's texture bank
 was rebuilt to add `gfx/misc/smokepuff`; its map package is unchanged.
@@ -111,21 +163,23 @@ authored.
 
 ## Packages
 
-The levelshots are Warfork's 1024 × 1024 `levelshots/wf*.png` under the release
-names, stand-ins until owner screenshots replace them. The merge into the
+The levelshots of DM16, DM17 and Amphi3 are owner screenshots at 1920 × 1080
+(Amphi3's, taken at 2727 × 1326, centre-cropped to 16:9 and resized; the
+sources are in `archive/media/levelshot-sources/`). DM18's is still Warfork's
+1024 × 1024 `levelshots/wfdm18.png`, a stand-in. The merge into the
 master adds no conflicts. 52 new images are classified in
 `config/map-texture-encoding.json` (23 colour, 11 normal, 9 gloss, 9 alpha);
 every existing entry and its order are kept.
 
 | Package | Bytes | SHA-256 |
 | --- | ---: | --- |
-| `map_washoi_dm16.pk3` | 12,983,334 | `11f28c2e2db49821e70b03fdd0b0b2b67bce91d9926d22d211df3974b49fb0f0` |
+| `map_washoi_dm16.pk3` | 13,871,319 | `99cfcc3ca573c4d1ac9829fc7b4fd9be1e39df13eb1cd803600ba3ae47b04439` |
 | `tex_washoi_dm16.pk3` | 4,786,859 | `cdb950a18e6c037420720013caecc62c862a63cbb2f032f8aecedc0bd999d804` |
-| `map_washoi_dm17.pk3` | 14,672,527 | `9ccd48b656f38571485e4e24b43997d1fb0f2ed6a3ebae5f30db55379888e0d4` |
+| `map_washoi_dm17.pk3` | 15,365,569 | `e00e7ff7e02a8990936901ce5f877d3d917d04f88161b91820a42f87602021bb` |
 | `tex_washoi_dm17.pk3` | 6,732,420 | `f73de7ee9f24920ce70cb57e7fc5da20522011a820112e436f2512f8bfa95195` |
-| `map_washoi_dm18.pk3` | 7,985,905 | `b8f6d2ba725a199c524fd1c850681d3f9645ba8e00e23f029b1da64b87c77a4e` |
+| `map_washoi_dm18.pk3` | 7,901,055 | `cb2c451deb1109f14d6949827923f2dfc370ec2b8dc7365ff659bd6491f21516` |
 | `tex_washoi_dm18.pk3` | 2,818,963 | `fd707d8c97bddc2ad092c726a48095b67749ddbc6e926c517255502dde68693a` |
-| `map_washoi_amphi3.pk3` | 11,909,830 | `aa6f2ec6e9e5e2831a2da9ea0026b48c86578d980a69591025f4426b71b3e361` |
+| `map_washoi_amphi3.pk3` | 14,358,220 | `d35c6b10ebbf5f9a4b72d86eb13d22bb7f42507948ff9c988bf33f925d773932` |
 | `tex_washoi_amphi3.pk3` | 5,006,404 | `5746e0c6da10a0e7c75af7f37978c6fb551cefd707755e15063d374a4c35a3f2` |
 | `tex_washoi_amphi2.pk3` | 6,258,635 | `7943f88c28565117e2ff947d33b453e962eb7f05005ac3979a6a03febffdd759` |
 | `washoi_textures.pk3` | 203,429,127 | `1f018fccc6c84b30d041477166a1fc77d3eb0a47c6ceab6fbf238d8940ca9585` |
