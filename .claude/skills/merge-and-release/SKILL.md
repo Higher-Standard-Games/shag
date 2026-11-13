@@ -147,6 +147,40 @@ live together with the code of the next deploy, and the order is:
 
 Report which files went to which host, and where the backups are.
 
+## Disk check on the hosts
+
+Each release leaves backups behind, so check disk use on both regions at the
+end of every release (EU has 50 GB, US 40 GB). The survey is read-only:
+
+```bash
+for h in washoi.net us.washoi.net; do echo "== $h"; ssh root@$h '
+  df -h /; cd /srv/washoi
+  du -sh .pending/* backups/* assets/* releases/* 2>/dev/null | sort -rh | head -25
+  du -sh /root/* repos/shag/sourcemaps 2>/dev/null; journalctl --disk-usage
+  find assets/data/demos -name "*.shagdemo" -printf "%s\n" | awk "{s+=\$1;n++} END{printf \"demos: %d, %.0f MB\n\",n,s/1048576}"'; done
+```
+
+**Suggest** removals to the user with sizes, and delete only what they approve.
+Never touch `server-data/`, `assets/data/` (the live media), `releases/`,
+`backups/players/` or `.deploy-state/`. Usual candidates:
+
+- `backups/media-v*`, `backups/ranking-v*`: keep the two newest; older ones
+  are superseded rollback points.
+- One-off snapshots (`backups/git-split-*`, `backups/main-autodeploy-*`,
+  `backups/<name>-release-*`, `backups/releases/*`) and staging copies beside
+  the live media (`assets/staging-*`, `assets/data-before-*`) are leftovers
+  from migrations; they can go once the release after them is verified.
+- `.pending/` on US: `washoi-activate` keeps the active build and one earlier
+  build. More than two directories means the installed copy is older than
+  `scripts/deployment/activate-us.sh`; reinstall it.
+- Setup leftovers in `/root/` and `/srv/washoi/bootstrap/`, and `*.bak*`
+  copies of `Caddyfile` or `deploy.sh`.
+- Demos are ~1.5–2 MB each and are not worth pruning until they reach a few GB.
+
+Before deleting a directory, check that nothing links into it
+(`find /srv/washoi -maxdepth 5 -type l -printf "%p -> %l\n"`), then report what
+was removed and the free space before and after.
+
 ## The living changelog
 
 Each cycle keeps `docs/changelog/v<version>.md` (the version in
