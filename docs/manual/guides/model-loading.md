@@ -111,6 +111,17 @@ sphere meets a floor or wall before a limb can, so the ragdoll never starts
 inside the world. The death camera and the speed trail follow the sphere, then
 the hips.
 
+After about three kills in ten, the killer taunts: `taunt_1`, `taunt_2` or
+`taunt_3` plays once over the spine, arms and head while the hips and legs keep
+their locomotion, as the blade swing does. `chooseKillTaunt` in
+`src/games/fps/client/KillTaunt.ts` rolls on a hash of the death event, so every
+viewer and every replay of a demo sees the same taunt; nothing is sent for it.
+Bots taunt the same way. The taunt starts after the snapshot's other events, so
+the killing shot does not end it. The next shot, aiming down sights, a weapon
+switch, swimming, climbing, a wall jump or a slide does. A blade swing still
+playing when the kill lands finishes first, and the taunt follows if the swing
+ends within a second.
+
 Washoi's relative ally/enemy choices use `cl_team_ally_model` and
 `cl_team_enemy_model`: `police`, `female` (Female Police), `cartel`, `riotkitty`
 and `robot`, and for enemies `random` (the default), which draws one of the
@@ -151,16 +162,26 @@ npm run tools:pk3-index
 ```
 
 The animation builder validates embedded GLB dependencies and all required
-clips, skips missing optional dances, and writes fixed ZIP timestamps and
+clips, skips missing optional clips (the victory dances and taunts), and
+writes fixed ZIP timestamps and
 `models/players/animations/animations-manifest.json` with content hashes. Standard
 builds consume the existing archives and do not require authoring sources.
 The body archive is supplied as is; no tool rebuilds it.
+
+The post-game screen plays one of six victory clips on the winner's model,
+each equally likely: `dance_1` to `dance_3` and `taunt_1` to `taunt_3`
+(`VICTORY_ANIMS` in `src/engine/animation/PlayerModelManager.ts`). It picks
+only among the clips that loaded, and a body with none of them keeps its idle
+pose.
 
 Headless `anim inspect [file|all]` lists each shared clip's channels and flags
 root-motion position tracks; `anim bones` lists the default body's skin joints.
 Browser `developer 1; animtest load <police|female|cartel|riotkitty|robot>` uses the selected body and the same
 manager as player rendering. Use `animtest list`, `animtest play run`,
-`animtest play slide`, and `animtest dispose` to inspect and clean up. Explicit custom URL
+`animtest play slide`, and `animtest dispose` to inspect and clean up.
+`animtest once <clip>` plays a clip once over the current one: a taunt or the
+blade swing takes only the upper body, so `animtest play run; animtest once
+taunt_1` shows a taunt on a running body. Explicit custom URL
 or data-source arguments to `PlayerModelManager.loadModel()` remain available.
 The optional outline proxy stays a separate loose pair. Its build recipe names
 the vanguard reference body, which no supplied archive contains, so the proxy

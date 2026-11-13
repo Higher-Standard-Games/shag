@@ -227,12 +227,16 @@ export interface AnimFileConfig {
 
 // ─── Default animation set ──────────────────────────────────────
 
-// Shared with the package builder. Missing optional victory dances fall back
+// Shared with the package builder. Missing optional victory clips fall back
 // to idle without HTTP errors or re-downloading the archive for every clip.
 export const DEFAULT_ANIM_FILES: AnimFileConfig[] = PLAYER_ANIMATIONS;
 
-/** Victory-dance pool for the post-game winner showcase (random pick). */
-export const DANCE_ANIMS = ["dance_1", "dance_2", "dance_3"];
+/** Taunts: played over the upper body after a kill, and among the victory clips. */
+export const TAUNT_ANIMS = ["taunt_1", "taunt_2", "taunt_3"];
+/** The clips the post-game winner showcase picks one of at random: dances and taunts. */
+export const VICTORY_ANIMS = ["dance_1", "dance_2", "dance_3", ...TAUNT_ANIMS];
+/** One-shots that play on the spine, arms and head while the legs keep their locomotion. */
+const UPPER_BODY_ONE_SHOTS: ReadonlySet<string> = new Set(["blade_slash", ...TAUNT_ANIMS]);
 /** The upper-body clip a player holding the blade loops; see setUpperBodyStance. */
 export const BLADE_STANCE = "blade_idle";
 /** The blade in its stance stands up from the fist, leaning this far (radians) toward the body's front. */
@@ -255,7 +259,7 @@ export class PlayerModelManager {
   private scene: Scene;
   private readonly activeOneShots = new Map<
     PlayerModelInstance,
-    { group: AnimationGroup; baseSpeedRatio: number; upperBodyOnly?: boolean }
+    { name: string; group: AnimationGroup; baseSpeedRatio: number; upperBodyOnly?: boolean }
   >();
   private readonly upperBodyTargets = new WeakMap<PlayerModelInstance, ReadonlySet<TransformNode>>();
   private readonly lowerBodyMasks = new WeakMap<PlayerModelInstance, AnimationGroupMask>();
@@ -900,14 +904,14 @@ export class PlayerModelManager {
     return true;
   }
 
-  /** Play an exclusive one-shot, or a spine-and-arms overlay for the blade swing. */
+  /** Play an exclusive one-shot, or a spine-and-arms overlay for the blade swing and the taunts. */
   playOnce(instance: PlayerModelInstance, name: string, speedRatio: number = 1.0): boolean {
     const owner = modelOwners.get(instance);
     if (owner && owner !== this) return owner.playOnce(instance, name, speedRatio);
     const animData = instance.anims.find((a) => a.name === name);
     if (!animData || animData.animations.length === 0) return false;
     this.stopOneShot(instance, false);
-    const upperTargets = name === "blade_slash" ? this.getUpperBodyTargets(instance) : undefined;
+    const upperTargets = UPPER_BODY_ONE_SHOTS.has(name) ? this.getUpperBodyTargets(instance) : undefined;
     const upperBodyOnly = !!upperTargets?.size;
     const group = new AnimationGroup(`anim_${instance.id}_${name}_overlay`, this.scene);
     for (const item of animData.animations) {
@@ -920,7 +924,7 @@ export class PlayerModelManager {
       return false;
     }
     group.speedRatio = speedRatio;
-    this.activeOneShots.set(instance, { group, baseSpeedRatio: speedRatio, upperBodyOnly });
+    this.activeOneShots.set(instance, { name, group, baseSpeedRatio: speedRatio, upperBodyOnly });
     // The swing owns the upper body until it ends; the stance resumes after it
     this.stances.get(instance)?.group.pause();
     if (upperBodyOnly && upperTargets) {
@@ -1059,6 +1063,13 @@ export class PlayerModelManager {
     }
     const active = this.activeOneShots.get(instance);
     if (active) active.group.speedRatio = active.baseSpeedRatio * timeScale;
+  }
+
+  /** The name of the one-shot playing on `instance`, or null. */
+  activeOneShot(instance: PlayerModelInstance): string | null {
+    const owner = modelOwners.get(instance);
+    if (owner && owner !== this) return owner.activeOneShot(instance);
+    return this.activeOneShots.get(instance)?.name ?? null;
   }
 
   isOneShotPlaying(instance: PlayerModelInstance): boolean {
