@@ -721,3 +721,36 @@ out of a fight ending in a correction stayed at 11% (people 18%), because the
 flicks out of a fight are mostly turnarounds and a small overshoot comes back
 slower than the measure's 45°/s. The change is in fights, which that measure
 leaves out by design.
+
+### 2026-11-13 — BS-8: the match read
+
+fps `bot/strategy/MatchRead.ts`, updated by `StateMachineBrain` every
+decision. It keeps the bot's own stack over time, an estimate of each enemy's
+health and armor, the major items taken and by whom, each fight, and the
+score. The estimate starts from spawn values (100 health, no armor) when an
+enemy is seen after a respawn, applies the hits the bot lands with armor
+taking 66% while it lasts, moves health into the range of the pain tier each
+hit gave away, and adds major items the enemy was seen or heard taking by the
+server's own pickup rules (`shared/items/ItemGrants.ts`).
+
+Checked against the truth in headless Hard Duels on washoi_dm5, where each bot
+knows its own health and armor exactly (150 s, about 3,000 samples):
+
+| Estimate | Median error | Within 25 points |
+| --- | --- | --- |
+| Fresh (uncertainty under 0.1) | 4–15 | 82–89% |
+| Middling (0.1–0.5) | 0–25 | 61–69% |
+| Stale (out of sight over 7 s) | 26–40 | 10–28% |
+
+Fresh estimates are good enough to act on; stale ones are not, which is why
+each estimate carries its uncertainty.
+
+Found on the way, fixed separately (fps `78fb080`): **bots matched no item
+pickup to its taker.** The server sends the picker of `item_pickup` by bare
+numeric id where every other event carries the client key, so
+`enemyMajorItems` stayed empty for enemies, pickups were never heard as a
+sound from their taker, and a bot timed its own pickups as heard ones, with
+its timing error.
+
+Also: the brain is not asked to decide while its bot is dead, so the match
+read counts its own deaths from the scoreboard.
