@@ -595,6 +595,7 @@ else `server-data/` beside the repo:
 | `settings.db` | Each account's synced settings (bindings and game preferences, never graphics), in `node:sqlite`; kept apart from `players.db` so frequent writes and backups don't touch results. Losing it loses nothing for good: every browser keeps its own copy and uploads it at its next login |
 | `result-outbox/` | Signed completed reports awaiting a committed receipt; separate from public demos |
 | `bot-secret` | The secret shared with the bot server, written by whichever starts first |
+| `bot-intel.db` | The bot server's own: each bot's report at the end of a match (map, gametype, preset, score, its fights by map cell and its strategy episodes), with no names or keys, in `node:sqlite`. Kept 90 days; separate from `players.db` and safe to delete. `bot:intel` distils it into the checked-in `config/bot-intel/<map>.json` |
 
 Demo recordings are not kept here: the lobby scans the game servers'
 `public/data/demos/` and serves the list.
@@ -637,7 +638,7 @@ Bot clients play over the same protocol as a browser and are bound by the same r
   full speed on hosts with coarse timers.
 - **Perception.** `BotPerception` filters each snapshot down to what a player
   in the bot's place would know: allies, enemies in line of sight inside its
-  view cone or revealed by sound with clear line of sight, and enemies heard (shots, explosions, footsteps, jumps, landings,
+  view cone or revealed by sound with clear line of sight, and enemies heard (shots, explosions, footsteps, jumps,
   pain, pickups). Item state is what the bot saw or heard; a heard pickup is
   timed at its `itemTimingSkill`. Sound ranges are the same at every
   difficulty.
