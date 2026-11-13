@@ -754,3 +754,60 @@ its timing error.
 
 Also: the brain is not asked to decide while its bot is dead, so the match
 read counts its own deaths from the scoreboard.
+
+### 2026-11-13 — BS-9, BS-10, BS-11 and BS-16 (part): the strategist
+
+fps `1af15a7`. `strategy/Strategist.ts` diagnoses from the match read and
+picks a strategy, held at least 6 s, which the rules read as weight
+multipliers (passed to the item planner) and a stance (retreat line, how
+readily to shop, shopping armoured, chasing). `matchSense` in the presets:
+Easy 0, Medium 0.45 (Recover and Protect lead only), Hard 0.8, Insane 1.
+
+| Diagnosis | Strategy (rule) | Bandit's other choice |
+| --- | --- | --- |
+| Understacked | Recover | Control |
+| Losing the items | Control | Pressure |
+| Enemy weak (fresh estimate under 70, own 100+) | Pressure | Standard |
+| Focused (2+ attackers in 20 s) | Recover | Control |
+| Ahead late (2+ up, under 90 s) | Protect lead | Control |
+| Behind late | Pressure | Control |
+
+The bandit (match sense 0.6 and up) scores 30 s episodes by score-gap change,
+0.3 per major item of balance and 0.2 per 100 of average stack, and draws by
+Thompson sampling with the rule's answer 0.3 ahead. Habits: a major item an
+opponent took twice in three minutes is contested at 0.5, three times at 1,
+scored by the new `ContestedItem` attractor with `itemDenial`. Finishing:
+`BotWeaponCombos` takes the smallest hitscan hit that kills by the fresh
+estimate, armor counted (BS-10). The first FFA diagnosis, Focused, is in;
+third party and crowded items wait for the tactics that answer them.
+
+Head to head, `bot:ab`, washoi_dm5, 32 Hard Duels of 150 s:
+
+| | Strategist on | off |
+| --- | --- | --- |
+| Wins | 15 | 10 (7 drawn) |
+| Frags | 128 | 105 |
+| Deaths | 119 | 142 |
+
+Frag gap +0.72 per match, 95% interval −0.15 to 1.59; sign test p = 0.42.
+The lean is about as large as Hard over Easy (+0.81) and not yet shown.
+Recover is the strategy that fires most; Control and Pressure rarely do in
+150 s matches, because the item and score evidence they need builds slowly.
+
+### 2026-11-13 — BS-6 first part: running into tricks
+
+fps `0e77c65`. Where the ground behind a learned route's mark is walkable,
+the bot goes 192 units behind it, sprints in along the route's line, and
+joins the script at the run-up state it matches (within 16 units, 60 u/s and
+10°). Joins were checked by simulation in three rounds:
+
+| Join check | Joins landed |
+| --- | --- |
+| From the snapshot state | 6 of 8 (75%) |
+| Predicting 3 ticks ahead | 14 of 17 (82%) |
+| Predicting 3, landing from 2, 3, 4 and 5 ticks late | 23 of 24 (one still airborne at the end) |
+
+Standing starts landed 26 of 28. Still time on washoi_dm1, 4 medium bots,
+150 s: 15% → 10–12%. The misses came from the snapshot being a few ticks
+behind the server while the bot keeps sprinting; a standing start never sees
+that. Tricks failing by skill (M4) is not done.
