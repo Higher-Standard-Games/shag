@@ -88,9 +88,10 @@ export class WeaponCharge {
       shakeX = Math.sin(now * 0.001 * shakeFreq) * shakeIntensity;
       shakeY = Math.cos(now * 0.001 * shakeFreq * 1.3) * shakeIntensity * 0.7;
 
-      // Turquoise pulsing outline
-      const outlineMin = 0.6,
-        outlineMax = 4.8;
+      // Turquoise pulsing outline, in world units: from the normal weapon
+      // outline width to four times it at full charge
+      const outlineMin = 0.15,
+        outlineMax = 0.6;
       const scaledWidth = outlineMin + this.progress * (outlineMax - outlineMin);
       const pulseRate = 4 + this.progress * 8;
       const pulse = 0.6 + 0.4 * Math.sin(now * 0.001 * pulseRate * Math.PI * 2);
