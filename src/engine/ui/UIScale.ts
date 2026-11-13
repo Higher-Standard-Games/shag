@@ -119,29 +119,34 @@ export class UIScale {
    * Calculate scale factors based on current viewport
    */
   private calculateScale(): void {
-    const viewportWidth = window.innerWidth;
-    const viewportHeight = window.innerHeight;
+    const factors = this.scaleFor(window.innerWidth, window.innerHeight);
+    this.scaleX = factors.scaleX;
+    this.scaleY = factors.scaleY;
+    this.currentScale = factors.scale;
+  }
 
-    this.scaleX = viewportWidth / this.config.designWidth;
-    this.scaleY = viewportHeight / this.config.designHeight;
+  /** The scale factors for a viewport of this size. */
+  private scaleFor(viewportWidth: number, viewportHeight: number): { scale: number; scaleX: number; scaleY: number } {
+    const scaleX = viewportWidth / this.config.designWidth;
+    const scaleY = viewportHeight / this.config.designHeight;
 
     // Calculate scale based on mode
     let scale: number;
     switch (this.config.scaleMode) {
       case "fit":
-        scale = Math.min(this.scaleX, this.scaleY);
+        scale = Math.min(scaleX, scaleY);
         break;
       case "fill":
-        scale = Math.max(this.scaleX, this.scaleY);
+        scale = Math.max(scaleX, scaleY);
         break;
       case "width":
-        scale = this.scaleX;
+        scale = scaleX;
         break;
       case "height":
-        scale = this.scaleY;
+        scale = scaleY;
         break;
       default:
-        scale = Math.min(this.scaleX, this.scaleY);
+        scale = Math.min(scaleX, scaleY);
     }
 
     // Apply forced scale if set
@@ -150,7 +155,7 @@ export class UIScale {
     }
 
     // Clamp to min/max
-    this.currentScale = Math.max(this.config.minScale, Math.min(this.config.maxScale, scale));
+    return { scale: Math.max(this.config.minScale, Math.min(this.config.maxScale, scale)), scaleX, scaleY };
   }
 
   /**
@@ -163,21 +168,30 @@ export class UIScale {
       document.head.appendChild(this.styleElement);
     }
 
-    const scale = this.currentScale;
-    const isMobile = this.isMobile() ? 1 : 0;
-    const isPortrait = this.isPortrait() ? 1 : 0;
+    this.styleElement.textContent = this.variablesFor(window.innerWidth, window.innerHeight);
+  }
+
+  /**
+   * The scale variables and utility classes for a viewport of this size: the
+   * document's own, or another screen's, as a video export draws the HUD at
+   * the movie's size.
+   */
+  public variablesFor(viewportWidth: number, viewportHeight: number): string {
+    const { scale, scaleX, scaleY } = this.scaleFor(viewportWidth, viewportHeight);
+    const isMobile = viewportWidth / scale < this.config.mobileBreakpoint ? 1 : 0;
+    const isPortrait = viewportHeight > viewportWidth ? 1 : 0;
 
     // Build CSS variables
     let css = `:root {\n`;
 
     // Scale factors
     css += `  --ui-scale: ${scale};\n`;
-    css += `  --ui-scale-x: ${this.scaleX};\n`;
-    css += `  --ui-scale-y: ${this.scaleY};\n`;
+    css += `  --ui-scale-x: ${scaleX};\n`;
+    css += `  --ui-scale-y: ${scaleY};\n`;
 
     // Viewport info
-    css += `  --ui-viewport-width: ${window.innerWidth}px;\n`;
-    css += `  --ui-viewport-height: ${window.innerHeight}px;\n`;
+    css += `  --ui-viewport-width: ${viewportWidth}px;\n`;
+    css += `  --ui-viewport-height: ${viewportHeight}px;\n`;
     css += `  --ui-is-mobile: ${isMobile};\n`;
     css += `  --ui-is-portrait: ${isPortrait};\n`;
 
@@ -230,7 +244,7 @@ export class UIScale {
 }
 `;
 
-    this.styleElement.textContent = css;
+    return css;
   }
 
   /**

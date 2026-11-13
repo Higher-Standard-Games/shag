@@ -236,6 +236,11 @@ An isolated offline renderer can own `PresentationTime.ownPresentationClock`
 until disposal. Shader animation and sky-portal rotation then read the supplied
 time instead of encoding or storage wall time. This clock is local to the
 document; the renderer must also supply its own frame delta.
+`presentationTimeout` and `presentationInterval` schedule callbacks on the same
+time: on the wall clock in a live document, and on the owned clock otherwise,
+where they fire, in due order, when the owner calls `runPresentationTimers()`
+after moving it. The game HUD's timers use them, so a full-match video export
+steps the HUD frame by frame.
 
 `AudioManager.ownSfxSink` redirects SFX requests to a document-owned collector
 before speaker mute filtering. It returns a release handle and rejects a second
