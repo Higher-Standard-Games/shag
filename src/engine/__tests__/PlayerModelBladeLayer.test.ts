@@ -27,7 +27,7 @@ function setup() {
     hand.parent = spine;
     new Bone("mixamorig:Spine", skeleton).linkTransformNode(spine);
     const nodes = [hips, leg, spine, hand];
-    const anims = ["jump", "run", "blade_slash"].map((name, index) => ({
+    const anims = ["jump", "run", "blade_slash", "taunt_2"].map((name, index) => ({
       name,
       animations: nodes.map((target, i) => {
         const animation = new Animation(`${name}/${i}`, "position.x", 30, Animation.ANIMATIONTYPE_FLOAT);
@@ -139,6 +139,34 @@ it("ends a swing naturally and restores upper locomotion without restarting the 
     expect(a.instance.masterGroup).toBe(group);
     expect(group!.mask).toBeNull();
     expect(a.instance.oneshotUntil).toBe(0);
+  } finally {
+    disposePlayerModel(a.instance);
+    disposePlayerModel(b.instance);
+    manager.dispose();
+    scene.getEngine().dispose();
+  }
+});
+
+it("plays a taunt over the spine and arms while the legs keep running, and names it while it plays", () => {
+  const { scene, manager, a, b } = setup();
+  try {
+    manager.playAnimation(a.instance, "run");
+    manager.playAnimation(b.instance, "run");
+    for (let i = 0; i < 5; i++) scene.animate();
+    expect(manager.playOnce(a.instance, "taunt_2")).toBe(true);
+    expect(manager.activeOneShot(a.instance)).toBe("taunt_2");
+    expect(manager.isFullBodyOneShotPlaying(a.instance)).toBe(false);
+    for (let i = 0; i < 10; i++) {
+      scene.animate();
+      expect(a.leg.position.x).toBeCloseTo(b.leg.position.x, 4);
+    }
+    expect(a.hand.position.x).toBeGreaterThan(300);
+    manager.stopOneShot(a.instance);
+    expect(manager.activeOneShot(a.instance)).toBeNull();
+    for (let i = 0; i < 3; i++) {
+      scene.animate();
+      expect(a.hand.position.x).toBeCloseTo(b.hand.position.x, 4);
+    }
   } finally {
     disposePlayerModel(a.instance);
     disposePlayerModel(b.instance);

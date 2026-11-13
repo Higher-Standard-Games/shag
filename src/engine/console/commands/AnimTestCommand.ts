@@ -16,7 +16,7 @@ export default class AnimTestCommand extends Command {
     name: "animtest",
     aliases: ["at"],
     description: "Test animation system with player model",
-    usage: "animtest <load|play|list|stop|dispose> [animation]",
+    usage: "animtest <load|play|once|list|stop|dispose> [animation]",
     developer: true,
   };
   private manager: PlayerModelManager | null = null;
@@ -63,7 +63,8 @@ export default class AnimTestCommand extends Command {
         manager.playAnimation(this.model, "idle");
         return `Model loaded: ${this.model.skeleton?.bones.length} bones, ${this.model.anims.length} animations.\nanimtest list | animtest play <name>`;
       }
-      case "play": {
+      case "play":
+      case "once": {
         if (!this.model || !this.manager) return "No model";
         const value = args[1];
         if (!value) return "Specify animation";
@@ -72,8 +73,13 @@ export default class AnimTestCommand extends Command {
           ? this.model.anims[index]
           : (this.model.anims.find((a) => a.name === value) ?? this.model.anims.find((a) => a.name.includes(value)));
         if (!clip) return `Not found: ${value}`;
-        this.manager.playAnimation(this.model, clip.name);
-        return `Playing: ${clip.name}`;
+        if (args[0].toLowerCase() === "play") {
+          this.manager.playAnimation(this.model, clip.name);
+          return `Playing: ${clip.name}`;
+        }
+        // Taunts and the blade swing play over the upper body; other clips take the whole body
+        if (!this.manager.playOnce(this.model, clip.name)) return `Could not play: ${clip.name}`;
+        return `Once: ${clip.name} over ${this.model.currentAnim}`;
       }
       case "list":
         return this.model?.anims.map((a, i) => `[${i}] ${a.name}`).join("\n") ?? "No model";
@@ -84,7 +90,7 @@ export default class AnimTestCommand extends Command {
         this.disposeModel();
         return "Disposed";
       default:
-        return "animtest load [police|female|cartel|riotkitty|robot] | play <name> | list | stop | dispose";
+        return "animtest load [police|female|cartel|riotkitty|robot] | play <name> | once <name> | list | stop | dispose";
     }
   }
   private disposeModel(): void {
@@ -96,8 +102,8 @@ export default class AnimTestCommand extends Command {
   override getCompletions(_input: string, args: string[]): string[] {
     if (args[0] === "load") return ["police", "female", "cartel", "riotkitty", "robot"];
     return args.length === 0
-      ? ["load", "play", "list", "stop", "dispose"]
-      : args[0] === "play"
+      ? ["load", "play", "once", "list", "stop", "dispose"]
+      : args[0] === "play" || args[0] === "once"
         ? (this.model?.anims.map((a) => a.name) ?? [])
         : [];
   }
