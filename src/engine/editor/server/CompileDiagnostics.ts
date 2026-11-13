@@ -64,7 +64,7 @@ export class CompileTranscript {
     if (placeholder) d.compilerPlaceholders = (d.compilerPlaceholders ?? 0) + 1;
     const asset =
       !placeholder &&
-      /(?:could(?:n't| not)|unable to|failed to|cannot|can't)\s+(?:find|load|open).*\b(?:model|image|texture|shader|\.ase|\.md3|\.obj|\.tga|\.png|\.jpg)\b|(?:model|image|texture|shader)\b.*(?:not found|is missing)|(?:missing|unresolved)\s+(?:model|image|texture|shader)\b|(?:no|0) shader files (?:found|parsed)/i.test(
+      /(?:could(?:n't| not)|unable to|failed to|cannot|can't)\s+(?:find|load|open).*\b(?:model|image|texture|shader|\.ase|\.md3|\.obj|\.tga|\.png|\.jpg)\b|(?:model|image|texture|shader)\b.*(?:not found|is missing)|(?:missing|unresolved)\s+(?:model|image|texture|shader)\b|\b(?:no|0) shader files (?:found|parsed)/i.test(
         text,
       );
     if (warning) d.warnings++;

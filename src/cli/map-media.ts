@@ -225,7 +225,9 @@ export async function packageMap(
   for (const entity of bsp.entities) {
     for (const [key, value] of Object.entries(entity.properties)) {
       if (
-        /^(model|model2|debris1|debris2|noise|sound|music|skin|shader|targetshadername|targetshadernewname)$/i.test(key)
+        /^(model|model2|debris1|debris2|noise|sound|music|skin|shader|shadername|targetshadername|targetshadernewname)$/i.test(
+          key,
+        )
       ) {
         for (const ref of value.split(/\s+/)) {
           if (ref.startsWith("*")) continue;

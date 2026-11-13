@@ -273,10 +273,11 @@ export function registerBspEntityHandlers(): void {
   EntityHandlerRegistry.register("func_plat", handleLift);
   EntityHandlerRegistry.register("func_explosive", handleExplosive);
   EntityHandlerRegistry.register("func_door", handleFuncDoor);
+  EntityHandlerRegistry.register("func_button", handleButton);
   EntityHandlerRegistry.register("func_static", handleStatic);
   registerAmbientEntityHandlers();
   devLog(
-    "[BspEntityHandlers] Registered BSP entity handlers: func_door, func_plat, func_explosive, func_static, func_rotating, target_speaker",
+    "[BspEntityHandlers] Registered BSP entity handlers: func_door, func_button, func_plat, func_explosive, func_static, func_rotating, target_speaker, misc_particles",
   );
 }
 
@@ -287,6 +288,7 @@ export function unregisterBspEntityHandlers(): void {
   EntityHandlerRegistry.unregister("func_plat");
   EntityHandlerRegistry.unregister("func_explosive");
   EntityHandlerRegistry.unregister("func_door");
+  EntityHandlerRegistry.unregister("func_button");
   EntityHandlerRegistry.unregister("func_static");
   unregisterAmbientEntityHandlers();
   doorGroups.clear();
@@ -333,6 +335,50 @@ async function handleExplosive(entity: EntityData, scene: Scene): Promise<Entity
     for (const material of materials) {
       material?.dispose(false, false);
     }
+  });
+  return { handled: true, node: mesh };
+}
+
+/**
+ * func_button: its brush, pressed in while the lift it calls rests its caller.
+ * The press comes from the shared lift state, so a button someone else shot
+ * moves here too. A button that calls nothing stands still.
+ */
+async function handleButton(entity: EntityData, scene: Scene): Promise<EntityHandlerResult> {
+  const bsp = currentBsp;
+  const modelIndex = parseModelIndex(entity.properties.model);
+  if (!bsp || modelIndex <= 0) return { handled: false };
+  const mesh = await buildBrushModel(bsp, modelIndex, scene, `bsp_button_${modelIndex}`);
+  if (!mesh) return { handled: false };
+  mesh.metadata = { ...mesh.metadata, mapOwned: true, entityType: "func_button", isMover: true };
+  const noise = entity.properties.noise;
+  const sound = noise && noise !== "silent" && noise !== "default" ? noise : "";
+  if (sound) void AudioManager.getInstance().preloadSfx([sound]);
+  const model = bsp.models[modelIndex];
+  const center = new Vector3(
+    (model.mins[0] + model.maxs[0]) / 2,
+    (model.mins[2] + model.maxs[2]) / 2,
+    (model.mins[1] + model.maxs[1]) / 2,
+  );
+  const at = { x: 0, y: 0, z: 0 };
+  let wasPressed = false;
+  const update = () => {
+    const press = getCollisionManager().getLiftSystem()?.buttonOffset(modelIndex, at);
+    mesh.position.set(press?.x ?? 0, press?.y ?? 0, press?.z ?? 0);
+    const pressed = !!press && (press.x !== 0 || press.y !== 0 || press.z !== 0);
+    if (pressed && !wasPressed && sound)
+      AudioManager.getInstance().playSfx3D(sound, center, {
+        volume: 0.7,
+        attenuation: Attenuation.Static,
+      });
+    wasPressed = pressed;
+  };
+  update();
+  const observer = scene.onBeforeRenderObservable.add(update);
+  const materials = mesh.getChildMeshes().map((child) => child.material);
+  mesh.onDisposeObservable.addOnce(() => {
+    scene.onBeforeRenderObservable.remove(observer);
+    for (const material of materials) material?.dispose(false, false);
   });
   return { handled: true, node: mesh };
 }

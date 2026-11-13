@@ -1,7 +1,7 @@
 /**
- * Map ambience the client owns alone: `target_speaker` sounds and spinning
- * `func_rotating` brushes. Neither touches gameplay, so neither is networked;
- * both stop with the map.
+ * Map ambience the client owns alone: `target_speaker` sounds, spinning
+ * `func_rotating` brushes and `misc_particles` emitters. None touches
+ * gameplay, so none is networked; all stop with the map.
  *
  * Triggered variants (a `targetname` someone has to fire) need entity
  * triggering on the client, which does not exist yet: a triggered speaker is
@@ -18,6 +18,7 @@ import { type EntityData, EntityHandlerRegistry, type EntityHandlerResult } from
 import { hasPresentationClock, presentationNow } from "../../core/PresentationTime";
 import type { BspFile } from "./BspLoader";
 import { buildBrushModel } from "./BspMeshBuilder";
+import { startMapParticles } from "./MapParticles";
 
 const SPEAKER_LOOPED_ON = 1;
 const SPEAKER_LOOPED_OFF = 2;
@@ -212,12 +213,19 @@ async function handleFuncRotating(entity: EntityData, scene: Scene): Promise<Ent
   return { handled: true, node: mesh };
 }
 
+async function handleMiscParticles(entity: EntityData, scene: Scene): Promise<EntityHandlerResult> {
+  const node = await startMapParticles(entity, scene);
+  return node ? { handled: true, node } : { handled: false };
+}
+
 export function registerAmbientEntityHandlers(): void {
   EntityHandlerRegistry.register("target_speaker", handleTargetSpeaker);
   EntityHandlerRegistry.register("func_rotating", handleFuncRotating);
+  EntityHandlerRegistry.register("misc_particles", handleMiscParticles);
 }
 
 export function unregisterAmbientEntityHandlers(): void {
   EntityHandlerRegistry.unregister("target_speaker");
   EntityHandlerRegistry.unregister("func_rotating");
+  EntityHandlerRegistry.unregister("misc_particles");
 }

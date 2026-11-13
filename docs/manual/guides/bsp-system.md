@@ -168,6 +168,26 @@ Map ambience is client-only (`AmbientEntityHandlers.ts`) and ends with the map:
   second (default 100) about the vertical axis, or X/Y with spawnflags 4/8;
   2 reverses. A model built with an origin brush turns about its `origin`. One
   with a `targetname` stands still unless START_ON (1) is set.
+- `misc_particles` (`MapParticles.ts`) throws `count` sprites a second of its
+  `shaderName`, each living `delay` whole seconds (default 4) at radius `size`
+  (default 16). SPHERICAL (1) throws them every way at `speed`; otherwise they
+  leave along `angles`, spread by `radius`. They fade over their life;
+  EXPAND_EFFECT (16) grows them up to five times, SHRINK_EFFECT (32) shrinks
+  them, GRAVITY (4) pulls them down. `speed`, `count` and `size` are whole
+  numbers, as in Warsow, so a `speed` below 1 stands still. Emitters with
+  START_OFF (64) wait for a trigger and are skipped. The sprite image is the
+  first image stage of the shader; `rgbGen const` tints it, and a stage with
+  `alphaGen vertex` (or none) fades. Each shader draws in one call, up to 512
+  sprites, from emitters within 2,500 units of the camera.
+
+`func_button` is simulated with the lifts (`LiftSystem`): a button calls every
+door or plat it targets. One with `health` fires when shot (a hitscan or
+projectile landing on its brush, or a blast whose radius reaches its bounds)
+and ignores touch; one without fires when a body touches its bounds. It is
+solid, presses in along its `angle` by its size less `lip` (default 4) at
+`speed` (default 40), and returns when its `wait` (default 3 s) ends. The press
+is derived from the caller cooldown in `lift_state`, so clients draw it without
+extra snapshot data.
 
 ### World fog
 

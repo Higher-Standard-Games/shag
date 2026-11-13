@@ -152,6 +152,31 @@
       "ffa"
     ]
   },
+  "washoi_dm16": {
+    "displayName": "Washoi DM16",
+    "gametypes": [
+      "ffa"
+    ]
+  },
+  "washoi_dm17": {
+    "displayName": "Washoi DM17",
+    "gametypes": [
+      "duel",
+      "ffa"
+    ]
+  },
+  "washoi_dm18": {
+    "displayName": "Washoi DM18",
+    "gametypes": [
+      "ffa"
+    ]
+  },
+  "washoi_amphi3": {
+    "displayName": "Washoi Amphi3",
+    "gametypes": [
+      "amphi"
+    ]
+  },
   "washoidm2": {
     "displayName": "Washoi DM2",
     "gametypes": []

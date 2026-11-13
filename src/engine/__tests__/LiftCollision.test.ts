@@ -158,7 +158,8 @@ describe("moving BSP lifts", () => {
     // Authored Q3 (x, y, z-up) lands as engine (x, y-up, z), shifted by the button's origin.
     expect(d.triggers[0].min).toEqual({ x: 190, y: 8, z: 30 });
     expect(d.triggers[0].max).toEqual({ x: 210, y: 88, z: 50 });
-    expect(d.triggers[0].wait).toBe(1);
+    // A button stays pressed 3 s by default, as in Warsow.
+    expect(d.triggers[0].wait).toBe(3);
   });
   it("drives a lift from a button the player walks into, and never rearms a fire-once caller", async () => {
     const bsp = liftBsp();

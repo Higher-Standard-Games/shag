@@ -26,3 +26,18 @@ it("retains the collision placeholder warning while still rejecting missing asse
     await rm(root, { recursive: true, force: true });
   }
 });
+
+it("counts no shader files as missing media, but not a count that ends in 0", async () => {
+  const root = await mkdtemp(path.join(tmpdir(), "shagged-shadercount-"));
+  try {
+    const diagnostics = emptyDiagnostics();
+    const transcript = new CompileTranscript(path.join(root, "compile.log"), diagnostics, []);
+    // A count ending in 0 is not "0 shader files".
+    transcript.append("20 shader files parsed from PAKs in C:/data/\n20 total shader files parsed\n");
+    expect(diagnostics.missingAssets).toBe(0);
+    transcript.append("0 shader files parsed from PAKs in C:/data/\n");
+    expect(diagnostics.missingAssets).toBe(1);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});

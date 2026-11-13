@@ -29,8 +29,29 @@ export interface LiftDefinition {
   damage: number;
   /** Q3 CRUSHER spawnflag: keep pushing when blocked instead of reversing. */
   crusher: boolean;
-  triggers: Array<{ min: Vec3; max: Vec3; wait: number }>;
+  triggers: LiftCaller[];
 }
+/** Something that calls a lift: a touch volume, or a `func_button`. */
+export interface LiftCaller {
+  min: Vec3;
+  max: Vec3;
+  wait: number;
+  /**
+   * A button with `health` fires when it takes damage and ignores touch.
+   * `parts` are its brushes' boxes at rest, which a direct hit must land on.
+   */
+  shot?: { parts: Array<{ min: Vec3; max: Vec3 }> };
+  /** The button's inline model, which presses in while this caller rests. */
+  button?: LiftButton;
+}
+/** How a `func_button` brush presses in: `push` is the full travel, at `speed` units/s. */
+export interface LiftButton {
+  modelIndex: number;
+  push: Vec3;
+  speed: number;
+}
+/** Q3-space brush boxes of an inline model, for direct-hit tests on shootable buttons. */
+export type InlineModelBrushBoxes = (modelIndex: number) => Array<{ mins: readonly number[]; maxs: readonly number[] }>;
 export interface LiftState {
   modelIndex: number;
   offset: number;
@@ -71,6 +92,7 @@ export type LiftTraceFn = (start: Vec3, end: Vec3, exclude?: number, only?: numb
 export function extractLifts(
   entities: readonly { classname: string; properties: Record<string, string> }[],
   models: readonly { mins: readonly number[]; maxs: readonly number[] }[],
+  brushBoxes?: InlineModelBrushBoxes,
 ): LiftDefinition[] {
   const result: LiftDefinition[] = [];
   const number = (value: string | undefined, fallback: number) => {
@@ -103,18 +125,35 @@ export function extractLifts(
         const once = trigger.classname === "trigger_once";
         if (!button && !once && trigger.classname !== "trigger_multiple") continue;
         if (t.target !== p.targetname) continue;
-        const tm = /^\*\d+$/.test(t.model ?? "") ? models[Number(t.model.slice(1))] : undefined;
+        const tmIndex = /^\*\d+$/.test(t.model ?? "") ? Number(t.model.slice(1)) : -1;
+        const tm = tmIndex > 0 ? models[tmIndex] : undefined;
         if (!tm) continue;
         const to = (t.origin ?? "0 0 0").trim().split(/\s+/).map(Number);
         if (to.length !== 3 || !to.every(Number.isFinite)) continue;
-        const wait = number(t.wait, button ? 1 : 0.5);
-        triggers.push({
+        // A button stays pressed 3 s unless told otherwise, as in Warsow; a
+        // `wait` of 0 also means the default there.
+        const wait = button ? number(t.wait, 3) || 3 : number(t.wait, 0.5);
+        const caller: LiftCaller = {
           min: { x: tm.mins[0] + to[0], y: tm.mins[2] + to[2], z: tm.mins[1] + to[1] },
           max: { x: tm.maxs[0] + to[0], y: tm.maxs[2] + to[2], z: tm.maxs[1] + to[1] },
           // A fire-once caller never rearms. A large finite cooldown says that
           // without adding state that has to survive serialization.
           wait: once || wait < 0 ? ONCE : Math.max(0.1, wait),
-        });
+        };
+        if (button) {
+          caller.button = buttonTravel(tmIndex, tm, t);
+          // Any nonzero health makes the button shootable, and then touch does nothing.
+          if (number(t.health, 0) !== 0) {
+            const boxes = brushBoxes?.(tmIndex) ?? [];
+            caller.shot = {
+              parts: (boxes.length ? boxes : [tm]).map((b) => ({
+                min: { x: b.mins[0] + to[0], y: b.mins[2] + to[2], z: b.mins[1] + to[1] },
+                max: { x: b.maxs[0] + to[0], y: b.maxs[2] + to[2], z: b.maxs[1] + to[1] },
+              })),
+            };
+          }
+        }
+        triggers.push(caller);
       }
     result.push({
       modelIndex,
@@ -137,6 +176,37 @@ export function extractLifts(
     });
   }
   return result;
+}
+
+/**
+ * Q3 func_button travel: along its `angle` (-1 up, -2 down, else a yaw), by
+ * the model's size on that axis less `lip` (default 4), at `speed` (default 40).
+ */
+function buttonTravel(
+  modelIndex: number,
+  model: { mins: readonly number[]; maxs: readonly number[] },
+  p: Record<string, string>,
+): LiftButton {
+  const angle = Number(p.angle ?? 0);
+  let dir: [number, number, number];
+  if (angle === -1) dir = [0, 0, 1];
+  else if (angle === -2) dir = [0, 0, -1];
+  else {
+    const yaw = ((Number.isFinite(angle) ? angle : 0) * Math.PI) / 180;
+    dir = [Math.cos(yaw), Math.sin(yaw), 0];
+  }
+  const lip = Number(p.lip);
+  const size = [0, 1, 2].map((i) => model.maxs[i] - model.mins[i]);
+  const distance = Math.max(
+    0,
+    Math.abs(dir[0]) * size[0] + Math.abs(dir[1]) * size[1] + Math.abs(dir[2]) * size[2] - (lip || 4),
+  );
+  const speed = Number(p.speed);
+  return {
+    modelIndex,
+    push: { x: dir[0] * distance, y: dir[2] * distance, z: dir[1] * distance },
+    speed: speed > 0 ? speed : 40,
+  };
 }
 
 /** Fixed-step state shared by authority and prediction. No wall-clock timers or rendering. */
@@ -162,6 +232,86 @@ export class LiftSystem {
       cooldowns: d.triggers.map(() => 0),
     }));
     for (let i = 0; i < definitions.length; i++) this.byModel.set(definitions[i].modelIndex, i);
+    for (let i = 0; i < definitions.length; i++) {
+      const triggers = definitions[i].triggers;
+      for (let j = 0; j < triggers.length; j++) {
+        const button = triggers[j].button;
+        if (!button) continue;
+        let entry = this.buttonCallers.get(button.modelIndex);
+        if (!entry) {
+          entry = { button, callers: [] };
+          this.buttonCallers.set(button.modelIndex, entry);
+          this.buttons.push(button);
+        }
+        entry.callers.push([i, j]);
+      }
+    }
+  }
+  /** Every `func_button` that calls a lift, once each, for collision and rendering. */
+  readonly buttons: LiftButton[] = [];
+  /** A button targeting two doors is a caller of both; its press reads either. */
+  private readonly buttonCallers = new Map<number, { button: LiftButton; callers: Array<[number, number]> }>();
+  /**
+   * How far a button is pressed in now, from its caller's cooldown: it travels
+   * in at its speed and holds until the caller rearms. Derived from simulated
+   * state, so prediction, collision and rendering agree without extra data.
+   */
+  buttonOffset(modelIndex: number, out: Vec3 = { x: 0, y: 0, z: 0 }): Vec3 {
+    out.x = 0;
+    out.y = 0;
+    out.z = 0;
+    const entry = this.buttonCallers.get(modelIndex);
+    if (!entry) return out;
+    let held = -1;
+    for (const [i, j] of entry.callers) {
+      const cooldown = this.states[i].cooldowns[j];
+      if (cooldown > 0) held = Math.max(held, this.definitions[i].triggers[j].wait - cooldown);
+    }
+    if (held < 0) return out;
+    const { push, speed } = entry.button;
+    const length = Math.hypot(push.x, push.y, push.z);
+    const fraction = length > 0 ? Math.min(1, (held * speed) / length) : 1;
+    out.x = push.x * fraction;
+    out.y = push.y * fraction;
+    out.z = push.z * fraction;
+    return out;
+  }
+  /**
+   * Damage landed at `point`. A direct hit (`radius` 0) fires a shootable
+   * button whose brush it is on; a blast fires one whose bounds lie within
+   * `radius`, as Q3 radius damage reached any entity's box. Returns how many
+   * lifts were set going.
+   */
+  strike(point: Vec3, radius = 0): number {
+    if (!Number.isFinite(point.x + point.y + point.z)) return 0;
+    let fired = 0;
+    const offset = this._strikeOffset;
+    for (let i = 0; i < this.definitions.length; i++) {
+      const d = this.definitions[i];
+      const s = this.states[i];
+      for (let j = 0; j < d.triggers.length; j++) {
+        const t = d.triggers[j];
+        if (!t.shot || s.cooldowns[j] > 0) continue;
+        if (t.button) this.buttonOffset(t.button.modelIndex, offset);
+        else offset.x = offset.y = offset.z = 0;
+        const hit =
+          radius > 0
+            ? distanceToBox(point, t.min, t.max, offset) < radius
+            : t.shot.parts.some((part) => distanceToBox(point, part.min, part.max, offset) <= STRIKE_EPSILON);
+        if (!hit) continue;
+        s.cooldowns[j] = t.wait;
+        this.activate(d, s);
+        fired++;
+      }
+    }
+    return fired;
+  }
+  private readonly _strikeOffset: Vec3 = { x: 0, y: 0, z: 0 };
+  /** A caller fired: start the lift, reverse a toggle, or hold an open door. */
+  private activate(d: LiftDefinition, s: LiftState): void {
+    if (d.toggle && (s.phase === "up" || s.phase === "top")) s.phase = "down";
+    else if (s.phase === "bottom" || s.phase === "down") s.phase = "up";
+    else if (s.phase === "top" && !d.plat) s.remaining = Math.max(0, d.wait);
   }
   /** Current rest/travel phase, for presentation that reacts to movement. */
   phase(modelIndex: number): LiftState["phase"] | undefined {
@@ -249,7 +399,7 @@ export class LiftSystem {
       for (let j = 0; j < d.triggers.length; j++) {
         s.cooldowns[j] = Math.max(0, s.cooldowns[j] - dt);
         const t = d.triggers[j];
-        if (s.cooldowns[j] === 0 && actors.some((a) => !a.passive && overlaps(a.position, t.min, t.max))) {
+        if (!t.shot && s.cooldowns[j] === 0 && actors.some((a) => !a.passive && overlaps(a.position, t.min, t.max))) {
           activated = true;
           s.cooldowns[j] = t.wait;
         }
@@ -361,6 +511,17 @@ export class LiftSystem {
       p.y - 24 < d.max.y - d.height + 8
     );
   }
+}
+
+/** A shot's impact point sits on the brush face, give or take the trace's 2-unit box. */
+const STRIKE_EPSILON = 3;
+
+/** Distance from `p` to the box `min`..`max` moved by `shift`; 0 inside it. */
+function distanceToBox(p: Vec3, min: Vec3, max: Vec3, shift: Vec3): number {
+  const dx = Math.max(min.x + shift.x - p.x, 0, p.x - max.x - shift.x);
+  const dy = Math.max(min.y + shift.y - p.y, 0, p.y - max.y - shift.y);
+  const dz = Math.max(min.z + shift.z - p.z, 0, p.z - max.z - shift.z);
+  return Math.hypot(dx, dy, dz);
 }
 
 function overlaps(p: Vec3, min: Vec3, max: Vec3): boolean {

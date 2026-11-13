@@ -22,3 +22,12 @@ models/mapmodels2026/doordouble01/door_right
         material models/mapobjects/scifi/doordouble01/door_right.tga models/mapobjects/scifi/doordouble01/door_right_norm.png models/mapobjects/scifi/doordouble01/door_right_gloss.png
     }
 }
+
+// Le Toxiquet's barrels (wdm17/m_barrel*.ase) name a vertex-lit variant no media set defines.
+textures/metal/orangewall_vertex
+{
+    qer_editorimage textures/metal/orangewall.png
+    {
+        material textures/metal/orangewall.png textures/metal/orangewall_norm.tga textures/metal/orangewall_gloss.tga
+    }
+}

@@ -59,6 +59,7 @@ const SurfaceFlags = {
 // Default content mask for player collision
 const PLAYER_CONTENTS = ContentFlags.SOLID | ContentFlags.PLAYERCLIP;
 const NO_LIFTS: LiftSystem["definitions"] = [];
+const NO_BUTTONS: LiftSystem["buttons"] = [];
 
 interface CollisionTexture {
   name: string;
@@ -127,6 +128,7 @@ export class SweepCollisionBackend implements CollisionBackend {
   private readonly _traceMins: [number, number, number] = [0, 0, 0];
   private readonly _traceMaxs: [number, number, number] = [0, 0, 0];
   public lifts: LiftSystem | undefined;
+  private readonly _buttonPress = { x: 0, y: 0, z: 0 };
   public brushModels: BrushModelState | undefined;
   private brushModelBrushes = new Set<number>();
   private brushModelFaces = new Set<number>();
@@ -219,7 +221,21 @@ export class SweepCollisionBackend implements CollisionBackend {
     }
     this.liftBrushes.clear();
     this.liftFaces.clear();
-    const definitions = extractLifts(bsp.entities, bsp.models);
+    const definitions = extractLifts(bsp.entities, bsp.models, (modelIndex) => {
+      const model = bsp.models[modelIndex];
+      const boxes: Array<{ mins: number[]; maxs: number[] }> = [];
+      for (let b = model.firstBrush; b < model.firstBrush + model.numBrushes; b++) {
+        const brush = bsp.brushes[b];
+        const planes: number[] = [];
+        for (let i = 0; i < brush.numSides; i++) {
+          const plane = bsp.planes[bsp.brushSides[brush.firstSide + i]?.planeIndex ?? -1];
+          if (plane) planes.push(...plane.normal, plane.dist);
+        }
+        const bounds = planeBounds(planes);
+        if (bounds) boxes.push({ mins: bounds.slice(0, 3), maxs: bounds.slice(3) });
+      }
+      return boxes;
+    });
     for (const d of definitions) {
       const model = bsp.models[d.modelIndex];
       for (let i = model.firstBrush; i < model.firstBrush + model.numBrushes; i++)
@@ -241,6 +257,13 @@ export class SweepCollisionBackend implements CollisionBackend {
         modelIndex: this.liftBrushes.get(hit.hitBrushIndex ?? -1) ?? -1,
       };
     });
+    // A button is solid where it stands, pressed or not; it is traced on its own like a lift.
+    for (const button of this.lifts.buttons) {
+      const model = bsp.models[button.modelIndex];
+      if (this.liftBrushes.has(model.firstBrush)) continue;
+      for (let i = model.firstBrush; i < model.firstBrush + model.numBrushes; i++) this.brushModelBrushes.add(i);
+      for (let i = model.firstFace; i < model.firstFace + model.numFaces; i++) this.brushModelFaces.add(i);
+    }
     this.isFBSP = bsp.header?.isFBSP ?? false;
     this.brushVisits = new Uint32Array(bsp.brushes.length);
     this.faceVisits = new Uint32Array(bsp.faces.length);
@@ -683,6 +706,25 @@ export class SweepCollisionBackend implements CollisionBackend {
       state.end[1] = q3End[1] - origin.z;
       state.end[2] = q3End[2] - origin.y;
       const model = this.bsp.models[definition.modelIndex];
+      for (let i = model.firstBrush; i < model.firstBrush + model.numBrushes; i++) {
+        const brush = this.bsp.brushes[i];
+        const texture = this.getBrushTexture(brush);
+        if (texture && this.shouldCollideWith(texture, contentMask)) this.traceBrush(brush, i, texture, state);
+      }
+    }
+    const buttons = lifts?.buttons ?? NO_BUTTONS;
+    for (let bi = 0; bi < buttons.length; bi++) {
+      const button = buttons[bi];
+      if (button.modelIndex === excludeModel || (onlyModel >= 0 && button.modelIndex !== onlyModel)) continue;
+      if (this.liftBrushes.has(this.bsp.models[button.modelIndex].firstBrush)) continue;
+      const press = lifts!.buttonOffset(button.modelIndex, this._buttonPress);
+      state.start[0] = q3Start[0] - press.x;
+      state.start[1] = q3Start[1] - press.z;
+      state.start[2] = q3Start[2] - press.y;
+      state.end[0] = q3End[0] - press.x;
+      state.end[1] = q3End[1] - press.z;
+      state.end[2] = q3End[2] - press.y;
+      const model = this.bsp.models[button.modelIndex];
       for (let i = model.firstBrush; i < model.firstBrush + model.numBrushes; i++) {
         const brush = this.bsp.brushes[i];
         const texture = this.getBrushTexture(brush);
