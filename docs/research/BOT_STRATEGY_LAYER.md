@@ -937,6 +937,32 @@ played only with a stack at most 25 under the estimate of the opponent's, and
 left at once when that stops holding; otherwise the bot recovers. That
 removed the harm; the strategist is at plain Hard's level, not above it.
 
+### 2026-11-13 — a second Duel, and Control as a race
+
+The owner's second Duel, on dm5, ended 24–8 (Red Armors 17–0, Yellow 14–2,
+Mega 6–2). The bot's report: "losing items" diagnosed for about 435 of 600 s;
+its answers paid Recover −1.18 a stretch (194 s), Pressure −0.10 (143 s),
+Control +0.36 (99 s). Control paid but the stack gate held it back: always
+outstacked, the bot recovered on small health and stayed outstacked.
+
+Control now races for the returning item: a short lead (itemTiming ×0.3,
+about 3 s in a Duel) and the major-item bias, without the contest weight; and
+it is played outstacked too when a major item believed taken returns within
+20 s near enough to reach in time. `bot:ab` now counts the major items each
+arm is granted.
+
+Against the Red Armor hoarder on dm2, 16 Duels of 240 s:
+
+| A | Wins A–B | Frag gap | Deaths A | RA | YA | GA | Mega |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Hard, no strategist | 7–8, 1 drawn | −0.50 | 128 | 1.4–2.3 | 3.6–1.9 | 1.1–1.7 | 2.1–1.7 |
+| Hard, strategist | 9–6, 1 drawn | +0.75 | 108 | 1.1–3.8 | 4.4–1.4 | 1.1–1.5 | 2.4–1.1 |
+
+Items are per match, A–B. The strategist did not win the Red Armor race; it
+split the map, taking more Yellow Armors and Megas and dying less. The same
+setup gave −0.44 a run earlier (Control alone −0.44, 38% of the time in
+Control): together about +0.15, within noise.
+
 ### Gates, 2026-11-13
 
 In the worktree (no `node_modules` or `public/data` junctions, by design):
