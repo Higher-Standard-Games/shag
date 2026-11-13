@@ -807,3 +807,32 @@ Standing starts landed 26 of 28. Still time on washoi_dm1, 4 medium bots,
 150 s: 15% → 10–12%. The misses came from the snapshot being a few ticks
 behind the server while the bot keeps sprinting; a standing start never sees
 that. Tricks failing by skill (M4) is not done.
+
+### 2026-11-13 — BS-12, BS-17, BS-18: fading, escaping, the baseline
+
+fps `ff9b0c2`.
+
+- **Fading.** Recover and Protect lead fade: in a fight with 40 damage taken
+  and no stack advantage by the estimate (or none fresh enough), the bot
+  retreats instead of trading.
+- **Escape routes.** A retreat from an enemy in sight first takes the nearest
+  route node (of the 24 nearest within 192–900 units and not toward the
+  enemy) that the enemy cannot see from where it is, by route cost; then the
+  usual health choice. Searched again after 0.5 s when none qualifies.
+- **The store.** `bot/intel/IntelStore.ts`: `matches`, `fights` and
+  `episodes` tables in `<data-dir>/bot-intel.db`, written in one transaction
+  per bot at post-game (`BotClient` `matchReport` event, `BotServer` writes
+  it). No names: an opponent is "human" or "bot". Rows older than 90 days go
+  when the store opens. The bot server opens it by default; `--no-intel`
+  for none. Headless tools (`bot:motion`, `bot:ab`) pass no store and write
+  nothing, and stop before post-game in any case.
+- **The baseline.** `bot:intel` writes `config/bot-intel/<map>.json`: per
+  gametype, fights per 256-unit cell and opponent kind (count, share won and
+  lost, mean damage dealt and taken), and payoffs per diagnosis and strategy
+  (count, mean). Deterministic, so the same reports give the same file. The
+  strategist takes an arm's baseline payoff as its starting estimate once the
+  arm has 10 baseline episodes. `BotRatingIdentity` fingerprints
+  `config/bot-intel` beside `config/bot-routes`.
+- Not done: the fight cells are recorded but nothing reads them yet (they are
+  for positions and Danger, BS-18's second half); third-party and item-crowd
+  diagnoses for FFA (BS-16) wait for the tactics that answer them.

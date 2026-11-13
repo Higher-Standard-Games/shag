@@ -595,6 +595,7 @@ else `server-data/` beside the repo:
 | `settings.db` | Each account's synced settings (bindings and game preferences, never graphics), in `node:sqlite`; kept apart from `players.db` so frequent writes and backups don't touch results. Losing it loses nothing for good: every browser keeps its own copy and uploads it at its next login |
 | `result-outbox/` | Signed completed reports awaiting a committed receipt; separate from public demos |
 | `bot-secret` | The secret shared with the bot server, written by whichever starts first |
+| `bot-intel.db` | The bot server's own: each bot's report at the end of a match (map, gametype, preset, score, its fights by map cell and its strategy episodes), with no names or keys, in `node:sqlite`. Kept 90 days; separate from `players.db` and safe to delete. `bot:intel` distils it into the checked-in `config/bot-intel/<map>.json` |
 
 Demo recordings are not kept here: the lobby scans the game servers'
 `public/data/demos/` and serves the list.
