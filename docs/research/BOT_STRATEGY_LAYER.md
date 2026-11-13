@@ -963,6 +963,31 @@ split the map, taking more Yellow Armors and Megas and dying less. The same
 setup gave −0.44 a run earlier (Control alone −0.44, 38% of the time in
 Control): together about +0.15, within noise.
 
+### 2026-11-13 — a third Duel, and the first rule learned from people
+
+The owner's third Duel, dm2, ended 20–9 (the first dm2 Duel 22–5). Items, owner
+first: Red 16–1, Yellow 10–6, Green 19–3, Mega 2–7. The bot split the map, as
+against the hoarder. Its report: "losing items" again, Control 230 s paying
+−0.38. At fight starts it put the owner at about 80 health and armor; the
+demo gives the owner's average alive at 148 (the bot's 91), so it also
+diagnosed "enemy weak" and pressed for 96 s.
+
+The estimate started every life at 100 and rose only for takes the bot
+perceived; people take most items out of sight. The owner's stack by seconds
+since spawn, median (middle half), from the dm5 and dm2 Duels:
+
+| Since spawn | 0–10 s | 10–20 | 20–30 | 30–40 | 40–50 | 50–60 |
+| --- | --- | --- | --- | --- | --- | --- |
+| Owner | 100 (100–125) | 157 (125–194) | 174 (140–200) | 185 (140–218) | 200 (175–218) | 187 (150–200) |
+| Bot | 100 | 100 | 100 | 64 | 75 | 75 |
+
+`bot:people` measures this from people's demos into
+`config/bot-intel/people.json`, the first of the map-free rules the owner
+asked for (how people handle situations, on any map): the estimate of a
+person leans on the curve by its staleness. Bots are left out, as they
+stack much lower. Bot-against-bot runs cannot measure it; the next match
+against a person can.
+
 ### Gates, 2026-11-13
 
 In the worktree (no `node_modules` or `public/data` junctions, by design):
