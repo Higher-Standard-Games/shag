@@ -37,8 +37,8 @@ import type { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh";
 import { Mesh } from "@babylonjs/core/Meshes/mesh";
 import { TransformNode } from "@babylonjs/core/Meshes/transformNode";
 // Side effect: registers the OutlineRenderer scene component — required for
-// mesh.renderOutline (team outlines) to draw. Previously loaded implicitly by
-// bare @babylonjs/core barrel imports; must be explicit with per-module imports.
+// mesh.renderOutline (team outlines) to draw. Per-module imports do not load
+// it, so it is imported here explicitly.
 import "@babylonjs/core/Rendering/outlineRenderer";
 import { type Scene, Scene as SceneClass } from "@babylonjs/core/scene";
 import { devLog } from "../core/DevLog";

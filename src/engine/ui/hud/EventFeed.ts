@@ -120,8 +120,7 @@ export class EventFeed {
     this.messages.push(msg);
 
     // Fade and removal are two timers and a CSS transition, not a frame
-    // loop: the old loop wrote every fading entry's opacity each frame and
-    // kept running for seven seconds after every kill.
+    // loop, so an idle feed costs nothing per frame.
     msg.timers.push(
       window.setTimeout(() => el.classList.add("fps-event-entry--out"), MESSAGE_LIFETIME * 1000),
       window.setTimeout(() => this.remove(msg), (MESSAGE_LIFETIME + MESSAGE_FADE_TIME) * 1000),

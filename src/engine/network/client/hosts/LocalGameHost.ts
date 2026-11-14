@@ -31,6 +31,16 @@ interface HostedSimulation {
  * getInterpolatedPosition() / getInterpolatedVelocity(). The interpolation factor is
  * timeAccumulator / tickDuration clamped to [0, 1].
  */
+/** Copy a vector into the map entry for `id`, reusing the stored object. */
+function copyInto(map: Map<string, Vec3>, id: string, from: Readonly<Vec3>): void {
+  const to = map.get(id);
+  if (to) {
+    to.x = from.x;
+    to.y = from.y;
+    to.z = from.z;
+  } else map.set(id, { x: from.x, y: from.y, z: from.z });
+}
+
 export class LocalGameHost implements IGameHost {
   readonly localPlayerId: PlayerId;
   readonly currentTick: number = 0;
@@ -232,17 +242,21 @@ export class LocalGameHost implements IGameHost {
    * Store entity positions before tick for interpolation
    */
   private storePreviousState(): void {
-    for (const [entityId, rawEntity] of this.simulation.state.entities) {
+    const entities = this.simulation.state.entities;
+    // Entities come and go (every projectile is a new one): forget the gone
+    for (const entityId of this.previousPositions.keys()) {
+      if (!entities.has(entityId)) this.previousPositions.delete(entityId);
+    }
+    for (const entityId of this.previousVelocities.keys()) {
+      if (!entities.has(entityId)) this.previousVelocities.delete(entityId);
+    }
+    for (const [entityId, rawEntity] of entities) {
       const entity = rawEntity as Entity;
       const transform = entity.getComponent<TransformComponent>("transform");
       const velocity = entity.getComponent<VelocityComponent>("velocity");
 
-      if (transform) {
-        this.previousPositions.set(entityId, { ...transform.position });
-      }
-      if (velocity) {
-        this.previousVelocities.set(entityId, { ...velocity.linear });
-      }
+      if (transform) copyInto(this.previousPositions, entityId, transform.position);
+      if (velocity) copyInto(this.previousVelocities, entityId, velocity.linear);
     }
   }
 

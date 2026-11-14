@@ -1368,9 +1368,8 @@ export class SweepCollisionBackend implements CollisionBackend {
 
       // DEPENETRATION: If we started inside geometry, nudge out slightly along normal.
       // Use a gentle nudge (0.05u) and fall through to normal fraction/clip handling.
-      // The traceBrush fix means this handler now fires (it previously was dead code
-      // because brushes never returned a startSolid normal). Keep the nudge small
-      // to avoid jitter during fast movement like crouch slides.
+      // Brushes report a normal for a start inside them, so this fires; the nudge
+      // stays small to avoid jitter during fast movement like crouch slides.
       if (trace.startSolid && trace.normal) {
         currentPos.addInPlace(trace.normal.scale(0.05));
       }
@@ -1755,9 +1754,8 @@ export class SweepCollisionBackend implements CollisionBackend {
     options?: TraceOptions,
   ): { position: Vector3; normal: Vector3 } | null {
     const end = point.add(new Vector3(0, -maxDistance, 0));
-    // Default to the canonical player hull, but allow overrides. (Previously
-    // hardcoded height:56 — a stale leftover from before PLAYER_MAXS_Z was
-    // raised 32→40; the probe hull was 3u shorter than the actual player.)
+    // The canonical player hull unless the caller overrides it, so the probe
+    // matches the player's real size.
     const traceOpts = { radius: PLAYER_RADIUS, height: PLAYER_HEIGHT, ...options };
     const result = this.trace(point, end, traceOpts);
 

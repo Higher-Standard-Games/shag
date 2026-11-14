@@ -137,19 +137,25 @@ export class BspMeshBuilder {
   /**
    * Check if a texture should be rendered
    */
+  /** Whether each texture is drawn as faces, decided once per texture rather than per face. */
+  private drawnTextures: boolean[] | null = null;
+
+  /**
+   * Tool textures are not drawn, and neither is a fog brush's surface: its fog
+   * volume (FogVolumes) draws it.
+   */
   private shouldRenderTexture(textureIndex: number): boolean {
-    if (!this.options.filterTextures) return true;
     if (textureIndex < 0 || textureIndex >= this.bsp.textures.length) return false;
-
-    const texName = this.bsp.textures[textureIndex].name.toLowerCase();
-
-    for (const skip of NON_DRAWABLE_TEXTURES) {
-      if (texName.includes(skip)) {
-        return false;
-      }
+    if (!this.drawnTextures) {
+      const shaders = Q3ShaderRegistry.getInstance();
+      this.drawnTextures = this.bsp.textures.map(({ name }) => {
+        if (shaders.getShader(name)?.fogParms) return false;
+        if (!this.options.filterTextures) return true;
+        const texName = name.toLowerCase();
+        return !NON_DRAWABLE_TEXTURES.some((skip) => texName.includes(skip));
+      });
     }
-
-    return true;
+    return this.drawnTextures[textureIndex];
   }
 
   private buildAll(): BspMeshBuildResult {
@@ -309,11 +315,6 @@ export class BspMeshBuilder {
       // Sky shader detection - track for skybox creation
       // Check both Q3 shader registry (surfaceparm sky / skyparms) and BSP surface flags (SURF_SKY = 0x4)
       const textureName = this.bsp.textures[face.textureIndex]?.name || "";
-      // A fog brush's surface is drawn by its fog volume (FogVolumes), not as a face
-      if (shaderRegistry.getShader(textureName)?.fogParms) {
-        skippedTextures++;
-        continue;
-      }
       const shaderProps = shaderRegistry.resolveMaterialProps(textureName, {
         deluxe: this.options.deluxe,
         worldSurface: true,

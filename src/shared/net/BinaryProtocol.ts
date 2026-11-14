@@ -160,6 +160,35 @@ function jsonOnce(event: object, part: string, build: () => string): string {
   return json;
 }
 
+interface WeaponStateParts {
+  currentWeapon?: string;
+  weapons?: string[];
+  ammo?: Record<string, unknown>;
+  reloading?: boolean;
+  lastFireTick?: number;
+}
+const weaponsJson = (event: WeaponStateParts & object) =>
+  jsonOnce(event, "weapons", () => JSON.stringify(event.weapons ?? []));
+const ammoJson = (event: WeaponStateParts & object) => jsonOnce(event, "ammo", () => JSON.stringify(event.ammo ?? {}));
+
+/**
+ * Everything a weapon_state event puts on the wire besides its entity id, as one
+ * string: equal strings encode equally. Built from the same cached JSON the
+ * encoder writes, so a broadcaster comparing events costs no second stringify.
+ */
+export function weaponStateSignature(event: WeaponStateParts & object): string {
+  return jsonOnce(
+    event,
+    "signature",
+    () =>
+      `${event.currentWeapon ?? ""}
+${weaponsJson(event)}
+${ammoJson(event)}
+${event.reloading ? 1 : 0}
+${event.lastFireTick ?? 0}`,
+  );
+}
+
 // ── Shared component stubs (hoisted to avoid per-entity closure allocations) ──
 // These are referenced by every decoded entity/player. Defining once at module
 // scope eliminates ~600+ function object allocations per second during gameplay.
@@ -1001,9 +1030,9 @@ export class BinaryProtocol {
           encoder.writeString(event.entityId);
           encoder.writeString(event.currentWeapon ?? "");
           // weapons array as JSON (variable-length array of strings)
-          encoder.writeString(jsonOnce(event, "weapons", () => JSON.stringify(event.weapons ?? [])));
+          encoder.writeString(weaponsJson(event));
           // ammo as JSON (variable-length object)
-          encoder.writeString(jsonOnce(event, "ammo", () => JSON.stringify(event.ammo ?? {})));
+          encoder.writeString(ammoJson(event));
           encoder.writeUint8(event.reloading ? 1 : 0);
           encoder.writeUint32(event.lastFireTick ?? 0);
           break;

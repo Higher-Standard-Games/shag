@@ -30,6 +30,9 @@ import { getGameFrameHook } from "../GameFrameHook";
 import type { CameraControllerConfig, ICameraController } from "./ICameraController";
 import { reusableFreeCamera } from "./ReusableFreeCamera";
 
+const AXIS_FORWARD = Vector3.Forward();
+const AXIS_RIGHT = Vector3.Right();
+
 export class FreeflyController implements ICameraController {
   readonly type = "freefly";
 
@@ -144,6 +147,10 @@ export class FreeflyController implements ICameraController {
 
   // Shared input handler (pointer lock, mouse look, key prevention)
   private inputHandler = new CameraInputHandler();
+  /** Per-frame scratch: the view's forward and right axes and the frame's movement */
+  private readonly forwardDir = new Vector3();
+  private readonly rightDir = new Vector3();
+  private readonly movement = new Vector3();
   private inputActions = getFreeflyInput().actions;
   private moveAxis: { forward: number; right: number } | null = null;
 
@@ -298,23 +305,22 @@ export class FreeflyController implements ICameraController {
     // Restore physics Y before collision (not smoothed)
     this.camera.position.y = this.physicsY;
 
-    // Get camera directions
-    const forward = this.camera.getDirection(Vector3.Forward());
-    const right = this.camera.getDirection(Vector3.Right());
-    const up = Vector3.Up();
+    // Camera directions and the frame's movement, in vectors kept between frames
+    const forward = this.forwardDir;
+    const right = this.rightDir;
+    this.camera.getDirectionToRef(AXIS_FORWARD, forward);
+    this.camera.getDirectionToRef(AXIS_RIGHT, right);
+    const movement = this.movement.setAll(0);
 
-    // Calculate movement
-    const movement = Vector3.Zero();
-
-    if (this.keys.forward) movement.addInPlace(forward.scale(speed));
-    if (this.keys.backward) movement.addInPlace(forward.scale(-speed));
-    if (this.keys.left) movement.addInPlace(right.scale(-speed));
-    if (this.keys.right) movement.addInPlace(right.scale(speed));
-    if (this.keys.up) movement.addInPlace(up.scale(speed));
-    if (this.keys.down) movement.addInPlace(up.scale(-speed));
+    const along = (this.keys.forward ? speed : 0) - (this.keys.backward ? speed : 0);
+    const across = (this.keys.right ? speed : 0) - (this.keys.left ? speed : 0);
+    const rise = (this.keys.up ? speed : 0) - (this.keys.down ? speed : 0);
+    forward.scaleAndAddToRef(along, movement);
+    right.scaleAndAddToRef(across, movement);
+    movement.y += rise;
     if (this.inputHandler.inPlay && this.moveAxis) {
-      movement.addInPlace(forward.scale(this.moveAxis.forward * speed));
-      movement.addInPlace(right.scale(this.moveAxis.right * speed));
+      forward.scaleAndAddToRef(this.moveAxis.forward * speed, movement);
+      right.scaleAndAddToRef(this.moveAxis.right * speed, movement);
     }
 
     // Apply movement with collision

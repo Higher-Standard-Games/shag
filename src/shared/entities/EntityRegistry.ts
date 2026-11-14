@@ -29,7 +29,6 @@ export class EntityRegistry {
       console.warn(`[EntityRegistry] Overwriting existing definition: ${def.id}`);
     }
     this.definitions.set(def.id, def);
-    console.log(`[EntityRegistry] Registered ${def.type}: ${def.id}`);
   }
 
   /**
