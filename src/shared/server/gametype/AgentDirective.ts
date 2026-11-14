@@ -74,6 +74,11 @@ export interface AgentDirective {
    * by different ways. Absent, the bot takes its own shortest route.
    */
   via?: readonly { x: number; y: number; z: number }[];
+  /**
+   * For `defend` and `hold_area`: where to look once there, such as the way
+   * in an enemy would come by. Absent, the bot picks its own.
+   */
+  watch?: { x: number; y: number; z: number };
 }
 
 /**

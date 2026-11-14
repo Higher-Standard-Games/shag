@@ -108,14 +108,43 @@ With snd4's full-coach run above (72% / 42% attacking, 58% / 28% defending),
 the coach wins both sides on snd1 and snd4 and is level on snd6. Kills per
 death follow the rounds: on snd6 the side that defends more rounds dies more.
 
+### Holds, the stalled carrier, and fighting from cover
+
+The owner, from human games: snd6 is balanced when people play it; bots lose
+it by where they stand. Defenders should hold high ground (B top) and defend
+from there; bots should also hide behind cover and take shots from it.
+
+- `holds` (coach part): `bot:lanes` keeps each side's holds per site (see
+  bot-training). snd6 found B top 321 units over the site, snd4 B 569.
+
+| Run | Rounds won A–B | Attacking, A / B | Defending, A / B | Kills per death A–B | Plants |
+| --- | --- | --- | --- | --- | --- |
+| snd6, holds against none (12) | 30–22 | 85% / 72% | 28% / 15% | 1.27–0.79 | 34 of 52 |
+| snd1, holds against none (6; a worker lost its port) | 14–12 | 92% / 85% | 15% / 8% | 1.03–0.97 | 16 of 26 |
+
+- A recorded snd1 match showed why snd1 timed out: in two of four rounds the
+  carrier and its partner stood at (1112, 2768), by the attackers' spawn,
+  all round, walking into a wall towards their lane's first waypoint. Stall
+  recovery skipped any bot with a gametype order; it now skips only a bot
+  standing still on purpose. With that fixed, snd1 attacks win 85–92% of
+  rounds (from 27–47%), with 16 plants in 26 rounds and no timeouts: snd1 is
+  now attacker-sided for bots, as snd6 is.
+- Fight habits, Duel on dm2, 30 matches of 120 s (`fightOff` arm option):
+
+| A against B | Wins A–B | Frag gap a match (95%) |
+| --- | --- | --- |
+| cover and hitscan high ground, against neither | 13–16 | −0.50 (−1.44 to 0.44) |
+| cover alone, against neither | 14–10 | +0.20 (−0.81 to 1.21) |
+| dodging at 1.3× dodge skill, against cover alone | 6–19 (p 0.015) | −0.67 (−1.50 to 0.17) |
+
+  Kept: cover, and keeping the high ground above an enemy in every mode.
+  Dropped: seeking a ledge with hitscan weapons, and the dodge boost.
+
 ## Open
 
-- snd6 is all but undefendable for bots on either side (attacks win 92–97%).
-  The map's attack routes reach the sites in about 20 s; the round and fuse
-  times, or a defence that holds forward of the sites, are the places to
-  look.
-- snd1 sees few plants (2 of 45 rounds): rounds are decided by fights or the
-  clock. The attack there wins by killing, not planting.
+- Both snd1 and snd6 are attacker-sided for bots (attacks win 72–92% even
+  with holds). Next places to look: defenders forward of the sites, and the
+  attack's pair split on snd1 against a defence split between A and B.
 - A person on the team is covered by tests and the rules (not grouped, not
   staged when carrying, site calls), not yet by a played match.
 - Fakes, a lurker and callouts read for more than hunting are not built.
