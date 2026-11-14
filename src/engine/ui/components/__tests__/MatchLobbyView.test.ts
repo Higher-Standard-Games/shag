@@ -433,6 +433,43 @@ describe("MatchLobbyView bots", () => {
     view.destroy();
   });
 
+  it("adds a bot of a chosen skill from the arrow beside Add bot", () => {
+    const client = new FakeLobbyClient();
+    const room = { ...lobby, players: [lobby.players[0]], visibility: "private" as const, shareUrl: "/?lobby=r" };
+    const view = new MatchLobbyView("duel", client as never, room, "host");
+    const arrow = view.root.querySelector<HTMLButtonElement>(".match-lobby__bot-level");
+    expect(arrow?.disabled).toBe(false);
+    arrow?.click();
+    const items = [...view.root.querySelectorAll<HTMLButtonElement>(".match-lobby__bot-menu-item")];
+    expect(items.map((item) => item.querySelector(".match-lobby__bot-menu-name")?.textContent)).toEqual([
+      "Easy",
+      "Medium",
+      "Hard",
+      "Insane",
+    ]);
+    expect(arrow?.getAttribute("aria-expanded")).toBe("true");
+    items[3].click();
+    expect(client.inviteBot).toHaveBeenCalledWith("snd-room", "insane");
+    // The menu closes, and the arrow waits with Add bot for the bot to arrive
+    expect(view.root.querySelector(".match-lobby__bot-menu")).toBeNull();
+    expect(arrow?.disabled).toBe(true);
+    view.destroy();
+  });
+
+  it("closes the skill menu on a click elsewhere", () => {
+    const client = new FakeLobbyClient();
+    const room = { ...lobby, players: [lobby.players[0]], visibility: "private" as const, shareUrl: "/?lobby=r" };
+    const view = new MatchLobbyView("duel", client as never, room, "host");
+    document.body.append(view.root);
+    view.root.querySelector<HTMLButtonElement>(".match-lobby__bot-level")?.click();
+    expect(view.root.querySelector(".match-lobby__bot-menu")).not.toBeNull();
+    document.body.dispatchEvent(new Event("pointerdown", { bubbles: true }));
+    expect(view.root.querySelector(".match-lobby__bot-menu")).toBeNull();
+    expect(client.inviteBot).not.toHaveBeenCalled();
+    view.destroy();
+    view.root.remove();
+  });
+
   it("offers bots in a public lobby, and turns private when the server says so", () => {
     vi.useFakeTimers();
     const client = new FakeLobbyClient();

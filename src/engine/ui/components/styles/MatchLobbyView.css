@@ -1329,3 +1329,82 @@
     transform: translate(0, -50%);
   }
 }
+
+/* ── Add bot's skill arrow and menu ── */
+
+/* The arrow is the end of the Add bot key, split off by a thin seam: both
+   keys lean by the same fixed amount (the usual 3% would leave the narrow
+   arrow upright), and the arrow starts where Add bot's slanted edge ends,
+   over Add bot's own side */
+.match-lobby__add-bot,
+.match-lobby__bot-level {
+  --key-cut: 5px;
+}
+
+.raised-key--act.match-lobby__add-bot {
+  margin-right: 0;
+}
+
+.raised-key--act.match-lobby__bot-level {
+  margin-left: calc(-1 * clamp(12px, 1.1vw, 20px) - var(--key-cut) + 2px);
+}
+
+.match-lobby__bot-level .raised-key__face {
+  align-items: center;
+  padding: 0 clamp(12px, 1vw, 18px);
+}
+
+.match-lobby__bot-level .raised-key__label {
+  font-size: 30px;
+  line-height: 0.8;
+}
+
+.match-lobby__bot-level .raised-key__hint {
+  display: none;
+}
+
+/* Opens upwards from Add bot, over the room */
+.match-lobby__bot-menu {
+  position: absolute;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  min-width: 180px;
+  padding: 8px;
+  background: var(--cream);
+  box-shadow: 6px 6px 0 hsla(250, 45%, 4%, 0.6);
+  clip-path: polygon(10px 0, 100% 0, calc(100% - 10px) 100%, 0 100%);
+  animation: match-lobby-bot-menu 0.12s ease-out;
+}
+
+@keyframes match-lobby-bot-menu {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+.match-lobby__bot-menu-item {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 10px 16px;
+  border: 0;
+  color: var(--ink);
+  text-align: left;
+  background: transparent;
+  cursor: pointer;
+}
+
+.match-lobby__bot-menu-item:is(:hover, :focus-visible) {
+  outline: none;
+  color: var(--cream);
+  background: var(--ink);
+}
+
+.match-lobby__bot-menu-name {
+  font: 900 16px / 1 var(--w-font-display, "Orbitron", monospace);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}

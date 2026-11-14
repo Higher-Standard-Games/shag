@@ -15,6 +15,15 @@ import { rememberMapTitle } from "../MapTitles";
 import { ConnectingOverlay } from "./ConnectingOverlay";
 import { createRaisedKey, setRaisedKeyText } from "./RaisedKey";
 
+/** The bot skill presets the lobby accepts (`lobby:invite_bot`), easiest first. */
+const BOT_LEVELS = [
+  { id: "easy", label: "Easy" },
+  { id: "medium", label: "Medium" },
+  { id: "hard", label: "Hard" },
+  { id: "insane", label: "Insane" },
+] as const;
+type BotLevel = (typeof BOT_LEVELS)[number]["id"];
+
 // ═══════════════════════════════════════════════════════════════════
 // TYPES
 // ═══════════════════════════════════════════════════════════════════
@@ -71,6 +80,11 @@ export class MatchLobbyView {
   private lobbyClient: LobbyClient;
   private unsubscribers: (() => void)[] = [];
   private inviteBotBtn: HTMLButtonElement | null = null;
+  /** The arrow beside Add bot that opens the skill menu, and the menu. */
+  private botLevelBtn: HTMLButtonElement | null = null;
+  private botLevelMenu: HTMLElement | null = null;
+  /** Ends the menu's page listeners (outside click, Esc). */
+  private botLevelListeners: AbortController | null = null;
   private readyBtn: HTMLButtonElement | null = null;
   private recoverBtn: HTMLButtonElement | null = null;
   private activeMatchId: string | null = null;
@@ -247,6 +261,7 @@ export class MatchLobbyView {
         if (this.inviteBotBtn) {
           setRaisedKeyText(this.inviteBotBtn, "+ Add bot", "No bots available");
           this.inviteBotBtn.disabled = true;
+          this.syncBotLevelKey();
           this.schedule(() => this.updateInviteBotState(), 2500);
         }
       }),
@@ -374,6 +389,7 @@ export class MatchLobbyView {
     this.timers.clear();
     if (this.clockTimer !== null) window.clearTimeout(this.clockTimer);
     this.clockTimer = null;
+    this.closeBotLevelMenu();
   }
 
   private schedule(callback: () => void, delay: number): void {
@@ -385,7 +401,7 @@ export class MatchLobbyView {
     this.timers.add(timer);
   }
 
-  /** A short notice to the right of the Add bot key that fades away by itself. */
+  /** A short notice to the right of the Add bot keys that fades away by itself. */
   private flash(text: string): void {
     this.root.querySelector(".match-lobby__flash")?.remove();
     const actions = this.root.querySelector<HTMLElement>(".match-lobby__actions");
@@ -394,7 +410,7 @@ export class MatchLobbyView {
     flash.className = "match-lobby__flash";
     flash.setAttribute("role", "status");
     flash.textContent = text;
-    const key = this.inviteBotBtn;
+    const key = this.botLevelBtn ?? this.inviteBotBtn;
     if (key) {
       flash.style.left = `${key.offsetLeft + key.offsetWidth + 14}px`;
       flash.style.top = `${key.offsetTop + key.offsetHeight / 2}px`;
@@ -916,8 +932,22 @@ export class MatchLobbyView {
     // each bot lands on whichever side is short. In a public room the first
     // bot makes the room private.
     this.inviteBotBtn = createRaisedKey({ label: "+ Add bot", hint: "Fill a seat", variants: ["act", "cream"] });
+    this.inviteBotBtn.classList.add("match-lobby__add-bot");
     this.inviteBotBtn.addEventListener("click", () => this.requestBot());
     actions.appendChild(this.inviteBotBtn);
+    // The arrow beside it picks the skill; Add bot itself leaves it to the
+    // server (Hard, or Insane for a strong rating)
+    this.botLevelBtn = createRaisedKey({ label: "▾", variants: ["act", "cream"] });
+    this.botLevelBtn.classList.add("match-lobby__bot-level");
+    this.botLevelBtn.setAttribute("aria-label", "Choose the bot's skill");
+    this.botLevelBtn.setAttribute("aria-haspopup", "menu");
+    this.botLevelBtn.setAttribute("aria-expanded", "false");
+    this.botLevelBtn.addEventListener("click", (event) => {
+      event.stopPropagation();
+      if (this.botLevelMenu) this.closeBotLevelMenu();
+      else this.openBotLevelMenu(actions);
+    });
+    actions.appendChild(this.botLevelBtn);
     this.updateInviteBotState();
 
     // Two seats are two players facing each other: which side is whose changes
@@ -1021,19 +1051,93 @@ export class MatchLobbyView {
     return named ?? (team === "alpha" ? "Team Soba" : "Team Udon");
   }
 
-  /** Ask the server to spawn an AI bot opponent into this lobby. */
-  private requestBot(): void {
+  /** The skill menu above the Add bot keys: one entry per preset. */
+  private openBotLevelMenu(actions: HTMLElement): void {
+    const anchor = this.inviteBotBtn;
+    const caret = this.botLevelBtn;
+    if (!anchor || !caret || caret.disabled) return;
+    const menu = document.createElement("div");
+    menu.className = "match-lobby__bot-menu";
+    menu.setAttribute("role", "menu");
+    menu.setAttribute("aria-label", "Bot skill");
+    for (const level of BOT_LEVELS) {
+      const item = document.createElement("button");
+      item.type = "button";
+      item.className = "match-lobby__bot-menu-item";
+      item.setAttribute("role", "menuitem");
+      const name = document.createElement("span");
+      name.className = "match-lobby__bot-menu-name";
+      name.textContent = level.label;
+      item.append(name);
+      item.addEventListener("click", () => {
+        this.closeBotLevelMenu();
+        this.requestBot(level.id);
+      });
+      menu.appendChild(item);
+    }
+    // Opens upwards from the Add bot key, over the room
+    menu.style.left = `${anchor.offsetLeft}px`;
+    menu.style.bottom = `${actions.offsetHeight - anchor.offsetTop + 10}px`;
+    actions.appendChild(menu);
+    this.botLevelMenu = menu;
+    caret.setAttribute("aria-expanded", "true");
+    this.botLevelListeners = new AbortController();
+    const signal = this.botLevelListeners.signal;
+    document.addEventListener(
+      "pointerdown",
+      (event) => {
+        const target = event.target as Node;
+        if (!menu.contains(target) && !caret.contains(target)) this.closeBotLevelMenu();
+      },
+      { signal, capture: true },
+    );
+    document.addEventListener(
+      "keydown",
+      (event) => {
+        const items = [...menu.querySelectorAll<HTMLButtonElement>(".match-lobby__bot-menu-item")];
+        const at = items.indexOf(document.activeElement as HTMLButtonElement);
+        if (event.key === "Escape") {
+          event.preventDefault();
+          event.stopPropagation();
+          this.closeBotLevelMenu();
+          caret.focus();
+        } else if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+          event.preventDefault();
+          const step = event.key === "ArrowDown" ? 1 : -1;
+          items[(at + step + items.length) % items.length]?.focus();
+        }
+      },
+      { signal, capture: true },
+    );
+    menu.querySelector<HTMLButtonElement>(".match-lobby__bot-menu-item")?.focus();
+  }
+
+  private closeBotLevelMenu(): void {
+    this.botLevelListeners?.abort();
+    this.botLevelListeners = null;
+    this.botLevelMenu?.remove();
+    this.botLevelMenu = null;
+    this.botLevelBtn?.setAttribute("aria-expanded", "false");
+  }
+
+  /**
+   * Ask the server to spawn an AI bot opponent into this lobby: at `difficulty`
+   * (a preset), or without one at the server's choice for the inviter.
+   */
+  private requestBot(difficulty?: BotLevel): void {
     if (this.phase === "starting") return;
     if (this.inviteBotPending) return;
     if (this.players.length >= this.config.maxPlayers) return;
 
     this.inviteBotPending = true;
-    this.lobbyClient.inviteBot(this.lobbyId);
+    if (difficulty) this.lobbyClient.inviteBot(this.lobbyId, difficulty);
+    else this.lobbyClient.inviteBot(this.lobbyId);
 
     if (this.inviteBotBtn) {
       setRaisedKeyText(this.inviteBotBtn, "+ Add bot", "Summoning…");
       this.inviteBotBtn.disabled = true;
     }
+    this.syncBotLevelKey();
 
     // Safety: clear the pending state if the server never answers.
     this.schedule(() => {
@@ -1071,11 +1175,22 @@ export class MatchLobbyView {
 
     if (this.inviteBotPending || this.phase === "starting") {
       btn.disabled = true;
+      this.syncBotLevelKey();
       return;
     }
 
     const open = this.config.maxPlayers - this.players.length;
     btn.disabled = open <= 0;
     setRaisedKeyText(btn, "+ Add bot", open <= 0 ? "Room is full" : `${open} seat${open === 1 ? "" : "s"} open`);
+    this.syncBotLevelKey();
+  }
+
+  /** The skill arrow follows Add bot: usable when it is, its menu closed when not. */
+  private syncBotLevelKey(): void {
+    const caret = this.botLevelBtn;
+    if (!caret) return;
+    caret.disabled = this.inviteBotBtn?.disabled ?? true;
+    caret.title = caret.disabled ? "" : "Choose the bot's skill";
+    if (caret.disabled) this.closeBotLevelMenu();
   }
 }
