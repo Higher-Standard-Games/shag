@@ -37,12 +37,12 @@ function autoIntensity(surfaceLight: number): number {
 }
 
 export class AreaLightManager {
-  private static instance: AreaLightManager;
+  private static instance: AreaLightManager | null = null;
 
   /** Clear the cached singleton so a fresh scene re-inits cleanly (QA-WO13 pattern). */
   static resetInstance(): void {
     AreaLightManager.instance?.dispose();
-    AreaLightManager.instance = null as unknown as AreaLightManager;
+    AreaLightManager.instance = null;
   }
 
   static getInstance(): AreaLightManager {

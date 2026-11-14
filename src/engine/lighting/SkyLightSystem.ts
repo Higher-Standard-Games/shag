@@ -183,11 +183,11 @@ const WEAPON_LAYER_MASK = 0x10000000;
 // ==================== SkyLightSystem Class ====================
 
 export class SkyLightSystem {
-  private static instance: SkyLightSystem;
+  private static instance: SkyLightSystem | null = null;
 
   /** Clear the cached singleton so ServiceLocator re-inits a fresh one (QA-WO13). */
   static resetInstance(): void {
-    SkyLightSystem.instance = null as unknown as SkyLightSystem;
+    SkyLightSystem.instance = null;
   }
 
   private scene: Scene | null = null;

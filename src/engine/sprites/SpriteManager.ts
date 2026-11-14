@@ -30,11 +30,11 @@ export interface StaticSprite {
  * Supports both animated sprites (via SpriteSheet) and static sprites (via manifest).
  */
 export class SpriteManager {
-  private static instance: SpriteManager;
+  private static instance: SpriteManager | null = null;
 
   /** Clear the cached singleton so ServiceLocator re-inits a fresh one (QA-WO13). */
   static resetInstance(): void {
-    SpriteManager.instance = null as unknown as SpriteManager;
+    SpriteManager.instance = null;
   }
 
   private scene: Scene | null = null;

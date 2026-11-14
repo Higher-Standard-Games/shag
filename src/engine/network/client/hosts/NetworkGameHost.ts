@@ -42,7 +42,7 @@ import type { Command } from "../../core/Command";
 import type { PlayerId } from "../../core/Entity";
 import type { GameEvent, GameState } from "../../core/GameState";
 import type { IGameHost } from "../../core/IGameHost";
-import type { Simulation, SimulationConfig } from "../../core/Simulation";
+import type { SimulationConfig } from "../../core/Simulation";
 import { type ClientPrefs, type MatchPauseNotice, MessageCodec, MessageType } from "../../protocol/MessageCodec";
 import { ClockSync } from "../ClockSync";
 import { ConnectionWatchdog } from "../ConnectionWatchdog";
@@ -51,6 +51,17 @@ import { NetGraph } from "../NetGraph";
 import { SmoothCorrection } from "../SmoothCorrection";
 import { SnapshotReceiver } from "../SnapshotReceiver";
 import type { Transport } from "../transport/Transport";
+
+/**
+ * The part of a Simulation the host predicts with. Game simulations narrow
+ * their command type (FPSSimulation predicts FPSInputCommand), so the host
+ * accepts any simulation whose predict takes some Command subtype; method
+ * parameters are checked bivariantly.
+ */
+interface PredictingSimulation {
+  state: GameState;
+  predict(commands: Command[]): void;
+}
 
 /** A chat line delivered while the match is paused. */
 export interface PausedChat {
@@ -114,7 +125,7 @@ export class NetworkGameHost implements IGameHost {
   currentTick: number = 0;
 
   private transport: Transport;
-  private simulation: Simulation;
+  private simulation: PredictingSimulation;
   private stateUpdateCallbacks: ((state: GameState) => void)[] = [];
   private eventCallbacks: ((event: GameEvent) => void)[] = [];
   private serverInfoCallbacks: ((info: ServerInfo) => void)[] = [];
@@ -185,7 +196,7 @@ export class NetworkGameHost implements IGameHost {
   constructor(
     transport: Transport,
     config: SimulationConfig,
-    SimulationClass: new (config: SimulationConfig) => Simulation,
+    SimulationClass: new (config: SimulationConfig) => PredictingSimulation,
   ) {
     if (
       !Number.isInteger(config.tickRate) ||
@@ -904,7 +915,7 @@ export class NetworkGameHost implements IGameHost {
 
     // Step 5: Apply accumulated smooth correction (legacy only)
     if (!this.useExternalPrediction) {
-      this.applySmothCorrection();
+      this.applySmoothCorrection();
     }
 
     // In legacy mode (no V2 client), callbacks are fired by predictLocally() only.
@@ -1068,7 +1079,7 @@ export class NetworkGameHost implements IGameHost {
   /**
    * Apply smooth correction to local player position
    */
-  private applySmothCorrection(): void {
+  private applySmoothCorrection(): void {
     if (!this.smoothCorrection.hasCorrection()) return;
 
     const localPlayer = this.localState.players.get(this.localPlayerId);

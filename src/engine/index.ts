@@ -49,7 +49,6 @@ export type {
 export { BspLoader, findLeafForPoint, isClusterVisible } from "./loader/bsp/BspLoader";
 export type { BspMeshBuildResult, BuildOptions as BspBuildOptions } from "./loader/bsp/BspMeshBuilder";
 export { BspMeshBuilder, getVisibleFaces } from "./loader/bsp/BspMeshBuilder";
-export { printBspStats, quickBspTest, testBspLoading, testBspRendering } from "./loader/bsp/BspTest";
 export type { BrushFace } from "./loader/map/BrushGenerator";
 export { BrushGenerator } from "./loader/map/BrushGenerator";
 export type { Brush, Entity, PlaneDefinition } from "./loader/map/MapParser";

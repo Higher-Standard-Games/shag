@@ -17,7 +17,7 @@ import { log } from "../engine/core/Log";
 import { filterChatText, filterPlayerName } from "../engine/server/ChatFilter";
 import type { MatchResultReport } from "../engine/server/network/MatchResultReport";
 import { normalizeDemoMapName } from "../shared/demo/DemoMapName";
-import { DemoReader } from "../shared/demo/DemoReader";
+import { type DemoHeader, DemoReader } from "../shared/demo/DemoReader";
 import { BOT_ACCOUNT_PRESETS as BOT_PRESETS, type BotPreset } from "../shared/ranking/BotMatchRatingGroups";
 import { BOT_INVITE_PREPARATION_TIMEOUT_MS } from "../shared/ranking/BotPreparation";
 import { type BotReference, canonicalBotReference, sameBotReference } from "../shared/ranking/BotReference";
@@ -482,6 +482,11 @@ export class LobbyServer {
 
   // Demo listing cache
   private _demoCache: DemoInfo[] = [];
+  /** What each demo file holds, by name, read once per file version (see _scanDemos). */
+  private readonly _demoFiles = new Map<
+    string,
+    { mtimeMs: number; size: number; header: DemoHeader | null; durationMs: number }
+  >();
   /** Server-only verified ownership; account IDs never ride in public demo cards. */
   private _demoOwnership = new Map<string, Set<number>>();
   /** Filename → the account each listed name was recorded for, so a deleted account's name can be swapped out. */
@@ -2414,24 +2419,29 @@ export class LobbyServer {
       const ownership = new Map<string, Set<number>>();
       const playerAccounts = new Map<string, readonly (number | undefined)[]>();
 
+      // A demo does not change once written: read and parse each file once, and
+      // again only if its size or time changes. Everything else is rebuilt.
+      const present = new Set(files);
+      for (const filename of this._demoFiles.keys()) if (!present.has(filename)) this._demoFiles.delete(filename);
+
       for (const filename of files) {
         try {
           const filepath = path.join(this.DEMO_DIR, filename);
           const stat = fs.statSync(filepath);
-          const data = fs.readFileSync(filepath);
-
-          const reader = new DemoReader(new Uint8Array(data));
-          const header = reader.readHeader();
-          const index = reader.readIndex();
-
-          // Calculate duration from index (last tick - first tick) / snapshot rate
-          let durationMs = 0;
-          if (index && index.frameCount > 0 && header) {
-            const lastFrame = index.entries[index.frameCount - 1];
-            const firstFrame = index.entries[0];
-            const tickSpan = lastFrame.tick - firstFrame.tick;
-            durationMs = Math.round((tickSpan / header.tickRate) * 1000);
+          let parsed = this._demoFiles.get(filename);
+          if (!parsed || parsed.mtimeMs !== stat.mtimeMs || parsed.size !== stat.size) {
+            parsed = { mtimeMs: stat.mtimeMs, size: stat.size, header: null, durationMs: 0 };
+            this._demoFiles.set(filename, parsed);
+            const reader = new DemoReader(new Uint8Array(fs.readFileSync(filepath)));
+            parsed.header = reader.readHeader();
+            const index = reader.readIndex();
+            // Duration from the index: (last tick - first tick) / tick rate
+            if (index && index.frameCount > 0 && parsed.header) {
+              const tickSpan = index.entries[index.frameCount - 1].tick - index.entries[0].tick;
+              parsed.durationMs = Math.round((tickSpan / parsed.header.tickRate) * 1000);
+            }
           }
+          const { header, durationMs } = parsed;
 
           if (header) {
             const mode = normalizeGametype(header.gametype);

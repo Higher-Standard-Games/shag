@@ -119,6 +119,21 @@ interface InternalTraceResult {
   hitSurfaceFlags: number;
 }
 
+const STUCK_NUDGE = 2.0;
+/** Where slideMove tries to step out of solid: the six axes, then diagonals for corner junctions. */
+const STUCK_NUDGES: readonly Vector3[] = [
+  new Vector3(STUCK_NUDGE, 0, 0),
+  new Vector3(-STUCK_NUDGE, 0, 0),
+  new Vector3(0, STUCK_NUDGE, 0),
+  new Vector3(0, -STUCK_NUDGE, 0),
+  new Vector3(0, 0, STUCK_NUDGE),
+  new Vector3(0, 0, -STUCK_NUDGE),
+  new Vector3(STUCK_NUDGE, STUCK_NUDGE, 0),
+  new Vector3(-STUCK_NUDGE, STUCK_NUDGE, 0),
+  new Vector3(0, STUCK_NUDGE, STUCK_NUDGE),
+  new Vector3(0, STUCK_NUDGE, -STUCK_NUDGE),
+];
+
 /**
  * Q3-style collision backend
  */
@@ -1335,22 +1350,8 @@ export class SweepCollisionBackend implements CollisionBackend {
       if (trace.allSolid) {
         // Stuck entirely inside solid — try to nudge out in multiple directions
         // Q3-style recovery: find an escape direction instead of trapping the player
-        const NUDGE = 2.0;
-        const nudges = [
-          new Vector3(NUDGE, 0, 0),
-          new Vector3(-NUDGE, 0, 0),
-          new Vector3(0, NUDGE, 0),
-          new Vector3(0, -NUDGE, 0),
-          new Vector3(0, 0, NUDGE),
-          new Vector3(0, 0, -NUDGE),
-          // Diagonals for corner junctions
-          new Vector3(NUDGE, NUDGE, 0),
-          new Vector3(-NUDGE, NUDGE, 0),
-          new Vector3(0, NUDGE, NUDGE),
-          new Vector3(0, NUDGE, -NUDGE),
-        ];
         let escaped = false;
-        for (const nudge of nudges) {
+        for (const nudge of STUCK_NUDGES) {
           const testPos = currentPos.add(nudge);
           const testTrace = this.trace(testPos, testPos, options);
           if (!testTrace.allSolid && !testTrace.startSolid) {

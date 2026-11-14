@@ -24,12 +24,12 @@ import RenderVars from "../rendering/RenderVars";
 export const GLOW_BLUR_KERNEL = 16;
 
 export class GlowEffect {
-  private static instance: GlowEffect;
+  private static instance: GlowEffect | null = null;
 
   /** Clear the cached singleton so a fresh scene re-inits cleanly (QA-WO13 pattern). */
   static resetInstance(): void {
     GlowEffect.instance?.dispose();
-    GlowEffect.instance = null as unknown as GlowEffect;
+    GlowEffect.instance = null;
   }
 
   static getInstance(): GlowEffect {

@@ -222,6 +222,11 @@ export class ProjectileManager {
     return false;
   }
 
+  /** Whether init() has given it a scene to draw in. */
+  public isInitialized(): boolean {
+    return this.scene !== null;
+  }
+
   public init(scene: Scene): void {
     if (this.tickObserver) this.scene?.onBeforeRenderObservable.remove(this.tickObserver);
     if (this.scene !== scene) {

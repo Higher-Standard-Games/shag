@@ -13,6 +13,7 @@ import { CommandRegistry } from "../console/CommandRegistry";
 import { Cvar } from "../core/Cvar";
 import { EngineVersion } from "../core/EngineVersion";
 import { createRaisedKey } from "../ui/components/RaisedKey";
+import { escapeHtml } from "../ui/EscapeHtml";
 import { DeveloperBar } from "./DeveloperBar";
 import "./debug-console.css";
 import { background, logRejection } from "../core/AsyncErrors";
@@ -906,9 +907,6 @@ export class DebugConsole {
     const containsHtml = /<span\s+class=/.test(message);
 
     // Escape HTML entities first (unless message already has HTML)
-    const escapeHtml = (str: string) =>
-      str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
-
     const escaped = containsHtml ? message : escapeHtml(message);
 
     // Convert newlines to <br> tags

@@ -32,12 +32,12 @@ import { SunGodRays, type SunGodRaysOptions } from "./SunGodRays";
 const DEFAULT_SUN_DIR = new Vector3(-0.5, -1, -0.2);
 
 export class GodRaysController {
-  private static instance: GodRaysController;
+  private static instance: GodRaysController | null = null;
 
   /** Clear the cached singleton so a fresh scene re-inits cleanly (QA-WO13 pattern). */
   static resetInstance(): void {
     GodRaysController.instance?.disable();
-    GodRaysController.instance = null as unknown as GodRaysController;
+    GodRaysController.instance = null;
   }
 
   static getInstance(): GodRaysController {

@@ -117,11 +117,11 @@ export function collectModelAttachmentPoints(nodes?: readonly TransformNode[]): 
  * Singleton pattern for caching loaded models.
  */
 export class ModelLoader {
-  private static instance: ModelLoader;
+  private static instance: ModelLoader | null = null;
 
   /** Clear the cached singleton so ServiceLocator re-inits a fresh one (QA-WO13). */
   static resetInstance(): void {
-    ModelLoader.instance = null as unknown as ModelLoader;
+    ModelLoader.instance = null;
   }
   private scene: Scene | null = null;
 

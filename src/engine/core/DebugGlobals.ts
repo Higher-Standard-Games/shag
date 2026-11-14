@@ -4,9 +4,7 @@
  */
 
 import type { Engine } from "@babylonjs/core/Engines/engine";
-import type { Scene } from "@babylonjs/core/scene";
 import type { CameraMode, EngineScene } from "../EngineScene";
-import type { BspFile } from "../loader/bsp/BspLoader";
 
 declare global {
   interface Window {
@@ -23,9 +21,5 @@ declare global {
     babylonEngine?: Engine;
     /** Chrome's collector, with `--js-flags="--expose-gc"`. */
     gc?: () => void;
-    testBspLoading?: (mapName?: string) => Promise<BspFile | null>;
-    printBspStats?: (bsp: BspFile) => void;
-    testBspRendering?: (scene: Scene, mapName?: string) => Promise<void>;
-    quickBspTest?: () => Promise<void>;
   }
 }

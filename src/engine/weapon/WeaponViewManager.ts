@@ -1073,7 +1073,7 @@ export class WeaponViewManager {
     }
 
     // Debug: show which PK3 this model is actually loading from
-    const sourcePk3 = pk3["fileIndex"].get(modelPath.toLowerCase().replace(/\\/g, "/"));
+    const sourcePk3 = pk3.getFileOwner(modelPath);
     devLog(`[WeaponViewManager] Loading model ${modelPath} from PK3: ${sourcePk3 || "unknown"}`);
 
     // Load model data

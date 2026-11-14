@@ -4,5 +4,4 @@
 export * from "./BspLoader";
 export * from "./BspManager";
 export * from "./BspMeshBuilder";
-export * from "./BspTest";
 export * from "./PVSCuller";
