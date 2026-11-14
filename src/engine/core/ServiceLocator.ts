@@ -79,7 +79,7 @@ export interface ServiceRegistration {
  * ServiceLocator singleton for managing engine services
  */
 export class ServiceLocator {
-  private static instance: ServiceLocator;
+  private static instance: ServiceLocator | null = null;
 
   private services: Map<string, ServiceInfo> = new Map();
   private registrations: Map<string, ServiceRegistration> = new Map();
@@ -102,7 +102,7 @@ export class ServiceLocator {
     if (ServiceLocator.instance) {
       ServiceLocator.instance.dispose();
     }
-    ServiceLocator.instance = null as unknown as ServiceLocator;
+    ServiceLocator.instance = null;
   }
 
   /**

@@ -398,8 +398,12 @@ export class PK3Loader {
       return files;
     }
 
-    // Simple glob matching (only supports * wildcard)
-    const regex = new RegExp(`^${pattern.replace(/\*/g, ".*").replace(/\?/g, ".")}$`, "i");
+    // Glob matching: * is any run of characters, ? any one; everything else is literal
+    const source = pattern
+      .replace(/[.+^${}()|[\]\\]/g, "\\$&")
+      .replace(/\*/g, ".*")
+      .replace(/\?/g, ".");
+    const regex = new RegExp(`^${source}$`, "i");
 
     return files.filter((f) => regex.test(f));
   }
@@ -411,10 +415,11 @@ export class PK3Loader {
   public listDirectory(directory: string): string[] {
     const normalizedDir = `${directory.toLowerCase().replace(/\\/g, "/").replace(/\/$/, "")}/`;
 
-    return Array.from(this.fileIndex.keys())
-      .filter((f) => f.startsWith(normalizedDir))
-      .map((f) => f.substring(normalizedDir.length).split("/")[0])
-      .filter((v, i, a) => a.indexOf(v) === i); // Unique
+    const entries = new Set<string>();
+    for (const file of this.fileIndex.keys()) {
+      if (file.startsWith(normalizedDir)) entries.add(file.substring(normalizedDir.length).split("/")[0]);
+    }
+    return [...entries];
   }
 
   /**

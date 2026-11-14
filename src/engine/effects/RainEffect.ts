@@ -83,6 +83,8 @@ export class PrecipitationEffect {
 
   // Ambient sounds
   private rainSound: HTMLAudioElement | null = null;
+  /** The fade in progress. One at a time: a fade-out left running would pause rain that started again. */
+  private fadeTimer: ReturnType<typeof setInterval> | null = null;
   private readonly RAIN_FADE_DURATION = 1000; // ms to fade in/out
 
   // Wind integration
@@ -231,6 +233,7 @@ export class PrecipitationEffect {
    */
   private fadeInRainSound(): void {
     if (!this.rainSound) return;
+    this.stopFade();
 
     this.rainSound.currentTime = 0;
     this.rainSound.volume = 0;
@@ -245,15 +248,19 @@ export class PrecipitationEffect {
     const volumeStep = targetVolume / steps;
     let currentStep = 0;
 
-    const fadeInterval = setInterval(() => {
+    this.fadeTimer = setInterval(() => {
       currentStep++;
       if (this.rainSound) {
         this.rainSound.volume = Math.min(targetVolume, volumeStep * currentStep);
       }
-      if (currentStep >= steps) {
-        clearInterval(fadeInterval);
-      }
+      if (currentStep >= steps) this.stopFade();
     }, stepTime);
+  }
+
+  private stopFade(): void {
+    if (this.fadeTimer === null) return;
+    clearInterval(this.fadeTimer);
+    this.fadeTimer = null;
   }
 
   /**
@@ -261,6 +268,7 @@ export class PrecipitationEffect {
    */
   private fadeOutRainSound(): void {
     if (!this.rainSound || this.rainSound.paused) return;
+    this.stopFade();
 
     const startVolume = this.rainSound.volume;
     const steps = 20;
@@ -268,13 +276,13 @@ export class PrecipitationEffect {
     const volumeStep = startVolume / steps;
     let currentStep = 0;
 
-    const fadeInterval = setInterval(() => {
+    this.fadeTimer = setInterval(() => {
       currentStep++;
       if (this.rainSound) {
         this.rainSound.volume = Math.max(0, startVolume - volumeStep * currentStep);
       }
       if (currentStep >= steps) {
-        clearInterval(fadeInterval);
+        this.stopFade();
         this.rainSound?.pause();
       }
     }, stepTime);
@@ -614,6 +622,8 @@ export class PrecipitationEffect {
    */
   public dispose(): void {
     this.stop(true);
+    this.stopFade();
+    this.rainSound?.pause();
     if (this.particleSystem) {
       this.particleSystem.dispose();
       this.particleSystem = null;

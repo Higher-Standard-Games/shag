@@ -140,7 +140,7 @@ export class ProjectileManager {
   private nextId: number = 0;
 
   // Track predicted projectile impacts for deduplication with server events
-  private recentPredictedImpacts: Array<{
+  private readonly recentPredictedImpacts: Array<{
     pos: Vector3;
     time: number;
     defId: string;
@@ -220,6 +220,11 @@ export class ProjectileManager {
       }
     }
     return false;
+  }
+
+  /** Whether init() has given it a scene to draw in. */
+  public isInitialized(): boolean {
+    return this.scene !== null;
   }
 
   public init(scene: Scene): void {
@@ -859,9 +864,11 @@ export class ProjectileManager {
 
     // Cleanup stale predicted impacts (older than 1s)
     const cleanupTime = performance.now() - 1000;
-    if (this.recentPredictedImpacts.length > 0) {
-      this.recentPredictedImpacts = this.recentPredictedImpacts.filter((p) => p.time > cleanupTime);
-    }
+    // Pushed in time order, so the expired ones lead the list
+    const recent = this.recentPredictedImpacts;
+    let expired = 0;
+    while (expired < recent.length && recent[expired].time <= cleanupTime) expired++;
+    if (expired > 0) recent.splice(0, expired);
 
     const now = performance.now() / 1000;
     const toRemove: string[] = [];

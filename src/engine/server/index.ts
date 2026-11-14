@@ -1,22 +1,12 @@
 /**
  * @module @engine/server
  *
- * Next-Gen Server Engine v0.9.0
- *
  * Game-agnostic simulation engine with:
  * - COW (Copy-on-Write) state management
  * - Multi-rate tick system
  * - Binary network protocol
  * - Lag compensation with history rewind
  * - Replay system for determinism verification
- *
- * @example
- * ```typescript
- * import { GameServer, WorldState, LagCompensation } from '@engine/server';
- *
- * const server = new GameServer(config, new FPSServerGame());
- * await server.start(3000);
- * ```
  */
 
 // ═══════════════════════════════════════════════════════════════════
@@ -72,10 +62,3 @@ export { HistoryBuffer, LAG_COMPENSATION, LagCompensation } from "./lagcomp";
 
 export type { ReplayData, ReplayEvent, ReplayFrame, ReplayHeader } from "./replay/Replay";
 export { ReplayPlayer, ReplayRecorder } from "./replay/Replay";
-
-// ═══════════════════════════════════════════════════════════════════
-// MAIN SERVER
-// ═══════════════════════════════════════════════════════════════════
-
-export type { ServerConfig } from "./Server";
-export { GameServer } from "./Server";

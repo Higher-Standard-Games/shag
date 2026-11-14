@@ -112,14 +112,18 @@ export class WaterActorReflection {
     if (!enabled || this.failed) return;
     camera.getViewMatrix();
     const position = camera.globalPosition;
-    const patch = [...new Set(patches)]
-      .filter(
-        (p) =>
-          position.y > p.min.y + 1 &&
-          distanceToWater(position, p) < ACTOR_REFLECTION_RANGE &&
-          p.meshes.some((m) => m.isEnabled() && m.isVisible && camera.isInFrustum(m)),
-      )
-      .sort((a, b) => distanceToWater(position, a) - distanceToWater(position, b))[0];
+    // The nearest pool in range that the camera is above and can see; one pass,
+    // each distance measured once (this runs every frame near water)
+    let patch: WaterPatch | undefined;
+    let nearest = ACTOR_REFLECTION_RANGE;
+    for (const p of patches) {
+      if (position.y <= p.min.y + 1) continue;
+      const distance = distanceToWater(position, p);
+      if (distance >= nearest) continue;
+      if (!p.meshes.some((m) => m.isEnabled() && m.isVisible && camera.isInFrustum(m))) continue;
+      patch = p;
+      nearest = distance;
+    }
     this.status = "no nearby visible pool above water (range 240u)";
     if (!patch) return;
     this.localBodyWanted = true;

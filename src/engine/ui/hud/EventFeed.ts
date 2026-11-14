@@ -1,3 +1,5 @@
+import { escapeHtml } from "../EscapeHtml";
+
 /**
  * EventFeed — Top-left scrolling text log for game-wide events
  *
@@ -61,11 +63,11 @@ export class EventFeed {
    * Add a kill message to the feed.
    */
   addKill(killerName: string, victimName: string, weaponId?: string): void {
-    const weaponText = weaponId ? `<span class="fps-event-weapon">[${this.esc(weaponId)}]</span> ` : "";
+    const weaponText = weaponId ? `<span class="fps-event-weapon">[${escapeHtml(weaponId)}]</span> ` : "";
     const html =
-      `<span class="fps-event-killer">${this.esc(killerName)}</span> ` +
+      `<span class="fps-event-killer">${escapeHtml(killerName)}</span> ` +
       `${weaponText}<span class="fps-event-action">fragged</span> ` +
-      `<span class="fps-event-victim">${this.esc(victimName)}</span>`;
+      `<span class="fps-event-victim">${escapeHtml(victimName)}</span>`;
     this.push(html);
   }
 
@@ -74,15 +76,15 @@ export class EventFeed {
    */
   addAward(playerName: string, awardType: string, _value: number): void {
     const messages: Record<string, string> = {
-      first_blood: `<span class="fps-event-blood">${this.esc(playerName)}</span> <span class="fps-event-action">drew First Blood!</span>`,
-      on_fire: `<span class="fps-event-gold">${this.esc(playerName)}</span> <span class="fps-event-action">is On Fire!</span>`,
-      raging: `<span class="fps-event-blood">${this.esc(playerName)}</span> <span class="fps-event-action">is Raging!</span>`,
-      unstoppable: `<span class="fps-event-magenta">${this.esc(playerName)}</span> <span class="fps-event-action">is Unstoppable!</span>`,
+      first_blood: `<span class="fps-event-blood">${escapeHtml(playerName)}</span> <span class="fps-event-action">drew First Blood!</span>`,
+      on_fire: `<span class="fps-event-gold">${escapeHtml(playerName)}</span> <span class="fps-event-action">is On Fire!</span>`,
+      raging: `<span class="fps-event-blood">${escapeHtml(playerName)}</span> <span class="fps-event-action">is Raging!</span>`,
+      unstoppable: `<span class="fps-event-magenta">${escapeHtml(playerName)}</span> <span class="fps-event-action">is Unstoppable!</span>`,
     };
 
     const html =
       messages[awardType] ||
-      `<span class="fps-event-killer">${this.esc(playerName)}</span> <span class="fps-event-action">earned ${this.esc(awardType)}!</span>`;
+      `<span class="fps-event-killer">${escapeHtml(playerName)}</span> <span class="fps-event-action">earned ${escapeHtml(awardType)}!</span>`;
     this.push(html);
   }
 
@@ -120,8 +122,7 @@ export class EventFeed {
     this.messages.push(msg);
 
     // Fade and removal are two timers and a CSS transition, not a frame
-    // loop: the old loop wrote every fading entry's opacity each frame and
-    // kept running for seven seconds after every kill.
+    // loop, so an idle feed costs nothing per frame.
     msg.timers.push(
       window.setTimeout(() => el.classList.add("fps-event-entry--out"), MESSAGE_LIFETIME * 1000),
       window.setTimeout(() => this.remove(msg), (MESSAGE_LIFETIME + MESSAGE_FADE_TIME) * 1000),
@@ -140,15 +141,6 @@ export class EventFeed {
     msg.element?.remove();
     const i = this.messages.indexOf(msg);
     if (i >= 0) this.messages.splice(i, 1);
-  }
-
-  // ========================================================================
-  // Helpers
-  // ========================================================================
-
-  /** HTML-escape text to prevent injection */
-  private esc(text: string): string {
-    return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
   }
 
   // ========================================================================

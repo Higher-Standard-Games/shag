@@ -119,6 +119,21 @@ interface InternalTraceResult {
   hitSurfaceFlags: number;
 }
 
+const STUCK_NUDGE = 2.0;
+/** Where slideMove tries to step out of solid: the six axes, then diagonals for corner junctions. */
+const STUCK_NUDGES: readonly Vector3[] = [
+  new Vector3(STUCK_NUDGE, 0, 0),
+  new Vector3(-STUCK_NUDGE, 0, 0),
+  new Vector3(0, STUCK_NUDGE, 0),
+  new Vector3(0, -STUCK_NUDGE, 0),
+  new Vector3(0, 0, STUCK_NUDGE),
+  new Vector3(0, 0, -STUCK_NUDGE),
+  new Vector3(STUCK_NUDGE, STUCK_NUDGE, 0),
+  new Vector3(-STUCK_NUDGE, STUCK_NUDGE, 0),
+  new Vector3(0, STUCK_NUDGE, STUCK_NUDGE),
+  new Vector3(0, STUCK_NUDGE, -STUCK_NUDGE),
+];
+
 /**
  * Q3-style collision backend
  */
@@ -1335,22 +1350,8 @@ export class SweepCollisionBackend implements CollisionBackend {
       if (trace.allSolid) {
         // Stuck entirely inside solid — try to nudge out in multiple directions
         // Q3-style recovery: find an escape direction instead of trapping the player
-        const NUDGE = 2.0;
-        const nudges = [
-          new Vector3(NUDGE, 0, 0),
-          new Vector3(-NUDGE, 0, 0),
-          new Vector3(0, NUDGE, 0),
-          new Vector3(0, -NUDGE, 0),
-          new Vector3(0, 0, NUDGE),
-          new Vector3(0, 0, -NUDGE),
-          // Diagonals for corner junctions
-          new Vector3(NUDGE, NUDGE, 0),
-          new Vector3(-NUDGE, NUDGE, 0),
-          new Vector3(0, NUDGE, NUDGE),
-          new Vector3(0, NUDGE, -NUDGE),
-        ];
         let escaped = false;
-        for (const nudge of nudges) {
+        for (const nudge of STUCK_NUDGES) {
           const testPos = currentPos.add(nudge);
           const testTrace = this.trace(testPos, testPos, options);
           if (!testTrace.allSolid && !testTrace.startSolid) {
@@ -1368,9 +1369,8 @@ export class SweepCollisionBackend implements CollisionBackend {
 
       // DEPENETRATION: If we started inside geometry, nudge out slightly along normal.
       // Use a gentle nudge (0.05u) and fall through to normal fraction/clip handling.
-      // The traceBrush fix means this handler now fires (it previously was dead code
-      // because brushes never returned a startSolid normal). Keep the nudge small
-      // to avoid jitter during fast movement like crouch slides.
+      // Brushes report a normal for a start inside them, so this fires; the nudge
+      // stays small to avoid jitter during fast movement like crouch slides.
       if (trace.startSolid && trace.normal) {
         currentPos.addInPlace(trace.normal.scale(0.05));
       }
@@ -1755,9 +1755,8 @@ export class SweepCollisionBackend implements CollisionBackend {
     options?: TraceOptions,
   ): { position: Vector3; normal: Vector3 } | null {
     const end = point.add(new Vector3(0, -maxDistance, 0));
-    // Default to the canonical player hull, but allow overrides. (Previously
-    // hardcoded height:56 — a stale leftover from before PLAYER_MAXS_Z was
-    // raised 32→40; the probe hull was 3u shorter than the actual player.)
+    // The canonical player hull unless the caller overrides it, so the probe
+    // matches the player's real size.
     const traceOpts = { radius: PLAYER_RADIUS, height: PLAYER_HEIGHT, ...options };
     const result = this.trace(point, end, traceOpts);
 

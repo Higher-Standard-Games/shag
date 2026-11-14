@@ -369,8 +369,8 @@ function parseShaderBody(name: string, tokens: string[], startPos: number): { sh
       }
 
       case "fogparms": {
-        // Parse: fogParms ( R G B ) depthForOpaque
-        // or: fogParms R G B depthForOpaque
+        // Parse: fogParms ( R G B ) depthForOpaque [clearDist]
+        // or: fogParms R G B depthForOpaque [clearDist]
         // Color values are 0-1 range, depthForOpaque is distance in units
         pos++;
 
@@ -426,10 +426,22 @@ function parseShaderBody(name: string, tokens: string[], startPos: number): { sh
           depthForOpaque = parseFloat(tokens[pos]) || 512;
           pos++;
         }
+        // qfusion: under 0.1 means 128
+        if (depthForOpaque <= 0.1) depthForOpaque = 128;
+
+        // Optional clear distance (qfusion): no fog for this far into the volume,
+        // kept at least 128 short of opaque
+        let clearDist = 0;
+        if (pos < tokens.length && Number.isFinite(Number(tokens[pos]))) {
+          clearDist = Number(tokens[pos]);
+          pos++;
+        }
+        clearDist = Math.max(0, Math.min(clearDist, depthForOpaque - 128));
 
         shader.fogParms = {
           color: [r, g, b],
           depthForOpaque,
+          clearDist,
         };
         break;
       }

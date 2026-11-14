@@ -46,6 +46,8 @@ export interface BspMeshBuildResult {
   };
   /** Fog volume meshes */
   fogVolumes?: Mesh[];
+  /** The fog volumes drawn for this map, with their per-frame work; dispose removes them. */
+  fogVolumeSet?: import("../FogVolumes").FogVolumeSet;
   /** Autosprites that need per-frame billboard updates; several can share one mesh */
   autospriteMeshes?: {
     mesh: Mesh;

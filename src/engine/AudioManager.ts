@@ -61,11 +61,11 @@ export class AudioManager {
   public getSfxPresentationTime(): number {
     return this.sfxSink?.nowMs ?? performance.now();
   }
-  private static instance: AudioManager;
+  private static instance: AudioManager | null = null;
 
   /** Clear the cached singleton so ServiceLocator re-inits a fresh one (QA-WO13). */
   static resetInstance(): void {
-    AudioManager.instance = null as unknown as AudioManager;
+    AudioManager.instance = null;
   }
 
   private currentMusic: HTMLAudioElement | null = null;

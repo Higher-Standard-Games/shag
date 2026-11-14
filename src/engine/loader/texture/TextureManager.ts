@@ -26,11 +26,11 @@ export interface TextureInfo {
  * - "color_255_0_0" → skip (use color instead)
  */
 export class TextureManager {
-  private static instance: TextureManager;
+  private static instance: TextureManager | null = null;
 
   /** Clear the cached singleton so ServiceLocator re-inits a fresh one (QA-WO13). */
   static resetInstance(): void {
-    TextureManager.instance = null as unknown as TextureManager;
+    TextureManager.instance = null;
   }
   private textureCache: Map<string, Texture> = new Map();
   private materialCache: Map<string, StandardMaterial> = new Map();

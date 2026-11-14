@@ -187,11 +187,9 @@ export class WebSocketServerTransport implements Transport {
   }
 
   private handleConnection(ws: WebSocket, req: import("http").IncomingMessage): void {
-    console.log(`[WebSocket] New connection from ${req.socket.remoteAddress}`);
-
     // Check max clients
     if (this.clients.size >= this.config.maxClients) {
-      console.log(`[WebSocket] Server full, rejecting`);
+      console.log(`[WebSocket] Server full, rejecting ${req.socket.remoteAddress ?? "unknown"}`);
       ws.close(1013, "Server full");
       return;
     }
@@ -211,13 +209,15 @@ export class WebSocketServerTransport implements Transport {
     });
 
     ws.on("close", (code, reason) => {
-      console.log(`[WebSocket] Client ${clientId} disconnected: ${reason || code}`);
+      // The reason is a Buffer, empty when the peer gave none
+      const why = reason.toString() || `Code: ${code}`;
+      console.log(`[WebSocket] Client ${clientId} disconnected: ${why}`);
       this.clients.delete(clientId);
-      this.events.onDisconnect?.(client, reason?.toString() || `Code: ${code}`);
+      this.events.onDisconnect?.(client, why);
     });
 
     ws.on("error", (error) => {
-      console.log(`[WebSocket] Client ${clientId} error:`, error);
+      console.warn(`[WebSocket] Client ${clientId} error:`, error);
       this.events.onError?.(client, error);
     });
 

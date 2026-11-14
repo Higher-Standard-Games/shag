@@ -207,9 +207,27 @@ are in `docs/research/fog_worldspawn.md`. In short:
   glow and sky tint.
 - BSP Z is engine Y: heights become Y and the sun direction swaps its last two
   components.
-- Fog volumes, the underwater view and weather fog borrow the scene fog and
-  hand it back (`suspend` / `resume`).
+- The underwater view and weather fog borrow the scene fog and hand it back
+  (`suspend` / `resume`).
 - A shader with `nofog` keeps world fog off its surfaces.
+
+### Fog volumes
+
+A brush with a `fogparms ( r g b ) dist [clearDist]` shader (`FogVolumes.ts`)
+fogs everything inside it as qfusion does. The density at a surface is
+`sqrt((depth - clearDist) / (dist - clearDist))`, clamped to 0..1, where depth
+is how far the surface lies along the view direction; seen from outside, only
+the part of the view under the fog's surface counts. That surface is the
+brush side the BSP's fog lump names; when it names none, the side a face of
+the fog's shader lies on, or failing that the most upward-facing side. The colour is the shader's, scaled so its brightest channel
+is 1; `clearDist` is kept at least 128 short of `dist`.
+
+Each fog brush draws once after the opaque scene, without a depth test, and
+reads the scene's depth (shared with water) to find the surface behind every
+pixel. It draws after the map's blended surfaces and before its particles and
+additive ones. The fog brush's own faces are not drawn as surfaces. Blended
+surfaces inside the fog take the fog of what is behind them, and the
+viewmodel is not fogged. `bsp fog info` lists a loaded map's fog brushes.
 
 ### Sky portals
 

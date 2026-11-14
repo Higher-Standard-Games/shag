@@ -661,14 +661,9 @@ export class BspManager {
   }
 
   clearFogVolumes(): void {
-    if (!this.meshResult?.fogVolumes) return;
-
-    for (const mesh of this.meshResult.fogVolumes) {
-      if (mesh.material) {
-        mesh.material.dispose();
-      }
-      mesh.dispose();
-    }
+    if (!this.meshResult) return;
+    this.meshResult.fogVolumeSet?.dispose();
+    this.meshResult.fogVolumeSet = undefined;
     this.meshResult.fogVolumes = [];
   }
 

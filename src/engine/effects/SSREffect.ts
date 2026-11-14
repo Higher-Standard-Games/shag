@@ -26,12 +26,12 @@ import RenderVars from "../rendering/RenderVars";
 const DEFAULT_STRENGTH = 0.4;
 
 export class SSREffect {
-  private static instance: SSREffect;
+  private static instance: SSREffect | null = null;
 
   /** Clear the cached singleton so a fresh scene re-inits cleanly (QA-WO13 pattern). */
   static resetInstance(): void {
     SSREffect.instance?.dispose();
-    SSREffect.instance = null as unknown as SSREffect;
+    SSREffect.instance = null;
   }
 
   static getInstance(): SSREffect {

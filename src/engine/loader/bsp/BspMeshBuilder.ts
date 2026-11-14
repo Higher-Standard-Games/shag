@@ -137,19 +137,25 @@ export class BspMeshBuilder {
   /**
    * Check if a texture should be rendered
    */
+  /** Whether each texture is drawn as faces, decided once per texture rather than per face. */
+  private drawnTextures: boolean[] | null = null;
+
+  /**
+   * Tool textures are not drawn, and neither is a fog brush's surface: its fog
+   * volume (FogVolumes) draws it.
+   */
   private shouldRenderTexture(textureIndex: number): boolean {
-    if (!this.options.filterTextures) return true;
     if (textureIndex < 0 || textureIndex >= this.bsp.textures.length) return false;
-
-    const texName = this.bsp.textures[textureIndex].name.toLowerCase();
-
-    for (const skip of NON_DRAWABLE_TEXTURES) {
-      if (texName.includes(skip)) {
-        return false;
-      }
+    if (!this.drawnTextures) {
+      const shaders = Q3ShaderRegistry.getInstance();
+      this.drawnTextures = this.bsp.textures.map(({ name }) => {
+        if (shaders.getShader(name)?.fogParms) return false;
+        if (!this.options.filterTextures) return true;
+        const texName = name.toLowerCase();
+        return !NON_DRAWABLE_TEXTURES.some((skip) => texName.includes(skip));
+      });
     }
-
-    return true;
+    return this.drawnTextures[textureIndex];
   }
 
   private buildAll(): BspMeshBuildResult {
@@ -2203,16 +2209,13 @@ export class BspMeshBuilder {
     scene: Scene,
   ): Promise<{ success: boolean; fogMeshes: Mesh[]; error?: string }> {
     try {
-      const { FogVolumeManager } = await import("./BspFogVolume");
-      const fogManager = new FogVolumeManager();
-      const fogResult = await fogManager.buildFogVolumes(result.bspData, scene);
-
-      if (fogResult.meshes.length > 0) {
-        result.fogVolumes = fogResult.meshes;
-        return { success: true, fogMeshes: fogResult.meshes };
-      } else {
-        return { success: false, fogMeshes: [], error: "No fog volumes found in BSP" };
-      }
+      const { createFogVolumes } = await import("./FogVolumes");
+      result.fogVolumeSet?.dispose();
+      const set = createFogVolumes(result.bspData, scene, result.worldMesh);
+      result.fogVolumeSet = set ?? undefined;
+      result.fogVolumes = set?.meshes ?? [];
+      if (set?.meshes.length) return { success: true, fogMeshes: set.meshes };
+      return { success: false, fogMeshes: [], error: "No fog volumes found in BSP" };
     } catch (error) {
       console.error("[BspMeshBuilder] Failed to apply fog volumes:", error);
       return { success: false, fogMeshes: [], error: String(error) };

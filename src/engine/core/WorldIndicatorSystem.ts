@@ -59,11 +59,11 @@ export interface AddIndicatorOptions {
 // ==================== WorldIndicatorSystem ====================
 
 export class WorldIndicatorSystem {
-  private static instance: WorldIndicatorSystem;
+  private static instance: WorldIndicatorSystem | null = null;
 
   /** Clear the cached singleton so ServiceLocator re-inits a fresh one (QA-WO13). */
   static resetInstance(): void {
-    WorldIndicatorSystem.instance = null as unknown as WorldIndicatorSystem;
+    WorldIndicatorSystem.instance = null;
   }
 
   private scene: Scene | null = null;
