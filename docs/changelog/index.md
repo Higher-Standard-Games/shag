@@ -6,7 +6,8 @@ All notable changes to this project are documented in version-specific files.
 
 | Version | Date | Summary |
 |---------|------|---------|
-| [v1.0.0-beta.12](./v1.0.0-beta.12.md) | unreleased | Living changelog for the next beta cycle |
+| [v1.0.0-beta.13](./v1.0.0-beta.13.md) | unreleased | Living changelog for the next beta cycle |
+| [v1.0.0-beta.12](./v1.0.0-beta.12.md) | Nov 14, 2026 | Four new maps (DM16, DM17, DM18, Amphi3) with fog volumes, shootable buttons and map particles; full-match video export with the game HUD; victory dances and kill taunts; a skill menu on Add bot; bots that hear, hunt, learn the map and the opponent, strafe-jump, and play Search & Destroy as a team with holds and cover peeking; demo playback with the followed player's frags and the Tab scoreboard |
 | [v1.0.0-beta.11](./v1.0.0-beta.11.md) | Nov 12, 2026 | One leaderboard per mode that counts every match, public, private and against bots, with bots at fixed strengths by difficulty; native match settings no longer open behind the lobby |
 | [v1.0.0-beta.10.1](./v1.0.0-beta.10.1.md) | Nov 12, 2026 | Point release: free-for-all matches run their full ten minutes, with no score limit |
 | [v1.0.0-beta.10](./v1.0.0-beta.10.md) | Nov 12, 2026 | Bots that move more like players: route lines planned clear of walls, steadier views, shooting only once aimed, weapon swaps after slow shots and better item runs; a score-ordered FFA result screen, r_wireframe again, and a Windows installer and Linux AppImage for the native client |
