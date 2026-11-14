@@ -106,7 +106,7 @@ export class MatchLobbyView {
 
   /**
    * `fillWithBots` sets the room up by itself: it votes a random map, adds bots
-   * one at a time until that many are seated, then readies this player.
+   * one at a time until that many are seated. The player readies up themselves.
    */
   constructor(
     gametype: string,
@@ -1149,7 +1149,7 @@ export class MatchLobbyView {
     }, 9000);
   }
 
-  /** Quick play's next step: another bot while too few are seated, then ready up. */
+  /** Quick play's next step: another bot while too few are seated. The player readies up themselves. */
   private continueAutoFill(): void {
     if (this.autoFillBots === 0 || this.disposed) return;
     if (this.phase === "starting") {
@@ -1161,10 +1161,7 @@ export class MatchLobbyView {
       this.requestBot();
       return;
     }
-    // Bots ready up on their own, so this player readies last: earlier, the
-    // room could start as soon as it reached its minimum, short of bots.
     this.autoFillBots = 0;
-    if (!this.localReady) this.setReady(true);
   }
 
   /** Enable/disable the invite-bot button by capacity and pending state. */

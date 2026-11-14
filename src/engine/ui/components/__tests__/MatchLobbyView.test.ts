@@ -499,7 +499,7 @@ describe("MatchLobbyView bots", () => {
     vi.useRealTimers();
   });
 
-  it("quick play votes a map, adds bots one at a time, and readies last", () => {
+  it("quick play votes a map and adds bots one at a time, leaving ready to the player", () => {
     vi.spyOn(Math, "random").mockReturnValue(0.5);
     const client = new FakeLobbyClient();
     const room: MatchLobbyInfo = {
@@ -527,7 +527,7 @@ describe("MatchLobbyView bots", () => {
       });
       expect(client.inviteBot).toHaveBeenCalledTimes(Math.min(n + 1, 4));
     }
-    expect(client.setReady).toHaveBeenCalledWith("quick", true);
+    expect(client.setReady).not.toHaveBeenCalled();
     view.destroy();
     vi.restoreAllMocks();
   });
