@@ -68,6 +68,17 @@ export interface AgentDirective {
    * (high priority), but only urgent once the round clock is short.
    */
   urgency?: number;
+  /**
+   * Waypoints to pass on the way, in order: a lane. The bot heads for each in
+   * turn, then for the target, so a gametype can send two groups to one place
+   * by different ways. Absent, the bot takes its own shortest route.
+   */
+  via?: readonly { x: number; y: number; z: number }[];
+  /**
+   * For `defend` and `hold_area`: where to look once there, such as the way
+   * in an enemy would come by. Absent, the bot picks its own.
+   */
+  watch?: { x: number; y: number; z: number };
 }
 
 /**
