@@ -79,6 +79,12 @@ export interface AgentDirective {
    * in an enemy would come by. Absent, the bot picks its own.
    */
   watch?: { x: number; y: number; z: number };
+  /**
+   * For `defend` and `hold_area`: how far from the target a fight or chase may
+   * take the bot, units. A guard shoots from its ground and does not follow
+   * an enemy away from what it guards. Absent, fights go where they go.
+   */
+  leash?: number;
 }
 
 /**
