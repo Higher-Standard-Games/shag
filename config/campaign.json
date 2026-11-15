@@ -1,0 +1,49 @@
+{
+  "length": 8,
+  "missions": [
+    {
+      "id": "cartel-contract",
+      "map": "washoi_amphi2",
+      "gametype": "amphi",
+      "bots": [{ "name": "Cartel_King", "difficulty": "easy" }],
+      "models": { "ally": "robot", "enemy": "cartel" }
+    },
+    {
+      "id": "street-riot",
+      "map": "washoi_dm1",
+      "gametype": "ffa",
+      "bots": [
+        { "name": "Jolt", "difficulty": "easy" },
+        { "name": "Fizz", "difficulty": "easy" },
+        { "name": "Buzz", "difficulty": "easy" },
+        { "name": "Rush", "difficulty": "easy" }
+      ],
+      "models": { "ally": "robot", "enemy": "riotkitty" }
+    },
+    {
+      "id": "concrete-sabotage",
+      "map": "washoi_snd1",
+      "gametype": "snd",
+      "side": "attack",
+      "bots": [
+        { "name": "Ratchet", "difficulty": "medium", "side": "ally", "model": "cartel" },
+        { "name": "Socket", "difficulty": "medium", "side": "ally", "model": "riotkitty" },
+        { "name": "Torque", "difficulty": "medium", "side": "ally", "model": "cartel" },
+        { "name": "Pliers", "difficulty": "medium", "side": "ally", "model": "riotkitty" },
+        { "name": "Sgt_Kade", "difficulty": "medium" },
+        { "name": "Vance", "difficulty": "medium" },
+        { "name": "Doyle", "difficulty": "medium" },
+        { "name": "Hale", "difficulty": "medium" },
+        { "name": "Brix", "difficulty": "medium" }
+      ],
+      "models": { "ally": "robot", "enemy": "police" }
+    },
+    {
+      "id": "glitch-duel",
+      "map": "washoi_dm2",
+      "gametype": "duel",
+      "bots": [{ "name": "Glitch_Queen", "difficulty": "medium" }],
+      "models": { "ally": "robot", "enemy": "riotkitty" }
+    }
+  ]
+}

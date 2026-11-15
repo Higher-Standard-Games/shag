@@ -24,7 +24,7 @@ export function selectFeaturedDemos(
   const seen = new Set<string>();
   return archive
     .filter((demo) => {
-      if (demo.private === true) return false;
+      if (demo.private === true || demo.campaign) return false;
       if (seen.has(demo.filename)) return false;
       seen.add(demo.filename);
       const mode = demo.gametype === "deathmatch" ? "ffa" : demo.gametype;

@@ -97,9 +97,85 @@ export interface LobbyPlayerInfo {
   botLevel?: string;
 }
 
+// ============================================================================
+// Campaign
+// ============================================================================
+
+/** The models a campaign match draws each side with, by model id. */
+export interface CampaignModels {
+  ally: string;
+  enemy: string;
+}
+
+export interface CampaignBotInfo {
+  name: string;
+  /** Bot preset: easy, medium, hard, insane. */
+  difficulty: string;
+  /** On the players' side, or against them. Free-for-all bots are all enemies. */
+  side: "ally" | "enemy";
+  /** This bot's model, when it is not its side's (a mixed crew). */
+  model?: string;
+}
+
+export interface CampaignMissionInfo {
+  /** Stable id; progress is stored by it. */
+  id: string;
+  /** Play order, from 1. */
+  number: number;
+  map: string;
+  mapTitle: string;
+  gametype: string;
+  bots: CampaignBotInfo[];
+  models: CampaignModels;
+  /** S&D: the players attack every round, with no swap at the half. */
+  side?: "attack";
+}
+
+/** One mission an account has cleared, with its best clear. */
+export interface CampaignClear {
+  missionId: string;
+  /** First clear, ms since the epoch. */
+  clearedAt: number;
+  /** Shortest winning match, in ms. */
+  bestTimeMs: number;
+  /** Most frags in a winning match. */
+  bestFrags: number;
+}
+
+export interface CampaignGetMessage extends LobbyMessage {
+  type: "campaign:get";
+}
+
+/** The campaign and an account's progress in it. */
+export interface CampaignProgress {
+  /** Missions in all, written or not; the ones past `missions` are not playable yet. */
+  length: number;
+  missions: CampaignMissionInfo[];
+  clears: CampaignClear[];
+  /** The highest mission number this account may play. */
+  unlockedThrough: number;
+  /** When this account first finished every mission; absent until it has. */
+  completedAt?: number;
+}
+
+/** The campaign and this account's progress: after welcome, on request, and on every change. */
+export interface CampaignStateMessage extends LobbyMessage, CampaignProgress {
+  type: "campaign:state";
+}
+
+/** What a campaign room is playing. */
+export interface LobbyCampaignInfo {
+  missionId: string;
+  models: CampaignModels;
+  /** Bots drawn with a model of their own, by name. */
+  botModels?: Record<string, string>;
+}
+
 export interface MatchLobbyInfo {
   id: string;
   gametype: string;
+  /** Set for a campaign room: the mission it plays. */
+  campaign?: LobbyCampaignInfo;
   /** Present only for the currently running match, to reopen an unplayed seat. */
   activeMatchId?: string;
   /** Absent on older servers, which only create public rooms. */
@@ -143,6 +219,8 @@ export interface LiveMatchInfo {
 export interface DemoInfo {
   /** Absent on older recordings, treated as public. */
   private?: boolean;
+  /** A campaign mission's recording: listed only in its players' own demos. */
+  campaign?: string;
   filename: string; // "wdm14_duel_20260319_092800.shagdemo"
   map: string; // "wdm14"
   mapDisplayName: string; // "Aerowalk"
@@ -216,6 +294,8 @@ export interface LobbyCreateMessage extends LobbyMessage {
   type: "lobby:create";
   gametype: string;
   visibility?: "public" | "private";
+  /** A campaign mission id: a private room the lobby sets up for that mission. */
+  campaign?: string;
 }
 
 export interface LobbyJoinMessage extends LobbyMessage {
@@ -403,6 +483,8 @@ export interface WelcomeMessage extends LobbyMessage {
     demoOwnership?: boolean;
     /** The lobby keeps each account's synced settings (settings:get / settings:save). */
     syncedSettings?: boolean;
+    /** The lobby runs the campaign (campaign:get / campaign:state, campaign rooms). */
+    campaign?: boolean;
   };
   /** This connection's id, used by rooms and chat. Not the account id. */
   playerId: string;
@@ -575,6 +657,8 @@ export interface LobbyConnectMessage extends LobbyMessage {
   gametype: string;
   /** Private one-use game-server seat credential. Never send via room broadcast. */
   admissionTicket?: string;
+  /** A campaign match: its mission and the models to draw. */
+  campaign?: LobbyCampaignInfo;
 }
 
 export interface LobbyErrorMessage extends LobbyMessage {
@@ -729,4 +813,5 @@ export interface LobbyServerMessages {
   "leaderboard:error": LeaderboardError;
   "stats:summary": PlayerStatsResponse;
   "stats:history_page": PlayerStatsResponse;
+  "campaign:state": CampaignStateMessage;
 }

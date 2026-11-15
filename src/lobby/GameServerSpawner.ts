@@ -45,6 +45,10 @@ export interface SpawnConfig {
   admissionSeats?: MatchSeat[];
   /** Match visibility fixed by the lobby, also written into its demo. */
   private?: boolean;
+  /** Campaign mission id: the server admits only its seats and marks its demo. */
+  campaign?: string;
+  /** Campaign S&D: the players attack every round. */
+  campaignSide?: "attack";
   /** Lobby-owned policy captured before the child launches. Never client supplied. */
   resultContext?: ResultContext;
   /** Record a training demo under this name (dev spawns only). */
@@ -197,6 +201,8 @@ export class GameServerSpawner {
       args.push("--training-demo", config.trainingDemo);
     }
     if (config.private) args.push("--private-match");
+    if (config.campaign) args.push("--campaign", config.campaign);
+    if (config.campaign && config.campaignSide) args.push("--campaign-side", config.campaignSide);
 
     const childEnv = { ...process.env };
     delete childEnv.SHAG_MATCH_ADMISSION;

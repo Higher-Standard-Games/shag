@@ -197,7 +197,14 @@ A room is one gametype, one map vote and up to that gametype's player count.
   **+ Add bot**) fields the preset whose fixed strength is nearest the
   inviter's Overall rating in the room's mode, with a minimum of Hard. A player with no rating meets
   Hard; a rating match to Insane selects Insane. Explicit preset requests can
-  still select any level. The room shows each bot's level on its seat. A bot keeps its record
+  still select any level. The room shows each bot's level on its seat.
+- **Campaign rooms** are private rooms for one campaign mission
+  (`lobby:create` with `campaign`), defined in `config/campaign.json`. The room
+  has the mission's one map and the lobby invites the mission's bots itself;
+  map votes, extra bots, side switches and shuffles are ignored. A player may
+  open or join one only for a mission they have unlocked, so a room plays the
+  lowest progress among its people. Its match admits only its seats: no
+  spectators and no drop-in seats. The game server gets `--campaign <id>`. A bot keeps its record
   as its preset's account (see "Bots play at fixed strengths"). Once the last human
   leaves, the room's bots are evicted so a bot-only room can never linger or
   start a match.
@@ -572,12 +579,19 @@ header and adds each player's view to the frames (their keys, slide and ledge
 grab phases and crouch eye height, so a watched view leans, dips and crouches
 as their screen did). Format v6 retains that layout and adds optional persistent
 disabled brush models to S&D objective snapshots; v7 adds each free-for-all
-player's server-assigned body and colour. The reader accepts v1–v7,
+player's server-assigned body and colour; v8 adds the campaign mission to the
+header, after the privacy flag. The reader accepts v1–v8,
 including v1–v3 recordings, which have no
 privacy flag and count as public. Featured picks leave out recordings marked
 private, even those featuring a public top-ten account. Private recordings
 stay in the archive and in their verified participants' **Your demos** list:
 the flag filters featured picks and does not restrict access to demo files.
+
+A campaign recording (one with a mission in its header) is in no shared list:
+not **Latest**, not featured picks, not the recent demos in `welcome`. It
+appears only in its verified participants' **Your demos**, so single-player
+campaign runs don't crowd the shared archive. Like the privacy flag, this
+filters lists and does not restrict access to the file.
 
 Recordings shorter than two minutes (`MIN_LISTED_DEMO_MS` in
 `src/lobby/FeaturedDemos.ts`) are left out of every list: **Latest**, **Your
@@ -592,6 +606,7 @@ else `server-data/` beside the repo:
 | File | Contents |
 | --- | --- |
 | `players.db` | Accounts, records, verified V2 snapshots, the rating policy, states and update journal, bot preset accounts and pending private verification contexts, in `node:sqlite` |
+| `campaign.db` | Each account's cleared campaign missions (first clear, best time, most frags) and when it finished the whole campaign, in `node:sqlite`. Written only from verified match results |
 | `settings.db` | Each account's synced settings (bindings and game preferences, never graphics), in `node:sqlite`; kept apart from `players.db` so frequent writes and backups don't touch results. Losing it loses nothing for good: every browser keeps its own copy and uploads it at its next login |
 | `result-outbox/` | Signed completed reports awaiting a committed receipt; separate from public demos |
 | `bot-secret` | The secret shared with the bot server, written by whichever starts first |

@@ -42,6 +42,8 @@ export interface DemoHeader {
   matchId?: string;
   /** Version 4: lobby visibility. Older recordings have no privacy metadata. */
   private?: boolean;
+  /** Version 8: the campaign mission a campaign match played. Absent otherwise. */
+  campaign?: string;
   /** Player roster */
   players: DemoPlayerInfo[];
 }
@@ -129,8 +131,9 @@ export class DemoReader {
     const version = view.getUint8(offset);
     offset += 1;
     // v6 retains v5's layout and adds optional bomb brush state in match JSON;
-    // v7 adds an optional look byte to each player's snapshot record.
-    if (version < 1 || version > 7) {
+    // v7 adds an optional look byte to each player's snapshot record;
+    // v8 adds the campaign mission to the header.
+    if (version < 1 || version > 8) {
       throw new Error(`Unsupported demo version: ${version}`);
     }
 
@@ -171,6 +174,13 @@ export class DemoReader {
       privateMatch = visibility === 1;
     }
 
+    let campaign: string | undefined;
+    if (version >= 8) {
+      const [value, bytes] = this._readString(offset);
+      offset += bytes;
+      campaign = value || undefined;
+    }
+
     // Player roster
     const playerCount = view.getUint8(offset);
     offset += 1;
@@ -204,6 +214,7 @@ export class DemoReader {
       matchId,
       players,
       ...(privateMatch === undefined ? {} : { private: privateMatch }),
+      ...(campaign === undefined ? {} : { campaign }),
     };
     return this._header;
   }

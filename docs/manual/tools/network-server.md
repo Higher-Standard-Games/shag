@@ -44,6 +44,7 @@ npm --prefix src/games/fps run net:server -- [options]
 | `--shutdown` | off | Exit when the last client disconnects |
 | `--single-match` | off | One match per server: post-game is final, players return to the lobby, bots are released and the process exits |
 | `--private-match` | off | Mark recorded demos as private; the lobby sets this for private rooms |
+| `--campaign <mission>` | off | Campaign match: only lobby ticket holders may connect, no ready-up, a held 10-second opening countdown, and the mission in the demo header; the lobby sets this for campaign rooms |
 | `--training-demo <name>` | – | Record a training demo: warmup never ends and every tick is recorded, saved to `public/data/demos/training/<map>_<name>.shagdemo` |
 | `--help`, `-h` | – | Show help |
 

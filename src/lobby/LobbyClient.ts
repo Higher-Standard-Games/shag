@@ -182,6 +182,16 @@ export class LobbyClient {
     this.send({ type: "lobby:create", gametype, visibility });
   }
 
+  /** Ask for a private room set up for a campaign mission; it answers with `lobby:created`. */
+  createCampaignLobby(missionId: string, gametype: string): void {
+    this.send({ type: "lobby:create", gametype, visibility: "private", campaign: missionId });
+  }
+
+  /** Ask for this account's campaign; it answers with `campaign:state`. */
+  requestCampaign(): void {
+    this.send({ type: "campaign:get" });
+  }
+
   joinLobby(lobbyId: string, inviteToken?: string): void {
     this.send({ type: "lobby:join", lobbyId, inviteToken });
   }

@@ -21,6 +21,17 @@ import { type DemoHeader, DemoReader } from "../shared/demo/DemoReader";
 import { BOT_ACCOUNT_PRESETS as BOT_PRESETS, type BotPreset } from "../shared/ranking/BotMatchRatingGroups";
 import { BOT_INVITE_PREPARATION_TIMEOUT_MS } from "../shared/ranking/BotPreparation";
 import { type BotReference, canonicalBotReference, sameBotReference } from "../shared/ranking/BotReference";
+import {
+  type CampaignCatalog,
+  campaignFinished,
+  campaignMission,
+  EMPTY_CAMPAIGN,
+  lobbyCampaignInfo,
+  parseCampaign,
+  roomUnlockedThrough,
+  unlockedThrough,
+} from "./Campaign";
+import { CampaignStore } from "./CampaignStore";
 import { MIN_LISTED_DEMO_MS, selectFeaturedDemos } from "./FeaturedDemos";
 import { GameServerSpawner } from "./GameServerSpawner";
 import type { MatchResultStore } from "./MatchResultStore";
@@ -34,6 +45,9 @@ import { BOT_SECRET_HEADER, secretMatches } from "./ServerData";
 import { SettingsStore } from "./SettingsStore";
 import type {
   AuthMessage,
+  CampaignBotInfo,
+  CampaignMissionInfo,
+  CampaignStateMessage,
   ChatMessage as ChatMsg,
   ChatSendMessage,
   DemoInfo,
@@ -223,6 +237,9 @@ function botLobbyConnectUrl(port: number): string {
 
 /** How long to wait for the bot server to acknowledge an invite before failing. */
 const BOT_INVITE_TIMEOUT_MS = 8000;
+/** The side players take in a campaign room with teams; enemy bots take the other. */
+const CAMPAIGN_PLAYER_TEAM: LobbyTeam = "alpha";
+const CAMPAIGN_ENEMY_TEAM: LobbyTeam = "bravo";
 
 export interface LobbyServerOptions {
   /** Application reservations for the lobby-owned in-memory account store. Supplied stores own their policy. */
@@ -241,6 +258,8 @@ export interface LobbyServerOptions {
   maxPlayers?: number;
   /** Synced player settings. Without one the lobby keeps them in memory until it stops. */
   settings?: SettingsStore;
+  /** Campaign progress. Without one the lobby keeps it in memory until it stops. */
+  campaign?: CampaignStore;
 }
 
 /** Shape of config/maps.json */
@@ -276,6 +295,8 @@ interface ConnectedPlayer {
 
 class MatchLobby {
   botReferenceChanged = false;
+  /** The mission a campaign room plays; null for every other room. */
+  readonly campaign: CampaignMissionInfo | null;
   id: string;
   visibility: "public" | "private";
   inviteToken: string | null;
@@ -302,11 +323,22 @@ class MatchLobby {
     return this.players.size;
   }
 
-  constructor(gametype: GametypeInfo, mapNames: Record<string, string>, visibility: "public" | "private" = "public") {
+  constructor(
+    gametype: GametypeInfo,
+    mapNames: Record<string, string>,
+    visibility: "public" | "private" = "public",
+    campaign: CampaignMissionInfo | null = null,
+  ) {
     this.id = randomUUID().slice(0, 8);
     this.visibility = visibility;
     this.inviteToken = visibility === "private" ? randomBytes(24).toString("base64url") : null;
     this.gametype = gametype;
+    this.campaign = campaign;
+    if (campaign) {
+      // A campaign room plays its mission's map and nothing else
+      this.maps = [{ name: campaign.map, displayName: mapNames[campaign.map] || campaign.mapTitle, votes: 0 }];
+      return;
+    }
 
     // Pick 3 random maps from pool (or all if pool ≤ 3)
     const shuffled = [...gametype.mapPool].sort(() => Math.random() - 0.5);
@@ -326,7 +358,11 @@ class MatchLobby {
   addPlayer(player: ConnectedPlayer): LobbyPlayerInfo {
     // Auto-assign team
     let team: LobbyTeam = "ffa";
-    if (this.gametype.hasTeams) {
+    if (this.campaign && this.gametype.hasTeams) {
+      // Players on the campaign's side, each bot on the side its mission gives it
+      const bot = player.isBot ? this.campaignBot(player.name) : undefined;
+      team = player.isBot && bot?.side !== "ally" ? CAMPAIGN_ENEMY_TEAM : CAMPAIGN_PLAYER_TEAM;
+    } else if (this.gametype.hasTeams) {
       const alphaCount = [...this.players.values()].filter((p) => p.team === "alpha").length;
       const bravoCount = [...this.players.values()].filter((p) => p.team === "bravo").length;
       team = alphaCount <= bravoCount ? "alpha" : "bravo";
@@ -386,6 +422,18 @@ class MatchLobby {
     return { votes: this.shuffleVotes.size, needed, passed };
   }
 
+  /** The mission's bot of that name, for a bot joining a campaign room. */
+  campaignBot(name: string): CampaignBotInfo | undefined {
+    return this.campaign?.bots.find((bot) => bot.name === name);
+  }
+
+  /** Mission bots not yet seated in this campaign room. */
+  missingCampaignBots(isBot: (playerId: string) => boolean): CampaignBotInfo[] {
+    if (!this.campaign) return [];
+    const seated = new Set([...this.players.values()].filter((p) => isBot(p.id)).map((p) => p.name));
+    return this.campaign.bots.filter((bot) => !seated.has(bot.name));
+  }
+
   isAllReady(): boolean {
     if (this.players.size === 0) return false;
     // Enough to play, not necessarily full. Defaulting to `maxPlayers` keeps
@@ -422,6 +470,7 @@ class MatchLobby {
     return {
       id: this.id,
       gametype: this.gametype.id,
+      ...(this.campaign ? { campaign: lobbyCampaignInfo(this.campaign) } : {}),
       activeMatchId: this.activeMatchId ?? undefined,
       visibility: this.visibility,
       maps: this.maps,
@@ -502,6 +551,11 @@ export class LobbyServer {
   private mapNames: Record<string, string> = {};
 
   private readonly MAP_CONFIG_PATH = path.join(process.cwd(), "config", "maps.json");
+  private readonly CAMPAIGN_CONFIG_PATH = path.join(process.cwd(), "config", "campaign.json");
+  /** The campaign's missions, read from config/campaign.json at start. */
+  private campaignCatalog: CampaignCatalog = EMPTY_CAMPAIGN;
+  /** Running campaign matches: the mission each plays. */
+  private readonly campaignMatches = new Map<string, CampaignMissionInfo>();
   private readonly PK3_DIR = path.join(process.cwd(), "public", "data");
 
   private readonly botSecret: string | undefined;
@@ -513,6 +567,8 @@ export class LobbyServer {
   private readonly ownsAccounts: boolean;
   private readonly settings: SettingsStore;
   private readonly ownsSettings: boolean;
+  private readonly campaign: CampaignStore;
+  private readonly ownsCampaign: boolean;
   private readonly accountCreations = new RateLimiter(ACCOUNT_CREATION_LIMIT.limit, ACCOUNT_CREATION_LIMIT.windowMs);
   private readonly keyFailures = new RateLimiter(KEY_FAILURE_LIMIT.limit, KEY_FAILURE_LIMIT.windowMs);
   private readonly renames = new RateLimiter(RENAME_LIMIT.limit, RENAME_LIMIT.windowMs);
@@ -539,6 +595,8 @@ export class LobbyServer {
     this.accounts = options.players ?? new PlayerStore(":memory:", options.reservePlayerName);
     this.ownsSettings = !options.settings;
     this.settings = options.settings ?? new SettingsStore(":memory:");
+    this.ownsCampaign = !options.campaign;
+    this.campaign = options.campaign ?? new CampaignStore(":memory:");
     this.results = options.results;
     this.maxPlayers = options.maxPlayers ?? DEFAULT_MAX_PLAYERS;
     if (this.results) this.spawner.setResultDelivery(this.results.deliveries);
@@ -556,6 +614,7 @@ export class LobbyServer {
 
   async start(): Promise<void> {
     this._loadMapsConfig();
+    this.loadCampaign();
     this.results?.deliveries.loseBotControl();
     this.retryResults();
     return new Promise((resolve, reject) => {
@@ -621,6 +680,7 @@ export class LobbyServer {
 
     if (this.ownsAccounts) this.accounts.close();
     if (this.ownsSettings) this.settings.close();
+    if (this.ownsCampaign) this.campaign.close();
 
     return new Promise((resolve) => {
       this.wss!.close(() => {
@@ -715,6 +775,9 @@ export class LobbyServer {
       case "settings:save":
         this.handleSettings(player, msg);
         break;
+      case "campaign:get":
+        this.sendCampaignState(player);
+        break;
       case "chat:send":
         this.handleChatSend(player, (msg as ChatSendMessage).text);
         break;
@@ -725,7 +788,8 @@ export class LobbyServer {
       }
       case "lobby:create": {
         const create = msg as LobbyCreateMessage;
-        this.handleLobbyCreate(player, create.gametype, create.visibility);
+        if (create.campaign !== undefined) this.handleCampaignCreate(player, create.campaign);
+        else this.handleLobbyCreate(player, create.gametype, create.visibility);
         break;
       }
       case "lobby:join": {
@@ -937,6 +1001,7 @@ export class LobbyServer {
         featuredDemos: true,
         demoOwnership: !!this.results,
         syncedSettings: true,
+        campaign: this.campaignCatalog.missions.length > 0,
       },
       playerId: player.id,
       identity: player.accountId === null ? undefined : { id: String(player.accountId), name: player.name },
@@ -947,6 +1012,7 @@ export class LobbyServer {
       liveMatches: this.getLiveMatches(),
       recentDemos: this.listedDemos().slice(0, 10),
     });
+    this.sendCampaignState(player);
 
     this.broadcast(
       {
@@ -1049,6 +1115,7 @@ export class LobbyServer {
     }
     console.log(`[LobbyServer] Account ${accountId} deleted (was ${player.name})`);
     this.settings.delete(accountId);
+    this.campaign.delete(accountId);
     this.renameDeletedInDemos(new Set([accountId]));
 
     for (const other of [...this.players.values()]) {
@@ -1188,6 +1255,11 @@ export class LobbyServer {
       this.send(player, { type: "lobby:error", error: "That room is full." });
       return;
     }
+    const campaignRefusal = this.campaignJoinRefusal(lobby, player);
+    if (campaignRefusal) {
+      this.send(player, { type: "lobby:error", error: campaignRefusal });
+      return;
+    }
 
     const lobbyPlayer = lobby.addPlayer(player);
     if (stale && lobby.gametype.hasTeams) lobbyPlayer.team = stale.team;
@@ -1238,7 +1310,8 @@ export class LobbyServer {
   private async handleDropIn(player: ConnectedPlayer, lobby: MatchLobby): Promise<void> {
     const matchId = lobby.activeMatchId;
     const accountId = player.accountId;
-    if (player.isBot || accountId === null || !player.authenticated || !matchId || !lobby.serverUrl) {
+    // A campaign match is played by the people it started with, never joined midway
+    if (player.isBot || accountId === null || !player.authenticated || !matchId || !lobby.serverUrl || lobby.campaign) {
       this.send(player, { type: "lobby:error", error: "This match is already in progress." });
       return;
     }
@@ -1389,6 +1462,7 @@ export class LobbyServer {
   private handleLobbyVoteMap(player: ConnectedPlayer, lobbyId: string, mapName: string): void {
     const lobby = this.lobbies.get(lobbyId);
     if (!lobby?.players.has(player.id) || lobby.state !== "waiting" || lobby.isStarting) return;
+    if (lobby.campaign) return;
 
     lobby.voteMap(player.id, mapName);
 
@@ -1418,8 +1492,8 @@ export class LobbyServer {
       ready,
     });
 
-    // Check if all ready
-    if (lobby.isAllReady()) {
+    // Check if all ready; a campaign room also waits for its mission's bots
+    if (lobby.isAllReady() && lobby.missingCampaignBots((id) => this.players.get(id)?.isBot === true).length === 0) {
       background(this.handleAllReady(lobby), "LobbyServer");
     }
   }
@@ -1437,6 +1511,8 @@ export class LobbyServer {
   private handleLobbySwitchTeam(player: ConnectedPlayer, lobbyId: string): void {
     const lobby = this.lobbies.get(lobbyId);
     if (!lobby?.players.has(player.id) || lobby.state !== "waiting" || lobby.isStarting) return;
+    // A mission's sides are part of the mission
+    if (lobby.campaign) return;
     if (!lobby.gametype.hasTeams) return;
 
     const entry = lobby.players.get(player.id);
@@ -1460,6 +1536,7 @@ export class LobbyServer {
   private handleLobbyVoteShuffle(player: ConnectedPlayer, lobbyId: string): void {
     const lobby = this.lobbies.get(lobbyId);
     if (!lobby?.players.has(player.id) || lobby.state !== "waiting" || lobby.isStarting) return;
+    if (lobby.campaign) return;
 
     // Bots back whatever a human asks for. Without this a solo tester can never
     // change sides, because their single vote cannot reach the threshold.
@@ -1504,6 +1581,11 @@ export class LobbyServer {
       return;
     }
 
+    if (lobby.campaign) {
+      this.send(player, { type: "lobby:bot_invite_failed", lobbyId, error: "The mission brings its own bots." });
+      return;
+    }
+
     if (lobby.playerCount >= lobby.gametype.maxPlayers) {
       this.send(player, { type: "lobby:bot_invite_failed", lobbyId, error: "That room is full." });
       return;
@@ -1545,7 +1627,7 @@ export class LobbyServer {
    * ask it to spawn a lobby bot that joins `lobby` by id. Resolves with the
    * bot's name once the BIS acknowledges, or rejects on timeout/error.
    */
-  private requestBotForLobby(lobby: MatchLobby, difficulty: BotPreset): Promise<string> {
+  private requestBotForLobby(lobby: MatchLobby, difficulty: BotPreset, name?: string): Promise<string> {
     return new Promise<string>((resolve, reject) => {
       if (!this.botSecret) {
         reject(new Error("Bot server secret not configured"));
@@ -1586,7 +1668,7 @@ export class LobbyServer {
             lobbyId: lobby.id,
             ...(lobby.inviteToken ? { inviteToken: lobby.inviteToken } : {}),
             gametype: lobby.gametype.id,
-            options: { difficulty },
+            options: name ? { difficulty, name } : { difficulty },
           }),
         );
       });
@@ -1624,6 +1706,154 @@ export class LobbyServer {
   private cancelBotInvites(lobbyId: string): void {
     for (const cancel of this.pendingBotInvites.get(lobbyId) ?? []) cancel();
     this.pendingBotInvites.delete(lobbyId);
+  }
+
+  // ── Campaign ────────────────────────────────────────────────
+
+  /** Read config/campaign.json; a lobby without one, or with a broken one, runs no campaign. */
+  private loadCampaign(): void {
+    this.campaignCatalog = EMPTY_CAMPAIGN;
+    let raw: unknown;
+    try {
+      raw = JSON.parse(fs.readFileSync(this.CAMPAIGN_CONFIG_PATH, "utf8"));
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code !== "ENOENT")
+        console.warn(`[LobbyServer] Campaign not loaded: ${(err as Error).message}`);
+      return;
+    }
+    try {
+      const shapes = new Map(this.gametypes.map((g) => [g.id, { maxPlayers: g.maxPlayers, hasTeams: g.hasTeams }]));
+      const catalog = parseCampaign(raw, shapes, (map) => this.mapNames[map] ?? map);
+      const missing = catalog.missions.filter((m) => !this.gametypes.some((g) => g.mapPool.includes(m.map)));
+      if (missing.length)
+        console.warn(`[LobbyServer] Campaign maps not installed: ${missing.map((m) => m.map).join(", ")}`);
+      this.campaignCatalog = catalog;
+      console.log(`[LobbyServer] Campaign: ${catalog.missions.length} of ${catalog.length} missions`);
+    } catch (err) {
+      console.warn(`[LobbyServer] Campaign not loaded: ${(err as Error).message}`);
+    }
+  }
+
+  private campaignState(accountId: number): CampaignStateMessage {
+    const clears = this.campaign.clears(accountId);
+    const completedAt = this.campaign.completedAt(accountId);
+    return {
+      type: "campaign:state",
+      length: this.campaignCatalog.length,
+      missions: this.campaignCatalog.missions,
+      clears,
+      unlockedThrough: unlockedThrough(this.campaignCatalog, clears),
+      ...(completedAt === null ? {} : { completedAt }),
+    };
+  }
+
+  /** This account's campaign; nothing for bots, or a lobby without a campaign. */
+  private sendCampaignState(player: ConnectedPlayer): void {
+    if (player.accountId === null || player.isBot || this.campaignCatalog.missions.length === 0) return;
+    this.send(player, this.campaignState(player.accountId));
+  }
+
+  /** Why `player` cannot take a seat in a campaign room, or null if they can. */
+  private campaignJoinRefusal(lobby: MatchLobby, player: ConnectedPlayer): string | null {
+    const mission = lobby.campaign;
+    if (!mission) return null;
+    if (player.isBot) return lobby.campaignBot(player.name) ? null : "That room is playing a campaign mission.";
+    if (player.accountId === null) return "Log in to play the campaign.";
+    // Every human in the room must have unlocked the mission: the room plays the lowest of theirs
+    const members = [...lobby.players.values()]
+      .map((lp) => this.players.get(lp.id))
+      .filter((p): p is ConnectedPlayer => p !== undefined && !p.isBot && p.accountId !== null);
+    const through = roomUnlockedThrough(
+      [...members, player].map((p) => unlockedThrough(this.campaignCatalog, this.campaign.clears(p.accountId!))),
+    );
+    if (through < mission.number) return `Mission ${mission.number} is not unlocked for you yet.`;
+    // The mission's bots keep their seats; a human needs one besides them
+    const humans = members.length + 1;
+    if (humans + mission.bots.length > lobby.gametype.maxPlayers) return "That mission has no seat for another player.";
+    return null;
+  }
+
+  /** A private room for a campaign mission, which the lobby fills with the mission's bots. */
+  private handleCampaignCreate(player: ConnectedPlayer, missionId: unknown): void {
+    if (player.lobbyId) {
+      this.send(player, { type: "lobby:error", error: "You're already in a room. Leave it first." });
+      return;
+    }
+    const mission = campaignMission(this.campaignCatalog, missionId);
+    const gametype = mission && this.gametypes.find((g) => g.id === mission.gametype);
+    if (!mission || !gametype) {
+      this.send(player, { type: "lobby:error", error: "That mission is not available." });
+      return;
+    }
+    if (!gametype.mapPool.includes(mission.map)) {
+      this.send(player, { type: "lobby:error", error: `This server does not have ${mission.mapTitle}.` });
+      return;
+    }
+    const lobby = new MatchLobby(gametype, this.mapNames, "private", mission);
+    const refusal = this.campaignJoinRefusal(lobby, player);
+    if (refusal) {
+      this.send(player, { type: "lobby:error", error: refusal });
+      return;
+    }
+    this.lobbies.set(lobby.id, lobby);
+    lobby.addPlayer(player);
+    player.lobbyId = lobby.id;
+    player.status = "in_lobby";
+    console.log(`[LobbyServer] Campaign room ${lobby.id}: mission ${mission.number} (${mission.id}) by ${player.name}`);
+    this.send(player, { type: "lobby:created", lobby: lobby.toInfo() });
+    this.broadcast({ type: "player:status", playerId: player.id, status: "in_lobby" }, player.id);
+    this.broadcastMatchesUpdate();
+    background(this.fillCampaignBots(lobby), "LobbyServer");
+  }
+
+  /** Invite the mission's bots one at a time, until each is seated or the room closes or starts. */
+  private async fillCampaignBots(lobby: MatchLobby): Promise<void> {
+    const isBot = (id: string) => this.players.get(id)?.isBot === true;
+    for (const bot of lobby.missingCampaignBots(isBot)) {
+      if (this.lobbies.get(lobby.id) !== lobby || lobby.state !== "waiting" || lobby.isStarting) return;
+      if (!lobby.missingCampaignBots(isBot).includes(bot)) continue;
+      try {
+        await this.requestBotForLobby(lobby, bot.difficulty as BotPreset, bot.name);
+      } catch (err) {
+        if (this.lobbies.get(lobby.id) !== lobby) return;
+        console.warn(`[LobbyServer] Campaign bot ${bot.name} for ${lobby.id}: ${(err as Error).message}`);
+        this.broadcastToLobby(lobby.id, {
+          type: "lobby:error",
+          error: "The mission's opponents could not be brought in. Leave and try again.",
+        });
+        return;
+      }
+    }
+  }
+
+  /**
+   * A verified result of a campaign match clears the mission for every human
+   * in it when a human won: players of a mission win or lose together.
+   */
+  private recordCampaignResult(report: MatchResultReport): void {
+    const mission = this.campaignMatches.get(report.matchId);
+    if (!mission || report.details.completion === "aborted") return;
+    const humans = report.participants.filter((p) => p.accountId !== null);
+    if (!humans.some((p) => p.outcome === "win")) return;
+    const timeMs = report.endedAt - report.details.startedAt;
+    const seats = new Map(report.details.seats.map((seat) => [seat.tokenHash, seat]));
+    for (const human of humans) {
+      const accountId = human.accountId!;
+      try {
+        const frags = seats.get(human.tokenHash)?.stats?.frags ?? 0;
+        this.campaign.recordClear(accountId, mission.id, timeMs, frags);
+        console.log(`[LobbyServer] Campaign: account ${accountId} cleared mission ${mission.number} (${mission.id})`);
+        if (campaignFinished(this.campaignCatalog, this.campaign.clears(accountId))) {
+          this.campaign.markCompleted(accountId);
+        }
+      } catch (err) {
+        console.warn(`[LobbyServer] Campaign clear for account ${accountId} not stored: ${(err as Error).message}`);
+        continue;
+      }
+      for (const connection of this.players.values()) {
+        if (connection.accountId === accountId) this.sendCampaignState(connection);
+      }
+    }
   }
 
   // ── Matchmaking Queue ───────────────────────────────────────
@@ -1901,6 +2131,9 @@ export class LobbyServer {
         maxClients: lobby.gametype.maxPlayers,
         admissionSeats,
         private: lobby.visibility === "private",
+        ...(lobby.campaign
+          ? { campaign: lobby.campaign.id, ...(lobby.campaign.side ? { campaignSide: lobby.campaign.side } : {}) }
+          : {}),
         resultContext,
       });
 
@@ -1910,6 +2143,7 @@ export class LobbyServer {
       // whoever is still connected when it ends.
       resultContext.botReferenceChanged = lobby.botReferenceChanged;
       this.matchRecords.set(server.matchId, resultContext);
+      if (lobby.campaign) this.campaignMatches.set(server.matchId, lobby.campaign);
       if (lobby.botReferenceChanged) this.results?.deliveries.markBotReferenceChanged(server.matchId);
       lobby.activeMatchId = server.matchId;
       lobby.activeSeatTeams = new Map(
@@ -1931,6 +2165,7 @@ export class LobbyServer {
           map,
           gametype: gametypeId,
           admissionTicket,
+          ...(lobby.campaign ? { campaign: lobbyCampaignInfo(lobby.campaign) } : {}),
         });
       }
       // The child has hashes; after private delivery the lobby has no reason to retain raw tickets.
@@ -1992,6 +2227,7 @@ export class LobbyServer {
   }
 
   private handleServerResult(report: MatchResultReport): void {
+    this.recordCampaignResult(report);
     const record = this.matchRecords.get(report.matchId);
     const note = (status: ResultDiagnostic["status"], reason: ResultDiagnostic["reason"]) =>
       this.noteResult({
@@ -2143,6 +2379,7 @@ export class LobbyServer {
     const lobbyId = this.matchToLobby.get(matchId);
     this.matchToLobby.delete(matchId);
     this.matchRecords.delete(matchId);
+    this.campaignMatches.delete(matchId);
 
     console.log(`[LobbyServer] Game server exited: match=${matchId} lobby=${lobbyId} code=${code}`);
 
@@ -2320,19 +2557,27 @@ export class LobbyServer {
   // ── Demo Scanning ────────────────────────────────────────────
 
   /** The demos anyone may browse, their own included: long enough to be a match (MIN_LISTED_DEMO_MS). */
+  /**
+   * The demos anyone may browse: long enough to be a match
+   * (MIN_LISTED_DEMO_MS), and not a campaign mission, which only its own
+   * players see (`ownDemos`).
+   */
   private listedDemos(): DemoInfo[] {
-    return this._demoCache.filter((demo) => demo.durationMs >= MIN_LISTED_DEMO_MS);
+    return this._demoCache.filter((demo) => demo.durationMs >= MIN_LISTED_DEMO_MS && !demo.campaign);
+  }
+
+  /** The demos an account played in, campaign missions included. */
+  private ownDemos(accountId: number | null): DemoInfo[] {
+    if (accountId === null) return [];
+    return this._demoCache.filter(
+      (demo) => demo.durationMs >= MIN_LISTED_DEMO_MS && this._demoOwnership.get(demo.filename)?.has(accountId),
+    );
   }
 
   private handleDemosList(player: ConnectedPlayer, limit: number, requestedScope?: string, requestId?: string): void {
     if (requestId !== undefined && (typeof requestId !== "string" || !/^[A-Za-z0-9_-]{1,64}$/.test(requestId))) return;
     const scope = requestedScope === "yours" ? "yours" : "latest";
-    const source =
-      scope === "yours"
-        ? this.listedDemos().filter(
-            (demo) => player.accountId != null && this._demoOwnership.get(demo.filename)?.has(player.accountId),
-          )
-        : this.listedDemos();
+    const source = scope === "yours" ? this.ownDemos(player.accountId) : this.listedDemos();
     const size = Number.isSafeInteger(limit) ? Math.max(1, Math.min(limit, 64)) : 64;
     this.send(player, {
       type: "demos:list_response",
@@ -2465,6 +2710,7 @@ export class LobbyServer {
               mapDisplayName: this.mapNames[header.map] || header.map,
               gametype: header.gametype,
               private: header.private === true,
+              ...(header.campaign ? { campaign: header.campaign } : {}),
               players: header.players.map((p) => filterPlayerName(p.name)),
               durationMs,
               date: header.startTime,
