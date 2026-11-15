@@ -651,9 +651,17 @@ Bot clients play over the same protocol as a browser and are bound by the same r
   line-of-sight check behind the bot; it still respects the notice delay and
   walls. Navigation can use crouchslides and strafe jumps while chasing.
 - **Running and jumps.** Normal navigation, trigger approaches and recovery
-  request running speed. Wall avoidance changes heading without adding strafe
-  buttons that would force walk speed. Crouchslides take priority over optional
-  route strafe jumps; those jumps require at least 400 units/s. Random patrol
+  request running speed. In every state, and on route crouchslides, the feet
+  are steered clear of walls, corners and ledges (`bot/BotVisionTracer.ts`):
+  the hull is swept along the wanted heading as far as the bot runs in about
+  half a second, a fan of rays leans it off walls ahead and at the sides, and
+  a blocked heading turns to the clearest one nearest it. Only the move yaw
+  turns, so the keys and the view (a fight's aim) stay as decided, and no
+  strafe buttons force walk speed. The same tracer runs the movement code
+  forward to check tricks before taking them: a jump onto what blocks the way
+  to a higher target (a step up or a ledge grab), and a wall jump that ends
+  nearer the target. Crouchslides take priority over optional route strafe
+  jumps; those chains start from 320 units/s. Random patrol
   jumps and distance-only combat hops are disabled. Traversal still jumps when
   needed, and noticed combat threats can trigger a single dodge jump with a
   one-second jump cooldown. A stalled slide releases without jump-cancelling.
