@@ -85,6 +85,12 @@ export interface AgentDirective {
    * an enemy away from what it guards. Absent, fights go where they go.
    */
   leash?: number;
+  /**
+   * A line for this bot to say once in team chat, as the team's call: "Going
+   * A", "Defusing, cover me". Said once per `id`, however many snapshots
+   * repeat the order. `%L` in the text is where the bot is when it says it.
+   */
+  call?: { id: string; text: string };
 }
 
 /**
