@@ -168,6 +168,12 @@ export class SweepCollisionBackend implements CollisionBackend {
   private isFBSP = false;
 
   private faceCollisionMeshes: (FaceCollisionGeometry | null)[] = [];
+  /**
+   * Patch collision of each switchable brush model, by model index, in the
+   * model's own space. Kept apart from `faceCollisionMeshes` so the world walk
+   * never meets them: they collide only while their model is enabled.
+   */
+  private brushModelPatches = new Map<number, Array<{ faceIndex: number; mesh: FaceCollisionGeometry }>>();
 
   // Stats
   private stats = {
@@ -495,34 +501,38 @@ export class SweepCollisionBackend implements CollisionBackend {
 
     for (let i = 0; i < this.bsp.faces.length; i++) {
       if (this.liftFaces.has(i) || this.brushModelFaces.has(i)) continue;
-      const face = this.bsp.faces[i];
-      // Planar and triangle-soup draw surfaces have independent authored brushes.
-      // Only patches need collision facets generated from their control points.
-      if (face.faceType !== 2) continue;
-
-      // Filter by flags: Must be SOLID or PLAYERCLIP
-      const texture = this.bsp.textures[face.textureIndex];
-      if (!texture) {
-        continue;
-      }
-
-      const isSolid = (texture.contentFlags & ContentFlags.SOLID) !== 0;
-      const isPlayerClip = (texture.contentFlags & ContentFlags.PLAYERCLIP) !== 0;
-
-      if (!isSolid && !isPlayerClip) {
-        continue;
-      }
-
-      // Type 2: Patch
-      if (face.faceType === 2) {
-        // Use higher tessellation (5) to match visual mesh and prevent holes
-        const mesh = PatchTessellator.buildPatch(this.bsp, face, 5);
-        if (mesh) {
-          this.buildFacets(mesh);
-          this.faceCollisionMeshes[i] = mesh;
-        }
-      }
+      this.faceCollisionMeshes[i] = this.buildPatchCollision(i);
     }
+
+    // A switchable model's patches are as solid as its brushes: the machinery
+    // at a bomb site is mostly patches around a thin clip column.
+    this.brushModelPatches.clear();
+    for (const definition of this.brushModels?.definitions ?? []) {
+      const model = this.bsp.models[definition.modelIndex];
+      const patches: Array<{ faceIndex: number; mesh: FaceCollisionGeometry }> = [];
+      for (let i = model.firstFace; i < model.firstFace + model.numFaces; i++) {
+        const mesh = this.buildPatchCollision(i);
+        if (mesh) patches.push({ faceIndex: i, mesh });
+      }
+      if (patches.length > 0) this.brushModelPatches.set(definition.modelIndex, patches);
+    }
+  }
+
+  /**
+   * Collision facets for one face, or null where it carries none. Planar and
+   * triangle-soup surfaces have independent authored brushes; only solid or
+   * playerclip patches need facets generated from their control points.
+   */
+  private buildPatchCollision(faceIndex: number): FaceCollisionGeometry | null {
+    if (!this.bsp) return null;
+    const face = this.bsp.faces[faceIndex];
+    if (face?.faceType !== 2) return null;
+    const texture = this.bsp.textures[face.textureIndex];
+    if (!texture || !(texture.contentFlags & (ContentFlags.SOLID | ContentFlags.PLAYERCLIP))) return null;
+    // Higher tessellation (5) matches the visual mesh and prevents holes
+    const mesh = PatchTessellator.buildPatch(this.bsp, face, 5);
+    if (mesh) this.buildFacets(mesh);
+    return mesh;
   }
 
   /**
@@ -725,6 +735,11 @@ export class SweepCollisionBackend implements CollisionBackend {
         const brush = this.bsp.brushes[i];
         const texture = this.getBrushTexture(brush);
         if (texture && this.shouldCollideWith(texture, contentMask)) this.traceBrush(brush, i, texture, state);
+      }
+      const patches = this.brushModelPatches.get(definition.modelIndex);
+      if (patches) {
+        const bounds = this.sweptBounds(state);
+        for (const patch of patches) this.traceFaceMesh(patch.faceIndex, patch.mesh, bounds, state);
       }
     }
     const buttons = lifts?.buttons ?? NO_BUTTONS;
@@ -959,38 +974,47 @@ export class SweepCollisionBackend implements CollisionBackend {
     for (let i = 0; i < leaf.numLeafFaces; i++) {
       const faceIndex = this.bsp.leafFaces[leaf.firstLeafFace + i];
       const mesh = this.faceCollisionMeshes[faceIndex];
-      if (!mesh) continue;
-      if (this.faceVisits[faceIndex] === this.traceGeneration) continue;
-      this.faceVisits[faceIndex] = this.traceGeneration;
+      if (mesh) this.traceFaceMesh(faceIndex, mesh, bounds, state);
+    }
+  }
 
-      // Bounds are Q3-space; mesh bounds are Babylon-space (Y/Z swap).
-      if (
-        bounds[3] < mesh.mins.x ||
-        bounds[0] > mesh.maxs.x ||
-        bounds[4] < mesh.mins.z ||
-        bounds[1] > mesh.maxs.z ||
-        bounds[5] < mesh.mins.y ||
-        bounds[2] > mesh.maxs.y
-      )
-        continue;
+  /** Sweep the trace against one face's collision facets, at most once per trace. */
+  private traceFaceMesh(
+    faceIndex: number,
+    mesh: FaceCollisionGeometry,
+    bounds: CollisionBounds,
+    state: TraceState,
+  ): void {
+    if (!this.bsp || this.faceVisits[faceIndex] === this.traceGeneration) return;
+    this.faceVisits[faceIndex] = this.traceGeneration;
 
-      const texture = this.collisionTextures[this.bsp.faces[faceIndex].textureIndex];
-      if (!texture || !this.shouldCollideWith(texture, state.contentMask)) continue;
+    // Bounds are Q3-space; mesh bounds are Babylon-space (Y/Z swap).
+    if (
+      bounds[3] < mesh.mins.x ||
+      bounds[0] > mesh.maxs.x ||
+      bounds[4] < mesh.mins.z ||
+      bounds[1] > mesh.maxs.z ||
+      bounds[5] < mesh.mins.y ||
+      bounds[2] > mesh.maxs.y
+    )
+      return;
 
-      // Sweep each triangle as a convex facet. Testing the triangle's own plane
-      // alone leaves the box unblocked near every edge, which is how a hull
-      // ends up inside a patch handrail it cannot escape.
-      const planes = mesh.facetPlanes;
-      const ranges = mesh.facetRanges;
-      if (!planes || !ranges) continue;
-      state.faceIndex = faceIndex;
-      const candidates = mesh.facetIndex?.queryInto(bounds, this.facetCandidates);
-      if (candidates) {
-        for (const ti of candidates) this.traceFacet(planes, ranges[ti], ranges[ti + 1], texture, state);
-      } else {
-        for (let ti = 0; ti + 1 < ranges.length; ti++) {
-          if (ranges[ti + 1] > ranges[ti]) this.traceFacet(planes, ranges[ti], ranges[ti + 1], texture, state);
-        }
+    const texture = this.collisionTextures[this.bsp.faces[faceIndex].textureIndex];
+    if (!texture || !this.shouldCollideWith(texture, state.contentMask)) return;
+
+    // Sweep each triangle as a convex facet. Testing the triangle's own plane
+    // alone leaves the box unblocked near every edge, which is how a hull
+    // ends up inside a patch handrail it cannot escape.
+    const planes = mesh.facetPlanes;
+    const ranges = mesh.facetRanges;
+    if (!planes || !ranges) return;
+    state.faceIndex = faceIndex;
+    const candidates = mesh.facetIndex?.queryInto(bounds, this.facetCandidates);
+    if (candidates) {
+      for (const ti of candidates) this.traceFacet(planes, ranges[ti], ranges[ti + 1], texture, state);
+    } else {
+      for (let ti = 0; ti + 1 < ranges.length; ti++) {
+        if (ranges[ti + 1] > ranges[ti]) this.traceFacet(planes, ranges[ti], ranges[ti + 1], texture, state);
       }
     }
   }
@@ -1806,6 +1830,7 @@ export class SweepCollisionBackend implements CollisionBackend {
     this.brushVisits = new Uint32Array(0);
     this.faceVisits = new Uint32Array(0);
     this.faceCollisionMeshes = [];
+    this.brushModelPatches.clear();
     this.clipBrushIndices = [];
     this.collisionTextures = [];
     this.brushBounds = [];

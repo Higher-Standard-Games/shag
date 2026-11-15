@@ -10,6 +10,13 @@ import { preloadEffectShaders, retireTemporaryLight, revalidateMaterials } from 
 
 // The persistent gameplay light pool is outside fixture compilation ownership.
 vi.mock("../PointLightPool", () => ({ getPointLightPool: () => ({ init: vi.fn() }) }));
+// The scene's replay layers, when a test installs them; none otherwise.
+const replay = vi.hoisted(() => ({
+  snapshots: null as { enabled: boolean } | null,
+  worldBundles: null as { enabled: boolean } | null,
+}));
+vi.mock("../../rendering/SnapshotFrames", () => ({ getSnapshotFrames: () => replay.snapshots }));
+vi.mock("../../rendering/WorldBundleReplay", () => ({ getWorldBundleReplay: () => replay.worldBundles }));
 afterEach(() => vi.restoreAllMocks());
 
 function readyTextureEngine(): NullEngine {
@@ -96,6 +103,54 @@ describe("effect shader warmup", () => {
         expect(scene.meshes).toEqual([mesh]);
         expect(scene.onAfterRenderObservable.hasObservers()).toBe(false);
       } finally {
+        scene.dispose();
+        engine.dispose();
+      }
+    },
+  );
+
+  it.each([false, true])(
+    "pauses snapshots and world bundles while revalidating, and restores them (failing=%s)",
+    async (failing) => {
+      const engine = readyTextureEngine();
+      const scene = new Scene(engine);
+      new FreeCamera("camera", new Vector3(0, 0, -5), scene);
+      const mesh = CreateBox("world", {}, scene);
+      const material = new StandardMaterial("world", scene);
+      mesh.material = material;
+      const seen: boolean[] = [];
+      let running = false;
+      replay.snapshots = { enabled: true };
+      replay.worldBundles = { enabled: true };
+      vi.spyOn(material, "isReadyForSubMesh").mockImplementation(() => {
+        if (running) seen.push(replay.snapshots?.enabled === true, replay.worldBundles?.enabled === true);
+        if (failing && running) throw new Error("world shader rejected");
+        return true;
+      });
+      // revalidateMaterials waits on rendered frames; a rejected shader fails them too
+      const frames = setInterval(() => {
+        try {
+          scene.render();
+        } catch {
+          /* the rejection under test, raised by the frame instead of the check */
+        }
+      }, 5);
+      try {
+        running = true;
+        const run = revalidateMaterials(scene).finally(() => {
+          running = false;
+        });
+        if (failing) await expect(run).rejects.toThrow("world shader rejected");
+        else await run;
+        // Off for every readiness check, back on afterwards, whatever happened
+        expect(seen.length).toBeGreaterThan(0);
+        expect(seen.every((on) => !on)).toBe(true);
+        expect(replay.snapshots.enabled).toBe(true);
+        expect(replay.worldBundles.enabled).toBe(true);
+      } finally {
+        clearInterval(frames);
+        replay.snapshots = null;
+        replay.worldBundles = null;
         scene.dispose();
         engine.dispose();
       }

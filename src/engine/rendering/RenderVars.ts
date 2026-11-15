@@ -680,7 +680,7 @@ const DEFAULT_VARS: Record<string, Omit<RenderVar, "name">> = {
     min: 0,
     max: 1,
     description:
-      "Dynamic lights (0/1): projectile, explosion, impact, charge and muzzle-flash lights. Off removes them from every material's shader at the next map load.",
+      "Dynamic lights (0/1): projectile, explosion, impact, charge, muzzle-flash and carried-bomb lights. Off removes them from every material's shader at the next map load.",
     category: "lighting",
   },
   r_marks: {

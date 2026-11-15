@@ -32,6 +32,8 @@ import type { Scene } from "@babylonjs/core/scene";
 import { devLog } from "../core/DevLog";
 import { applySafeMaxSimultaneousLights } from "../lighting/DynamicLightSafety";
 import { prepareMaterial, sceneGpuReady, waitForGpuCondition } from "../loader/map/GpuPreparation";
+import { getSnapshotFrames } from "../rendering/SnapshotFrames";
+import { getWorldBundleReplay } from "../rendering/WorldBundleReplay";
 
 interface Disposable {
   dispose: () => void;
@@ -322,11 +324,17 @@ export async function preloadEffectShaders(scene: Scene, signal?: AbortSignal): 
 }
 
 /**
- * Revalidate all scene materials after tab was backgrounded.
+ * Revalidate all scene materials after the renderer restored a lost context.
  *
- * Refresh bindings and observe material readiness after visibility resumes.
- * Context restoration belongs to the renderer; sampler changes do not restore pixels.
- * All polls are bounded and map cancellation releases their timers/observers.
+ * Refresh bindings and observe material readiness once Babylon has rebuilt the
+ * backend; sampler changes do not restore pixels. All polls are bounded and map
+ * cancellation releases their timers/observers.
+ *
+ * Whole-frame snapshots and the world bundle replay are off while it runs, as
+ * they are for pipeline warm-up: both replay draws recorded against the old
+ * shaders and lights, and a recording made in the middle of the rebuild would
+ * otherwise keep being replayed after it. Switched back on, each records again
+ * from the rebuilt materials.
  */
 export async function revalidateMaterials(scene: Scene, signal?: AbortSignal): Promise<void> {
   signal?.throwIfAborted();
@@ -349,6 +357,12 @@ export async function revalidateMaterials(scene: Scene, signal?: AbortSignal): P
   engine.resetTextureCache?.();
   devLog(`[EffectPreloader] Reset engine texture cache`);
 
+  const snapshots = getSnapshotFrames(scene);
+  const snapshotsOn = snapshots?.enabled ?? false;
+  if (snapshots) snapshots.enabled = false;
+  const worldBundles = getWorldBundleReplay(scene);
+  const worldBundlesOn = worldBundles?.enabled ?? false;
+  if (worldBundles) worldBundles.enabled = false;
   try {
     // 3. Mark all materials as dirty to force shader re-evaluation
     const { Constants } = await import("@babylonjs/core/Engines/constants");
@@ -404,6 +418,8 @@ export async function revalidateMaterials(scene: Scene, signal?: AbortSignal): P
       refrozenCount++;
     }
     devLog(`[EffectPreloader] Re-froze ${refrozenCount} materials after revalidation`);
+    if (snapshots) snapshots.enabled = snapshotsOn;
+    if (worldBundles) worldBundles.enabled = worldBundlesOn;
   }
 
   const elapsed = (performance.now() - startTime).toFixed(0);
