@@ -140,6 +140,31 @@ from there; bots should also hide behind cover and take shots from it.
   Kept: cover, and keeping the high ground above an enemy in every mode.
   Dropped: seeking a ledge with hitscan weapons, and the dodge boost.
 
+### One worker on the bomb, the rest fight (2026-11-15)
+
+A placed bomb used to send every defender onto it with an order nothing
+could interrupt, the retake the same, and the armer likewise: those orders
+outrank seeing or being shot by an enemy, so bots walked onto the bomb past
+the person shooting them and stood there, often with the blade out. Now:
+
+- one defender (the nearest, kept while alive) goes onto a placed or armed
+  bomb; the others hold the ground within 320 of it and fight;
+- the defuser and the armer fight what they see while the fuse or round
+  clock leaves time to walk over, finish the meter and 3 s spare, and stop
+  answering only when time is short or the meter is past 60%;
+- out of a fight the blade goes away for the best gun at 800 units.
+
+Coach part `worker` and fight habit `holster` switch them off. 12 matches of
+300 s, 5 a side, Hard; A all on, B both off:
+
+| Map | Matches A–B | Rounds A–B | Attacking, A / B | Defending, A / B | Kills per death A–B |
+| --- | --- | --- | --- | --- | --- |
+| snd4 | 10–1 (1 drawn), p = 0.012 | 26–7 | 80% / 22% | 78% / 20% | 2.23–0.45 |
+| snd6 | 7–2 (3 drawn), p = 0.18 | 30–13 | 83% / 47% | 53% / 17% | 1.45–0.69 |
+
+The two changes were measured together; which part carries the kills per
+death is not yet split.
+
 ## Open
 
 - Both snd1 and snd6 are attacker-sided for bots (attacks win 72–92% even
