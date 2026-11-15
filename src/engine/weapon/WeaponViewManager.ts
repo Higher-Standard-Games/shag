@@ -498,6 +498,10 @@ export class WeaponViewManager {
 
   // Blade charge (extracted)
   private weaponCharge = new WeaponCharge();
+  /** The weapon the charge check last saw, to tell a switch. */
+  private chargeWeaponDef: unknown = null;
+  /** Aim held through a weapon switch: it charges nothing until let go, as on the server. */
+  private aimHeldOver = false;
   /** Each view mesh's world scale over its weapon root's, fixed once the model is loaded. */
   private readonly meshScaleUnderRoot = new WeakMap<AbstractMesh, number>();
 
@@ -1928,7 +1932,13 @@ export class WeaponViewManager {
     this.applyGunSize(mv.get("cl_gunsize"));
 
     // === Blade charge effects (delegated) ===
-    const isBladeCharging = !!(aiming && this.currentWeaponDef?.meleeRadius);
+    // Aim held through a switch charges nothing until it is let go and pressed again
+    if (this.currentWeaponDef !== this.chargeWeaponDef) {
+      this.chargeWeaponDef = this.currentWeaponDef;
+      this.aimHeldOver = aiming === true;
+    }
+    if (!aiming) this.aimHeldOver = false;
+    const isBladeCharging = !!(aiming && !this.aimHeldOver && this.currentWeaponDef?.meleeRadius);
     const chargeResult = this.weaponCharge.update(
       isBladeCharging,
       this.currentWeaponDef?.chargeTime || 1.0,

@@ -24,11 +24,13 @@ import { type BotReference, canonicalBotReference, sameBotReference } from "../s
 import {
   type CampaignCatalog,
   campaignFinished,
+  campaignMatchRules,
   campaignMission,
   EMPTY_CAMPAIGN,
   lobbyCampaignInfo,
   parseCampaign,
   roomUnlockedThrough,
+  UNRATED_CAMPAIGN_GAMETYPES,
   unlockedThrough,
 } from "./Campaign";
 import { CampaignStore } from "./CampaignStore";
@@ -117,6 +119,32 @@ const GAMETYPE_SHELLS: Omit<GametypeInfo, "mapPool">[] = [
     minPlayers: 2,
     hasTeams: true,
     teamNames: { alpha: "Team Soba", bravo: "Team Udon" },
+  },
+];
+
+/**
+ * Gametypes only the campaign plays: never offered on the Play page, in the
+ * queue or for a private room, and unrated, having no rating pool. Their maps
+ * are any installed map a mission names.
+ */
+const CAMPAIGN_GAMETYPE_SHELLS: Omit<GametypeInfo, "mapPool">[] = [
+  {
+    id: "tdm",
+    name: "TDM",
+    description: "Team Deathmatch",
+    maxPlayers: 8,
+    minPlayers: 2,
+    hasTeams: true,
+    teamNames: { alpha: "Team Soba", bravo: "Team Udon" },
+  },
+  {
+    id: "survival",
+    name: "SURVIVAL",
+    description: "Waves of robots against players who cannot die",
+    maxPlayers: 8,
+    minPlayers: 2,
+    hasTeams: true,
+    teamNames: { alpha: "Team Soba", bravo: "Robots" },
   },
 ];
 
@@ -548,6 +576,8 @@ export class LobbyServer {
 
   // Dynamic map config (built at startup from config/maps.json + disk scan)
   private gametypes: GametypeInfo[] = [];
+  /** The campaign-only gametypes, with every installed map in their pools. */
+  private campaignGametypes: GametypeInfo[] = [];
   private mapNames: Record<string, string> = {};
 
   private readonly MAP_CONFIG_PATH = path.join(process.cwd(), "config", "maps.json");
@@ -1722,7 +1752,12 @@ export class LobbyServer {
       return;
     }
     try {
-      const shapes = new Map(this.gametypes.map((g) => [g.id, { maxPlayers: g.maxPlayers, hasTeams: g.hasTeams }]));
+      const shapes = new Map(
+        [...this.gametypes, ...this.campaignGametypes].map((g) => [
+          g.id,
+          { maxPlayers: g.maxPlayers, hasTeams: g.hasTeams },
+        ]),
+      );
       const catalog = parseCampaign(raw, shapes, (map) => this.mapNames[map] ?? map);
       const missing = catalog.missions.filter((m) => !this.gametypes.some((g) => g.mapPool.includes(m.map)));
       if (missing.length)
@@ -1780,7 +1815,7 @@ export class LobbyServer {
       return;
     }
     const mission = campaignMission(this.campaignCatalog, missionId);
-    const gametype = mission && this.gametypes.find((g) => g.id === mission.gametype);
+    const gametype = mission && this.campaignGametype(mission.gametype);
     if (!mission || !gametype) {
       this.send(player, { type: "lobby:error", error: "That mission is not available." });
       return;
@@ -2112,6 +2147,10 @@ export class LobbyServer {
           ...(player.botReference === undefined ? {} : { botReference: canonicalBotReference(player.botReference) }),
         };
       });
+      // The campaign-only gametypes have no rating pool: their results clear
+      // campaign progress and are otherwise not recorded
+      const rated = !(lobby.campaign && UNRATED_CAMPAIGN_GAMETYPES.includes(lobby.campaign.gametype));
+      const campaignRules = lobby.campaign ? campaignMatchRules(lobby.campaign) : null;
       const resultContext: ResultContext = {
         ranked: isRankedRoster(lobby.gametype, admissionSeats),
         private: lobby.visibility === "private",
@@ -2131,10 +2170,9 @@ export class LobbyServer {
         maxClients: lobby.gametype.maxPlayers,
         admissionSeats,
         private: lobby.visibility === "private",
-        ...(lobby.campaign
-          ? { campaign: lobby.campaign.id, ...(lobby.campaign.side ? { campaignSide: lobby.campaign.side } : {}) }
-          : {}),
-        resultContext,
+        ...(lobby.campaign ? { campaign: lobby.campaign.id } : {}),
+        ...(campaignRules ? { campaignRules } : {}),
+        ...(rated ? { resultContext } : {}),
       });
 
       // Track matchId → lobbyId mapping for cleanup
@@ -2142,7 +2180,7 @@ export class LobbyServer {
       // Ranked or not is decided by the roster that starts the match, not by
       // whoever is still connected when it ends.
       resultContext.botReferenceChanged = lobby.botReferenceChanged;
-      this.matchRecords.set(server.matchId, resultContext);
+      if (rated) this.matchRecords.set(server.matchId, resultContext);
       if (lobby.campaign) this.campaignMatches.set(server.matchId, lobby.campaign);
       if (lobby.botReferenceChanged) this.results?.deliveries.markBotReferenceChanged(server.matchId);
       lobby.activeMatchId = server.matchId;
@@ -2552,6 +2590,14 @@ export class LobbyServer {
 
       return { ...shell, mapPool };
     }).filter((gametype) => gametype.id !== "amphi" || gametype.mapPool.length > 0);
+
+    const installed = [...new Set(this.gametypes.flatMap((gametype) => gametype.mapPool))];
+    this.campaignGametypes = CAMPAIGN_GAMETYPE_SHELLS.map((shell) => ({ ...shell, mapPool: installed }));
+  }
+
+  /** A gametype a campaign mission may use: the lobby's, or one only the campaign plays. */
+  private campaignGametype(id: string): GametypeInfo | undefined {
+    return this.gametypes.find((g) => g.id === id) ?? this.campaignGametypes.find((g) => g.id === id);
   }
 
   // ── Demo Scanning ────────────────────────────────────────────

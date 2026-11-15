@@ -44,6 +44,11 @@ export function cloneHealth(h: HealthComponent): HealthComponent {
 /**
  * Apply damage considering armor
  * Returns actual damage dealt to health
+ *
+ * Armor soaks whole points, its share rounded up (as Quake 3 does), so a
+ * whole-number hit leaves whole-number health and armor. A fraction of a point
+ * left over would keep a player alive on what shows as 0, so less than one
+ * point of health is death.
  */
 export function applyDamage(health: HealthComponent, damage: number, armorAbsorption: number = 0.66): number {
   if (health.dead) return 0;
@@ -53,14 +58,14 @@ export function applyDamage(health: HealthComponent, damage: number, armorAbsorp
   let healthDamage = damage;
 
   if (health.armor > 0) {
-    armorDamage = Math.min(health.armor, damage * armorAbsorption);
+    armorDamage = Math.min(health.armor, Math.ceil(damage * armorAbsorption));
     healthDamage = damage - armorDamage;
     health.armor -= armorDamage;
   }
 
   health.health -= healthDamage;
 
-  if (health.health <= 0) {
+  if (health.health < 1) {
     health.health = 0;
     health.dead = true;
   }

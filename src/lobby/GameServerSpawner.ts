@@ -26,6 +26,7 @@ import { type MatchResultReport, RESULT_PREFIX, verifyMatchResult } from "../eng
 import type { ResultDeliveryStore } from "./ResultDeliveryStore";
 import type { ResultContext } from "./ResultSnapshot";
 import { type GameServerApplication, gameServerLaunch } from "./ServerRuntime";
+import type { CampaignMatchRules } from "./types";
 
 // ============================================================================
 // Types
@@ -47,8 +48,8 @@ export interface SpawnConfig {
   private?: boolean;
   /** Campaign mission id: the server admits only its seats and marks its demo. */
   campaign?: string;
-  /** Campaign S&D: the players attack every round. */
-  campaignSide?: "attack";
+  /** A campaign match's rules beyond its map and gametype, passed as JSON. */
+  campaignRules?: CampaignMatchRules;
   /** Lobby-owned policy captured before the child launches. Never client supplied. */
   resultContext?: ResultContext;
   /** Record a training demo under this name (dev spawns only). */
@@ -202,7 +203,7 @@ export class GameServerSpawner {
     }
     if (config.private) args.push("--private-match");
     if (config.campaign) args.push("--campaign", config.campaign);
-    if (config.campaign && config.campaignSide) args.push("--campaign-side", config.campaignSide);
+    if (config.campaign && config.campaignRules) args.push("--campaign-rules", JSON.stringify(config.campaignRules));
 
     const childEnv = { ...process.env };
     delete childEnv.SHAG_MATCH_ADMISSION;

@@ -99,6 +99,16 @@ export class AudioManager {
   private playlistName: string | null = null;
   private readonly mutedPlaylists = new Set<string>();
   private isPlayingPlaylist = false;
+  /**
+   * Playlists put aside by `switchPlaylist`, by name: the track each was on,
+   * paused where it was, to carry on from there when switched back to.
+   */
+  private readonly parked = new Map<
+    string,
+    { playlist: Playlist; trackIndex: number; audio: HTMLAudioElement | null; fade: number | null }
+  >();
+  /** The newest playlist request; one still loading when a newer one comes gives way. */
+  private playlistRequest = 0;
 
   /** Map of active audio elements to their associated Blob URLs for proper cleanup */
   private audioBlobUrls: Map<HTMLAudioElement, string> = new Map();
@@ -466,6 +476,8 @@ export class AudioManager {
       devLog(`[AudioManager] Playlist "${name}" already playing, skipping reload`);
       return;
     }
+    // Started afresh, a playlist put aside earlier is not carried on
+    if (name) this.discardParked(name);
 
     devLog(
       `[AudioManager] Starting playlist: ${playlist.name || name || "unnamed"} with ${playlist.tracks.length} tracks`,
@@ -498,28 +510,127 @@ export class AudioManager {
    * @param playlistUrl URL to the playlist JSON file
    */
   public async loadPlaylist(playlistUrl: string): Promise<void> {
+    const request = ++this.playlistRequest;
     try {
-      const pk3 = PK3Loader.getInstance();
-      let playlist: Playlist;
-
-      if (pk3.hasFile(playlistUrl)) {
-        const buffer = await pk3.getFile(playlistUrl);
-        if (!buffer) throw new Error("Failed to read playlist from PK3");
-        const text = new TextDecoder().decode(buffer);
-        playlist = JSON.parse(text) as Playlist;
-        devLog(`[AudioManager] Loaded playlist from PK3: ${playlistUrl}`);
-      } else {
-        const response = await fetch(playlistUrl);
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-        }
-        playlist = (await response.json()) as Playlist;
-        devLog(`[AudioManager] Loaded playlist from URL: ${playlistUrl}`);
-      }
-
+      const playlist = await this.readPlaylist(playlistUrl);
+      // A newer request has the music now
+      if (request !== this.playlistRequest) return;
       this.startPlaylist(playlist, playlistUrl);
     } catch (e) {
       console.error(`[AudioManager] Failed to load playlist: ${playlistUrl}`, e);
+    }
+  }
+
+  /**
+   * Cross over to another playlist, putting this one aside where it is. The
+   * playing track fades out and pauses, and the other playlist fades in: from
+   * where it was paused if it was put aside before, from its start if not.
+   * Switching back carries the first one on from its paused spot.
+   */
+  public async switchPlaylist(playlistUrl: string): Promise<void> {
+    const request = ++this.playlistRequest;
+    if (this.playlistName === playlistUrl && this.isPlayingPlaylist) return;
+    const resumed = this.parked.get(playlistUrl);
+    let playlist = resumed?.playlist;
+    if (!playlist) {
+      try {
+        playlist = await this.readPlaylist(playlistUrl);
+      } catch (e) {
+        console.error(`[AudioManager] Failed to load playlist: ${playlistUrl}`, e);
+        return;
+      }
+      if (request !== this.playlistRequest) return;
+    }
+
+    this.parkCurrent();
+    this.parked.delete(playlistUrl);
+    this.currentPlaylist = playlist;
+    this.playlistName = playlistUrl;
+    this.isPlayingPlaylist = true;
+    const audible = this.musicEnabled && !this.mutedPlaylists.has(playlistUrl);
+    if (resumed) {
+      // Still fading out from being put aside: it comes back from here instead
+      if (resumed.fade !== null) clearInterval(resumed.fade);
+      this.currentTrackIndex = resumed.trackIndex;
+      this.currentMusic = resumed.audio;
+      if (this.currentMusic && audible) {
+        this.currentMusic.volume = 0;
+        this.currentMusic.play().catch((e) => console.warn("[AudioManager] Resumed track blocked:", e));
+        this.fadeInMusic();
+      } else if (!this.currentMusic && audible) {
+        background(this.playCurrentTrack(true), "AudioManager");
+      }
+      return;
+    }
+    this.currentTrackIndex = 0;
+    if (playlist.shuffle) this.shufflePlaylist();
+    if (audible) background(this.playCurrentTrack(true), "AudioManager");
+  }
+
+  /** A playlist's JSON, from a loaded package or the server. */
+  private async readPlaylist(playlistUrl: string): Promise<Playlist> {
+    const pk3 = PK3Loader.getInstance();
+    if (pk3.hasFile(playlistUrl)) {
+      const buffer = await pk3.getFile(playlistUrl);
+      if (!buffer) throw new Error("Failed to read playlist from PK3");
+      devLog(`[AudioManager] Loaded playlist from PK3: ${playlistUrl}`);
+      return JSON.parse(new TextDecoder().decode(buffer)) as Playlist;
+    }
+    const response = await fetch(playlistUrl);
+    if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    devLog(`[AudioManager] Loaded playlist from URL: ${playlistUrl}`);
+    return (await response.json()) as Playlist;
+  }
+
+  /** Put the current playlist aside: its track fades out and pauses where it is, to be carried on later. */
+  private parkCurrent(): void {
+    this.loadingRequestId++; // a track still loading for it must not start
+    if (this.fadeInterval) {
+      clearInterval(this.fadeInterval);
+      this.fadeInterval = null;
+    }
+    if (this.fadingOutMusic) {
+      this.fadingOutMusic.pause();
+      this.fadingOutMusic = null;
+    }
+    const audio = this.currentMusic;
+    this.currentMusic = null;
+    const entry =
+      this.currentPlaylist && this.playlistName
+        ? { playlist: this.currentPlaylist, trackIndex: this.currentTrackIndex, audio, fade: null as number | null }
+        : null;
+    if (entry && this.playlistName) {
+      this.discardParked(this.playlistName);
+      this.parked.set(this.playlistName, entry);
+    }
+    if (!audio) return;
+    const fade = window.setInterval(() => {
+      if (audio.volume > 0.02) {
+        audio.volume -= 0.02;
+        return;
+      }
+      audio.volume = 0;
+      audio.pause();
+      clearInterval(fade);
+      if (entry) entry.fade = null;
+    }, 50);
+    if (entry) entry.fade = fade;
+  }
+
+  /** Forget a playlist put aside, and free its track. */
+  private discardParked(name: string): void {
+    const parked = this.parked.get(name);
+    if (!parked) return;
+    this.parked.delete(name);
+    if (parked.fade !== null) clearInterval(parked.fade);
+    const audio = parked.audio;
+    if (!audio) return;
+    audio.pause();
+    audio.src = "";
+    const blobUrl = this.audioBlobUrls.get(audio);
+    if (blobUrl) {
+      URL.revokeObjectURL(blobUrl);
+      this.audioBlobUrls.delete(audio);
     }
   }
 
@@ -636,7 +747,8 @@ export class AudioManager {
     }
 
     this.currentMusic = audio;
-    this.currentMusic.loop = false;
+    // A looping playlist of one song loops the song itself, without a gap
+    this.currentMusic.loop = this.currentPlaylist.tracks.length === 1 && this.currentPlaylist.loop !== false;
     this.currentMusic.volume = fadeIn ? 0 : this.musicVolume;
 
     this.currentMusic.addEventListener("ended", () => {
@@ -729,6 +841,7 @@ export class AudioManager {
    * teardown / app shutdown. Safe to call more than once.
    */
   public dispose(): void {
+    for (const name of [...this.parked.keys()]) this.discardParked(name);
     this.stopPlaylist(false);
     this.stopMusic(false);
 

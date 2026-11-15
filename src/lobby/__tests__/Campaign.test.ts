@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   betterClear,
   campaignFinished,
+  campaignMatchRules,
   campaignMission,
   lobbyCampaignInfo,
   parseCampaign,
@@ -14,7 +15,16 @@ const SHAPES = new Map([
   ["duel", { maxPlayers: 2, hasTeams: true }],
   ["ffa", { maxPlayers: 8, hasTeams: false }],
   ["snd", { maxPlayers: 10, hasTeams: true }],
+  ["tdm", { maxPlayers: 8, hasTeams: true }],
+  ["survival", { maxPlayers: 8, hasTeams: true }],
 ]);
+
+const SURVIVAL = {
+  waves: [{ robots: 1, health: 50 }],
+  waveSeconds: 60,
+  seconds: 60,
+  robotKits: [{ weapons: ["machinegun"] }],
+};
 
 const mission = (id: string, extra: Record<string, unknown> = {}) => ({
   id,
@@ -54,10 +64,88 @@ describe("parseCampaign", () => {
     const crew = strike.bots.filter((bot) => bot.side === "ally").map((bot) => bot.model);
     expect(new Set(crew)).toEqual(new Set(["cartel", "riotkitty"]));
     expect(strike.bots.filter((bot) => bot.side === "enemy").every((bot) => bot.model === undefined)).toBe(true);
+
+    // Operations 5-8: survival, a boss twice a player's size, a heist, and a 1v2
+    expect(catalog.missions.slice(4).map((m) => [m.map, m.gametype])).toEqual([
+      ["washoi_dm18", "survival"],
+      ["washoi_amphi1", "amphi"],
+      ["washoi_snd6", "snd"],
+      ["washoi_dm5", "tdm"],
+    ]);
+    const [trap, siege, heist, road] = catalog.missions.slice(4);
+    expect(campaignMatchRules(trap)?.survival).toEqual({
+      waves: [
+        { robots: 4, health: 30 },
+        { robots: 5, health: 40 },
+        { robots: 6, health: 50 },
+        { robots: 7, health: 50 },
+      ],
+      waveSeconds: 60,
+      seconds: 300,
+      robotKits: [{ weapons: ["machinegun"] }, { weapons: ["machinegun"], ads: false }, { weapons: ["glauncher"] }],
+    });
+    expect(campaignMatchRules(siege)).toEqual({
+      scales: { Siege_Bot: 2.5 },
+      randomKits: ["Siege_Bot"],
+      spawnStats: { Siege_Bot: { health: 200, armor: 200 } },
+      slimeImmune: ["Siege_Bot"],
+    });
+    // The boss itself is told, so it does not climb out of the slime
+    expect(lobbyCampaignInfo(siege).slimeImmune).toEqual(["Siege_Bot"]);
+    expect(lobbyCampaignInfo(siege).botScales).toEqual({ Siege_Bot: 2.5 });
+    expect(campaignMatchRules(heist)).toEqual({ attack: true });
+    expect(road.bots.map((bot) => [bot.side, bot.model])).toEqual([
+      ["enemy", "police"],
+      ["enemy", "female"],
+    ]);
+    expect(campaignMatchRules(road)).toEqual({ scoreLimit: 15, timeLimit: 600 });
+    // An operation with nothing beyond its map and gametype sends no rules
+    expect(campaignMatchRules(catalog.missions[0])).toBeNull();
   });
 
   it.each([
     ["a duplicate id", { missions: [mission("one"), mission("one")] }, "used twice"],
+    ["survival without its rules", { missions: [mission("one", { gametype: "survival" })] }, "survival"],
+    ["survival rules outside survival", { missions: [mission("one", { survival: SURVIVAL })] }, "survival"],
+    [
+      "a wave bigger than the robots",
+      {
+        missions: [
+          mission("one", { gametype: "survival", survival: { ...SURVIVAL, waves: [{ robots: 3, health: 50 }] } }),
+        ],
+      },
+      "biggest wave",
+    ],
+    [
+      "an unknown robot weapon",
+      {
+        missions: [
+          mission("one", { gametype: "survival", survival: { ...SURVIVAL, robotKits: [{ weapons: ["bfg"] }] } }),
+        ],
+      },
+      "robotKits[0].weapons",
+    ],
+    [
+      "no health at all",
+      { missions: [mission("one", { bots: [{ name: "A1", difficulty: "easy", health: 0 }] })] },
+      ".health",
+    ],
+    [
+      "a fractional armor",
+      { missions: [mission("one", { bots: [{ name: "A1", difficulty: "easy", armor: 1.5 }] })] },
+      ".armor",
+    ],
+    [
+      "an unknown kit",
+      { missions: [mission("one", { bots: [{ name: "A1", difficulty: "easy", kit: "rocket" }] })] },
+      ".kit",
+    ],
+    [
+      "a scale beyond three",
+      { missions: [mission("one", { bots: [{ name: "A1", difficulty: "easy", scale: 4 }] })] },
+      ".scale",
+    ],
+    ["a bad limit", { missions: [mission("one", { limits: { scoreLimit: 0 } })] }, "scoreLimit"],
     ["an attack side outside S&D", { missions: [mission("one", { side: "attack" })] }, ".side"],
     ["an unknown side", { missions: [mission("one", { gametype: "snd", side: "defend" })] }, ".side"],
     [

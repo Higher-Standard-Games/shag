@@ -18,7 +18,10 @@ classified until they are written.
 | 02 | `washoi_dm1` | FFA | Street Rioters | 4 Easy | robot / riotkitty | The street riot | card2 |
 | 03 | `washoi_snd1` (Concrete Strike) | S&D | Metropol Riot Cops | 4 Medium allies, 5 Medium enemies | robot / police | First sabotage mission | card3 |
 | 04 | `washoi_dm2` | Duel | Glitch Punk Leader | 1 Medium | robot / riotkitty | Rival gang leader | card4 |
-| 05-08 | — | — | — | — | — | classified | — |
+| 05 | `washoi_dm18` | Survival | Rival Cartel Bot Guards | 7 Medium robots, in waves of 4-7, 30-50 health, kits in turn | robot / robot | Caught in the bot trap | card5 (3 panels) |
+| 06 | `washoi_amphi1` | Amphi | Heavy Siege Bot (2.5x) | 1 Hard, scale 2.5, random kit | robot / robot | The final robot boss | card6 (2 panels) |
+| 07 | `washoi_snd6` (Depot) | S&D, attack only | Pink-Visor Spec-Ops and Unit 07 | 4 Hard allies, 5 Hard enemies | robot / female (Unit 07s robot) | High-profile cash heist | to come |
+| 08 | `washoi_dm5` | TDM 1v2 | Metropol Police Duo | 2 Insane (police, female) | robot / police | "Your road ends here" | to come |
 
 The protagonist in the art is the hooded robot with the anarchy mark, so the
 player's own model is `robot` throughout. Missions 1 and 2 are the ones built
@@ -228,7 +231,7 @@ one account). Whether it should be is an open question below.
 ## Concrete Strike and the crew (2026-11-15)
 
 - **Attack only.** A mission may set `"side": "attack"` (S&D only). The lobby
-  passes `--campaign-side attack`; the game server finds the players' team
+  passes `{"attack":true}` in `--campaign-rules`; the game server finds the players' team
   from their seats in the admission manifest and calls
   `MatchState.setAttackersThroughout(team)`: that team attacks every round
   (`roundsPerHalf` off, so no swap and no overtime) and `leadRequired` drops
@@ -254,7 +257,7 @@ cartel and riotkitty beside the player.
 | # | Map | Mode | Rival | Difficulty | Story beat |
 | --- | --- | --- | --- | --- | --- |
 | 05 | `washoi_dm18` | Survival (special) | Rival Cartel Bot Guards | Medium | Caught in the bot trap |
-| 06 | `washoi_amphi1` | Amphi (1v1 rounds) | Heavy Siege Bot (2x scale) | Hard | The final robot boss |
+| 06 | `washoi_amphi1` | Amphi (1v1 rounds) | Heavy Siege Bot (2.5x scale) | Hard | The final robot boss |
 | 07 | `washoi_snd6` (Depot) | S&D | Pink-Visor Spec-Ops & Unit 07 | Hard | High-profile cash heist |
 | 08 | `washoi_dm5` | 1v2 handicap | Metropol Police Duo (male & female) | Insane | "Your road ends here" |
 
@@ -262,7 +265,8 @@ cartel and riotkitty beside the player.
 
 A single-player fragfest against weak robots on dm18:
 
-- 5 minutes. The player cannot die.
+- 5 minutes. The player cannot die. (Built as: the first death loses the
+  match, with Retry on the end screen.)
 - Robots: robot model, 42 HP, machine gun only (no blade), nameless.
 - A fixed number of robots alive at all times: 4 in the first minute, 6 in
   the second, 7 in the third (and after, unless decided otherwise); each one
@@ -282,9 +286,9 @@ What it needs, roughly:
 
 ### 06 Heavy Siege Bot
 
-A 2x scale boss: a model and hitbox scale on one player entity. Collision,
-hitboxes, camera height and movement all read the player size, so this is the
-largest engine change of the eight. Needs its own design pass.
+A 2.5x scale boss on one player entity (built; see Operations 5-8 below).
+The model, its weapon, the hit shapes, its eye (where it shoots and aims
+from) and its speed follow the scale; the collision hull does not.
 
 ### 08 1v2 handicap
 
@@ -321,7 +325,64 @@ Collected for review; the implementation picks a default for each.
 10. **Bot names.** Bots follow the player-name rule (2-16 letters, digits, `_`,
     `-`), so the Cartel King plays as `Cartel_King`.
 11. ~~**Card 3**~~ Answered: caption first, then the panels, is right.
-12. **Ratings.** Campaign matches count toward the player's record and rating
-    like any private bot match. Keep that, or leave campaign matches out of
-    results and ratings?
-13. **Survival win.** What clears mission 05, when the player cannot lose?
+12. ~~**Ratings.**~~ Answered: campaign matches count toward ratings, for fun.
+    Survival and TDM missions are the exception: those gametypes have no
+    rating pool, so they clear progress unrated.
+13. ~~**Survival win.**~~ Answered: lasting the five minutes clears it.
+
+## Operations 5-8 (2026-11-15)
+
+Built from the owner's plan, art still to come; an operation without a card
+starts straight from the black screen, and its row shows its number in place
+of the card.
+
+- **Campaign-only gametypes.** The lobby has two gametypes only campaign
+  missions use, `tdm` and `survival` (`CAMPAIGN_GAMETYPE_SHELLS`):
+  not in `welcome.gametypes`, the queue or private rooms; their map pool is
+  every installed map. They have no rating pool, so the lobby spawns them
+  without a result context (no outbox, nothing recorded or rated); the signed
+  result still reaches `recordCampaignResult`, and the result verifier
+  accepts both as team modes.
+- **`--campaign-rules`** replaces `--campaign-side`: one JSON object
+  (`CampaignMatchRules`) with `attack`, `scoreLimit` / `timeLimit`,
+  `survival` and `scales`, built by `campaignMatchRules(mission)`.
+- **Survival** (`server/gametypes/Survival.ts`, a team deathmatch): the
+  first player death loses (`MatchState.survivorsFell`, from the
+  controller's kill handling: the robots' side is put one ahead and the match
+  ends, so the signed result is a loss). Players spawn with the blade and a
+  machine gun; robots spawn with the health of the wave they spawn in (the controller
+  hands the mode the match clock, `setMatchClock`) and the mission's weapons, and
+  pick nothing up (`mayPickUp`, the pickup system's filter; the bot item
+  planner offers no item goals in Survival). Robots, numbered at their first
+  spawn, get the mission's `robotKits` in turn (an aiming machine gun, a
+  hipfire-only one with `adsDisabled` in its spawn kit, a grenade launcher). Players regenerate a point a
+  second up to 100 (`Survival.onTick`). A robot the wave holds back is on the
+  `match_state` spectator roster (`GametypeController.isHeldOut`), so the
+  scoreboard lists it under spectators until it comes in. `mayRespawn` holds a robot in the respawn queue while the
+  current wave (one per `waveSeconds`) already has its number alive, so a
+  kill lets the next one in after half a second. At the opening countdown
+  everyone is put down first and let back in one by one, so only the first
+  wave spawns. When time runs out the players' side gets the points that put
+  it one ahead (`MatchState.setSurvivors`), which makes lasting a win whatever
+  the frags.
+- **Boss scale.** A bot's `scale` reaches the client in the campaign
+  hand-off (`botScales`, drawn `scale` times as big, its held weapon too) and the game server
+  in `--campaign-rules` (`scales`, by name): lag compensation's capsule
+  and the weapon and projectile systems' hit spheres use it
+  (`HitScale.ts`), all scaled about the feet as the model is drawn; scale 1
+  is exactly the normal geometry. Movement is faster by the square root of
+  the scale (`bodySpeedFactor`, a speed bonus at running pace in
+  `FPSMovementSubsystem.setSpeedFactor`), and the client paces walk, run and
+  strafe animations by the stride, and drops a crouch and a slide by the
+  scale. Heights on the body scale about the feet (`shared/BodyScale.ts`): the
+  shot origin is the scaled eye, and a hit's head, body or legs is judged at
+  the matching height on a normal body. The bot learns its scale from
+  `botScales` in `lobby:connect` (`BotOptions.bodyScale`) and aims from the
+  same eye, so its shots go where it aims. The collision hull and splash
+  distance keep a player's size.
+- **Random kits.** A bot with `"kit": "random"` (the Siege Bot) reaches the
+  game server in `randomKits`; the controller gives it a kit drawn at random
+  at every spawn, never the one it last had (`randomLoadout`, seeded from the
+  spawn tick and entity like spawn points, on its own stream).
+- **Limits.** Road's End sets a 15-frag, 10-minute team deathmatch
+  (`limits` in the mission, `MatchState.setLimits`).

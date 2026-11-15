@@ -731,6 +731,11 @@ recording may lack:
   round modes), running on through overtime. The client's count-up clock
   (`cl_invertClock 1`) uses it and falls back to the countdown when it is
   absent.
+- `nextRoundIn`: in a round mode, between rounds, the seconds until the next
+  round goes live, across the round end and the next round's freeze; absent
+  otherwise, including the first round's freeze. The client's round
+  intermission counts it down; without it, the intermission shows only during
+  the round end and counts that phase's own time.
 - In S&D, the objective's `disabledModels?: number[]`: the authoritative
   disabled inline brush model indices. Clients apply it to collision and
   rendering, including after joining mid-round. Its absence in an older

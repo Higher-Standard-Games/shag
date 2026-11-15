@@ -114,6 +114,16 @@ export function botLoadout(seed: number): LoadoutChoice {
   };
 }
 
+/**
+ * A kit drawn at random, never the one given as `previous`: a player armed
+ * differently at every spawn (a campaign boss).
+ */
+export function randomLoadout(random: () => number, previous?: LoadoutChoice): LoadoutChoice {
+  const kits = PRIMARY_CHOICES.flatMap((primary) => SECONDARY_CHOICES.map((secondary) => ({ primary, secondary })));
+  const fresh = kits.filter((kit) => kit.primary !== previous?.primary || kit.secondary !== previous?.secondary);
+  return fresh[Math.min(fresh.length - 1, Math.floor(random() * fresh.length))];
+}
+
 /** Build the spawn kit for a choice. The blade is not optional. */
 export function buildLoadout(choice: LoadoutChoice, armor = LOADOUT_SPAWN_ARMOR): WeaponLoadout {
   return {

@@ -204,7 +204,11 @@ A room is one gametype, one map vote and up to that gametype's player count.
   map votes, extra bots, side switches and shuffles are ignored. A player may
   open or join one only for a mission they have unlocked, so a room plays the
   lowest progress among its people. Its match admits only its seats: no
-  spectators and no drop-in seats. The game server gets `--campaign <id>`. A bot keeps its record
+  spectators and no drop-in seats. The game server gets `--campaign <id>`, and
+  `--campaign-rules <json>` when the mission sets more than map and gametype.
+  Two gametypes exist only for the campaign, `tdm` and `survival`: no Play
+  page, queue or private room offers them, and having no rating pool, their
+  matches clear campaign progress without being recorded or rated. A bot keeps its record
   as its preset's account (see "Bots play at fixed strengths"). Once the last human
   leaves, the room's bots are evicted so a bot-only room can never linger or
   start a match.

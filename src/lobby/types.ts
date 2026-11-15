@@ -115,6 +115,63 @@ export interface CampaignBotInfo {
   side: "ally" | "enemy";
   /** This bot's model, when it is not its side's (a mixed crew). */
   model?: string;
+  /** How much bigger than a player this bot is drawn and hit (a boss); absent is 1. */
+  scale?: number;
+  /** "random": a different kit at every spawn, in modes with kits (a boss). Absent: the bot's usual one. */
+  kit?: "random";
+  /** Health this bot spawns with, instead of its kit's; above 100 it is the bot's full health. */
+  health?: number;
+  /** Armor this bot spawns with, instead of its kit's. */
+  armor?: number;
+  /** Slime and lava do not hurt this bot (a giant robot wades through them). */
+  slimeImmune?: boolean;
+}
+
+/** One Survival wave: how many robots it keeps alive, and the health each spawns with. */
+export interface CampaignSurvivalWave {
+  robots: number;
+  health: number;
+}
+
+/** Survival: waves of weak robots against players who must not die, for a set time. */
+export interface CampaignSurvivalRules {
+  /** The waves in order, one each `waveSeconds`; the last holds to the end. */
+  waves: CampaignSurvivalWave[];
+  /** Seconds each wave lasts before the next. */
+  waveSeconds: number;
+  /** How long the players must last, in seconds, without a death. Lasting it clears the mission. */
+  seconds: number;
+  /** The robots' kits, handed out in turn as robots first spawn: the first robot the first kit, and so on round. */
+  robotKits: CampaignRobotKit[];
+}
+
+/** A Survival robot's kit: its only weapons (no blade unless listed), and whether it can aim down sights. */
+export interface CampaignRobotKit {
+  weapons: string[];
+  /** False: it fires from the hip only. Absent: it can aim. */
+  ads?: boolean;
+}
+
+/**
+ * What a campaign match's game server is told beyond its map and gametype,
+ * as JSON in `--campaign-rules`.
+ */
+export interface CampaignMatchRules {
+  /** S&D: the players attack every round, no swap, first to the round limit by any margin. */
+  attack?: boolean;
+  /** Overrides of the gametype's own limits. */
+  scoreLimit?: number;
+  /** Seconds. */
+  timeLimit?: number;
+  survival?: CampaignSurvivalRules;
+  /** Bots bigger than a player, by name. */
+  scales?: Record<string, number>;
+  /** Bots given a different random kit at every spawn, by name. */
+  randomKits?: string[];
+  /** Health and armor some bots spawn with, by name. */
+  spawnStats?: Record<string, { health?: number; armor?: number }>;
+  /** Bots slime and lava do not hurt, by name. */
+  slimeImmune?: string[];
 }
 
 export interface CampaignMissionInfo {
@@ -129,6 +186,10 @@ export interface CampaignMissionInfo {
   models: CampaignModels;
   /** S&D: the players attack every round, with no swap at the half. */
   side?: "attack";
+  /** Overrides of the gametype's score limit and time limit (seconds). */
+  limits?: { scoreLimit?: number; timeLimit?: number };
+  /** The survival gametype's waves and robots. */
+  survival?: CampaignSurvivalRules;
 }
 
 /** One mission an account has cleared, with its best clear. */
@@ -169,6 +230,10 @@ export interface LobbyCampaignInfo {
   models: CampaignModels;
   /** Bots drawn with a model of their own, by name. */
   botModels?: Record<string, string>;
+  /** Bots drawn bigger than a player, by name. */
+  botScales?: Record<string, number>;
+  /** Bots slime and lava do not hurt, by name, so they need not get out of it. */
+  slimeImmune?: string[];
 }
 
 export interface MatchLobbyInfo {

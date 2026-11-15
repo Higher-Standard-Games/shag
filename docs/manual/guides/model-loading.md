@@ -106,10 +106,16 @@ Havok sphere at the hips, as wide as the body reaches from them, flies the same
 launch arc the ragdoll would. The clip is posed from the ragdoll clock, with root
 motion cancelled. When the sphere touches any surface after its first 0.1
 seconds, or the clip ends, the per-bone ragdoll takes over from the clip's pose
-at the sphere's velocity, less any part of it into the surface touched. The
-sphere meets a floor or wall before a limb can, so the ragdoll never starts
-inside the world. The death camera and the speed trail follow the sphere, then
-the hips.
+at the sphere's velocity, its part into the surface touched turned back off it
+at 0.3 of its speed: the body bounces once. The sphere meets a floor or wall
+before a limb can, so the ragdoll never starts inside the world. The death
+camera and the speed trail follow the sphere, then the hips.
+
+Every ragdoll bone has angular damping 4, and Havok caps angular speed at 20
+rad/s, so a body settles rather than spinning. Once the hips have stayed within
+12 units for 0.4 seconds (after its first half second), or its five seconds are
+nearly up, the body fades out; from then every bone is static, so it lies still
+in its last pose until it bursts into gibs.
 
 After about three kills in ten, the killer taunts: `taunt_1`, `taunt_2` or
 `taunt_3` plays once over the spine, arms and head while the hips and legs keep

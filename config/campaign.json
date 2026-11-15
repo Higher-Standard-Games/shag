@@ -5,7 +5,9 @@
       "id": "cartel-contract",
       "map": "washoi_amphi2",
       "gametype": "amphi",
-      "bots": [{ "name": "Cartel_King", "difficulty": "easy" }],
+      "bots": [
+        { "name": "Cartel_King", "difficulty": "easy" }
+      ],
       "models": { "ally": "robot", "enemy": "cartel" }
     },
     {
@@ -42,8 +44,78 @@
       "id": "glitch-duel",
       "map": "washoi_dm2",
       "gametype": "duel",
-      "bots": [{ "name": "Glitch_Queen", "difficulty": "medium" }],
+      "bots": [
+        { "name": "Glitch_Queen", "difficulty": "medium" }
+      ],
       "models": { "ally": "robot", "enemy": "riotkitty" }
+    },
+    {
+      "id": "bot-trap",
+      "map": "washoi_dm18",
+      "gametype": "survival",
+      "bots": [
+        { "name": "Unit_01", "difficulty": "medium" },
+        { "name": "Unit_02", "difficulty": "medium" },
+        { "name": "Unit_03", "difficulty": "medium" },
+        { "name": "Unit_04", "difficulty": "medium" },
+        { "name": "Unit_05", "difficulty": "medium" },
+        { "name": "Unit_06", "difficulty": "medium" },
+        { "name": "Unit_07", "difficulty": "medium" }
+      ],
+      "models": { "ally": "robot", "enemy": "robot" },
+      "survival": {
+        "waves": [
+          { "robots": 4, "health": 30 },
+          { "robots": 5, "health": 40 },
+          { "robots": 6, "health": 50 },
+          { "robots": 7, "health": 50 }
+        ],
+        "waveSeconds": 60,
+        "seconds": 300,
+        "robotKits": [
+          { "weapons": ["machinegun"] },
+          { "weapons": ["machinegun"], "ads": false },
+          { "weapons": ["glauncher"] }
+        ]
+      }
+    },
+    {
+      "id": "siege-breaker",
+      "map": "washoi_amphi1",
+      "gametype": "amphi",
+      "bots": [
+        { "name": "Siege_Bot", "difficulty": "hard", "scale": 2.5, "kit": "random", "health": 200, "armor": 200, "slimeImmune": true }
+      ],
+      "models": { "ally": "robot", "enemy": "robot" }
+    },
+    {
+      "id": "depot-heist",
+      "map": "washoi_snd6",
+      "gametype": "snd",
+      "side": "attack",
+      "bots": [
+        { "name": "Ratchet", "difficulty": "hard", "side": "ally", "model": "cartel" },
+        { "name": "Socket", "difficulty": "hard", "side": "ally", "model": "riotkitty" },
+        { "name": "Torque", "difficulty": "hard", "side": "ally", "model": "cartel" },
+        { "name": "Pliers", "difficulty": "hard", "side": "ally", "model": "riotkitty" },
+        { "name": "Visor_Nyx", "difficulty": "hard" },
+        { "name": "Visor_Rae", "difficulty": "hard" },
+        { "name": "Visor_Kai", "difficulty": "hard" },
+        { "name": "Unit_07", "difficulty": "hard", "model": "robot" },
+        { "name": "Unit_17", "difficulty": "hard", "model": "robot" }
+      ],
+      "models": { "ally": "robot", "enemy": "female" }
+    },
+    {
+      "id": "road-ends",
+      "map": "washoi_dm5",
+      "gametype": "tdm",
+      "bots": [
+        { "name": "Officer_Kane", "difficulty": "insane", "model": "police" },
+        { "name": "Officer_Reyes", "difficulty": "insane", "model": "female" }
+      ],
+      "models": { "ally": "robot", "enemy": "police" },
+      "limits": { "scoreLimit": 15, "timeLimit": 600 }
     }
   ]
 }

@@ -225,6 +225,12 @@ export interface WeaponLoadout {
   health: number;
   /** Starting armor */
   armor: number;
+  /**
+   * Aiming down sights does nothing for this player until their next spawn:
+   * shots keep the hip's spread. For a gametype's weaker players (some
+   * Survival robots); absent for everyone else.
+   */
+  adsDisabled?: boolean;
 }
 
 // ============================================================================
@@ -382,6 +388,12 @@ export interface MatchStateSnapshot {
    * Absent from an older server.
    */
   timeElapsed?: number;
+  /**
+   * In a round mode, between rounds: seconds until the next round goes live,
+   * across the round end and the next round's freeze. Absent otherwise, and
+   * from an older server or recording.
+   */
+  nextRoundIn?: number;
   readyCount: number;
   totalPlayers: number;
   gametypeName: string;

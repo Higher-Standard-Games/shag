@@ -8,11 +8,41 @@
 
 import { BOT_ACCOUNT_PRESETS, type BotPreset } from "../shared/ranking/BotMatchRatingGroups";
 import { NAME_PATTERN } from "./PlayerIdentity";
-import type { CampaignBotInfo, CampaignClear, CampaignMissionInfo, CampaignModels, LobbyCampaignInfo } from "./types";
+import type {
+  CampaignBotInfo,
+  CampaignClear,
+  CampaignMatchRules,
+  CampaignMissionInfo,
+  CampaignModels,
+  CampaignRobotKit,
+  CampaignSurvivalRules,
+  CampaignSurvivalWave,
+  LobbyCampaignInfo,
+} from "./types";
 
 /** The models a campaign may force; the ones every client ships. */
 const CAMPAIGN_MODELS = ["police", "female", "cartel", "riotkitty", "robot"] as const;
-const CAMPAIGN_GAMETYPES = ["duel", "amphi", "ffa", "snd"] as const;
+/**
+ * Gametypes a mission may use: the lobby's four, and two the campaign alone
+ * plays (a team deathmatch, and survival), which no Play page offers.
+ */
+const CAMPAIGN_GAMETYPES = ["duel", "amphi", "ffa", "snd", "tdm", "survival"] as const;
+/** The campaign-only gametypes: no rating pool, so their matches clear progress without being rated. */
+export const UNRATED_CAMPAIGN_GAMETYPES: readonly string[] = ["tdm", "survival"];
+const MAX_BOT_SCALE = 3;
+/** The most health or armor a campaign bot may spawn with. */
+const MAX_BOT_STAT = 500;
+/** Robot weapons a survival mission may hand out. */
+const SURVIVAL_WEAPONS = [
+  "blade",
+  "machinegun",
+  "riotgun",
+  "plasmagun",
+  "glauncher",
+  "rlauncher",
+  "electrobolt",
+  "voltaic",
+];
 const MISSION_ID = /^[a-z0-9][a-z0-9-]{0,47}$/;
 
 export interface CampaignCatalog {
@@ -51,7 +81,87 @@ function parseBot(value: unknown, where: string, hasTeams: boolean): CampaignBot
   if (!hasTeams && side === "ally") fail(`${where}: a free-for-all has no allies`);
   if (bot.model !== undefined && !CAMPAIGN_MODELS.includes(bot.model as (typeof CAMPAIGN_MODELS)[number]))
     fail(`${where}.model must be one of ${CAMPAIGN_MODELS.join(", ")}`);
-  return { name: bot.name, difficulty: bot.difficulty as string, side, ...(bot.model ? { model: bot.model } : {}) };
+  if (bot.scale !== undefined && !(typeof bot.scale === "number" && bot.scale >= 1 && bot.scale <= MAX_BOT_SCALE))
+    fail(`${where}.scale must be a number from 1 to ${MAX_BOT_SCALE}`);
+  if (bot.kit !== undefined && bot.kit !== "random") fail(`${where}.kit must be "random"`);
+  if (bot.slimeImmune !== undefined && typeof bot.slimeImmune !== "boolean")
+    fail(`${where}.slimeImmune must be true or false`);
+  if (bot.health !== undefined && !positiveInteger(bot.health, MAX_BOT_STAT))
+    fail(`${where}.health must be a whole number from 1 to ${MAX_BOT_STAT}`);
+  if (bot.armor !== undefined && !(bot.armor === 0 || positiveInteger(bot.armor, MAX_BOT_STAT)))
+    fail(`${where}.armor must be a whole number from 0 to ${MAX_BOT_STAT}`);
+  return {
+    name: bot.name,
+    difficulty: bot.difficulty as string,
+    side,
+    ...(bot.model ? { model: bot.model } : {}),
+    ...(bot.scale !== undefined && bot.scale !== 1 ? { scale: bot.scale } : {}),
+    ...(bot.kit ? { kit: bot.kit } : {}),
+    ...(bot.health !== undefined ? { health: bot.health } : {}),
+    ...(bot.armor !== undefined ? { armor: bot.armor } : {}),
+    ...(bot.slimeImmune ? { slimeImmune: true } : {}),
+  };
+}
+
+const positiveInteger = (value: unknown, max: number) =>
+  typeof value === "number" && Number.isInteger(value) && value > 0 && value <= max;
+
+function parseLimits(value: unknown, where: string): { scoreLimit?: number; timeLimit?: number } | undefined {
+  if (value === undefined) return undefined;
+  const limits = value as Record<string, unknown> | null;
+  if (!limits || typeof limits !== "object") fail(`${where}.limits must be an object`);
+  if (limits.scoreLimit !== undefined && !positiveInteger(limits.scoreLimit, 500))
+    fail(`${where}.limits.scoreLimit must be a whole number from 1`);
+  if (limits.timeLimit !== undefined && !positiveInteger(limits.timeLimit, 3600))
+    fail(`${where}.limits.timeLimit must be whole seconds from 1`);
+  return {
+    ...(limits.scoreLimit !== undefined ? { scoreLimit: limits.scoreLimit as number } : {}),
+    ...(limits.timeLimit !== undefined ? { timeLimit: limits.timeLimit as number } : {}),
+  };
+}
+
+function parseSurvival(value: unknown, where: string, enemies: number): CampaignSurvivalRules {
+  const survival = value as Record<string, unknown> | null;
+  if (!survival || typeof survival !== "object") fail(`${where}.survival must be an object`);
+  const waves = survival.waves;
+  if (
+    !Array.isArray(waves) ||
+    waves.length === 0 ||
+    !waves.every(
+      (wave) =>
+        wave &&
+        typeof wave === "object" &&
+        positiveInteger(wave.robots, 16) &&
+        positiveInteger(wave.health, MAX_BOT_STAT),
+    )
+  )
+    fail(`${where}.survival.waves must list each wave's robots and health, as whole numbers from 1`);
+  if (Math.max(...(waves as CampaignSurvivalWave[]).map((wave) => wave.robots)) > enemies)
+    fail(`${where}.survival.waves needs as many enemy bots as its biggest wave`);
+  for (const key of ["waveSeconds", "seconds"] as const) {
+    if (!positiveInteger(survival[key], 3600)) fail(`${where}.survival.${key} must be a whole number from 1`);
+  }
+  const kits = survival.robotKits;
+  if (!Array.isArray(kits) || kits.length === 0) fail(`${where}.survival.robotKits must list at least one kit`);
+  const robotKits = (kits as unknown[]).map((value, i): CampaignRobotKit => {
+    const kit = value as Partial<CampaignRobotKit> | null;
+    const at = `${where}.survival.robotKits[${i}]`;
+    if (
+      !kit ||
+      !Array.isArray(kit.weapons) ||
+      kit.weapons.length === 0 ||
+      !kit.weapons.every((w) => typeof w === "string" && SURVIVAL_WEAPONS.includes(w))
+    )
+      fail(`${at}.weapons must list weapons from ${SURVIVAL_WEAPONS.join(", ")}`);
+    if (kit.ads !== undefined && typeof kit.ads !== "boolean") fail(`${at}.ads must be true or false`);
+    return { weapons: [...kit.weapons], ...(kit.ads === false ? { ads: false } : {}) };
+  });
+  return {
+    waves: (waves as CampaignSurvivalWave[]).map(({ robots, health }) => ({ robots, health })),
+    waveSeconds: survival.waveSeconds as number,
+    seconds: survival.seconds as number,
+    robotKits,
+  };
 }
 
 /**
@@ -92,6 +202,13 @@ export function parseCampaign(
     if (names.size !== bots.length) fail(`${where}: two bots share a name`);
     if (mission.side !== undefined && (mission.side !== "attack" || gametype !== "snd"))
       fail(`${where}.side may only be "attack", in snd`);
+    const limits = parseLimits(mission.limits, where);
+    if ((gametype === "survival") !== (mission.survival !== undefined))
+      fail(`${where}: a survival mission needs survival rules, and only it may have them`);
+    const survival =
+      mission.survival === undefined
+        ? undefined
+        : parseSurvival(mission.survival, where, bots.filter((bot) => bot.side === "enemy").length);
     return {
       id,
       number: index + 1,
@@ -101,6 +218,8 @@ export function parseCampaign(
       bots,
       models: parseModels(mission.models, where),
       ...(mission.side === "attack" ? { side: "attack" as const } : {}),
+      ...(limits ? { limits } : {}),
+      ...(survival ? { survival } : {}),
     };
   });
   return { length: length as number, missions };
@@ -144,11 +263,51 @@ export function roomUnlockedThrough(perMember: readonly number[]): number {
 /** What a campaign room and its match tell clients: the mission and how to draw everyone. */
 export function lobbyCampaignInfo(mission: CampaignMissionInfo): LobbyCampaignInfo {
   const botModels = Object.fromEntries(mission.bots.flatMap((bot) => (bot.model ? [[bot.name, bot.model]] : [])));
+  const botScales = Object.fromEntries(mission.bots.flatMap((bot) => (bot.scale ? [[bot.name, bot.scale]] : [])));
+  const slimeImmune = slimeImmuneBots(mission);
   return {
     missionId: mission.id,
     models: mission.models,
     ...(Object.keys(botModels).length ? { botModels } : {}),
+    ...(Object.keys(botScales).length ? { botScales } : {}),
+    ...(slimeImmune.length ? { slimeImmune } : {}),
   };
+}
+
+/** The names of a mission's bots slime and lava do not hurt. */
+function slimeImmuneBots(mission: CampaignMissionInfo): string[] {
+  return mission.bots.filter((bot) => bot.slimeImmune).map((bot) => bot.name);
+}
+
+/** What a campaign match's game server needs beyond its map and gametype; null when nothing. */
+export function campaignMatchRules(mission: CampaignMissionInfo): CampaignMatchRules | null {
+  const scales = Object.fromEntries(mission.bots.flatMap((bot) => (bot.scale ? [[bot.name, bot.scale]] : [])));
+  const randomKits = mission.bots.filter((bot) => bot.kit === "random").map((bot) => bot.name);
+  const spawnStats = Object.fromEntries(
+    mission.bots.flatMap((bot) =>
+      bot.health !== undefined || bot.armor !== undefined
+        ? [
+            [
+              bot.name,
+              {
+                ...(bot.health !== undefined ? { health: bot.health } : {}),
+                ...(bot.armor !== undefined ? { armor: bot.armor } : {}),
+              },
+            ],
+          ]
+        : [],
+    ),
+  );
+  const rules: CampaignMatchRules = {
+    ...(mission.side === "attack" ? { attack: true } : {}),
+    ...(mission.limits ?? {}),
+    ...(mission.survival ? { survival: mission.survival } : {}),
+    ...(Object.keys(scales).length ? { scales } : {}),
+    ...(randomKits.length ? { randomKits } : {}),
+    ...(Object.keys(spawnStats).length ? { spawnStats } : {}),
+    ...(slimeImmuneBots(mission).length ? { slimeImmune: slimeImmuneBots(mission) } : {}),
+  };
+  return Object.keys(rules).length ? rules : null;
 }
 
 export function campaignMission(catalog: CampaignCatalog, id: unknown): CampaignMissionInfo | undefined {

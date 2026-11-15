@@ -79,7 +79,8 @@ function validDetails(
   )
     return false;
   const ffa = report.gametype === "ffa";
-  if (!ffa && !["duel", "amphi", "snd"].includes(report.gametype)) return false;
+  // tdm and survival are played only by campaign missions, never rated
+  if (!ffa && !["duel", "amphi", "snd", "tdm", "survival"].includes(report.gametype)) return false;
   if (details.teams.length !== (ffa ? 0 : 2)) return false;
   const teams = new Map(details.teams.map((team) => [team.id, team]));
   if (!ffa && (!teams.has("udon") || !teams.has("soba"))) return false;

@@ -35,6 +35,7 @@
 
 import { MatchPhase } from "../../../../shared/server/gametype/GametypeTypes";
 import { AudioManager } from "../../../AudioManager";
+import { matchPlaylist } from "../../../audio/MatchPlaylist";
 import { MENU_PLAYLIST } from "../../../audio/MenuPlaylist";
 import { background } from "../../../core/AsyncErrors";
 import { devLog } from "../../../core/DevLog";
@@ -799,8 +800,8 @@ export class NetworkGameHost implements IGameHost {
             this._onJoinAccept = null;
           }
 
-          // Start Game Music
-          background(AudioManager.getInstance().loadPlaylist("data/game.playlist.json"), "NetworkGameHost");
+          // Start the match's music: the game playlist, or the one the game named for it
+          background(AudioManager.getInstance().loadPlaylist(matchPlaylist()), "NetworkGameHost");
 
           // Start ClockSync after confirmed connection
           this.clockSync.startSync();
@@ -937,7 +938,7 @@ export class NetworkGameHost implements IGameHost {
           // Post-game screen over (next warmup) — the endgame playlist loops
           // forever otherwise. Bring back the in-game music.
           devLog("[NetworkGameHost] Post-game over, restoring game music");
-          background(AudioManager.getInstance().loadPlaylist("data/game.playlist.json"), "NetworkGameHost");
+          background(AudioManager.getInstance().loadPlaylist(matchPlaylist()), "NetworkGameHost");
         }
         this.lastMatchPhase = currentPhase;
       }

@@ -73,6 +73,28 @@ describe("LagCompensation", () => {
     });
   });
 
+  describe("Player capsule", () => {
+    const capsuleOf = (lagComp: LagCompensation, id: number) =>
+      (
+        lagComp as unknown as {
+          getPlayerCapsule(entity: unknown): { base: { y: number }; tip: { y: number }; radius: number };
+        }
+      ).getPlayerCapsule({ id, transform: { position: { x: 0, y: 100, z: 0 } } });
+
+    it("keeps a normal player's capsule", () => {
+      const capsule = capsuleOf(new LagCompensation(), 1);
+      expect([capsule.base.y, capsule.tip.y, capsule.radius]).toEqual([100, 156, 16]);
+    });
+
+    it("scales a bigger player's capsule about its feet, as it is drawn", () => {
+      const lagComp = new LagCompensation();
+      lagComp.setCapsuleScale((id) => (id === 2 ? 2 : 1));
+      const capsule = capsuleOf(lagComp, 2);
+      // Feet at 100 - 24 = 76: the base twice as far above them, then twice the height and radius
+      expect([capsule.base.y, capsule.tip.y, capsule.radius]).toEqual([124, 236, 32]);
+    });
+  });
+
   describe("Client latency tracking", () => {
     it("should store half-RTT as one-way latency", () => {
       const lagComp = new LagCompensation();

@@ -9,6 +9,7 @@
  */
 
 import type { CollisionWorld } from "../../../engine/network/systems/collision/CollisionWorld";
+import { PLAYER_ORIGIN_HEIGHT } from "../../physics/PlayerPhysicsConstants";
 import type { WorldState } from "../core/WorldState";
 import type { Entity } from "../ecs/Entity";
 import type { EntityId, PlayerId, TickNumber } from "../ecs/types";
@@ -86,6 +87,8 @@ export class LagCompensation {
   private newestRecordedTick: number | null = null;
 
   private collisionWorld: CollisionWorld | null = null;
+
+  private capsuleScale: (entityId: EntityId) => number = () => 1;
 
   constructor(config: LagCompensationConfig = LAG_COMPENSATION) {
     this.config = config;
@@ -362,12 +365,23 @@ export class LagCompensation {
    */
   private getPlayerCapsule(entity: Readonly<Entity>): Capsule {
     const pos = entity.transform!.position;
+    const scale = this.capsuleScale(entity.id);
+    // A bigger body is a normal one scaled up about its feet, as it is drawn
+    const baseY = pos.y + PLAYER_ORIGIN_HEIGHT * (scale - 1);
 
     return {
-      base: { x: pos.x, y: pos.y, z: pos.z },
-      tip: { x: pos.x, y: pos.y + 56, z: pos.z }, // Standing height
-      radius: 16, // Player radius
+      base: { x: pos.x, y: baseY, z: pos.z },
+      tip: { x: pos.x, y: baseY + 56 * scale, z: pos.z }, // Standing height
+      radius: 16 * scale, // Player radius
     };
+  }
+
+  /**
+   * How many times the normal size a player's capsule is, by entity: a game
+   * with players bigger than others (a boss) supplies it. Everyone is 1 otherwise.
+   */
+  setCapsuleScale(scale: (entityId: EntityId) => number): void {
+    this.capsuleScale = scale;
   }
 
   /**
