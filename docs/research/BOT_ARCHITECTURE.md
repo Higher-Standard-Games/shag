@@ -300,7 +300,11 @@ step before showing no difference:
    deploy (a `bot:nav --build` step) would also spare the first match on a map
    its seconds without one.
 2. **Decide time measured** per bot, as percentiles, in `bot:motion` and
-   `bot:ab`.
+   `bot:ab`. Done 2026-11-16: `BotClient.timings` (`TimeHistogram`). The
+   washoi_snd1 match, five a side, 90 s: a snapshot p50 0.36 ms, p95 1.2–2.0 ms,
+   p99 2.9–4.1 ms, max 44 ms; a decision p50 0.13–0.18 ms, p99 2.0–2.4 ms,
+   max 43 ms. The tail matters more than the median: a 44 ms decision holds
+   the other bots' commands for five server ticks.
 3. **Hot spots, with no change in behaviour:** a spatial grid for nearest-node
    lookups, route costs reused for a short while, item sight checks at a lower
    rate.
