@@ -50,6 +50,7 @@ function makePlayer(overrides: Partial<any> = {}): { player: any; sent: any[] } 
 // biome-ignore lint/suspicious/noExplicitAny: reaches private lobby internals
 function setup(spawn: any = vi.fn()): { server: any; spawn: any } {
   const spawner = { onServerExit: undefined as unknown, spawn, shutdownAll: vi.fn(), reissueSeat: vi.fn() };
+  // biome-ignore lint/suspicious/noExplicitAny: reaches private lobby internals
   const server = new LobbyServer(0, spawner as never) as any;
   server.gametypes = [GAMETYPE];
   server.mapNames = MAP_NAMES;

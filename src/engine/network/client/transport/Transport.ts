@@ -38,34 +38,36 @@ export interface Transport {
 }
 
 /**
+ * Connect to `url` using the best available transport. `url` may use http/https;
+ * WebTransport internally rewrites to https and WebSocket rewrites to ws/wss.
+ */
+async function create(url: string): Promise<Transport> {
+  // Try WebTransport first (if available)
+  if ("WebTransport" in globalThis) {
+    try {
+      const { WebTransportTransport } = await import("./WebTransportTransport");
+      const transport = new WebTransportTransport();
+      await transport.connect(url);
+      return transport;
+    } catch (error) {
+      console.warn("WebTransport failed, falling back to WebSocket:", error);
+    }
+  }
+
+  // Fallback to WebSocket
+  const { WebSocketTransport } = await import("./WebSocketTransport");
+  const transport = new WebSocketTransport();
+  await transport.connect(url);
+  return transport;
+}
+
+/**
  * Factory that returns the best available Transport for the current runtime.
  *
  * Attempts WebTransport first (QUIC, supports unreliable datagrams for game traffic).
  * Falls back to WebSocketTransport if WebTransport is unavailable or its handshake
  * fails. The connection handshake is completed before the Transport is returned.
  */
-export class TransportFactory {
-  /**
-   * Connect to `url` using the best available transport. `url` may use http/https;
-   * WebTransport internally rewrites to https and WebSocket rewrites to ws/wss.
-   */
-  static async create(url: string): Promise<Transport> {
-    // Try WebTransport first (if available)
-    if ("WebTransport" in globalThis) {
-      try {
-        const { WebTransportTransport } = await import("./WebTransportTransport");
-        const transport = new WebTransportTransport();
-        await transport.connect(url);
-        return transport;
-      } catch (error) {
-        console.warn("WebTransport failed, falling back to WebSocket:", error);
-      }
-    }
-
-    // Fallback to WebSocket
-    const { WebSocketTransport } = await import("./WebSocketTransport");
-    const transport = new WebSocketTransport();
-    await transport.connect(url);
-    return transport;
-  }
-}
+export const TransportFactory = {
+  create,
+};

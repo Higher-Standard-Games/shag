@@ -51,11 +51,7 @@ import { RenderVars } from "../rendering/RenderVars";
 
 function resetState(): void {
   // Reset Cvar state
-  // biome-ignore lint/suspicious/noExplicitAny: test helper accessing private state
-  const CvarAny = Cvar as any;
-  CvarAny.cvars = new Map();
-  CvarAny.initialized = false;
-  CvarAny.consoleIntegration = null;
+  Cvar.clearAll();
 
   // Reset RenderVars singleton
   // biome-ignore lint/suspicious/noExplicitAny: test helper accessing private state

@@ -289,17 +289,6 @@
   --key-sub: hsla(46, 100%, 60%, 0.66);
 }
 
-/* Steps still to come: unlit, as the lobby draws a key you cannot use yet */
-.twin-key.is-pending .twin-key__face,
-.twin-key:disabled .twin-key__face {
-  filter: saturate(0.45) brightness(0.94);
-}
-
-.twin-key.is-pending :is(.twin-key__label, .twin-key__hint),
-.twin-key:disabled :is(.twin-key__label, .twin-key__hint) {
-  opacity: 0.5;
-}
-
 /* The utility row's small keys */
 .twin-key--util {
   --key-d: 3.6px;
@@ -318,6 +307,17 @@
 .twin-key--util .twin-key__label {
   font: 800 11px / 1 var(--w-font-display, "Orbitron", monospace);
   letter-spacing: 0.12em;
+}
+
+/* Steps still to come: unlit, as the lobby draws a key you cannot use yet */
+.twin-key.is-pending .twin-key__face,
+.twin-key:disabled .twin-key__face {
+  filter: saturate(0.45) brightness(0.94);
+}
+
+.twin-key.is-pending :is(.twin-key__label, .twin-key__hint),
+.twin-key:disabled :is(.twin-key__label, .twin-key__hint) {
+  opacity: 0.5;
 }
 
 button.twin-key:enabled {

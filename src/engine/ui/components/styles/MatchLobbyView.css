@@ -653,10 +653,6 @@
   font-weight: 900;
 }
 
-.match-lobby__roster--vs .match-lobby__seat--open .match-lobby__seat-name {
-  font-size: clamp(18px, 1.5vw, 24px);
-}
-
 .match-lobby__roster--vs .match-lobby__seat-state {
   padding: 8px 14px;
   font-size: 13px;
@@ -681,6 +677,11 @@
 .match-lobby__roster--ffa .match-lobby__seat-name {
   grid-column: 2;
   grid-row: 1;
+}
+
+/* An open seat's name: smaller in one on one, across both rows in free for all */
+.match-lobby__roster--vs .match-lobby__seat--open .match-lobby__seat-name {
+  font-size: clamp(18px, 1.5vw, 24px);
 }
 
 .match-lobby__roster--ffa .match-lobby__seat--open .match-lobby__seat-name {
@@ -822,24 +823,6 @@
   padding: 0;
 }
 
-.raised-key--map-empty {
-  --key-face: hsl(250 23% 16%);
-  --key-side: hsl(250 20% 11%);
-  opacity: 0.55;
-}
-
-.raised-key--map-empty .match-lobby__map-shot {
-  display: grid;
-  place-items: center;
-  background: repeating-linear-gradient(135deg, transparent 0 16px, hsla(250, 15%, 70%, 0.04) 16px 32px);
-  color: hsla(250, 15%, 80%, 0.25);
-  font: 900 64px / 1 var(--w-font-display, "Orbitron", monospace);
-}
-
-.raised-key--map-empty .match-lobby__map-info {
-  color: hsla(45, 30%, 90%, 0.55);
-}
-
 .match-lobby__map-shot {
   position: relative;
   flex: 1;
@@ -938,6 +921,24 @@
   color: var(--key-sub);
 }
 
+.raised-key--map-empty {
+  --key-face: hsl(250 23% 16%);
+  --key-side: hsl(250 20% 11%);
+  opacity: 0.55;
+}
+
+.raised-key--map-empty .match-lobby__map-shot {
+  display: grid;
+  place-items: center;
+  background: repeating-linear-gradient(135deg, transparent 0 16px, hsla(250, 15%, 70%, 0.04) 16px 32px);
+  color: hsla(250, 15%, 80%, 0.25);
+  font: 900 64px / 1 var(--w-font-display, "Orbitron", monospace);
+}
+
+.raised-key--map-empty .match-lobby__map-info {
+  color: hsla(45, 30%, 90%, 0.55);
+}
+
 .raised-key--map[aria-pressed="true"] {
   --key-press: -0.5;
   --key-face: linear-gradient(180deg, var(--accent-hi), var(--accent) 58%, var(--accent-lo));
@@ -998,15 +999,6 @@
   font-size: 12px;
 }
 
-/* Ready sits at the right, with Rejoin beside it when there is one */
-.match-lobby__recover {
-  margin-left: auto;
-}
-
-.match-lobby__recover:not([hidden]) + .raised-key--ready {
-  margin-left: 0;
-}
-
 .raised-key--leave {
   --key-text: var(--danger);
   --key-sub: hsla(356, 70%, 38%, 0.7);
@@ -1032,6 +1024,15 @@
   flex: 0 0 auto;
   width: auto;
   margin: 0 calc(var(--key-dx) + 4px) var(--key-d) auto;
+}
+
+/* Ready sits at the right, with Rejoin beside it when there is one */
+.match-lobby__recover {
+  margin-left: auto;
+}
+
+.match-lobby__recover:not([hidden]) + .raised-key--ready {
+  margin-left: 0;
 }
 
 .raised-key--ready .raised-key__face {

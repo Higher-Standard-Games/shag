@@ -3,9 +3,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { Cvar } from "../core/Cvar";
 
 const reset = () => {
-  Reflect.set(Cvar, "cvars", new Map());
-  Reflect.set(Cvar, "initialized", false);
-  Reflect.set(Cvar, "consoleIntegration", null);
+  Cvar.clearAll();
 };
 beforeEach(() => {
   reset();

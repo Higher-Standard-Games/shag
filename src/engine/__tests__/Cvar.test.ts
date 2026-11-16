@@ -13,12 +13,7 @@ import { Cvar, type CvarValue } from "../core/Cvar";
 
 /** Clear all Cvar state between tests */
 function resetCvarState(): void {
-  // Access private static state to reset between tests
-  // biome-ignore lint/suspicious/noExplicitAny: test helper accessing private state
-  const CvarAny = Cvar as any;
-  CvarAny.cvars = new Map();
-  CvarAny.initialized = false;
-  CvarAny.consoleIntegration = null;
+  Cvar.clearAll();
 }
 
 // Mock localStorage

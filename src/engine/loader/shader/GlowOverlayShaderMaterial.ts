@@ -135,137 +135,145 @@ function ensureShaderRegistered(): void {
   shaderRegistered = true;
 }
 
+/**
+ * Create a glow overlay shader material
+ *
+ * @param name Material name
+ * @param scene Babylon scene
+ * @param baseTexture Base/diffuse texture
+ * @param lightmapTexture Lightmap texture (can be null)
+ * @param glowTexture Additive glow texture
+ * @param lightmapIntensity Lightmap brightness multiplier (default 2.0)
+ * @param glowIntensity Glow brightness multiplier (default 1.0)
+ * @param useAlphaBlend If true, use alpha blend mode instead of additive
+ */
+function create(
+  name: string,
+  scene: Scene,
+  baseTexture: Texture,
+  lightmapTexture: Texture | null,
+  glowTexture: Texture,
+  lightmapIntensity: number = 2.0,
+  glowIntensity: number = 1.0,
+  useAlphaBlend: boolean = false,
+): ShaderMaterial {
+  ensureShaderRegistered();
+
+  const material = new ShaderMaterial(
+    name,
+    scene,
+    {
+      vertex: "glowOverlay",
+      fragment: "glowOverlay",
+    },
+    {
+      attributes: ["position", "uv", "uv2"],
+      uniforms: [
+        "worldViewProjection",
+        "world",
+        ...ATM_FOG_SHADER_UNIFORMS,
+        "baseMatrix",
+        "glowMatrix",
+        "uvOffset",
+        "glowUvOffset",
+        "lightmapIntensity",
+        "glowIntensity",
+        "hasLightmap",
+        "glowBlendMode",
+      ],
+      samplers: ["baseSampler", "lightmapSampler", "glowSampler"],
+    },
+  );
+
+  // Set textures
+  material.setTexture("baseSampler", baseTexture);
+  material.setTexture("glowSampler", glowTexture);
+  // Match the StandardMaterial UV contract, including independently oriented
+  // compressed textures. Rebind even when frozen; Babylon owns this observer's
+  // lifetime. BSP lightmaps retain their dedicated, untransformed UV2 path.
+  material.onBindObservable.add(() => {
+    const effect = material.getEffect();
+    effect?.setMatrix("baseMatrix", baseTexture.getTextureMatrix());
+    effect?.setMatrix("glowMatrix", glowTexture.getTextureMatrix());
+  });
+
+  if (lightmapTexture) {
+    material.setTexture("lightmapSampler", lightmapTexture);
+    material.setFloat("hasLightmap", 1.0);
+  } else {
+    // Need a dummy texture for the sampler
+    material.setTexture("lightmapSampler", baseTexture);
+    material.setFloat("hasLightmap", 0.0);
+  }
+
+  // Set uniforms
+  material.setFloat("lightmapIntensity", lightmapIntensity);
+  material.setFloat("glowIntensity", glowIntensity);
+  material.setFloat("glowBlendMode", useAlphaBlend ? 1.0 : 0.0);
+  material.setVector2("uvOffset", { x: 0, y: 0 });
+  material.setVector2("glowUvOffset", { x: 0, y: 0 });
+
+  // Default settings
+  material.backFaceCulling = true;
+
+  bindAtmosphericFog(material);
+  return material;
+}
+
+/** Read the lightmap from array layers, the layer in lightmap U as `u + 2 * layer`. */
+function useLayeredLightmap(material: ShaderMaterial, layers: BaseTexture): void {
+  if (!material.options.defines.includes("#define LAYERED_LIGHTMAP")) {
+    material.options.defines.push("#define LAYERED_LIGHTMAP");
+  }
+  material.setTexture("lightmapSampler", layers);
+  material.setFloat("hasLightmap", 1.0);
+}
+
+/**
+ * Update UV offset for animation (tcMod scroll)
+ */
+function setUvOffset(material: ShaderMaterial, u: number, v: number): void {
+  material.setVector2("uvOffset", { x: u, y: v });
+}
+
+/**
+ * Update glow UV offset separately (if glow has different animation)
+ */
+function setGlowUvOffset(material: ShaderMaterial, u: number, v: number): void {
+  material.setVector2("glowUvOffset", { x: u, y: v });
+}
+
+/**
+ * Update lightmap intensity
+ */
+function setLightmapIntensity(material: ShaderMaterial, intensity: number): void {
+  material.setFloat("lightmapIntensity", intensity);
+}
+
+/**
+ * Update glow intensity
+ */
+function setGlowIntensity(material: ShaderMaterial, intensity: number): void {
+  material.setFloat("glowIntensity", intensity);
+}
+
+/**
+ * Toggle between additive (0) and alpha blend (1) modes
+ */
+function setGlowBlendMode(material: ShaderMaterial, useAlphaBlend: boolean): void {
+  material.setFloat("glowBlendMode", useAlphaBlend ? 1.0 : 0.0);
+}
+
 // ============================================================================
 // GlowOverlayShaderMaterial
 // ============================================================================
 
-export class GlowOverlayShaderMaterial {
-  /**
-   * Create a glow overlay shader material
-   *
-   * @param name Material name
-   * @param scene Babylon scene
-   * @param baseTexture Base/diffuse texture
-   * @param lightmapTexture Lightmap texture (can be null)
-   * @param glowTexture Additive glow texture
-   * @param lightmapIntensity Lightmap brightness multiplier (default 2.0)
-   * @param glowIntensity Glow brightness multiplier (default 1.0)
-   * @param useAlphaBlend If true, use alpha blend mode instead of additive
-   */
-  static create(
-    name: string,
-    scene: Scene,
-    baseTexture: Texture,
-    lightmapTexture: Texture | null,
-    glowTexture: Texture,
-    lightmapIntensity: number = 2.0,
-    glowIntensity: number = 1.0,
-    useAlphaBlend: boolean = false,
-  ): ShaderMaterial {
-    ensureShaderRegistered();
-
-    const material = new ShaderMaterial(
-      name,
-      scene,
-      {
-        vertex: "glowOverlay",
-        fragment: "glowOverlay",
-      },
-      {
-        attributes: ["position", "uv", "uv2"],
-        uniforms: [
-          "worldViewProjection",
-          "world",
-          ...ATM_FOG_SHADER_UNIFORMS,
-          "baseMatrix",
-          "glowMatrix",
-          "uvOffset",
-          "glowUvOffset",
-          "lightmapIntensity",
-          "glowIntensity",
-          "hasLightmap",
-          "glowBlendMode",
-        ],
-        samplers: ["baseSampler", "lightmapSampler", "glowSampler"],
-      },
-    );
-
-    // Set textures
-    material.setTexture("baseSampler", baseTexture);
-    material.setTexture("glowSampler", glowTexture);
-    // Match the StandardMaterial UV contract, including independently oriented
-    // compressed textures. Rebind even when frozen; Babylon owns this observer's
-    // lifetime. BSP lightmaps retain their dedicated, untransformed UV2 path.
-    material.onBindObservable.add(() => {
-      const effect = material.getEffect();
-      effect?.setMatrix("baseMatrix", baseTexture.getTextureMatrix());
-      effect?.setMatrix("glowMatrix", glowTexture.getTextureMatrix());
-    });
-
-    if (lightmapTexture) {
-      material.setTexture("lightmapSampler", lightmapTexture);
-      material.setFloat("hasLightmap", 1.0);
-    } else {
-      // Need a dummy texture for the sampler
-      material.setTexture("lightmapSampler", baseTexture);
-      material.setFloat("hasLightmap", 0.0);
-    }
-
-    // Set uniforms
-    material.setFloat("lightmapIntensity", lightmapIntensity);
-    material.setFloat("glowIntensity", glowIntensity);
-    material.setFloat("glowBlendMode", useAlphaBlend ? 1.0 : 0.0);
-    material.setVector2("uvOffset", { x: 0, y: 0 });
-    material.setVector2("glowUvOffset", { x: 0, y: 0 });
-
-    // Default settings
-    material.backFaceCulling = true;
-
-    bindAtmosphericFog(material);
-    return material;
-  }
-
-  /** Read the lightmap from array layers, the layer in lightmap U as `u + 2 * layer`. */
-  static useLayeredLightmap(material: ShaderMaterial, layers: BaseTexture): void {
-    if (!material.options.defines.includes("#define LAYERED_LIGHTMAP")) {
-      material.options.defines.push("#define LAYERED_LIGHTMAP");
-    }
-    material.setTexture("lightmapSampler", layers);
-    material.setFloat("hasLightmap", 1.0);
-  }
-
-  /**
-   * Update UV offset for animation (tcMod scroll)
-   */
-  static setUvOffset(material: ShaderMaterial, u: number, v: number): void {
-    material.setVector2("uvOffset", { x: u, y: v });
-  }
-
-  /**
-   * Update glow UV offset separately (if glow has different animation)
-   */
-  static setGlowUvOffset(material: ShaderMaterial, u: number, v: number): void {
-    material.setVector2("glowUvOffset", { x: u, y: v });
-  }
-
-  /**
-   * Update lightmap intensity
-   */
-  static setLightmapIntensity(material: ShaderMaterial, intensity: number): void {
-    material.setFloat("lightmapIntensity", intensity);
-  }
-
-  /**
-   * Update glow intensity
-   */
-  static setGlowIntensity(material: ShaderMaterial, intensity: number): void {
-    material.setFloat("glowIntensity", intensity);
-  }
-
-  /**
-   * Toggle between additive (0) and alpha blend (1) modes
-   */
-  static setGlowBlendMode(material: ShaderMaterial, useAlphaBlend: boolean): void {
-    material.setFloat("glowBlendMode", useAlphaBlend ? 1.0 : 0.0);
-  }
-}
+export const GlowOverlayShaderMaterial = {
+  create,
+  useLayeredLightmap,
+  setUvOffset,
+  setGlowUvOffset,
+  setLightmapIntensity,
+  setGlowIntensity,
+  setGlowBlendMode,
+};

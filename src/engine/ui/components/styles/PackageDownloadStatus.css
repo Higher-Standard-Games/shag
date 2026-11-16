@@ -89,7 +89,9 @@
 @media (prefers-reduced-motion: reduce) {
   .package-downloads__fill {
     transition: none;
-    animation: none !important;
+  }
+  .package-downloads__bar--unknown .package-downloads__fill {
+    animation: none;
   }
 }
 @media (max-width: 600px) {

@@ -103,6 +103,19 @@
   background: #fff8;
   pointer-events: none;
 }
+.shagged__menu {
+  position: relative;
+}
+.shagged__menu > summary {
+  list-style: none;
+}
+.shagged__menu > summary::-webkit-details-marker {
+  display: none;
+}
+.shagged__menu > summary::after {
+  content: " ▾";
+  margin-left: 3px;
+}
 .shagged__toolbar button:hover:not(:disabled),
 .shagged__toolbar button.active,
 .shagged__toolbar summary.active,
@@ -154,19 +167,6 @@
 }
 .shagged__toolbar select[data-entity-class] {
   max-width: 145px;
-}
-.shagged__menu {
-  position: relative;
-}
-.shagged__menu > summary {
-  list-style: none;
-}
-.shagged__menu > summary::-webkit-details-marker {
-  display: none;
-}
-.shagged__menu > summary::after {
-  content: " ▾";
-  margin-left: 3px;
 }
 .shagged__menu-panel {
   position: absolute;
@@ -479,6 +479,37 @@
 .shagged__inspector .shagged__warning[hidden] {
   display: none;
 }
+.shagged__view-modes {
+  position: absolute;
+  z-index: 1;
+  top: 6px;
+  right: 8px;
+  display: flex;
+  pointer-events: auto;
+}
+.shagged__view-modes button {
+  padding: 3px 8px;
+  background: #0b1424dd;
+  color: #9fb5c5;
+  border: 1px solid #47768b;
+  font:
+    900 10px "Orbitron",
+    monospace;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+.shagged__view-modes button + button {
+  border-left: 0;
+}
+.shagged__view-modes button:hover {
+  color: #e8fbff;
+}
+.shagged__view-modes button.active {
+  color: #101022;
+  background: #ffc61a;
+  border-color: #ffc61a;
+}
 .shagged__faces {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -515,37 +546,6 @@
 }
 .shagged__faces button.active b {
   color: #101022;
-}
-.shagged__view-modes {
-  position: absolute;
-  z-index: 1;
-  top: 6px;
-  right: 8px;
-  display: flex;
-  pointer-events: auto;
-}
-.shagged__view-modes button {
-  padding: 3px 8px;
-  background: #0b1424dd;
-  color: #9fb5c5;
-  border: 1px solid #47768b;
-  font:
-    900 10px "Orbitron",
-    monospace;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  cursor: pointer;
-}
-.shagged__view-modes button + button {
-  border-left: 0;
-}
-.shagged__view-modes button:hover {
-  color: #e8fbff;
-}
-.shagged__view-modes button.active {
-  color: #101022;
-  background: #ffc61a;
-  border-color: #ffc61a;
 }
 .shagged__inspector .shagged__faces-head {
   margin: 16px 0 0;

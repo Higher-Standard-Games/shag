@@ -58,580 +58,621 @@ export interface ClientPrefs {
   autoSwitch: boolean;
 }
 
-export class MessageCodec {
-  /**
-   * Encode a snapshot message (Server → Client)
-   * Format: [Snapshot=0x0b][hasBaseline:u8][baselineTick:u32][raw snapshot]
-   * A distinct message type keeps pre-baseline peers from misreading the header.
-   * BinaryProtocol's raw format is deliberately unchanged for recorded demos.
-   */
-  static encodeSnapshot(state: GameState, baseline?: GameState): Uint8Array {
-    return BinaryProtocol.encodeSnapshot(state, baseline, (encoder) => {
-      encoder.writeUint8(MessageType.Snapshot);
-      encoder.writeUint8(baseline ? 1 : 0);
-      encoder.writeUint32(baseline?.tick ?? 0);
-    });
-  }
-
-  /**
-   * Read the dependency identity before attempting component reconstruction.
-   */
-  static readSnapshotHeader(data: Uint8Array): SnapshotHeader {
-    const decoder = new BinaryDecoder(data);
-    const messageType = decoder.readUint8();
-    if (messageType === MessageType.LegacySnapshot) {
-      throw new Error("Unsupported legacy network snapshot: update server and clients together");
-    }
-    if (messageType !== MessageType.Snapshot) {
-      throw new Error(
-        `Expected Snapshot message (0x${MessageType.Snapshot.toString(16)}), got 0x${messageType.toString(16)}`,
-      );
-    }
-    const hasBaseline = decoder.readUint8();
-    const baselineTick = decoder.readUint32();
-    if (hasBaseline > 1 || (hasBaseline === 0 && baselineTick !== 0)) {
-      throw new Error("Invalid snapshot baseline header");
-    }
-    return { tick: decoder.readUint32(), baselineTick: hasBaseline ? baselineTick : null };
-  }
-
-  static decodeSnapshot(data: Uint8Array, baselines?: GameState | ReadonlyMap<number, GameState>): GameState {
-    const header = MessageCodec.readSnapshotHeader(data);
-    let baseline: GameState | undefined;
-    if (header.baselineTick !== null) {
-      baseline = baselines && "tick" in baselines ? baselines : baselines?.get(header.baselineTick);
-      if (!baseline || baseline.tick !== header.baselineTick) {
-        throw new MissingSnapshotBaselineError(header.baselineTick);
-      }
-    }
-    // Full snapshots ignore any supplied history, including stale grounded and
-    // rotation values. Never decode a delta against an arbitrary latest state.
-    return BinaryProtocol.decodeSnapshot(data.subarray(SNAPSHOT_HEADER_BYTES), baseline);
-  }
-
-  /**
-   * Encode a command/input message (Client → Server)
-   * Format: [MessageType.Input][playerId][sequence][command...]
-   */
-  static encodeCommand(playerId: string, sequence: number, command: NetworkCommand): Uint8Array {
-    return BinaryProtocol.encodeCommand(playerId, sequence, command, writeInputType);
-  }
-
-  /**
-   * Read just the sequence number of an input message, or null when the bytes
-   * don't look like one. Clients send each command three times, so the server
-   * checks this first and skips the full decode for the copies it has seen.
-   * Layout: [MessageType.Input][u16 playerId length][playerId][u32 sequence], little-endian.
-   */
-  static peekCommandSeq(data: Uint8Array): number | null {
-    if (data.length < 3 || data[0] !== MessageType.Input) return null;
-    const at = 3 + (data[1] | (data[2] << 8));
-    if (data.length < at + 4) return null;
-    return (data[at] | (data[at + 1] << 8) | (data[at + 2] << 16)) + data[at + 3] * 0x1000000;
-  }
-
-  /**
-   * Decode a command message
-   */
-  static decodeCommand(data: Uint8Array): { playerId: string; sequence: number; command: NetworkCommand } {
-    const decoder = new BinaryDecoder(data);
-    const messageType = decoder.readUint8();
-    if (messageType !== MessageType.Input) {
-      throw new Error(
-        `Expected Input message (0x${MessageType.Input.toString(16)}), got 0x${messageType.toString(16)}`,
-      );
-    }
-    const remaining = data.subarray(decoder.getOffset());
-    return BinaryProtocol.decodeCommand(remaining);
-  }
-
-  /**
-   * Encode a welcome message (Server → Client on connect)
-   */
-  static encodeWelcome(
-    serverId: string,
-    serverName: string,
-    map: string,
-    tickRate: number,
-    maxPlayers: number,
-    currentPlayers: number,
-  ): Uint8Array {
-    // Never truncate an unsupported rate (e.g. 381Hz) into a valid 125Hz
-    // handshake. Zero remains encodable so receivers can reject it explicitly.
-    if (!Number.isInteger(tickRate) || tickRate < 0 || tickRate > 255) {
-      throw new Error(`Welcome tick rate must be an integer byte, got ${tickRate}`);
-    }
-    const encoder = envelope();
-    encoder.writeUint8(MessageType.Welcome);
-    encoder.writeString(serverId);
-    encoder.writeString(serverName);
-    encoder.writeString(map);
-    encoder.writeUint8(tickRate);
-    encoder.writeUint8(maxPlayers);
-    encoder.writeUint8(currentPlayers);
-    return encoder.getData();
-  }
-
-  /**
-   * Decode a welcome message
-   */
-  static decodeWelcome(data: Uint8Array): {
-    serverId: string;
-    serverName: string;
-    map: string;
-    tickRate: number;
-    maxPlayers: number;
-    currentPlayers: number;
-  } {
-    const decoder = new BinaryDecoder(data);
-    const messageType = decoder.readUint8();
-    if (messageType !== MessageType.Welcome) {
-      throw new Error(`Expected Welcome message, got 0x${messageType.toString(16)}`);
-    }
-    return {
-      serverId: decoder.readString(),
-      serverName: decoder.readString(),
-      map: decoder.readString(),
-      tickRate: decoder.readUint8(),
-      maxPlayers: decoder.readUint8(),
-      currentPlayers: decoder.readUint8(),
-    };
-  }
-
-  /**
-   * Encode a join message (Client → Server)
-   */
-  static encodeJoin(playerName: string, isBot = false, admissionTicket?: string): Uint8Array {
-    const encoder = envelope();
-    encoder.writeUint8(MessageType.Join);
-    encoder.writeString(playerName);
-    // Trailing bot flag — optional so older clients (no byte) still decode.
-    encoder.writeUint8(isBot ? 1 : 0);
-    if (admissionTicket) encoder.writeString(admissionTicket);
-    return encoder.getData();
-  }
-
-  /**
-   * Decode a join message. The bot flag is optional for backward compatibility
-   * with clients that predate it (absent byte → human).
-   */
-  static decodeJoin(data: Uint8Array): { playerName: string; isBot: boolean; admissionTicket?: string } {
-    const decoder = new BinaryDecoder(data);
-    const messageType = decoder.readUint8();
-    if (messageType !== MessageType.Join) {
-      throw new Error(`Expected Join message, got 0x${messageType.toString(16)}`);
-    }
-    const playerName = decoder.readString();
-    const isBot = decoder.hasMore() ? decoder.readUint8() !== 0 : false;
-    const admissionTicket = decoder.hasMore() ? decoder.readString() : undefined;
-    return { playerName, isBot, admissionTicket };
-  }
-
-  /**
-   * Encode a join accept message (Server → Client)
-   */
-  static encodeJoinAccept(clientId: string, playerId: string, entityId: string): Uint8Array {
-    const encoder = envelope();
-    encoder.writeUint8(MessageType.JoinAccept);
-    encoder.writeString(clientId);
-    encoder.writeString(playerId);
-    encoder.writeString(entityId);
-    return encoder.getData();
-  }
-
-  /**
-   * Decode a join accept message
-   */
-  static decodeJoinAccept(data: Uint8Array): { clientId: string; playerId: string; entityId: string } {
-    const decoder = new BinaryDecoder(data);
-    const messageType = decoder.readUint8();
-    if (messageType !== MessageType.JoinAccept) {
-      throw new Error(`Expected JoinAccept message, got 0x${messageType.toString(16)}`);
-    }
-    return {
-      clientId: decoder.readString(),
-      playerId: decoder.readString(),
-      entityId: decoder.readString(),
-    };
-  }
-
-  /**
-   * Encode the token a client resumes its session with (Server → Client).
-   *
-   * Sent once per accepted join. A connection that drops keeps its player, entity
-   * and score on the server for `graceMs`; presenting this token takes that seat
-   * back instead of joining as someone new.
-   */
-  static encodeResumeToken(token: string, graceMs: number): Uint8Array {
-    const encoder = envelope();
-    encoder.writeUint8(MessageType.ResumeToken);
-    encoder.writeString(token);
-    encoder.writeUint32(graceMs);
-    return encoder.getData();
-  }
-
-  static decodeResumeToken(data: Uint8Array): { token: string; graceMs: number } {
-    const decoder = new BinaryDecoder(data);
-    const messageType = decoder.readUint8();
-    if (messageType !== MessageType.ResumeToken) {
-      throw new Error(`Expected ResumeToken message, got 0x${messageType.toString(16)}`);
-    }
-    return { token: decoder.readString(), graceMs: decoder.readUint32() };
-  }
-
-  /**
-   * Encode the match's pause state (Server → Client), sent to everyone when it
-   * changes and to each client that joins or resumes while paused. No snapshot
-   * goes out while the match is paused, so this is how a client learns it.
-   */
-  static encodePause(notice: MatchPauseNotice): Uint8Array {
-    const encoder = envelope();
-    encoder.writeUint8(MessageType.Pause);
-    encoder.writeUint8(PAUSE_STATES.indexOf(notice.state));
-    encoder.writeUint32(Math.max(0, Math.round(notice.msLeft)));
-    encoder.writeString(notice.caller);
-    encoder.writeUint8(notice.forDrop ? 1 : 0);
-    return encoder.getData();
-  }
-
-  static decodePause(data: Uint8Array): MatchPauseNotice {
-    const decoder = new BinaryDecoder(data);
-    const messageType = decoder.readUint8();
-    if (messageType !== MessageType.Pause) {
-      throw new Error(`Expected Pause message, got 0x${messageType.toString(16)}`);
-    }
-    const state = PAUSE_STATES[decoder.readUint8()];
-    if (!state) throw new Error("Unknown pause state");
-    return { state, msLeft: decoder.readUint32(), caller: decoder.readString(), forDrop: decoder.readUint8() === 1 };
-  }
-
-  /**
-   * Encode one chat line sent while the match is paused (Server → Client). A
-   * running match carries chat in its snapshots; a paused one sends none.
-   */
-  static encodePausedChat(chat: { senderId: string; senderName: string; team: string; text: string }): Uint8Array {
-    const encoder = envelope();
-    encoder.writeUint8(MessageType.PausedChat);
-    encoder.writeString(chat.senderId);
-    encoder.writeString(chat.senderName);
-    encoder.writeString(chat.team);
-    encoder.writeString(chat.text);
-    return encoder.getData();
-  }
-
-  static decodePausedChat(data: Uint8Array): { senderId: string; senderName: string; team: string; text: string } {
-    const decoder = new BinaryDecoder(data);
-    const messageType = decoder.readUint8();
-    if (messageType !== MessageType.PausedChat) {
-      throw new Error(`Expected PausedChat message, got 0x${messageType.toString(16)}`);
-    }
-    return {
-      senderId: decoder.readString(),
-      senderName: decoder.readString(),
-      team: decoder.readString(),
-      text: decoder.readString(),
-    };
-  }
-
-  /** Encode a player calling a timeout (`true`) or time in (Client → Server). */
-  static encodeCallPause(timeout: boolean): Uint8Array {
-    const encoder = envelope();
-    encoder.writeUint8(MessageType.CallPause);
-    encoder.writeUint8(timeout ? 1 : 0);
-    return encoder.getData();
-  }
-
-  static decodeCallPause(data: Uint8Array): { timeout: boolean } {
-    const decoder = new BinaryDecoder(data);
-    const messageType = decoder.readUint8();
-    if (messageType !== MessageType.CallPause) {
-      throw new Error(`Expected CallPause message, got 0x${messageType.toString(16)}`);
-    }
-    return { timeout: decoder.readUint8() === 1 };
-  }
-
-  /** Encode a claim on a suspended session (Client → Server). */
-  static encodeResume(token: string): Uint8Array {
-    const encoder = envelope();
-    encoder.writeUint8(MessageType.Resume);
-    encoder.writeString(token);
-    return encoder.getData();
-  }
-
-  static decodeResume(data: Uint8Array): { token: string } {
-    const decoder = new BinaryDecoder(data);
-    const messageType = decoder.readUint8();
-    if (messageType !== MessageType.Resume) {
-      throw new Error(`Expected Resume message, got 0x${messageType.toString(16)}`);
-    }
-    return { token: decoder.readString() };
-  }
-
-  /**
-   * Encode acknowledgment message (Client → Server)
-   */
-  static encodeAck(tick: number): Uint8Array {
-    const encoder = envelope();
-    encoder.writeUint8(MessageType.Ack);
-    encoder.writeUint32(tick);
-    return encoder.getData();
-  }
-
-  /**
-   * Decode acknowledgment message
-   */
-  static decodeAck(data: Uint8Array): { tick: number } {
-    const decoder = new BinaryDecoder(data);
-    const messageType = decoder.readUint8();
-    if (messageType !== MessageType.Ack) {
-      throw new Error(`Expected Ack message, got 0x${messageType.toString(16)}`);
-    }
-    return {
-      tick: decoder.readUint32(),
-    };
-  }
-
-  /**
-   * Encode a ready message (Client → Server)
-   * Simple 1-byte message — the server identifies the sender by connection.
-   */
-  static encodeReady(): Uint8Array {
-    const encoder = envelope();
-    encoder.writeUint8(MessageType.Ready);
-    return encoder.getData();
-  }
-
-  /**
-   * Get message type from raw data without consuming it
-   */
-  static peekMessageType(data: Uint8Array): MessageType {
-    if (data.length === 0) {
-      throw new Error("Empty message data");
-    }
-    return data[0] as MessageType;
-  }
-
-  /**
-   * Encode a JoinGame message (Client → Server)
-   * Sent when spectator wants to enter the game.
-   */
-  static encodeJoinGame(teamId?: string, manualPick = false, admissionTicket?: string): Uint8Array {
-    const encoder = envelope();
-    encoder.writeUint8(MessageType.JoinGame);
-    if (teamId) {
-      // Widens the old has-team flag rather than adding a byte: 1 is a side the
-      // LOBBY assigned, 2 is one the player picked in-game. The server balances
-      // only the second — a lobby has already balanced its roster, and judging
-      // its players one at a time as they trickle in rejects the very
-      // assignment being delivered. An older client sends 1, which reads as
-      // lobby-assigned, so it keeps the more permissive behaviour.
-      encoder.writeUint8(manualPick ? 2 : 1);
-      encoder.writeString(teamId);
-    } else {
-      encoder.writeUint8(0);
-    }
-    // A seat claimed by someone already connected as a spectator: a player
-    // dropping into a running lobby match. Trailing and optional, like the
-    // ticket in Join.
-    if (admissionTicket) encoder.writeString(admissionTicket);
-    return encoder.getData();
-  }
-
-  /**
-   * Decode a JoinGame message
-   */
-  static decodeJoinGame(data: Uint8Array): { teamId?: string; manualPick: boolean; admissionTicket?: string } {
-    const decoder = new BinaryDecoder(data);
-    const messageType = decoder.readUint8();
-    if (messageType !== MessageType.JoinGame) {
-      throw new Error(`Expected JoinGame message, got 0x${messageType.toString(16)}`);
-    }
-    const teamFlag = decoder.readUint8();
-    const teamId = teamFlag > 0 ? decoder.readString() : undefined;
-    return {
-      teamId,
-      manualPick: teamFlag === 2,
-      admissionTicket: decoder.hasMore() ? decoder.readString() : undefined,
-    };
-  }
-
-  /**
-   * Encode a Spectate message (Client → Server)
-   * Sent when player wants to leave game and become spectator.
-   * Simple 1-byte message — server identifies sender by connection.
-   */
-  static encodeSpectate(): Uint8Array {
-    const encoder = envelope();
-    encoder.writeUint8(MessageType.Spectate);
-    return encoder.getData();
-  }
-
-  /**
-   * Encode a RequestSpawn message (Client → Server)
-   * Sent when dead player wants to respawn (after cooldown).
-   * Simple 1-byte message — server identifies sender by connection.
-   */
-  static encodeRequestSpawn(): Uint8Array {
-    const encoder = envelope();
-    encoder.writeUint8(MessageType.RequestSpawn);
-    return encoder.getData();
-  }
-
-  /**
-   * Encode a SetLoadout message (Client → Server)
-   *
-   * The chosen spawn kit, as weapon ids. Sent when the selection changes;
-   * the server grants the selection at the next spawn.
-   * Format: [MessageType.SetLoadout][primary: string][secondary: string]
-   */
-  static encodeSetLoadout(primary: string, secondary: string): Uint8Array {
-    const encoder = envelope();
-    encoder.writeUint8(MessageType.SetLoadout);
-    encoder.writeString(primary);
-    encoder.writeString(secondary);
-    return encoder.getData();
-  }
-
-  /** Decode a SetLoadout message. Validation is the gametype's job, not ours. */
-  static decodeSetLoadout(data: Uint8Array): { primary: string; secondary: string } {
-    const decoder = new BinaryDecoder(data);
-    const messageType = decoder.readUint8();
-    if (messageType !== MessageType.SetLoadout) {
-      throw new Error(`Expected SetLoadout message, got 0x${messageType.toString(16)}`);
-    }
-    return { primary: decoder.readString(), secondary: decoder.readString() };
-  }
-
-  /**
-   * Encode a ClientPrefs message (Client → Server)
-   *
-   * Preferences the server has to act on for this player. Sent after every
-   * JoinAccept and whenever one changes. A server that does not know the
-   * message ignores it, and the defaults (all bits clear) are the old behaviour.
-   * Format: [MessageType.ClientPrefs][flags: uint8]
-   *   bit 0: do not switch to a weapon on pickup
-   */
-  static encodeClientPrefs(prefs: ClientPrefs): Uint8Array {
-    const encoder = envelope();
-    encoder.writeUint8(MessageType.ClientPrefs);
-    encoder.writeUint8(prefs.autoSwitch ? 0 : 1);
-    return encoder.getData();
-  }
-
-  static decodeClientPrefs(data: Uint8Array): ClientPrefs {
-    const decoder = new BinaryDecoder(data);
-    const messageType = decoder.readUint8();
-    if (messageType !== MessageType.ClientPrefs) {
-      throw new Error(`Expected ClientPrefs message, got 0x${messageType.toString(16)}`);
-    }
-    const flags = decoder.hasMore() ? decoder.readUint8() : 0;
-    return { autoSwitch: (flags & 1) === 0 };
-  }
-
-  /**
-   * Encode a Chat message (Client → Server)
-   * Sender is identified by connection; the server sanitizes, rate-limits,
-   * and rebroadcasts the text as a `chat` snapshot event (which also lands
-   * in demo recordings). Format: [MessageType.Chat][text: string]
-   */
-  static encodeChat(text: string): Uint8Array {
-    const encoder = envelope();
-    encoder.writeUint8(MessageType.Chat);
-    encoder.writeString(text);
-    return encoder.getData();
-  }
-
-  /**
-   * Decode a Chat message
-   */
-  static decodeChat(data: Uint8Array): { text: string } {
-    const decoder = new BinaryDecoder(data);
-    const messageType = decoder.readUint8();
-    if (messageType !== MessageType.Chat) {
-      throw new Error(`Expected Chat message, got 0x${messageType.toString(16)}`);
-    }
-    return { text: decoder.readString() };
-  }
-
-  /**
-   * Encode a ServerMessage (Server → Client)
-   * Generic text message for UI notifications (queue position, join rejection, etc.)
-   * Format: [MessageType.ServerMessage][type: string][message: string]
-   */
-  static encodeServerMessage(message: string, type: string = "info"): Uint8Array {
-    const encoder = envelope();
-    encoder.writeUint8(MessageType.ServerMessage);
-    encoder.writeString(type);
-    encoder.writeString(message);
-    return encoder.getData();
-  }
-
-  /**
-   * Decode a ServerMessage
-   */
-  static decodeServerMessage(data: Uint8Array): { type: string; message: string } {
-    const decoder = new BinaryDecoder(data);
-    const messageType = decoder.readUint8();
-    if (messageType !== MessageType.ServerMessage) {
-      throw new Error(`Expected ServerMessage, got 0x${messageType.toString(16)}`);
-    }
-    return {
-      type: decoder.readString(),
-      message: decoder.readString(),
-    };
-  }
-
-  // ── ClockSync: Ping / Pong ───────────────────────────────
-
-  /**
-   * Encode a ping message (Client → Server)
-   * Format: [MessageType.Ping][clientSendTime: float64]
-   */
-  static encodePing(clientSendTime: number): Uint8Array {
-    const encoder = new BinaryEncoder(16);
-    encoder.writeUint8(MessageType.Ping);
-    encoder.writeFloat64(clientSendTime);
-    return encoder.getData();
-  }
-
-  /**
-   * Decode a ping message
-   */
-  static decodePing(data: Uint8Array): { clientSendTime: number } {
-    const decoder = new BinaryDecoder(data);
-    const messageType = decoder.readUint8();
-    if (messageType !== MessageType.Ping) {
-      throw new Error(`Expected Ping message (0x${MessageType.Ping.toString(16)}), got 0x${messageType.toString(16)}`);
-    }
-    return {
-      clientSendTime: decoder.readFloat64(),
-    };
-  }
-
-  /**
-   * Encode a pong message (Server → Client)
-   * Format: [MessageType.Pong][clientSendTime: float64][serverTime: float64]
-   */
-  static encodePong(clientSendTime: number, serverTime: number): Uint8Array {
-    const encoder = new BinaryEncoder(24);
-    encoder.writeUint8(MessageType.Pong);
-    encoder.writeFloat64(clientSendTime);
-    encoder.writeFloat64(serverTime);
-    return encoder.getData();
-  }
-
-  /**
-   * Decode a pong message
-   */
-  static decodePong(data: Uint8Array): { clientSendTime: number; serverTime: number } {
-    const decoder = new BinaryDecoder(data);
-    const messageType = decoder.readUint8();
-    if (messageType !== MessageType.Pong) {
-      throw new Error(`Expected Pong message (0x${MessageType.Pong.toString(16)}), got 0x${messageType.toString(16)}`);
-    }
-    return {
-      clientSendTime: decoder.readFloat64(),
-      serverTime: decoder.readFloat64(),
-    };
-  }
+/**
+ * Encode a snapshot message (Server → Client)
+ * Format: [Snapshot=0x0b][hasBaseline:u8][baselineTick:u32][raw snapshot]
+ * A distinct message type keeps pre-baseline peers from misreading the header.
+ * BinaryProtocol's raw format is deliberately unchanged for recorded demos.
+ */
+function encodeSnapshot(state: GameState, baseline?: GameState): Uint8Array {
+  return BinaryProtocol.encodeSnapshot(state, baseline, (encoder) => {
+    encoder.writeUint8(MessageType.Snapshot);
+    encoder.writeUint8(baseline ? 1 : 0);
+    encoder.writeUint32(baseline?.tick ?? 0);
+  });
 }
+
+/**
+ * Read the dependency identity before attempting component reconstruction.
+ */
+function readSnapshotHeader(data: Uint8Array): SnapshotHeader {
+  const decoder = new BinaryDecoder(data);
+  const messageType = decoder.readUint8();
+  if (messageType === MessageType.LegacySnapshot) {
+    throw new Error("Unsupported legacy network snapshot: update server and clients together");
+  }
+  if (messageType !== MessageType.Snapshot) {
+    throw new Error(
+      `Expected Snapshot message (0x${MessageType.Snapshot.toString(16)}), got 0x${messageType.toString(16)}`,
+    );
+  }
+  const hasBaseline = decoder.readUint8();
+  const baselineTick = decoder.readUint32();
+  if (hasBaseline > 1 || (hasBaseline === 0 && baselineTick !== 0)) {
+    throw new Error("Invalid snapshot baseline header");
+  }
+  return { tick: decoder.readUint32(), baselineTick: hasBaseline ? baselineTick : null };
+}
+
+function decodeSnapshot(data: Uint8Array, baselines?: GameState | ReadonlyMap<number, GameState>): GameState {
+  const header = MessageCodec.readSnapshotHeader(data);
+  let baseline: GameState | undefined;
+  if (header.baselineTick !== null) {
+    baseline = baselines && "tick" in baselines ? baselines : baselines?.get(header.baselineTick);
+    if (!baseline || baseline.tick !== header.baselineTick) {
+      throw new MissingSnapshotBaselineError(header.baselineTick);
+    }
+  }
+  // Full snapshots ignore any supplied history, including stale grounded and
+  // rotation values. Never decode a delta against an arbitrary latest state.
+  return BinaryProtocol.decodeSnapshot(data.subarray(SNAPSHOT_HEADER_BYTES), baseline);
+}
+
+/**
+ * Encode a command/input message (Client → Server)
+ * Format: [MessageType.Input][playerId][sequence][command...]
+ */
+function encodeCommand(playerId: string, sequence: number, command: NetworkCommand): Uint8Array {
+  return BinaryProtocol.encodeCommand(playerId, sequence, command, writeInputType);
+}
+
+/**
+ * Read just the sequence number of an input message, or null when the bytes
+ * don't look like one. Clients send each command three times, so the server
+ * checks this first and skips the full decode for the copies it has seen.
+ * Layout: [MessageType.Input][u16 playerId length][playerId][u32 sequence], little-endian.
+ */
+function peekCommandSeq(data: Uint8Array): number | null {
+  if (data.length < 3 || data[0] !== MessageType.Input) return null;
+  const at = 3 + (data[1] | (data[2] << 8));
+  if (data.length < at + 4) return null;
+  return (data[at] | (data[at + 1] << 8) | (data[at + 2] << 16)) + data[at + 3] * 0x1000000;
+}
+
+/**
+ * Decode a command message
+ */
+function decodeCommand(data: Uint8Array): { playerId: string; sequence: number; command: NetworkCommand } {
+  const decoder = new BinaryDecoder(data);
+  const messageType = decoder.readUint8();
+  if (messageType !== MessageType.Input) {
+    throw new Error(`Expected Input message (0x${MessageType.Input.toString(16)}), got 0x${messageType.toString(16)}`);
+  }
+  const remaining = data.subarray(decoder.getOffset());
+  return BinaryProtocol.decodeCommand(remaining);
+}
+
+/**
+ * Encode a welcome message (Server → Client on connect)
+ */
+function encodeWelcome(
+  serverId: string,
+  serverName: string,
+  map: string,
+  tickRate: number,
+  maxPlayers: number,
+  currentPlayers: number,
+): Uint8Array {
+  // Never truncate an unsupported rate (e.g. 381Hz) into a valid 125Hz
+  // handshake. Zero remains encodable so receivers can reject it explicitly.
+  if (!Number.isInteger(tickRate) || tickRate < 0 || tickRate > 255) {
+    throw new Error(`Welcome tick rate must be an integer byte, got ${tickRate}`);
+  }
+  const encoder = envelope();
+  encoder.writeUint8(MessageType.Welcome);
+  encoder.writeString(serverId);
+  encoder.writeString(serverName);
+  encoder.writeString(map);
+  encoder.writeUint8(tickRate);
+  encoder.writeUint8(maxPlayers);
+  encoder.writeUint8(currentPlayers);
+  return encoder.getData();
+}
+
+/**
+ * Decode a welcome message
+ */
+function decodeWelcome(data: Uint8Array): {
+  serverId: string;
+  serverName: string;
+  map: string;
+  tickRate: number;
+  maxPlayers: number;
+  currentPlayers: number;
+} {
+  const decoder = new BinaryDecoder(data);
+  const messageType = decoder.readUint8();
+  if (messageType !== MessageType.Welcome) {
+    throw new Error(`Expected Welcome message, got 0x${messageType.toString(16)}`);
+  }
+  return {
+    serverId: decoder.readString(),
+    serverName: decoder.readString(),
+    map: decoder.readString(),
+    tickRate: decoder.readUint8(),
+    maxPlayers: decoder.readUint8(),
+    currentPlayers: decoder.readUint8(),
+  };
+}
+
+/**
+ * Encode a join message (Client → Server)
+ */
+function encodeJoin(playerName: string, isBot = false, admissionTicket?: string): Uint8Array {
+  const encoder = envelope();
+  encoder.writeUint8(MessageType.Join);
+  encoder.writeString(playerName);
+  // Trailing bot flag — optional so older clients (no byte) still decode.
+  encoder.writeUint8(isBot ? 1 : 0);
+  if (admissionTicket) encoder.writeString(admissionTicket);
+  return encoder.getData();
+}
+
+/**
+ * Decode a join message. The bot flag is optional for backward compatibility
+ * with clients that predate it (absent byte → human).
+ */
+function decodeJoin(data: Uint8Array): { playerName: string; isBot: boolean; admissionTicket?: string } {
+  const decoder = new BinaryDecoder(data);
+  const messageType = decoder.readUint8();
+  if (messageType !== MessageType.Join) {
+    throw new Error(`Expected Join message, got 0x${messageType.toString(16)}`);
+  }
+  const playerName = decoder.readString();
+  const isBot = decoder.hasMore() ? decoder.readUint8() !== 0 : false;
+  const admissionTicket = decoder.hasMore() ? decoder.readString() : undefined;
+  return { playerName, isBot, admissionTicket };
+}
+
+/**
+ * Encode a join accept message (Server → Client)
+ */
+function encodeJoinAccept(clientId: string, playerId: string, entityId: string): Uint8Array {
+  const encoder = envelope();
+  encoder.writeUint8(MessageType.JoinAccept);
+  encoder.writeString(clientId);
+  encoder.writeString(playerId);
+  encoder.writeString(entityId);
+  return encoder.getData();
+}
+
+/**
+ * Decode a join accept message
+ */
+function decodeJoinAccept(data: Uint8Array): { clientId: string; playerId: string; entityId: string } {
+  const decoder = new BinaryDecoder(data);
+  const messageType = decoder.readUint8();
+  if (messageType !== MessageType.JoinAccept) {
+    throw new Error(`Expected JoinAccept message, got 0x${messageType.toString(16)}`);
+  }
+  return {
+    clientId: decoder.readString(),
+    playerId: decoder.readString(),
+    entityId: decoder.readString(),
+  };
+}
+
+/**
+ * Encode the token a client resumes its session with (Server → Client).
+ *
+ * Sent once per accepted join. A connection that drops keeps its player, entity
+ * and score on the server for `graceMs`; presenting this token takes that seat
+ * back instead of joining as someone new.
+ */
+function encodeResumeToken(token: string, graceMs: number): Uint8Array {
+  const encoder = envelope();
+  encoder.writeUint8(MessageType.ResumeToken);
+  encoder.writeString(token);
+  encoder.writeUint32(graceMs);
+  return encoder.getData();
+}
+
+function decodeResumeToken(data: Uint8Array): { token: string; graceMs: number } {
+  const decoder = new BinaryDecoder(data);
+  const messageType = decoder.readUint8();
+  if (messageType !== MessageType.ResumeToken) {
+    throw new Error(`Expected ResumeToken message, got 0x${messageType.toString(16)}`);
+  }
+  return { token: decoder.readString(), graceMs: decoder.readUint32() };
+}
+
+/**
+ * Encode the match's pause state (Server → Client), sent to everyone when it
+ * changes and to each client that joins or resumes while paused. No snapshot
+ * goes out while the match is paused, so this is how a client learns it.
+ */
+function encodePause(notice: MatchPauseNotice): Uint8Array {
+  const encoder = envelope();
+  encoder.writeUint8(MessageType.Pause);
+  encoder.writeUint8(PAUSE_STATES.indexOf(notice.state));
+  encoder.writeUint32(Math.max(0, Math.round(notice.msLeft)));
+  encoder.writeString(notice.caller);
+  encoder.writeUint8(notice.forDrop ? 1 : 0);
+  return encoder.getData();
+}
+
+function decodePause(data: Uint8Array): MatchPauseNotice {
+  const decoder = new BinaryDecoder(data);
+  const messageType = decoder.readUint8();
+  if (messageType !== MessageType.Pause) {
+    throw new Error(`Expected Pause message, got 0x${messageType.toString(16)}`);
+  }
+  const state = PAUSE_STATES[decoder.readUint8()];
+  if (!state) throw new Error("Unknown pause state");
+  return { state, msLeft: decoder.readUint32(), caller: decoder.readString(), forDrop: decoder.readUint8() === 1 };
+}
+
+/**
+ * Encode one chat line sent while the match is paused (Server → Client). A
+ * running match carries chat in its snapshots; a paused one sends none.
+ */
+function encodePausedChat(chat: { senderId: string; senderName: string; team: string; text: string }): Uint8Array {
+  const encoder = envelope();
+  encoder.writeUint8(MessageType.PausedChat);
+  encoder.writeString(chat.senderId);
+  encoder.writeString(chat.senderName);
+  encoder.writeString(chat.team);
+  encoder.writeString(chat.text);
+  return encoder.getData();
+}
+
+function decodePausedChat(data: Uint8Array): { senderId: string; senderName: string; team: string; text: string } {
+  const decoder = new BinaryDecoder(data);
+  const messageType = decoder.readUint8();
+  if (messageType !== MessageType.PausedChat) {
+    throw new Error(`Expected PausedChat message, got 0x${messageType.toString(16)}`);
+  }
+  return {
+    senderId: decoder.readString(),
+    senderName: decoder.readString(),
+    team: decoder.readString(),
+    text: decoder.readString(),
+  };
+}
+
+/** Encode a player calling a timeout (`true`) or time in (Client → Server). */
+function encodeCallPause(timeout: boolean): Uint8Array {
+  const encoder = envelope();
+  encoder.writeUint8(MessageType.CallPause);
+  encoder.writeUint8(timeout ? 1 : 0);
+  return encoder.getData();
+}
+
+function decodeCallPause(data: Uint8Array): { timeout: boolean } {
+  const decoder = new BinaryDecoder(data);
+  const messageType = decoder.readUint8();
+  if (messageType !== MessageType.CallPause) {
+    throw new Error(`Expected CallPause message, got 0x${messageType.toString(16)}`);
+  }
+  return { timeout: decoder.readUint8() === 1 };
+}
+
+/** Encode a claim on a suspended session (Client → Server). */
+function encodeResume(token: string): Uint8Array {
+  const encoder = envelope();
+  encoder.writeUint8(MessageType.Resume);
+  encoder.writeString(token);
+  return encoder.getData();
+}
+
+function decodeResume(data: Uint8Array): { token: string } {
+  const decoder = new BinaryDecoder(data);
+  const messageType = decoder.readUint8();
+  if (messageType !== MessageType.Resume) {
+    throw new Error(`Expected Resume message, got 0x${messageType.toString(16)}`);
+  }
+  return { token: decoder.readString() };
+}
+
+/**
+ * Encode acknowledgment message (Client → Server)
+ */
+function encodeAck(tick: number): Uint8Array {
+  const encoder = envelope();
+  encoder.writeUint8(MessageType.Ack);
+  encoder.writeUint32(tick);
+  return encoder.getData();
+}
+
+/**
+ * Decode acknowledgment message
+ */
+function decodeAck(data: Uint8Array): { tick: number } {
+  const decoder = new BinaryDecoder(data);
+  const messageType = decoder.readUint8();
+  if (messageType !== MessageType.Ack) {
+    throw new Error(`Expected Ack message, got 0x${messageType.toString(16)}`);
+  }
+  return {
+    tick: decoder.readUint32(),
+  };
+}
+
+/**
+ * Encode a ready message (Client → Server)
+ * Simple 1-byte message — the server identifies the sender by connection.
+ */
+function encodeReady(): Uint8Array {
+  const encoder = envelope();
+  encoder.writeUint8(MessageType.Ready);
+  return encoder.getData();
+}
+
+/**
+ * Get message type from raw data without consuming it
+ */
+function peekMessageType(data: Uint8Array): MessageType {
+  if (data.length === 0) {
+    throw new Error("Empty message data");
+  }
+  return data[0] as MessageType;
+}
+
+/**
+ * Encode a JoinGame message (Client → Server)
+ * Sent when spectator wants to enter the game.
+ */
+function encodeJoinGame(teamId?: string, manualPick = false, admissionTicket?: string): Uint8Array {
+  const encoder = envelope();
+  encoder.writeUint8(MessageType.JoinGame);
+  if (teamId) {
+    // Widens the old has-team flag rather than adding a byte: 1 is a side the
+    // LOBBY assigned, 2 is one the player picked in-game. The server balances
+    // only the second — a lobby has already balanced its roster, and judging
+    // its players one at a time as they trickle in rejects the very
+    // assignment being delivered. An older client sends 1, which reads as
+    // lobby-assigned, so it keeps the more permissive behaviour.
+    encoder.writeUint8(manualPick ? 2 : 1);
+    encoder.writeString(teamId);
+  } else {
+    encoder.writeUint8(0);
+  }
+  // A seat claimed by someone already connected as a spectator: a player
+  // dropping into a running lobby match. Trailing and optional, like the
+  // ticket in Join.
+  if (admissionTicket) encoder.writeString(admissionTicket);
+  return encoder.getData();
+}
+
+/**
+ * Decode a JoinGame message
+ */
+function decodeJoinGame(data: Uint8Array): { teamId?: string; manualPick: boolean; admissionTicket?: string } {
+  const decoder = new BinaryDecoder(data);
+  const messageType = decoder.readUint8();
+  if (messageType !== MessageType.JoinGame) {
+    throw new Error(`Expected JoinGame message, got 0x${messageType.toString(16)}`);
+  }
+  const teamFlag = decoder.readUint8();
+  const teamId = teamFlag > 0 ? decoder.readString() : undefined;
+  return {
+    teamId,
+    manualPick: teamFlag === 2,
+    admissionTicket: decoder.hasMore() ? decoder.readString() : undefined,
+  };
+}
+
+/**
+ * Encode a Spectate message (Client → Server)
+ * Sent when player wants to leave game and become spectator.
+ * Simple 1-byte message — server identifies sender by connection.
+ */
+function encodeSpectate(): Uint8Array {
+  const encoder = envelope();
+  encoder.writeUint8(MessageType.Spectate);
+  return encoder.getData();
+}
+
+/**
+ * Encode a RequestSpawn message (Client → Server)
+ * Sent when dead player wants to respawn (after cooldown).
+ * Simple 1-byte message — server identifies sender by connection.
+ */
+function encodeRequestSpawn(): Uint8Array {
+  const encoder = envelope();
+  encoder.writeUint8(MessageType.RequestSpawn);
+  return encoder.getData();
+}
+
+/**
+ * Encode a SetLoadout message (Client → Server)
+ *
+ * The chosen spawn kit, as weapon ids. Sent when the selection changes;
+ * the server grants the selection at the next spawn.
+ * Format: [MessageType.SetLoadout][primary: string][secondary: string]
+ */
+function encodeSetLoadout(primary: string, secondary: string): Uint8Array {
+  const encoder = envelope();
+  encoder.writeUint8(MessageType.SetLoadout);
+  encoder.writeString(primary);
+  encoder.writeString(secondary);
+  return encoder.getData();
+}
+
+/** Decode a SetLoadout message. Validation is the gametype's job, not ours. */
+function decodeSetLoadout(data: Uint8Array): { primary: string; secondary: string } {
+  const decoder = new BinaryDecoder(data);
+  const messageType = decoder.readUint8();
+  if (messageType !== MessageType.SetLoadout) {
+    throw new Error(`Expected SetLoadout message, got 0x${messageType.toString(16)}`);
+  }
+  return { primary: decoder.readString(), secondary: decoder.readString() };
+}
+
+/**
+ * Encode a ClientPrefs message (Client → Server)
+ *
+ * Preferences the server has to act on for this player. Sent after every
+ * JoinAccept and whenever one changes. A server that does not know the
+ * message ignores it, and the defaults (all bits clear) are the old behaviour.
+ * Format: [MessageType.ClientPrefs][flags: uint8]
+ *   bit 0: do not switch to a weapon on pickup
+ */
+function encodeClientPrefs(prefs: ClientPrefs): Uint8Array {
+  const encoder = envelope();
+  encoder.writeUint8(MessageType.ClientPrefs);
+  encoder.writeUint8(prefs.autoSwitch ? 0 : 1);
+  return encoder.getData();
+}
+
+function decodeClientPrefs(data: Uint8Array): ClientPrefs {
+  const decoder = new BinaryDecoder(data);
+  const messageType = decoder.readUint8();
+  if (messageType !== MessageType.ClientPrefs) {
+    throw new Error(`Expected ClientPrefs message, got 0x${messageType.toString(16)}`);
+  }
+  const flags = decoder.hasMore() ? decoder.readUint8() : 0;
+  return { autoSwitch: (flags & 1) === 0 };
+}
+
+/**
+ * Encode a Chat message (Client → Server)
+ * Sender is identified by connection; the server sanitizes, rate-limits,
+ * and rebroadcasts the text as a `chat` snapshot event (which also lands
+ * in demo recordings). Format: [MessageType.Chat][text: string]
+ */
+function encodeChat(text: string): Uint8Array {
+  const encoder = envelope();
+  encoder.writeUint8(MessageType.Chat);
+  encoder.writeString(text);
+  return encoder.getData();
+}
+
+/**
+ * Decode a Chat message
+ */
+function decodeChat(data: Uint8Array): { text: string } {
+  const decoder = new BinaryDecoder(data);
+  const messageType = decoder.readUint8();
+  if (messageType !== MessageType.Chat) {
+    throw new Error(`Expected Chat message, got 0x${messageType.toString(16)}`);
+  }
+  return { text: decoder.readString() };
+}
+
+/**
+ * Encode a ServerMessage (Server → Client)
+ * Generic text message for UI notifications (queue position, join rejection, etc.)
+ * Format: [MessageType.ServerMessage][type: string][message: string]
+ */
+function encodeServerMessage(message: string, type: string = "info"): Uint8Array {
+  const encoder = envelope();
+  encoder.writeUint8(MessageType.ServerMessage);
+  encoder.writeString(type);
+  encoder.writeString(message);
+  return encoder.getData();
+}
+
+/**
+ * Decode a ServerMessage
+ */
+function decodeServerMessage(data: Uint8Array): { type: string; message: string } {
+  const decoder = new BinaryDecoder(data);
+  const messageType = decoder.readUint8();
+  if (messageType !== MessageType.ServerMessage) {
+    throw new Error(`Expected ServerMessage, got 0x${messageType.toString(16)}`);
+  }
+  return {
+    type: decoder.readString(),
+    message: decoder.readString(),
+  };
+}
+
+// ── ClockSync: Ping / Pong ───────────────────────────────
+
+/**
+ * Encode a ping message (Client → Server)
+ * Format: [MessageType.Ping][clientSendTime: float64]
+ */
+function encodePing(clientSendTime: number): Uint8Array {
+  const encoder = new BinaryEncoder(16);
+  encoder.writeUint8(MessageType.Ping);
+  encoder.writeFloat64(clientSendTime);
+  return encoder.getData();
+}
+
+/**
+ * Decode a ping message
+ */
+function decodePing(data: Uint8Array): { clientSendTime: number } {
+  const decoder = new BinaryDecoder(data);
+  const messageType = decoder.readUint8();
+  if (messageType !== MessageType.Ping) {
+    throw new Error(`Expected Ping message (0x${MessageType.Ping.toString(16)}), got 0x${messageType.toString(16)}`);
+  }
+  return {
+    clientSendTime: decoder.readFloat64(),
+  };
+}
+
+/**
+ * Encode a pong message (Server → Client)
+ * Format: [MessageType.Pong][clientSendTime: float64][serverTime: float64]
+ */
+function encodePong(clientSendTime: number, serverTime: number): Uint8Array {
+  const encoder = new BinaryEncoder(24);
+  encoder.writeUint8(MessageType.Pong);
+  encoder.writeFloat64(clientSendTime);
+  encoder.writeFloat64(serverTime);
+  return encoder.getData();
+}
+
+/**
+ * Decode a pong message
+ */
+function decodePong(data: Uint8Array): { clientSendTime: number; serverTime: number } {
+  const decoder = new BinaryDecoder(data);
+  const messageType = decoder.readUint8();
+  if (messageType !== MessageType.Pong) {
+    throw new Error(`Expected Pong message (0x${MessageType.Pong.toString(16)}), got 0x${messageType.toString(16)}`);
+  }
+  return {
+    clientSendTime: decoder.readFloat64(),
+    serverTime: decoder.readFloat64(),
+  };
+}
+
+export const MessageCodec = {
+  encodeSnapshot,
+  readSnapshotHeader,
+  decodeSnapshot,
+  encodeCommand,
+  peekCommandSeq,
+  decodeCommand,
+  encodeWelcome,
+  decodeWelcome,
+  encodeJoin,
+  decodeJoin,
+  encodeJoinAccept,
+  decodeJoinAccept,
+  encodeResumeToken,
+  decodeResumeToken,
+  encodePause,
+  decodePause,
+  encodePausedChat,
+  decodePausedChat,
+  encodeCallPause,
+  decodeCallPause,
+  encodeResume,
+  decodeResume,
+  encodeAck,
+  decodeAck,
+  encodeReady,
+  peekMessageType,
+  encodeJoinGame,
+  decodeJoinGame,
+  encodeSpectate,
+  encodeRequestSpawn,
+  encodeSetLoadout,
+  decodeSetLoadout,
+  encodeClientPrefs,
+  decodeClientPrefs,
+  encodeChat,
+  decodeChat,
+  encodeServerMessage,
+  decodeServerMessage,
+  encodePing,
+  decodePing,
+  encodePong,
+  decodePong,
+};

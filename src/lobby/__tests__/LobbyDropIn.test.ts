@@ -57,6 +57,7 @@ function setup(admit: (...args: any[]) => Promise<unknown>): any {
     reissueSeat: vi.fn(),
     admitDropIn: vi.fn(admit),
   };
+  // biome-ignore lint/suspicious/noExplicitAny: reaches private lobby internals
   const server = new LobbyServer(0, spawner as never) as any;
   server.gametypes = [FFA, SND];
   server.mapNames = { wdm2: "WDM2", wsnd1: "WSND1" };

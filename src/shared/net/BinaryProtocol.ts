@@ -214,1304 +214,1305 @@ function _velocityClone(this: VelocityShape): VelocityShape {
 }
 
 /**
- * Binary protocol for network messages.
- * Handles encoding/decoding of game state with delta compression.
+ * Encode a snapshot with delta compression
  */
-export class BinaryProtocol {
-  /**
-   * Encode a snapshot with delta compression
-   */
-  /**
-   * `writePrefix` puts a message envelope in front of the raw snapshot in the
-   * same buffer, so the network path copies the bytes out once instead of three
-   * times. Demos record the raw format and pass none.
-   */
-  static encodeSnapshot(
-    state: GameState,
-    baseline?: GameState,
-    writePrefix?: (encoder: BinaryEncoder) => void,
-  ): Uint8Array {
-    const encoder = getEncoder();
-    writePrefix?.(encoder);
+/**
+ * `writePrefix` puts a message envelope in front of the raw snapshot in the
+ * same buffer, so the network path copies the bytes out once instead of three
+ * times. Demos record the raw format and pass none.
+ */
+function encodeSnapshot(
+  state: GameState,
+  baseline?: GameState,
+  writePrefix?: (encoder: BinaryEncoder) => void,
+): Uint8Array {
+  const encoder = getEncoder();
+  writePrefix?.(encoder);
 
-    // Write header
-    encoder.writeUint32(state.tick);
-    // Use full 64-bit timestamp for ClockSync compatibility
-    encoder.writeFloat64(Date.now());
-    // CRITICAL: ackedInputSeq for client-side reconciliation (V2NetworkClient)
-    encoder.writeUint32(state.ackedInputSeq);
+  // Write header
+  encoder.writeUint32(state.tick);
+  // Use full 64-bit timestamp for ClockSync compatibility
+  encoder.writeFloat64(Date.now());
+  // CRITICAL: ackedInputSeq for client-side reconciliation (V2NetworkClient)
+  encoder.writeUint32(state.ackedInputSeq);
 
-    // Encode ALL entities with delta-compressed components
-    // Note: This is "full state with delta content" model - every entity is included,
-    // but unchanged component values are omitted. Removals are implicit (missing = removed).
-    BinaryProtocol.encodeEntities(encoder, state, baseline);
+  // Encode ALL entities with delta-compressed components
+  // Note: This is "full state with delta content" model - every entity is included,
+  // but unchanged component values are omitted. Removals are implicit (missing = removed).
+  encodeEntities(encoder, state, baseline);
 
-    // Encode players with delta
-    BinaryProtocol.encodePlayers(encoder, state, baseline);
+  // Encode players with delta
+  encodePlayers(encoder, state, baseline);
 
-    // Encode events (no delta)
-    BinaryProtocol.encodeEvents(encoder, state);
+  // Encode events (no delta)
+  encodeEvents(encoder, state);
 
-    // Encode the pickup active-set (no delta — full mask every snapshot so the
-    // client converges and self-heals against packet loss).
-    BinaryProtocol.encodePickupState(encoder, state);
+  // Encode the pickup active-set (no delta — full mask every snapshot so the
+  // client converges and self-heals against packet loss).
+  encodePickupState(encoder, state);
 
-    return encoder.getData();
+  return encoder.getData();
+}
+
+/**
+ * Decode a snapshot with delta reconstruction
+ */
+function decodeSnapshot(data: Uint8Array, baseline?: GameState): GameState {
+  const decoder = new BinaryDecoder(data);
+
+  const state = new GameState();
+
+  // Read header
+  state.tick = decoder.readUint32();
+  state.serverTimestamp = decoder.readFloat64(); // Server Date.now() for ClockSync
+  state.ackedInputSeq = decoder.readUint32(); // For V2NetworkClient reconciliation
+
+  // Decode entities
+  decodeEntities(decoder, state, baseline);
+
+  // Decode players
+  decodePlayers(decoder, state, baseline);
+
+  // Decode events
+  decodeEvents(decoder, state);
+
+  // Decode the pickup active-set, if present (older payloads/demos omit it).
+  if (decoder.hasMore()) {
+    decodePickupState(decoder, state);
   }
 
-  /**
-   * Decode a snapshot with delta reconstruction
-   */
-  static decodeSnapshot(data: Uint8Array, baseline?: GameState): GameState {
-    const decoder = new BinaryDecoder(data);
+  return state;
+}
 
-    const state = new GameState();
+/**
+ * Encode the pickup active-set: a uint16 count followed by a packed bitmask
+ * (bit i = pickup id i is active). Full every snapshot — no delta.
+ */
+function encodePickupState(encoder: BinaryEncoder, state: GameState): void {
+  const mask = state.pickupActiveMask;
+  const count = mask.length;
+  encoder.writeUint16(count);
+  if (count === 0) return;
 
-    // Read header
-    state.tick = decoder.readUint32();
-    state.serverTimestamp = decoder.readFloat64(); // Server Date.now() for ClockSync
-    state.ackedInputSeq = decoder.readUint32(); // For V2NetworkClient reconciliation
-
-    // Decode entities
-    BinaryProtocol.decodeEntities(decoder, state, baseline);
-
-    // Decode players
-    BinaryProtocol.decodePlayers(decoder, state, baseline);
-
-    // Decode events
-    BinaryProtocol.decodeEvents(decoder, state);
-
-    // Decode the pickup active-set, if present (older payloads/demos omit it).
-    if (decoder.hasMore()) {
-      BinaryProtocol.decodePickupState(decoder, state);
+  const byteCount = Math.ceil(count / 8);
+  for (let b = 0; b < byteCount; b++) {
+    let byte = 0;
+    for (let bit = 0; bit < 8; bit++) {
+      const idx = b * 8 + bit;
+      if (idx < count && mask[idx]) byte |= 1 << bit;
     }
-
-    return state;
+    encoder.writeUint8(byte);
   }
+}
 
-  /**
-   * Encode the pickup active-set: a uint16 count followed by a packed bitmask
-   * (bit i = pickup id i is active). Full every snapshot — no delta.
-   */
-  private static encodePickupState(encoder: BinaryEncoder, state: GameState): void {
-    const mask = state.pickupActiveMask;
-    const count = mask.length;
-    encoder.writeUint16(count);
-    if (count === 0) return;
-
-    const byteCount = Math.ceil(count / 8);
-    for (let b = 0; b < byteCount; b++) {
-      let byte = 0;
-      for (let bit = 0; bit < 8; bit++) {
-        const idx = b * 8 + bit;
-        if (idx < count && mask[idx]) byte |= 1 << bit;
-      }
-      encoder.writeUint8(byte);
-    }
-  }
-
-  private static decodePickupState(decoder: BinaryDecoder, state: GameState): void {
-    const count = decoder.readUint16();
-    const mask: boolean[] = new Array(count);
-    if (count === 0) {
-      state.pickupActiveMask = mask;
-      return;
-    }
-
-    const byteCount = Math.ceil(count / 8);
-    for (let b = 0; b < byteCount; b++) {
-      const byte = decoder.readUint8();
-      for (let bit = 0; bit < 8; bit++) {
-        const idx = b * 8 + bit;
-        if (idx < count) mask[idx] = (byte & (1 << bit)) !== 0;
-      }
-    }
+function decodePickupState(decoder: BinaryDecoder, state: GameState): void {
+  const count = decoder.readUint16();
+  const mask: boolean[] = new Array(count);
+  if (count === 0) {
     state.pickupActiveMask = mask;
+    return;
   }
 
-  /**
-   * Encode a command
-   */
-  static encodeCommand(
-    playerId: string,
-    sequence: number,
-    command: NetworkCommand,
-    writePrefix?: (encoder: BinaryEncoder) => void,
-  ): Uint8Array {
-    const encoder = getEncoder();
-    writePrefix?.(encoder);
-
-    encoder.writeString(playerId);
-    encoder.writeUint32(sequence);
-
-    // Binary-encode the command fields instead of JSON.stringify.
-    // MoveCommand shape: type, playerId, tick, seq, direction{x,y,z}, pitch, yaw, buttons, weaponSlot
-    const dir = command.direction || { x: 0, y: 0, z: 0 };
-    encoder.writeFloat32(dir.x);
-    encoder.writeFloat32(dir.y);
-    encoder.writeFloat32(dir.z);
-    encoder.writeFloat32(command.pitch ?? 0);
-    encoder.writeFloat32(command.yaw ?? 0);
-    encoder.writeUint16(command.buttons ?? 0);
-    encoder.writeUint32(command.tick ?? 0);
-    encoder.writeUint8(command.weaponSlot ?? 0);
-
-    return encoder.getData();
-  }
-
-  /**
-   * Decode a command
-   */
-  static decodeCommand(data: Uint8Array): { playerId: string; sequence: number; command: NetworkCommand } {
-    const decoder = new BinaryDecoder(data);
-
-    const playerId = decoder.readString();
-    const sequence = decoder.readUint32();
-
-    // Binary-decode matching the encode layout above
-    const command = {
-      type: "move" as const,
-      playerId,
-      seq: sequence,
-      direction: {
-        x: decoder.readFloat32(),
-        y: decoder.readFloat32(),
-        z: decoder.readFloat32(),
-      },
-      pitch: decoder.readFloat32(),
-      yaw: decoder.readFloat32(),
-      buttons: decoder.readUint16(),
-      tick: decoder.readUint32(),
-      weaponSlot: decoder.readUint8(),
-    };
-
-    return { playerId, sequence, command };
-  }
-
-  /**
-   * Encode all entities with delta compression on component values.
-   * Uses flags to indicate which components changed vs baseline.
-   */
-  private static encodeEntities(encoder: BinaryEncoder, state: GameState, baseline?: GameState): void {
-    const baselineEntities = baseline?.entities || new Map();
-
-    encoder.writeUint16(state.entities.size);
-
-    for (const [entityId, entity] of state.entities) {
-      const baselineEntity = baselineEntities.get(entityId);
-
-      encoder.writeString(entityId);
-
-      // Component flags
-      let flags = 0;
-
-      // Check for transform component (FPS style) or position component (legacy)
-      const transform = entity.getComponent("transform") as unknown as TransformShape | undefined;
-      const pos = transform?.position || (entity.getComponent("position") as unknown as PositionShape | undefined);
-      const baselineTransform = baselineEntity?.getComponent("transform") as unknown as TransformShape | undefined;
-      const baselinePos =
-        baselineTransform?.position ||
-        (baselineEntity?.getComponent("position") as unknown as PositionShape | undefined);
-      // Only set flag if pos EXISTS and differs from baseline (or no baseline)
-      if (pos && (!baselinePos || pos.x !== baselinePos.x || pos.y !== baselinePos.y || pos.z !== baselinePos.z)) {
-        flags |= 0x01;
-      }
-
-      const vel = entity.getComponent("velocity") as unknown as VelocityShape | undefined;
-      const baselineVel = baselineEntity?.getComponent("velocity") as unknown as VelocityShape | undefined;
-      // Check velocity.linear for VelocityComponent or direct x/y/z for basic
-      const velData = vel?.linear || vel;
-      const baselineVelData = baselineVel?.linear || baselineVel;
-      // Only set flag if velData EXISTS and differs from baseline (or no baseline)
-      if (
-        velData &&
-        (!baselineVelData ||
-          velData.x !== baselineVelData.x ||
-          velData.y !== baselineVelData.y ||
-          velData.z !== baselineVelData.z)
-      ) {
-        flags |= 0x02;
-      }
-
-      // Check grounded state - CRITICAL for jump logic!
-      // Without this, client doesn't know if player can jump
-      const grounded = vel?.grounded ?? false;
-      const baselineGrounded = baselineVel?.grounded ?? false;
-      if (grounded !== baselineGrounded) {
-        flags |= 0x04;
-      }
-
-      // Check rotation (yaw + pitch) for remote player aiming direction
-      const rot = transform?.rotation;
-      const baselineRot = baselineTransform?.rotation;
-      if (rot && (!baselineRot || rot.y !== baselineRot.y || rot.x !== baselineRot.x)) {
-        flags |= 0x08;
-      }
-
-      // Always send movement state (crouch/slide/walljump) — no delta compression.
-      // Only 1 byte per entity. Delta compression here is fragile because
-      // server/client baseline ACK mismatches can cause flags to get "stuck".
-      const movState = entity.getComponent("movementState") as unknown as MovementStateShape | undefined;
-      const isCrouching = movState?.isCrouching ?? false;
-      const isSliding = movState?.isSliding ?? false;
-      const wallJumpState = movState?.wallJumpState ?? "none";
-      const isWallJumping = wallJumpState === "charging";
-      if (movState) {
-        flags |= 0x10;
-      }
-
-      // Check weaponMeta (item_ entities carry weaponId for model spawning)
-      const weaponMeta = entity.getComponent("weaponMeta") as unknown as WeaponMetaShape | undefined;
-      const baselineWeaponMeta = baselineEntity?.getComponent("weaponMeta") as unknown as WeaponMetaShape | undefined;
-      if (
-        weaponMeta?.weaponId &&
-        (!baselineWeaponMeta ||
-          weaponMeta.weaponId !== baselineWeaponMeta.weaponId ||
-          weaponMeta.settled !== baselineWeaponMeta.settled)
-      ) {
-        flags |= 0x20;
-      }
-
-      // Powerup mask: sent for every entity that has the component, every
-      // snapshot (like movement state). 1 byte, and a stuck delta flag here
-      // would leave a player rendering a quad glow they no longer hold.
-      const powerups = entity.getComponent("powerups") as unknown as PowerupShape | undefined;
-      if (powerups) {
-        flags |= 0x40;
-      }
-
-      encoder.writeUint8(flags);
-
-      // Encode changed components
-      // Flag 0x01: Position (12 bytes - 3 floats)
-      if (flags & 0x01 && pos) {
-        encoder.writeFloat32(pos.x);
-        encoder.writeFloat32(pos.y);
-        encoder.writeFloat32(pos.z);
-      }
-
-      // Flag 0x02: Velocity (12 bytes - 3 floats)
-      if (flags & 0x02 && velData) {
-        encoder.writeFloat32(velData.x);
-        encoder.writeFloat32(velData.y);
-        encoder.writeFloat32(velData.z);
-      }
-
-      // Flag 0x04: Grounded state (1 byte - boolean)
-      if (flags & 0x04) {
-        encoder.writeUint8(grounded ? 1 : 0);
-      }
-
-      // Flag 0x08: Rotation (8 bytes - 2 floats: yaw, pitch)
-      if (flags & 0x08 && rot) {
-        encoder.writeFloat32(rot.y); // yaw
-        encoder.writeFloat32(rot.x); // pitch
-      }
-
-      // Flag 0x10: Movement state (1 byte - bit 0=crouching, bit 1=sliding, bit 2=wallJumping, bit 3=aiming)
-      if (flags & 0x10) {
-        let movFlags = 0;
-        if (isCrouching) movFlags |= 1;
-        if (isSliding) movFlags |= 2;
-        if (isWallJumping) movFlags |= 4;
-        if (movState?.isAiming) movFlags |= 8;
-        const view = movState?.strafeInput !== undefined;
-        if (view) movFlags |= 0x80;
-        encoder.writeUint8(movFlags);
-        if (view && movState) {
-          encoder.writeUint8(keyBits(movState.strafeInput) | (keyBits(movState.forwardInput) << 2));
-          encoder.writeUint8(phaseByte(movState.slidePhase));
-          encoder.writeUint8(phaseByte(movState.ledgeGrabPhase));
-          encoder.writeInt8(Math.max(-128, Math.min(127, Math.round((movState.crouchViewOffset ?? 0) * 4))));
-        }
-      }
-
-      // Flag 0x20: WeaponMeta (string weaponId + 1 byte settled)
-      if (flags & 0x20 && weaponMeta) {
-        encoder.writeString(weaponMeta.weaponId);
-        encoder.writeUint8(weaponMeta.settled ? 1 : 0);
-      }
-
-      // Flag 0x40: Powerup mask (1 byte — bit per POWERUP_KINDS entry)
-      if (flags & 0x40 && powerups) {
-        encoder.writeUint8(powerups.mask & 0xff);
-      }
+  const byteCount = Math.ceil(count / 8);
+  for (let b = 0; b < byteCount; b++) {
+    const byte = decoder.readUint8();
+    for (let bit = 0; bit < 8; bit++) {
+      const idx = b * 8 + bit;
+      if (idx < count) mask[idx] = (byte & (1 << bit)) !== 0;
     }
   }
+  state.pickupActiveMask = mask;
+}
 
-  private static decodeEntities(decoder: BinaryDecoder, state: GameState, baseline?: GameState): void {
-    const baselineEntities = baseline?.entities || new Map();
-    const entityCount = decoder.readUint16();
+/**
+ * Encode a command
+ */
+function encodeCommand(
+  playerId: string,
+  sequence: number,
+  command: NetworkCommand,
+  writePrefix?: (encoder: BinaryEncoder) => void,
+): Uint8Array {
+  const encoder = getEncoder();
+  writePrefix?.(encoder);
 
-    for (let i = 0; i < entityCount; i++) {
-      const entityId = decoder.readString();
-      const flags = decoder.readUint8();
+  encoder.writeString(playerId);
+  encoder.writeUint32(sequence);
 
-      let entity = state.entities.get(entityId);
-      if (!entity) {
-        entity = new Entity(entityId);
-        state.entities.set(entityId, entity);
+  // Binary-encode the command fields instead of JSON.stringify.
+  // MoveCommand shape: type, playerId, tick, seq, direction{x,y,z}, pitch, yaw, buttons, weaponSlot
+  const dir = command.direction || { x: 0, y: 0, z: 0 };
+  encoder.writeFloat32(dir.x);
+  encoder.writeFloat32(dir.y);
+  encoder.writeFloat32(dir.z);
+  encoder.writeFloat32(command.pitch ?? 0);
+  encoder.writeFloat32(command.yaw ?? 0);
+  encoder.writeUint16(command.buttons ?? 0);
+  encoder.writeUint32(command.tick ?? 0);
+  encoder.writeUint8(command.weaponSlot ?? 0);
+
+  return encoder.getData();
+}
+
+/**
+ * Decode a command
+ */
+function decodeCommand(data: Uint8Array): { playerId: string; sequence: number; command: NetworkCommand } {
+  const decoder = new BinaryDecoder(data);
+
+  const playerId = decoder.readString();
+  const sequence = decoder.readUint32();
+
+  // Binary-decode matching the encode layout above
+  const command = {
+    type: "move" as const,
+    playerId,
+    seq: sequence,
+    direction: {
+      x: decoder.readFloat32(),
+      y: decoder.readFloat32(),
+      z: decoder.readFloat32(),
+    },
+    pitch: decoder.readFloat32(),
+    yaw: decoder.readFloat32(),
+    buttons: decoder.readUint16(),
+    tick: decoder.readUint32(),
+    weaponSlot: decoder.readUint8(),
+  };
+
+  return { playerId, sequence, command };
+}
+
+/**
+ * Encode all entities with delta compression on component values.
+ * Uses flags to indicate which components changed vs baseline.
+ */
+function encodeEntities(encoder: BinaryEncoder, state: GameState, baseline?: GameState): void {
+  const baselineEntities = baseline?.entities || new Map();
+
+  encoder.writeUint16(state.entities.size);
+
+  for (const [entityId, entity] of state.entities) {
+    const baselineEntity = baselineEntities.get(entityId);
+
+    encoder.writeString(entityId);
+
+    // Component flags
+    let flags = 0;
+
+    // Check for transform component (FPS style) or position component (legacy)
+    const transform = entity.getComponent("transform") as unknown as TransformShape | undefined;
+    const pos = transform?.position || (entity.getComponent("position") as unknown as PositionShape | undefined);
+    const baselineTransform = baselineEntity?.getComponent("transform") as unknown as TransformShape | undefined;
+    const baselinePos =
+      baselineTransform?.position || (baselineEntity?.getComponent("position") as unknown as PositionShape | undefined);
+    // Only set flag if pos EXISTS and differs from baseline (or no baseline)
+    if (pos && (!baselinePos || pos.x !== baselinePos.x || pos.y !== baselinePos.y || pos.z !== baselinePos.z)) {
+      flags |= 0x01;
+    }
+
+    const vel = entity.getComponent("velocity") as unknown as VelocityShape | undefined;
+    const baselineVel = baselineEntity?.getComponent("velocity") as unknown as VelocityShape | undefined;
+    // Check velocity.linear for VelocityComponent or direct x/y/z for basic
+    const velData = vel?.linear || vel;
+    const baselineVelData = baselineVel?.linear || baselineVel;
+    // Only set flag if velData EXISTS and differs from baseline (or no baseline)
+    if (
+      velData &&
+      (!baselineVelData ||
+        velData.x !== baselineVelData.x ||
+        velData.y !== baselineVelData.y ||
+        velData.z !== baselineVelData.z)
+    ) {
+      flags |= 0x02;
+    }
+
+    // Check grounded state - CRITICAL for jump logic!
+    // Without this, client doesn't know if player can jump
+    const grounded = vel?.grounded ?? false;
+    const baselineGrounded = baselineVel?.grounded ?? false;
+    if (grounded !== baselineGrounded) {
+      flags |= 0x04;
+    }
+
+    // Check rotation (yaw + pitch) for remote player aiming direction
+    const rot = transform?.rotation;
+    const baselineRot = baselineTransform?.rotation;
+    if (rot && (!baselineRot || rot.y !== baselineRot.y || rot.x !== baselineRot.x)) {
+      flags |= 0x08;
+    }
+
+    // Always send movement state (crouch/slide/walljump) — no delta compression.
+    // Only 1 byte per entity. Delta compression here is fragile because
+    // server/client baseline ACK mismatches can cause flags to get "stuck".
+    const movState = entity.getComponent("movementState") as unknown as MovementStateShape | undefined;
+    const isCrouching = movState?.isCrouching ?? false;
+    const isSliding = movState?.isSliding ?? false;
+    const wallJumpState = movState?.wallJumpState ?? "none";
+    const isWallJumping = wallJumpState === "charging";
+    if (movState) {
+      flags |= 0x10;
+    }
+
+    // Check weaponMeta (item_ entities carry weaponId for model spawning)
+    const weaponMeta = entity.getComponent("weaponMeta") as unknown as WeaponMetaShape | undefined;
+    const baselineWeaponMeta = baselineEntity?.getComponent("weaponMeta") as unknown as WeaponMetaShape | undefined;
+    if (
+      weaponMeta?.weaponId &&
+      (!baselineWeaponMeta ||
+        weaponMeta.weaponId !== baselineWeaponMeta.weaponId ||
+        weaponMeta.settled !== baselineWeaponMeta.settled)
+    ) {
+      flags |= 0x20;
+    }
+
+    // Powerup mask: sent for every entity that has the component, every
+    // snapshot (like movement state). 1 byte, and a stuck delta flag here
+    // would leave a player rendering a quad glow they no longer hold.
+    const powerups = entity.getComponent("powerups") as unknown as PowerupShape | undefined;
+    if (powerups) {
+      flags |= 0x40;
+    }
+
+    encoder.writeUint8(flags);
+
+    // Encode changed components
+    // Flag 0x01: Position (12 bytes - 3 floats)
+    if (flags & 0x01 && pos) {
+      encoder.writeFloat32(pos.x);
+      encoder.writeFloat32(pos.y);
+      encoder.writeFloat32(pos.z);
+    }
+
+    // Flag 0x02: Velocity (12 bytes - 3 floats)
+    if (flags & 0x02 && velData) {
+      encoder.writeFloat32(velData.x);
+      encoder.writeFloat32(velData.y);
+      encoder.writeFloat32(velData.z);
+    }
+
+    // Flag 0x04: Grounded state (1 byte - boolean)
+    if (flags & 0x04) {
+      encoder.writeUint8(grounded ? 1 : 0);
+    }
+
+    // Flag 0x08: Rotation (8 bytes - 2 floats: yaw, pitch)
+    if (flags & 0x08 && rot) {
+      encoder.writeFloat32(rot.y); // yaw
+      encoder.writeFloat32(rot.x); // pitch
+    }
+
+    // Flag 0x10: Movement state (1 byte - bit 0=crouching, bit 1=sliding, bit 2=wallJumping, bit 3=aiming)
+    if (flags & 0x10) {
+      let movFlags = 0;
+      if (isCrouching) movFlags |= 1;
+      if (isSliding) movFlags |= 2;
+      if (isWallJumping) movFlags |= 4;
+      if (movState?.isAiming) movFlags |= 8;
+      const view = movState?.strafeInput !== undefined;
+      if (view) movFlags |= 0x80;
+      encoder.writeUint8(movFlags);
+      if (view && movState) {
+        encoder.writeUint8(keyBits(movState.strafeInput) | (keyBits(movState.forwardInput) << 2));
+        encoder.writeUint8(phaseByte(movState.slidePhase));
+        encoder.writeUint8(phaseByte(movState.ledgeGrabPhase));
+        encoder.writeInt8(Math.max(-128, Math.min(127, Math.round((movState.crouchViewOffset ?? 0) * 4))));
       }
+    }
 
-      const baselineEntity = baselineEntities.get(entityId);
+    // Flag 0x20: WeaponMeta (string weaponId + 1 byte settled)
+    if (flags & 0x20 && weaponMeta) {
+      encoder.writeString(weaponMeta.weaponId);
+      encoder.writeUint8(weaponMeta.settled ? 1 : 0);
+    }
 
-      // Decode components
-      // Note: We add BOTH 'position' and 'transform' components for compatibility
-      // Some code looks for 'position', other code (Game) looks for 'transform.position'
-      if (flags & 0x01) {
-        const x = decoder.readFloat32();
-        const y = decoder.readFloat32();
-        const z = decoder.readFloat32();
+    // Flag 0x40: Powerup mask (1 byte — bit per POWERUP_KINDS entry)
+    if (flags & 0x40 && powerups) {
+      encoder.writeUint8(powerups.mask & 0xff);
+    }
+  }
+}
 
-        // Legacy position component
-        const pos = {
-          x,
-          y,
-          z,
-          serialize: _noopSerialize,
-          deserialize: _noopDeserialize,
-          clone: _shallowClone,
-        };
-        entity.addComponent("position", pos);
+function decodeEntities(decoder: BinaryDecoder, state: GameState, baseline?: GameState): void {
+  const baselineEntities = baseline?.entities || new Map();
+  const entityCount = decoder.readUint16();
 
-        // Preserve existing rotation if transform already exists (rotation may arrive independently)
-        // Fall back to baseline rotation if entity was just created fresh
-        const existingTransform = entity.getComponent("transform") as unknown as TransformShape | undefined;
-        const baselineTransformRot = baselineEntity?.getComponent("transform") as unknown as TransformShape | undefined;
-        const existingRot = existingTransform?.rotation || baselineTransformRot?.rotation || { x: 0, y: 0, z: 0, w: 1 };
+  for (let i = 0; i < entityCount; i++) {
+    const entityId = decoder.readString();
+    const flags = decoder.readUint8();
 
-        // TransformComponent-style for Game compatibility
-        const transform = {
-          position: { x, y, z },
-          rotation: { ...existingRot },
+    let entity = state.entities.get(entityId);
+    if (!entity) {
+      entity = new Entity(entityId);
+      state.entities.set(entityId, entity);
+    }
+
+    const baselineEntity = baselineEntities.get(entityId);
+
+    // Decode components
+    // Note: We add BOTH 'position' and 'transform' components for compatibility
+    // Some code looks for 'position', other code (Game) looks for 'transform.position'
+    if (flags & 0x01) {
+      const x = decoder.readFloat32();
+      const y = decoder.readFloat32();
+      const z = decoder.readFloat32();
+
+      // Legacy position component
+      const pos = {
+        x,
+        y,
+        z,
+        serialize: _noopSerialize,
+        deserialize: _noopDeserialize,
+        clone: _shallowClone,
+      };
+      entity.addComponent("position", pos);
+
+      // Preserve existing rotation if transform already exists (rotation may arrive independently)
+      // Fall back to baseline rotation if entity was just created fresh
+      const existingTransform = entity.getComponent("transform") as unknown as TransformShape | undefined;
+      const baselineTransformRot = baselineEntity?.getComponent("transform") as unknown as TransformShape | undefined;
+      const existingRot = existingTransform?.rotation || baselineTransformRot?.rotation || { x: 0, y: 0, z: 0, w: 1 };
+
+      // TransformComponent-style for Game compatibility
+      const transform = {
+        position: { x, y, z },
+        rotation: { ...existingRot },
+        serialize: _noopSerialize,
+        deserialize: _noopDeserialize,
+        clone: _transformClone,
+      };
+      entity.addComponent("transform", transform);
+    } else if (baselineEntity) {
+      const baselinePos = baselineEntity.getComponent("position");
+      if (baselinePos) {
+        entity.addComponent("position", baselinePos.clone());
+      }
+      const baselineTransform = baselineEntity.getComponent("transform");
+      if (baselineTransform) {
+        // Rotation can change independently below. Never write into the
+        // retained baseline (N11), which other deltas may still reference.
+        entity.addComponent("transform", baselineTransform.clone());
+      }
+    }
+
+    // Decode velocity (flag 0x02) and grounded (flag 0x04)
+    // These are related - grounded affects whether player can jump
+    let velX = 0,
+      velY = 0,
+      velZ = 0;
+    let grounded = false;
+    let hasVelocityData = false;
+
+    // Always preserve baseline grounded (overridden below if flag 0x04 is set)
+    if (baselineEntity) {
+      const baselineVel = baselineEntity.getComponent("velocity") as unknown as VelocityShape | undefined;
+      if (baselineVel) {
+        grounded = baselineVel.grounded ?? false;
+      }
+    }
+
+    if (flags & 0x02) {
+      // Velocity changed - read new values
+      velX = decoder.readFloat32();
+      velY = decoder.readFloat32();
+      velZ = decoder.readFloat32();
+      hasVelocityData = true;
+    } else if (baselineEntity) {
+      // Velocity unchanged - use baseline
+      const baselineVel = baselineEntity.getComponent("velocity") as unknown as VelocityShape | undefined;
+      if (baselineVel?.linear) {
+        velX = baselineVel.linear.x;
+        velY = baselineVel.linear.y;
+        velZ = baselineVel.linear.z;
+        hasVelocityData = true;
+      }
+    }
+
+    if (flags & 0x04) {
+      // Grounded state changed - read new value
+      // This is CRITICAL for jump logic - client needs to know if player is on ground!
+      grounded = decoder.readUint8() !== 0;
+    }
+
+    // Flag 0x08: Rotation (yaw + pitch)
+    if (flags & 0x08) {
+      const rotY = decoder.readFloat32(); // yaw
+      const rotX = decoder.readFloat32(); // pitch
+
+      // Update transform rotation (create transform if it doesn't exist)
+      let transform = entity.getComponent("transform") as unknown as
+        | (TransformShape & Record<string, unknown>)
+        | undefined;
+      if (transform) {
+        transform.rotation = { x: rotX, y: rotY, z: 0, w: 1 };
+      } else {
+        // No position yet, create transform with zero position + received rotation
+        transform = {
+          position: { x: 0, y: 0, z: 0 },
+          rotation: { x: rotX, y: rotY, z: 0, w: 1 },
           serialize: _noopSerialize,
           deserialize: _noopDeserialize,
           clone: _transformClone,
         };
         entity.addComponent("transform", transform);
-      } else if (baselineEntity) {
-        const baselinePos = baselineEntity.getComponent("position");
-        if (baselinePos) {
-          entity.addComponent("position", baselinePos.clone());
-        }
-        const baselineTransform = baselineEntity.getComponent("transform");
-        if (baselineTransform) {
-          // Rotation can change independently below. Never write into the
-          // retained baseline (N11), which other deltas may still reference.
-          entity.addComponent("transform", baselineTransform.clone());
-        }
       }
+    }
 
-      // Decode velocity (flag 0x02) and grounded (flag 0x04)
-      // These are related - grounded affects whether player can jump
-      let velX = 0,
-        velY = 0,
-        velZ = 0;
-      let grounded = false;
-      let hasVelocityData = false;
-
-      // Always preserve baseline grounded (overridden below if flag 0x04 is set)
-      if (baselineEntity) {
-        const baselineVel = baselineEntity.getComponent("velocity") as unknown as VelocityShape | undefined;
-        if (baselineVel) {
-          grounded = baselineVel.grounded ?? false;
-        }
-      }
-
-      if (flags & 0x02) {
-        // Velocity changed - read new values
-        velX = decoder.readFloat32();
-        velY = decoder.readFloat32();
-        velZ = decoder.readFloat32();
-        hasVelocityData = true;
-      } else if (baselineEntity) {
-        // Velocity unchanged - use baseline
-        const baselineVel = baselineEntity.getComponent("velocity") as unknown as VelocityShape | undefined;
-        if (baselineVel?.linear) {
-          velX = baselineVel.linear.x;
-          velY = baselineVel.linear.y;
-          velZ = baselineVel.linear.z;
-          hasVelocityData = true;
-        }
-      }
-
-      if (flags & 0x04) {
-        // Grounded state changed - read new value
-        // This is CRITICAL for jump logic - client needs to know if player is on ground!
-        grounded = decoder.readUint8() !== 0;
-      }
-
-      // Flag 0x08: Rotation (yaw + pitch)
-      if (flags & 0x08) {
-        const rotY = decoder.readFloat32(); // yaw
-        const rotX = decoder.readFloat32(); // pitch
-
-        // Update transform rotation (create transform if it doesn't exist)
-        let transform = entity.getComponent("transform") as unknown as
-          | (TransformShape & Record<string, unknown>)
-          | undefined;
-        if (transform) {
-          transform.rotation = { x: rotX, y: rotY, z: 0, w: 1 };
-        } else {
-          // No position yet, create transform with zero position + received rotation
-          transform = {
-            position: { x: 0, y: 0, z: 0 },
-            rotation: { x: rotX, y: rotY, z: 0, w: 1 },
-            serialize: _noopSerialize,
-            deserialize: _noopDeserialize,
-            clone: _transformClone,
-          };
-          entity.addComponent("transform", transform);
-        }
-      }
-
-      // Flag 0x10: Movement state (crouch/slide/walljump)
-      let isCrouching = false;
-      let isSliding = false;
-      let isWallJumping = false;
-      let isAiming = false;
-      let view: Partial<MovementStateShape> = {};
-      if (flags & 0x10) {
-        const movFlags = decoder.readUint8();
-        isCrouching = (movFlags & 1) !== 0;
-        isSliding = (movFlags & 2) !== 0;
-        isWallJumping = (movFlags & 4) !== 0;
-        isAiming = (movFlags & 8) !== 0;
-        if (movFlags & 0x80) {
-          const keys = decoder.readUint8();
-          view = {
-            strafeInput: keyOf(keys & 3),
-            forwardInput: keyOf((keys >> 2) & 3),
-            slidePhase: decoder.readUint8() / 255,
-            ledgeGrabPhase: decoder.readUint8() / 255,
-            crouchViewOffset: decoder.readInt8() / 4,
-          };
-        }
-      } else if (baselineEntity) {
-        // Carry forward from baseline
-        const baselineMovState = baselineEntity.getComponent("movementState") as unknown as
-          | MovementStateShape
-          | undefined;
-        isCrouching = baselineMovState?.isCrouching ?? false;
-        isSliding = baselineMovState?.isSliding ?? false;
-        isWallJumping = baselineMovState?.wallJumpState === "charging";
-        isAiming = baselineMovState?.isAiming ?? false;
-      }
-
-      // Create velocity component if we have data
-      if (hasVelocityData || flags & 0x04 || flags & 0x10) {
-        const vel = {
-          x: velX,
-          y: velY,
-          z: velZ, // Legacy direct access
-          linear: { x: velX, y: velY, z: velZ }, // Game expects velocity.linear
-          angular: { x: 0, y: 0, z: 0 },
-          grounded, // Now properly transmitted!
-          isCrouching,
-          isSliding,
-          serialize: _noopSerialize,
-          deserialize: _noopDeserialize,
-          clone: _velocityClone,
+    // Flag 0x10: Movement state (crouch/slide/walljump)
+    let isCrouching = false;
+    let isSliding = false;
+    let isWallJumping = false;
+    let isAiming = false;
+    let view: Partial<MovementStateShape> = {};
+    if (flags & 0x10) {
+      const movFlags = decoder.readUint8();
+      isCrouching = (movFlags & 1) !== 0;
+      isSliding = (movFlags & 2) !== 0;
+      isWallJumping = (movFlags & 4) !== 0;
+      isAiming = (movFlags & 8) !== 0;
+      if (movFlags & 0x80) {
+        const keys = decoder.readUint8();
+        view = {
+          strafeInput: keyOf(keys & 3),
+          forwardInput: keyOf((keys >> 2) & 3),
+          slidePhase: decoder.readUint8() / 255,
+          ledgeGrabPhase: decoder.readUint8() / 255,
+          crouchViewOffset: decoder.readInt8() / 4,
         };
-        entity.addComponent("velocity", vel);
-
-        // Also create a movementState component so RemotePlayerRenderer.pushSnapshot()
-        // can find isCrouching/isSliding via entity.getComponent('movementState').
-        // The encoder reads from 'movementState' on the server, so we reconstruct it here.
-        entity.addComponent("movementState", {
-          isCrouching,
-          isSliding,
-          wallJumpState: isWallJumping ? "charging" : "none",
-          isAiming,
-          ...view,
-          serialize: _noopSerialize,
-          deserialize: _noopDeserialize,
-          clone: _shallowClone,
-        });
       }
+    } else if (baselineEntity) {
+      // Carry forward from baseline
+      const baselineMovState = baselineEntity.getComponent("movementState") as unknown as
+        | MovementStateShape
+        | undefined;
+      isCrouching = baselineMovState?.isCrouching ?? false;
+      isSliding = baselineMovState?.isSliding ?? false;
+      isWallJumping = baselineMovState?.wallJumpState === "charging";
+      isAiming = baselineMovState?.isAiming ?? false;
+    }
 
-      // Flag 0x20: WeaponMeta (weaponId + settled) for item_ entities
-      if (flags & 0x20) {
-        const weaponId = decoder.readString();
-        const settled = decoder.readUint8() !== 0;
-        entity.addComponent("weaponMeta", {
-          weaponId,
-          settled,
-          serialize: _noopSerialize,
-          deserialize: _noopDeserialize,
-          clone: _shallowClone,
-        });
-      } else if (baselineEntity) {
-        // Carry forward from baseline
-        const baselineMeta = baselineEntity.getComponent("weaponMeta");
-        if (baselineMeta) {
-          entity.addComponent("weaponMeta", baselineMeta.clone());
-        }
-      }
+    // Create velocity component if we have data
+    if (hasVelocityData || flags & 0x04 || flags & 0x10) {
+      const vel = {
+        x: velX,
+        y: velY,
+        z: velZ, // Legacy direct access
+        linear: { x: velX, y: velY, z: velZ }, // Game expects velocity.linear
+        angular: { x: 0, y: 0, z: 0 },
+        grounded, // Now properly transmitted!
+        isCrouching,
+        isSliding,
+        serialize: _noopSerialize,
+        deserialize: _noopDeserialize,
+        clone: _velocityClone,
+      };
+      entity.addComponent("velocity", vel);
 
-      // Flag 0x40: Powerup mask. Absent = no powerups. Deliberately NOT carried
-      // forward from the baseline: the encoder sends this every snapshot for
-      // any entity that has the component, so a missing flag genuinely means
-      // "no powerup component", not "unchanged".
-      if (flags & 0x40) {
-        entity.addComponent("powerups", {
-          mask: decoder.readUint8(),
-          serialize: _noopSerialize,
-          deserialize: _noopDeserialize,
-          clone: _shallowClone,
-        });
+      // Also create a movementState component so RemotePlayerRenderer.pushSnapshot()
+      // can find isCrouching/isSliding via entity.getComponent('movementState').
+      // The encoder reads from 'movementState' on the server, so we reconstruct it here.
+      entity.addComponent("movementState", {
+        isCrouching,
+        isSliding,
+        wallJumpState: isWallJumping ? "charging" : "none",
+        isAiming,
+        ...view,
+        serialize: _noopSerialize,
+        deserialize: _noopDeserialize,
+        clone: _shallowClone,
+      });
+    }
+
+    // Flag 0x20: WeaponMeta (weaponId + settled) for item_ entities
+    if (flags & 0x20) {
+      const weaponId = decoder.readString();
+      const settled = decoder.readUint8() !== 0;
+      entity.addComponent("weaponMeta", {
+        weaponId,
+        settled,
+        serialize: _noopSerialize,
+        deserialize: _noopDeserialize,
+        clone: _shallowClone,
+      });
+    } else if (baselineEntity) {
+      // Carry forward from baseline
+      const baselineMeta = baselineEntity.getComponent("weaponMeta");
+      if (baselineMeta) {
+        entity.addComponent("weaponMeta", baselineMeta.clone());
       }
+    }
+
+    // Flag 0x40: Powerup mask. Absent = no powerups. Deliberately NOT carried
+    // forward from the baseline: the encoder sends this every snapshot for
+    // any entity that has the component, so a missing flag genuinely means
+    // "no powerup component", not "unchanged".
+    if (flags & 0x40) {
+      entity.addComponent("powerups", {
+        mask: decoder.readUint8(),
+        serialize: _noopSerialize,
+        deserialize: _noopDeserialize,
+        clone: _shallowClone,
+      });
     }
   }
+}
 
-  private static encodePlayers(encoder: BinaryEncoder, state: GameState, baseline?: GameState): void {
-    const baselinePlayers = baseline?.players || new Map();
+function encodePlayers(encoder: BinaryEncoder, state: GameState, baseline?: GameState): void {
+  const baselinePlayers = baseline?.players || new Map();
 
-    encoder.writeUint16(state.players.size);
+  encoder.writeUint16(state.players.size);
 
-    for (const [playerId, player] of state.players) {
-      const baselinePlayer = baselinePlayers.get(playerId);
+  for (const [playerId, player] of state.players) {
+    const baselinePlayer = baselinePlayers.get(playerId);
 
-      encoder.writeString(playerId);
+    encoder.writeString(playerId);
 
-      // Player flags
-      let flags = 0;
-      if (!baselinePlayer || player.entityId !== baselinePlayer.entityId) flags |= 0x01;
-      if (!baselinePlayer || player.name !== baselinePlayer.name) flags |= 0x02;
-      if (!baselinePlayer || player.score !== baselinePlayer.score) flags |= 0x04;
-      if (!baselinePlayer || player.deaths !== baselinePlayer.deaths) flags |= 0x08;
-      if (!baselinePlayer || player.ping !== baselinePlayer.ping) flags |= 0x10;
-      if (!baselinePlayer || player.team !== baselinePlayer.team) flags |= 0x20;
-      // Absent from team modes and older recordings, so its bit is never set there
-      if (player.look !== undefined && player.look !== baselinePlayer?.look) flags |= 0x40;
+    // Player flags
+    let flags = 0;
+    if (!baselinePlayer || player.entityId !== baselinePlayer.entityId) flags |= 0x01;
+    if (!baselinePlayer || player.name !== baselinePlayer.name) flags |= 0x02;
+    if (!baselinePlayer || player.score !== baselinePlayer.score) flags |= 0x04;
+    if (!baselinePlayer || player.deaths !== baselinePlayer.deaths) flags |= 0x08;
+    if (!baselinePlayer || player.ping !== baselinePlayer.ping) flags |= 0x10;
+    if (!baselinePlayer || player.team !== baselinePlayer.team) flags |= 0x20;
+    // Absent from team modes and older recordings, so its bit is never set there
+    if (player.look !== undefined && player.look !== baselinePlayer?.look) flags |= 0x40;
 
-      encoder.writeUint8(flags);
+    encoder.writeUint8(flags);
 
-      // Encode changed fields
-      if (flags & 0x01) encoder.writeString(player.entityId);
-      if (flags & 0x02) encoder.writeString(player.name);
-      if (flags & 0x04) encoder.writeInt32(player.score);
-      if (flags & 0x08) encoder.writeUint32(player.deaths);
-      if (flags & 0x10) encoder.writeUint16(player.ping);
-      if (flags & 0x20) encoder.writeString(player.team);
-      if (flags & 0x40) encoder.writeUint8(player.look!);
+    // Encode changed fields
+    if (flags & 0x01) encoder.writeString(player.entityId);
+    if (flags & 0x02) encoder.writeString(player.name);
+    if (flags & 0x04) encoder.writeInt32(player.score);
+    if (flags & 0x08) encoder.writeUint32(player.deaths);
+    if (flags & 0x10) encoder.writeUint16(player.ping);
+    if (flags & 0x20) encoder.writeString(player.team);
+    if (flags & 0x40) encoder.writeUint8(player.look!);
+  }
+}
+
+function decodePlayers(decoder: BinaryDecoder, state: GameState, baseline?: GameState): void {
+  const baselinePlayers = baseline?.players || new Map();
+  const playerCount = decoder.readUint16();
+
+  for (let i = 0; i < playerCount; i++) {
+    const playerId = decoder.readString();
+    const flags = decoder.readUint8();
+
+    let player = state.players.get(playerId);
+    if (!player) {
+      const newPlayer = {
+        entityId: "",
+        name: "",
+        team: "",
+        score: 0,
+        deaths: 0,
+        ping: 0,
+        serialize: _noopSerialize,
+        deserialize: _noopDeserialize,
+        clone: _shallowClone,
+      };
+      state.players.set(playerId, newPlayer);
+      player = newPlayer;
+    }
+
+    const baselinePlayer = baselinePlayers.get(playerId);
+
+    // Decode fields
+    if (flags & 0x01) {
+      player!.entityId = decoder.readString();
+    } else if (baselinePlayer) {
+      player!.entityId = baselinePlayer.entityId;
+    }
+
+    if (flags & 0x02) {
+      player!.name = decoder.readString();
+    } else if (baselinePlayer) {
+      player!.name = baselinePlayer.name;
+    }
+
+    if (flags & 0x04) {
+      player!.score = decoder.readInt32();
+    } else if (baselinePlayer) {
+      player!.score = baselinePlayer.score;
+    }
+
+    if (flags & 0x08) {
+      player!.deaths = decoder.readUint32();
+    } else if (baselinePlayer) {
+      player!.deaths = baselinePlayer.deaths;
+    }
+
+    if (flags & 0x10) {
+      player!.ping = decoder.readUint16();
+    } else if (baselinePlayer) {
+      player!.ping = baselinePlayer.ping;
+    }
+
+    if (flags & 0x20) {
+      player!.team = decoder.readString();
+    } else if (baselinePlayer) {
+      player!.team = baselinePlayer.team;
+    }
+
+    if (flags & 0x40) {
+      player!.look = decoder.readUint8();
+    } else if (baselinePlayer) {
+      player!.look = baselinePlayer.look;
     }
   }
+}
 
-  private static decodePlayers(decoder: BinaryDecoder, state: GameState, baseline?: GameState): void {
-    const baselinePlayers = baseline?.players || new Map();
-    const playerCount = decoder.readUint16();
+// ── Event type codes for binary encoding ──
+// All event types are known — no JSON fallback needed.
+const EVT_TYPE_MAP: Record<string, number> = {
+  combat_state: 1,
+  match_state: 2,
+  weapon_state: 3,
+  weapon_fire: 4,
+  weapon_charge: 5,
+  projectile_spawn: 6,
+  projectile_impact: 7,
+  item_pickup: 8,
+  weapon_drop: 9,
+  damage: 10,
+  death: 11,
+  award: 12,
+  weapon_chain: 13,
+  chat: 14,
+  pickup_notify: 15,
+  voltaic_beam: 16,
+  electro_rail: 17,
+  powerup_state: 18,
+  powerup_spawn: 19,
+  agent_directives: 20,
+  lift_state: 21,
+  knockback_state: 22,
+};
 
-    for (let i = 0; i < playerCount; i++) {
-      const playerId = decoder.readString();
-      const flags = decoder.readUint8();
+const EVT_NAME_MAP: string[] = [
+  "",
+  "combat_state",
+  "match_state",
+  "weapon_state",
+  "weapon_fire",
+  "weapon_charge",
+  "projectile_spawn",
+  "projectile_impact",
+  "item_pickup",
+  "weapon_drop",
+  "damage",
+  "death",
+  "award",
+  "weapon_chain",
+  "chat",
+  "pickup_notify",
+  "voltaic_beam",
+  "electro_rail",
+  "powerup_state",
+  "powerup_spawn",
+  "agent_directives",
+  "lift_state",
+  "knockback_state",
+  // 23: a damage event that names where the hit landed. Same logical type as 10; see DAMAGE_LOCATED.
+  "damage",
+  // 24: a weapon_fire event that carries a pellet seed. Same logical type as 4; see FIRE_SEEDED.
+  "weapon_fire",
+  // 25: a damage event that carries the victim's pain tier. Same logical type as 10; see DAMAGE_PAINED.
+  "damage",
+  // 26: a death event that names the killing weapon and where the blow landed. Same logical type as 11; see DEATH_LOCATED.
+  "death",
+];
 
-      let player = state.players.get(playerId);
-      if (!player) {
-        const newPlayer = {
-          entityId: "",
-          name: "",
-          team: "",
-          score: 0,
-          deaths: 0,
-          ping: 0,
-          serialize: _noopSerialize,
-          deserialize: _noopDeserialize,
-          clone: _shallowClone,
-        };
-        state.players.set(playerId, newPlayer);
-        player = newPlayer;
-      }
+/**
+ * Wire code of a `damage` event that carries a hit location (a head or leg hit).
+ *
+ * A damage event without one keeps its original code, 10, and its original layout, so a
+ * body hit costs nothing extra and every demo recorded before this existed decodes exactly
+ * as it did. Both codes decode to `type: "damage"`; only 23 sets `hitLocation`, and an
+ * event without it is a body hit.
+ */
+const DAMAGE_LOCATED = 23;
 
-      const baselinePlayer = baselinePlayers.get(playerId);
+/** Wire order of the hit location byte after code 23. Append only: the index is the encoding. */
+const HIT_LOCATIONS = ["body", "head", "legs"] as const;
 
-      // Decode fields
-      if (flags & 0x01) {
-        player!.entityId = decoder.readString();
-      } else if (baselinePlayer) {
-        player!.entityId = baselinePlayer.entityId;
-      }
+/**
+ * Wire code of a `weapon_fire` event that carries a pellet seed and cone (a riotgun shot).
+ *
+ * Every other shot keeps code 4 and its layout, so a demo recorded before this existed decodes
+ * exactly as it did. Both codes decode to `type: "weapon_fire"`; only 24 sets the seed.
+ */
+const FIRE_SEEDED = 24;
 
-      if (flags & 0x02) {
-        player!.name = decoder.readString();
-      } else if (baselinePlayer) {
-        player!.name = baselinePlayer.name;
-      }
+/**
+ * Wire code of a `damage` event that carries the victim's pain tier: code 23's layout, the
+ * hit location byte included, then one byte for the tier (0-3).
+ *
+ * Codes 10 and 23 keep their layouts, so a demo recorded before this existed decodes exactly
+ * as it did, with no tier. All three decode to `type: "damage"`.
+ */
+const DAMAGE_PAINED = 25;
 
-      if (flags & 0x04) {
-        player!.score = decoder.readInt32();
-      } else if (baselinePlayer) {
-        player!.score = baselinePlayer.score;
-      }
+/**
+ * Wire code of a `death` event that names the killing weapon and where the blow landed: code
+ * 11's layout, then the hit location byte (HIT_LOCATIONS index) and the weapon id string.
+ *
+ * A death with neither keeps code 11 and its layout, so a demo recorded before this existed
+ * decodes exactly as it did. Both codes decode to `type: "death"`.
+ */
+const DEATH_LOCATED = 26;
 
-      if (flags & 0x08) {
-        player!.deaths = decoder.readUint32();
-      } else if (baselinePlayer) {
-        player!.deaths = baselinePlayer.deaths;
-      }
-
-      if (flags & 0x10) {
-        player!.ping = decoder.readUint16();
-      } else if (baselinePlayer) {
-        player!.ping = baselinePlayer.ping;
-      }
-
-      if (flags & 0x20) {
-        player!.team = decoder.readString();
-      } else if (baselinePlayer) {
-        player!.team = baselinePlayer.team;
-      }
-
-      if (flags & 0x40) {
-        player!.look = decoder.readUint8();
-      } else if (baselinePlayer) {
-        player!.look = baselinePlayer.look;
-      }
-    }
+/**
+ * The code an event travels under: its type's code, 25 for a damage event with a pain tier,
+ * 23 for one without but with a head or leg hit, 24 for a weapon_fire event with a pellet
+ * seed, or 26 for a death event with a killing weapon or a head or leg hit.
+ */
+function eventTypeCode(event: GameState["events"][number]): number {
+  if (event.type === "damage" && event.painTier !== undefined) return DAMAGE_PAINED;
+  if (event.type === "damage" && (event.hitLocation === "head" || event.hitLocation === "legs")) {
+    return DAMAGE_LOCATED;
   }
-
-  // ── Event type codes for binary encoding ──
-  // All event types are known — no JSON fallback needed.
-  private static readonly EVT_TYPE_MAP: Record<string, number> = {
-    combat_state: 1,
-    match_state: 2,
-    weapon_state: 3,
-    weapon_fire: 4,
-    weapon_charge: 5,
-    projectile_spawn: 6,
-    projectile_impact: 7,
-    item_pickup: 8,
-    weapon_drop: 9,
-    damage: 10,
-    death: 11,
-    award: 12,
-    weapon_chain: 13,
-    chat: 14,
-    pickup_notify: 15,
-    voltaic_beam: 16,
-    electro_rail: 17,
-    powerup_state: 18,
-    powerup_spawn: 19,
-    agent_directives: 20,
-    lift_state: 21,
-    knockback_state: 22,
-  };
-
-  private static readonly EVT_NAME_MAP: string[] = [
-    "",
-    "combat_state",
-    "match_state",
-    "weapon_state",
-    "weapon_fire",
-    "weapon_charge",
-    "projectile_spawn",
-    "projectile_impact",
-    "item_pickup",
-    "weapon_drop",
-    "damage",
-    "death",
-    "award",
-    "weapon_chain",
-    "chat",
-    "pickup_notify",
-    "voltaic_beam",
-    "electro_rail",
-    "powerup_state",
-    "powerup_spawn",
-    "agent_directives",
-    "lift_state",
-    "knockback_state",
-    // 23: a damage event that names where the hit landed. Same logical type as 10; see DAMAGE_LOCATED.
-    "damage",
-    // 24: a weapon_fire event that carries a pellet seed. Same logical type as 4; see FIRE_SEEDED.
-    "weapon_fire",
-    // 25: a damage event that carries the victim's pain tier. Same logical type as 10; see DAMAGE_PAINED.
-    "damage",
-    // 26: a death event that names the killing weapon and where the blow landed. Same logical type as 11; see DEATH_LOCATED.
-    "death",
-  ];
-
-  /**
-   * Wire code of a `damage` event that carries a hit location (a head or leg hit).
-   *
-   * A damage event without one keeps its original code, 10, and its original layout, so a
-   * body hit costs nothing extra and every demo recorded before this existed decodes exactly
-   * as it did. Both codes decode to `type: "damage"`; only 23 sets `hitLocation`, and an
-   * event without it is a body hit.
-   */
-  private static readonly DAMAGE_LOCATED = 23;
-
-  /** Wire order of the hit location byte after code 23. Append only: the index is the encoding. */
-  private static readonly HIT_LOCATIONS = ["body", "head", "legs"] as const;
-
-  /**
-   * Wire code of a `weapon_fire` event that carries a pellet seed and cone (a riotgun shot).
-   *
-   * Every other shot keeps code 4 and its layout, so a demo recorded before this existed decodes
-   * exactly as it did. Both codes decode to `type: "weapon_fire"`; only 24 sets the seed.
-   */
-  private static readonly FIRE_SEEDED = 24;
-
-  /**
-   * Wire code of a `damage` event that carries the victim's pain tier: code 23's layout, the
-   * hit location byte included, then one byte for the tier (0-3).
-   *
-   * Codes 10 and 23 keep their layouts, so a demo recorded before this existed decodes exactly
-   * as it did, with no tier. All three decode to `type: "damage"`.
-   */
-  private static readonly DAMAGE_PAINED = 25;
-
-  /**
-   * Wire code of a `death` event that names the killing weapon and where the blow landed: code
-   * 11's layout, then the hit location byte (HIT_LOCATIONS index) and the weapon id string.
-   *
-   * A death with neither keeps code 11 and its layout, so a demo recorded before this existed
-   * decodes exactly as it did. Both codes decode to `type: "death"`.
-   */
-  private static readonly DEATH_LOCATED = 26;
-
-  /**
-   * The code an event travels under: its type's code, 25 for a damage event with a pain tier,
-   * 23 for one without but with a head or leg hit, 24 for a weapon_fire event with a pellet
-   * seed, or 26 for a death event with a killing weapon or a head or leg hit.
-   */
-  private static eventTypeCode(event: GameState["events"][number]): number {
-    if (event.type === "damage" && event.painTier !== undefined) return BinaryProtocol.DAMAGE_PAINED;
-    if (event.type === "damage" && (event.hitLocation === "head" || event.hitLocation === "legs")) {
-      return BinaryProtocol.DAMAGE_LOCATED;
-    }
-    if (
-      event.type === "death" &&
-      (!!event.killWeapon || event.hitLocation === "head" || event.hitLocation === "legs")
-    ) {
-      return BinaryProtocol.DEATH_LOCATED;
-    }
-    if (event.type === "weapon_fire" && event.pelletSeed !== undefined) {
-      return BinaryProtocol.FIRE_SEEDED;
-    }
-    return BinaryProtocol.EVT_TYPE_MAP[event.type];
+  if (event.type === "death" && (!!event.killWeapon || event.hitLocation === "head" || event.hitLocation === "legs")) {
+    return DEATH_LOCATED;
   }
+  if (event.type === "weapon_fire" && event.pelletSeed !== undefined) {
+    return FIRE_SEEDED;
+  }
+  return EVT_TYPE_MAP[event.type];
+}
 
-  /** Wire order for LiftState.phase. Append only — the index is the encoding. */
-  private static readonly LIFT_PHASES = ["bottom", "up", "top", "down"] as const;
+/** Wire order for LiftState.phase. Append only — the index is the encoding. */
+const LIFT_PHASES = ["bottom", "up", "top", "down"] as const;
 
-  private static encodeEvents(encoder: BinaryEncoder, state: GameState): void {
-    encoder.writeUint16(state.events.length);
+function encodeEvents(encoder: BinaryEncoder, state: GameState): void {
+  encoder.writeUint16(state.events.length);
 
-    for (const event of state.events) {
-      const typeCode = BinaryProtocol.eventTypeCode(event);
-      encoder.writeUint8(typeCode);
+  for (const event of state.events) {
+    const typeCode = eventTypeCode(event);
+    encoder.writeUint8(typeCode);
 
-      switch (typeCode) {
-        case 1: // combat_state: entityId, health, armor, dead
-          encoder.writeString(event.entityId);
-          encoder.writeUint16(event.health ?? 0);
-          encoder.writeUint16(event.armor ?? 0);
-          encoder.writeUint8(event.dead ? 1 : 0);
-          break;
+    switch (typeCode) {
+      case 1: // combat_state: entityId, health, armor, dead
+        encoder.writeString(event.entityId);
+        encoder.writeUint16(event.health ?? 0);
+        encoder.writeUint16(event.armor ?? 0);
+        encoder.writeUint8(event.dead ? 1 : 0);
+        break;
 
-        case 2: // match_state — variable shape, use JSON
-          encoder.writeString(jsonOnce(event, "", () => JSON.stringify(event)));
-          break;
+      case 2: // match_state — variable shape, use JSON
+        encoder.writeString(jsonOnce(event, "", () => JSON.stringify(event)));
+        break;
 
-        case 21: // lift_state — full recoverable mover state, on every snapshot
-          encoder.writeUint8(event.lifts.length);
-          for (const lift of event.lifts) {
-            encoder.writeUint16(lift.modelIndex);
-            encoder.writeFloat32(lift.offset);
-            encoder.writeUint8(Math.max(0, BinaryProtocol.LIFT_PHASES.indexOf(lift.phase)));
-            encoder.writeFloat32(lift.remaining);
-            encoder.writeUint8(lift.cooldowns.length);
-            for (const cooldown of lift.cooldowns) encoder.writeFloat32(cooldown);
-          }
-          break;
-
-        case 3: // weapon_state: entityId, currentWeapon, weapons[], ammo{}, reloading, lastFireTick
-          encoder.writeString(event.entityId);
-          encoder.writeString(event.currentWeapon ?? "");
-          // weapons array as JSON (variable-length array of strings)
-          encoder.writeString(weaponsJson(event));
-          // ammo as JSON (variable-length object)
-          encoder.writeString(ammoJson(event));
-          encoder.writeUint8(event.reloading ? 1 : 0);
-          encoder.writeUint32(event.lastFireTick ?? 0);
-          break;
-
-        case 4: // weapon_fire: entityId, weaponId, origin xyz, dir xyz
-        case 24: // weapon_fire with a pellet seed: the same fields, then seed (int32) and cone (float32)
-          encoder.writeString(event.entityId);
-          encoder.writeString(event.weaponId ?? "");
-          encoder.writeFloat32(event.originX ?? 0);
-          encoder.writeFloat32(event.originY ?? 0);
-          encoder.writeFloat32(event.originZ ?? 0);
-          encoder.writeFloat32(event.dirX ?? 0);
-          encoder.writeFloat32(event.dirY ?? 0);
-          encoder.writeFloat32(event.dirZ ?? 0);
-          if (typeCode === BinaryProtocol.FIRE_SEEDED) {
-            encoder.writeInt32(event.pelletSeed ?? 0);
-            encoder.writeFloat32(event.pelletSpread ?? 0);
-          }
-          break;
-
-        case 5: // weapon_charge: entityId, weaponId, charging
-          encoder.writeString(event.entityId);
-          encoder.writeString(event.weaponId ?? "");
-          encoder.writeUint8(event.charging ? 1 : 0);
-          break;
-
-        case 13: {
-          // weapon_chain: entityId, point count (u8), then count × (xyz float32)
-          encoder.writeString(event.entityId);
-          const pts = event.points ?? [];
-          encoder.writeUint8(Math.min(255, pts.length));
-          for (const p of pts) {
-            encoder.writeFloat32(p.x);
-            encoder.writeFloat32(p.y);
-            encoder.writeFloat32(p.z);
-          }
-          break;
+      case 21: // lift_state — full recoverable mover state, on every snapshot
+        encoder.writeUint8(event.lifts.length);
+        for (const lift of event.lifts) {
+          encoder.writeUint16(lift.modelIndex);
+          encoder.writeFloat32(lift.offset);
+          encoder.writeUint8(Math.max(0, LIFT_PHASES.indexOf(lift.phase)));
+          encoder.writeFloat32(lift.remaining);
+          encoder.writeUint8(lift.cooldowns.length);
+          for (const cooldown of lift.cooldowns) encoder.writeFloat32(cooldown);
         }
+        break;
 
-        case 6: // projectile_spawn: entityId, defId
-          encoder.writeString(event.entityId);
-          encoder.writeString(event.defId ?? "");
-          break;
+      case 3: // weapon_state: entityId, currentWeapon, weapons[], ammo{}, reloading, lastFireTick
+        encoder.writeString(event.entityId);
+        encoder.writeString(event.currentWeapon ?? "");
+        // weapons array as JSON (variable-length array of strings)
+        encoder.writeString(weaponsJson(event));
+        // ammo as JSON (variable-length object)
+        encoder.writeString(ammoJson(event));
+        encoder.writeUint8(event.reloading ? 1 : 0);
+        encoder.writeUint32(event.lastFireTick ?? 0);
+        break;
 
-        case 7: // projectile_impact: defId, xyz, normal xyz
-          encoder.writeString(event.defId ?? "");
-          encoder.writeFloat32(event.x ?? 0);
-          encoder.writeFloat32(event.y ?? 0);
-          encoder.writeFloat32(event.z ?? 0);
-          encoder.writeFloat32(event.normalX ?? 0);
-          encoder.writeFloat32(event.normalY ?? 0);
-          encoder.writeFloat32(event.normalZ ?? 0);
-          break;
-
-        case 8: // item_pickup: pickupId, weaponId, entityId, droppedWeaponId, xyz
-          encoder.writeInt16(typeof event.pickupId === "number" ? event.pickupId : -1);
-          encoder.writeString(event.weaponId ?? "");
-          encoder.writeString(event.entityId ?? "");
-          encoder.writeString(event.droppedWeaponId ?? "");
-          encoder.writeFloat32(event.x ?? 0);
-          encoder.writeFloat32(event.y ?? 0);
-          encoder.writeFloat32(event.z ?? 0);
-          break;
-
-        case 9: // weapon_drop: entityId, weaponId, xyz, vel xyz
-          encoder.writeString(event.entityId);
-          encoder.writeString(event.weaponId ?? "");
-          encoder.writeFloat32(event.x ?? 0);
-          encoder.writeFloat32(event.y ?? 0);
-          encoder.writeFloat32(event.z ?? 0);
-          encoder.writeFloat32(event.velX ?? 0);
-          encoder.writeFloat32(event.velY ?? 0);
-          encoder.writeFloat32(event.velZ ?? 0);
-          break;
-
-        case 10: // damage: entityId, attackerId, damage, weaponId, xyz
-        case 23: // damage with a hit location: the same fields, then one byte (HIT_LOCATIONS index)
-        case 25: // damage with a pain tier: code 23's fields, then one byte (0-3)
-          encoder.writeString(event.entityId);
-          encoder.writeString(event.attackerId ?? "");
-          encoder.writeUint16(event.damage ?? 0);
-          encoder.writeString(event.weaponId ?? "");
-          encoder.writeFloat32(event.x ?? 0);
-          encoder.writeFloat32(event.y ?? 0);
-          encoder.writeFloat32(event.z ?? 0);
-          if (typeCode === BinaryProtocol.DAMAGE_LOCATED || typeCode === BinaryProtocol.DAMAGE_PAINED) {
-            encoder.writeUint8(Math.max(0, BinaryProtocol.HIT_LOCATIONS.indexOf(event.hitLocation)));
-          }
-          if (typeCode === BinaryProtocol.DAMAGE_PAINED) encoder.writeUint8(event.painTier);
-          break;
-
-        case 11: // death: entityId, killerId, weaponId, damageType, finalDamage, xyz, vel xyz, kb dir xyz
-        case 26: // death with code 11's fields, then hit location and the killing weapon
-          encoder.writeString(event.entityId);
-          encoder.writeString(event.killerId ?? "");
-          encoder.writeString(event.weaponId ?? "");
-          encoder.writeString(event.damageType ?? "");
-          encoder.writeUint16(event.finalDamage ?? 0);
-          encoder.writeFloat32(event.x ?? 0);
-          encoder.writeFloat32(event.y ?? 0);
-          encoder.writeFloat32(event.z ?? 0);
-          encoder.writeFloat32(event.velX ?? 0);
-          encoder.writeFloat32(event.velY ?? 0);
-          encoder.writeFloat32(event.velZ ?? 0);
-          encoder.writeFloat32(event.kbDirX ?? 0);
-          encoder.writeFloat32(event.kbDirY ?? 0);
-          encoder.writeFloat32(event.kbDirZ ?? 0);
-          if (typeCode === BinaryProtocol.DEATH_LOCATED) {
-            encoder.writeUint8(Math.max(0, BinaryProtocol.HIT_LOCATIONS.indexOf(event.hitLocation ?? "body")));
-            encoder.writeString(event.killWeapon ?? "");
-          }
-          break;
-
-        case 12: // award: awardType, playerId, playerName, targetName, value
-          encoder.writeString(event.awardType ?? "");
-          encoder.writeString(event.playerId ?? "");
-          encoder.writeString(event.playerName ?? "");
-          encoder.writeString(event.targetName ?? "");
-          encoder.writeUint16(event.value ?? 0);
-          break;
-
-        case 14: // chat: senderId, senderName, team, text (lands in demos via D16)
-          encoder.writeString(event.senderId ?? "");
-          encoder.writeString(event.senderName ?? "");
-          encoder.writeString(event.team ?? "");
-          encoder.writeString(event.text ?? "");
-          break;
-
-        case 15: // pickup_notify: entityId (grabber), label
-          encoder.writeString(event.entityId ?? "");
-          encoder.writeString(event.label ?? "");
-          break;
-
-        case 16: // voltaic_beam: entity, authoritative ray/contact, impact kind
-        case 17: // electro_rail: identical authoritative ray/contact payload
-          encoder.writeString(event.entityId);
-          encoder.writeFloat32(event.originX ?? 0);
-          encoder.writeFloat32(event.originY ?? 0);
-          encoder.writeFloat32(event.originZ ?? 0);
-          encoder.writeFloat32(event.dirX ?? 0);
-          encoder.writeFloat32(event.dirY ?? 0);
-          encoder.writeFloat32(event.dirZ ?? 0);
-          encoder.writeFloat32(event.endX ?? 0);
-          encoder.writeFloat32(event.endY ?? 0);
-          encoder.writeFloat32(event.endZ ?? 0);
-          encoder.writeFloat32(event.normalX ?? 0);
-          encoder.writeFloat32(event.normalY ?? 0);
-          encoder.writeFloat32(event.normalZ ?? 0);
-          encoder.writeUint8(event.impactKind ?? 0);
-          break;
-
-        case 18: // powerup_state: entityId (holder), kind, whole seconds left
-          encoder.writeString(event.entityId ?? "");
-          encoder.writeString(event.kind ?? "");
-          encoder.writeUint16(event.seconds ?? 0);
-          break;
-
-        case 19: // powerup_spawn: kind + world position (broadcast to everyone)
-          encoder.writeString(event.kind ?? "");
-          encoder.writeFloat32(event.x ?? 0);
-          encoder.writeFloat32(event.y ?? 0);
-          encoder.writeFloat32(event.z ?? 0);
-          break;
-
-        // agent_directives: addressee + orders. Variable shape and low
-        // frequency (only for gametypes that issue them, only to the addressed
-        // client), so JSON like match_state rather than a bespoke layout.
-        case 20:
-          encoder.writeString(event.entityId ?? "");
-          encoder.writeString(JSON.stringify(event.directives ?? []));
-          break;
-
-        // knockback_state: the owner's drag age after this tick. Repeated state
-        // in one byte; 255 means no drag, and so does anything that is not an
-        // integer age a byte can hold — truncating one would invent an age.
-        case 22: {
-          const age = event.ageTicks;
-          encoder.writeString(event.entityId ?? "");
-          encoder.writeUint8(typeof age === "number" && Number.isInteger(age) && age >= 0 && age < 255 ? age : 255);
-          break;
+      case 4: // weapon_fire: entityId, weaponId, origin xyz, dir xyz
+      case 24: // weapon_fire with a pellet seed: the same fields, then seed (int32) and cone (float32)
+        encoder.writeString(event.entityId);
+        encoder.writeString(event.weaponId ?? "");
+        encoder.writeFloat32(event.originX ?? 0);
+        encoder.writeFloat32(event.originY ?? 0);
+        encoder.writeFloat32(event.originZ ?? 0);
+        encoder.writeFloat32(event.dirX ?? 0);
+        encoder.writeFloat32(event.dirY ?? 0);
+        encoder.writeFloat32(event.dirZ ?? 0);
+        if (typeCode === FIRE_SEEDED) {
+          encoder.writeInt32(event.pelletSeed ?? 0);
+          encoder.writeFloat32(event.pelletSpread ?? 0);
         }
+        break;
+
+      case 5: // weapon_charge: entityId, weaponId, charging
+        encoder.writeString(event.entityId);
+        encoder.writeString(event.weaponId ?? "");
+        encoder.writeUint8(event.charging ? 1 : 0);
+        break;
+
+      case 13: {
+        // weapon_chain: entityId, point count (u8), then count × (xyz float32)
+        encoder.writeString(event.entityId);
+        const pts = event.points ?? [];
+        encoder.writeUint8(Math.min(255, pts.length));
+        for (const p of pts) {
+          encoder.writeFloat32(p.x);
+          encoder.writeFloat32(p.y);
+          encoder.writeFloat32(p.z);
+        }
+        break;
       }
-    }
-  }
 
-  private static decodeEvents(decoder: BinaryDecoder, state: GameState): void {
-    const eventCount = decoder.readUint16();
+      case 6: // projectile_spawn: entityId, defId
+        encoder.writeString(event.entityId);
+        encoder.writeString(event.defId ?? "");
+        break;
 
-    for (let i = 0; i < eventCount; i++) {
-      const typeCode = decoder.readUint8();
-      const type = BinaryProtocol.EVT_NAME_MAP[typeCode];
+      case 7: // projectile_impact: defId, xyz, normal xyz
+        encoder.writeString(event.defId ?? "");
+        encoder.writeFloat32(event.x ?? 0);
+        encoder.writeFloat32(event.y ?? 0);
+        encoder.writeFloat32(event.z ?? 0);
+        encoder.writeFloat32(event.normalX ?? 0);
+        encoder.writeFloat32(event.normalY ?? 0);
+        encoder.writeFloat32(event.normalZ ?? 0);
+        break;
 
-      switch (typeCode) {
-        case 1: // combat_state
-          state.events.push({
-            type,
-            entityId: decoder.readString(),
-            health: decoder.readUint16(),
-            armor: decoder.readUint16(),
-            dead: decoder.readUint8() !== 0,
-          });
-          break;
+      case 8: // item_pickup: pickupId, weaponId, entityId, droppedWeaponId, xyz
+        encoder.writeInt16(typeof event.pickupId === "number" ? event.pickupId : -1);
+        encoder.writeString(event.weaponId ?? "");
+        encoder.writeString(event.entityId ?? "");
+        encoder.writeString(event.droppedWeaponId ?? "");
+        encoder.writeFloat32(event.x ?? 0);
+        encoder.writeFloat32(event.y ?? 0);
+        encoder.writeFloat32(event.z ?? 0);
+        break;
 
-        case 2: // match_state — JSON
-          state.events.push({ type, ...JSON.parse(decoder.readString()) });
-          break;
+      case 9: // weapon_drop: entityId, weaponId, xyz, vel xyz
+        encoder.writeString(event.entityId);
+        encoder.writeString(event.weaponId ?? "");
+        encoder.writeFloat32(event.x ?? 0);
+        encoder.writeFloat32(event.y ?? 0);
+        encoder.writeFloat32(event.z ?? 0);
+        encoder.writeFloat32(event.velX ?? 0);
+        encoder.writeFloat32(event.velY ?? 0);
+        encoder.writeFloat32(event.velZ ?? 0);
+        break;
 
-        case 21: {
-          // lift_state
-          const lifts = [];
-          for (let l = decoder.readUint8(); l > 0; l--) {
-            const modelIndex = decoder.readUint16();
-            const offset = decoder.readFloat32();
-            const phase = BinaryProtocol.LIFT_PHASES[decoder.readUint8()] ?? "bottom";
-            const remaining = decoder.readFloat32();
-            const cooldowns = [];
-            for (let c = decoder.readUint8(); c > 0; c--) cooldowns.push(decoder.readFloat32());
-            lifts.push({ modelIndex, offset, phase, remaining, cooldowns });
-          }
-          state.events.push({ type, lifts });
-          break;
+      case 10: // damage: entityId, attackerId, damage, weaponId, xyz
+      case 23: // damage with a hit location: the same fields, then one byte (HIT_LOCATIONS index)
+      case 25: // damage with a pain tier: code 23's fields, then one byte (0-3)
+        encoder.writeString(event.entityId);
+        encoder.writeString(event.attackerId ?? "");
+        encoder.writeUint16(event.damage ?? 0);
+        encoder.writeString(event.weaponId ?? "");
+        encoder.writeFloat32(event.x ?? 0);
+        encoder.writeFloat32(event.y ?? 0);
+        encoder.writeFloat32(event.z ?? 0);
+        if (typeCode === DAMAGE_LOCATED || typeCode === DAMAGE_PAINED) {
+          encoder.writeUint8(Math.max(0, HIT_LOCATIONS.indexOf(event.hitLocation)));
         }
+        if (typeCode === DAMAGE_PAINED) encoder.writeUint8(event.painTier);
+        break;
 
-        case 3: // weapon_state
-          state.events.push({
-            type,
-            entityId: decoder.readString(),
-            currentWeapon: decoder.readString(),
-            weapons: JSON.parse(decoder.readString()),
-            ammo: JSON.parse(decoder.readString()),
-            reloading: decoder.readUint8() !== 0,
-            lastFireTick: decoder.readUint32(),
-          });
-          break;
-
-        case 4: // weapon_fire
-        case 24: {
-          // weapon_fire with a pellet seed (code 24); code 4 has none
-          const fireEvent: GameState["events"][number] = {
-            type,
-            entityId: decoder.readString(),
-            weaponId: decoder.readString(),
-            originX: decoder.readFloat32(),
-            originY: decoder.readFloat32(),
-            originZ: decoder.readFloat32(),
-            dirX: decoder.readFloat32(),
-            dirY: decoder.readFloat32(),
-            dirZ: decoder.readFloat32(),
-          };
-          if (typeCode === BinaryProtocol.FIRE_SEEDED) {
-            fireEvent.pelletSeed = decoder.readInt32();
-            fireEvent.pelletSpread = decoder.readFloat32();
-          }
-          state.events.push(fireEvent);
-          break;
+      case 11: // death: entityId, killerId, weaponId, damageType, finalDamage, xyz, vel xyz, kb dir xyz
+      case 26: // death with code 11's fields, then hit location and the killing weapon
+        encoder.writeString(event.entityId);
+        encoder.writeString(event.killerId ?? "");
+        encoder.writeString(event.weaponId ?? "");
+        encoder.writeString(event.damageType ?? "");
+        encoder.writeUint16(event.finalDamage ?? 0);
+        encoder.writeFloat32(event.x ?? 0);
+        encoder.writeFloat32(event.y ?? 0);
+        encoder.writeFloat32(event.z ?? 0);
+        encoder.writeFloat32(event.velX ?? 0);
+        encoder.writeFloat32(event.velY ?? 0);
+        encoder.writeFloat32(event.velZ ?? 0);
+        encoder.writeFloat32(event.kbDirX ?? 0);
+        encoder.writeFloat32(event.kbDirY ?? 0);
+        encoder.writeFloat32(event.kbDirZ ?? 0);
+        if (typeCode === DEATH_LOCATED) {
+          encoder.writeUint8(Math.max(0, HIT_LOCATIONS.indexOf(event.hitLocation ?? "body")));
+          encoder.writeString(event.killWeapon ?? "");
         }
+        break;
 
-        case 5: // weapon_charge
-          state.events.push({
-            type,
-            entityId: decoder.readString(),
-            weaponId: decoder.readString(),
-            charging: decoder.readUint8() !== 0,
-          });
-          break;
+      case 12: // award: awardType, playerId, playerName, targetName, value
+        encoder.writeString(event.awardType ?? "");
+        encoder.writeString(event.playerId ?? "");
+        encoder.writeString(event.playerName ?? "");
+        encoder.writeString(event.targetName ?? "");
+        encoder.writeUint16(event.value ?? 0);
+        break;
 
-        case 13: {
-          // weapon_chain
-          const entityId = decoder.readString();
-          const count = decoder.readUint8();
-          const points: { x: number; y: number; z: number }[] = [];
-          for (let p = 0; p < count; p++) {
-            points.push({ x: decoder.readFloat32(), y: decoder.readFloat32(), z: decoder.readFloat32() });
-          }
-          state.events.push({ type, entityId, points });
-          break;
-        }
+      case 14: // chat: senderId, senderName, team, text (lands in demos via D16)
+        encoder.writeString(event.senderId ?? "");
+        encoder.writeString(event.senderName ?? "");
+        encoder.writeString(event.team ?? "");
+        encoder.writeString(event.text ?? "");
+        break;
 
-        case 6: // projectile_spawn
-          state.events.push({
-            type,
-            entityId: decoder.readString(),
-            defId: decoder.readString(),
-          });
-          break;
+      case 15: // pickup_notify: entityId (grabber), label
+        encoder.writeString(event.entityId ?? "");
+        encoder.writeString(event.label ?? "");
+        break;
 
-        case 7: // projectile_impact
-          state.events.push({
-            type,
-            defId: decoder.readString(),
-            x: decoder.readFloat32(),
-            y: decoder.readFloat32(),
-            z: decoder.readFloat32(),
-            normalX: decoder.readFloat32(),
-            normalY: decoder.readFloat32(),
-            normalZ: decoder.readFloat32(),
-          });
-          break;
+      case 16: // voltaic_beam: entity, authoritative ray/contact, impact kind
+      case 17: // electro_rail: identical authoritative ray/contact payload
+        encoder.writeString(event.entityId);
+        encoder.writeFloat32(event.originX ?? 0);
+        encoder.writeFloat32(event.originY ?? 0);
+        encoder.writeFloat32(event.originZ ?? 0);
+        encoder.writeFloat32(event.dirX ?? 0);
+        encoder.writeFloat32(event.dirY ?? 0);
+        encoder.writeFloat32(event.dirZ ?? 0);
+        encoder.writeFloat32(event.endX ?? 0);
+        encoder.writeFloat32(event.endY ?? 0);
+        encoder.writeFloat32(event.endZ ?? 0);
+        encoder.writeFloat32(event.normalX ?? 0);
+        encoder.writeFloat32(event.normalY ?? 0);
+        encoder.writeFloat32(event.normalZ ?? 0);
+        encoder.writeUint8(event.impactKind ?? 0);
+        break;
 
-        case 8: // item_pickup
-          state.events.push({
-            type,
-            pickupId: decoder.readInt16(),
-            weaponId: decoder.readString(),
-            entityId: decoder.readString(),
-            droppedWeaponId: decoder.readString(),
-            x: decoder.readFloat32(),
-            y: decoder.readFloat32(),
-            z: decoder.readFloat32(),
-          });
-          break;
+      case 18: // powerup_state: entityId (holder), kind, whole seconds left
+        encoder.writeString(event.entityId ?? "");
+        encoder.writeString(event.kind ?? "");
+        encoder.writeUint16(event.seconds ?? 0);
+        break;
 
-        case 9: // weapon_drop
-          state.events.push({
-            type,
-            entityId: decoder.readString(),
-            weaponId: decoder.readString(),
-            x: decoder.readFloat32(),
-            y: decoder.readFloat32(),
-            z: decoder.readFloat32(),
-            velX: decoder.readFloat32(),
-            velY: decoder.readFloat32(),
-            velZ: decoder.readFloat32(),
-          });
-          break;
+      case 19: // powerup_spawn: kind + world position (broadcast to everyone)
+        encoder.writeString(event.kind ?? "");
+        encoder.writeFloat32(event.x ?? 0);
+        encoder.writeFloat32(event.y ?? 0);
+        encoder.writeFloat32(event.z ?? 0);
+        break;
 
-        case 10: // damage
-        case 23:
-        case 25: {
-          // damage with a hit location (codes 23 and 25); code 10 has none, which means a body
-          // hit. Only 25 carries the pain tier.
-          const damageEvent: GameState["events"][number] = {
-            type,
-            entityId: decoder.readString(),
-            attackerId: decoder.readString(),
-            damage: decoder.readUint16(),
-            weaponId: decoder.readString(),
-            x: decoder.readFloat32(),
-            y: decoder.readFloat32(),
-            z: decoder.readFloat32(),
-          };
-          if (typeCode === BinaryProtocol.DAMAGE_LOCATED) {
-            damageEvent.hitLocation = BinaryProtocol.HIT_LOCATIONS[decoder.readUint8()] ?? "body";
-          } else if (typeCode === BinaryProtocol.DAMAGE_PAINED) {
-            // A body hit is left without a location, as code 10 leaves it
-            const location = BinaryProtocol.HIT_LOCATIONS[decoder.readUint8()];
-            if (location && location !== "body") damageEvent.hitLocation = location;
-          }
-          if (typeCode === BinaryProtocol.DAMAGE_PAINED) damageEvent.painTier = Math.min(3, decoder.readUint8());
-          state.events.push(damageEvent);
-          break;
-        }
+      // agent_directives: addressee + orders. Variable shape and low
+      // frequency (only for gametypes that issue them, only to the addressed
+      // client), so JSON like match_state rather than a bespoke layout.
+      case 20:
+        encoder.writeString(event.entityId ?? "");
+        encoder.writeString(JSON.stringify(event.directives ?? []));
+        break;
 
-        case 11: // death
-        case 26: {
-          // Code 26 adds the hit location and the killing weapon; code 11 has neither
-          const deathEvent: GameState["events"][number] = {
-            type,
-            entityId: decoder.readString(),
-            killerId: decoder.readString(),
-            weaponId: decoder.readString(),
-            damageType: decoder.readString(),
-            finalDamage: decoder.readUint16(),
-            x: decoder.readFloat32(),
-            y: decoder.readFloat32(),
-            z: decoder.readFloat32(),
-            velX: decoder.readFloat32(),
-            velY: decoder.readFloat32(),
-            velZ: decoder.readFloat32(),
-            kbDirX: decoder.readFloat32(),
-            kbDirY: decoder.readFloat32(),
-            kbDirZ: decoder.readFloat32(),
-          };
-          if (typeCode === BinaryProtocol.DEATH_LOCATED) {
-            // A body hit is left without a location, as code 11 leaves it
-            const location = BinaryProtocol.HIT_LOCATIONS[decoder.readUint8()];
-            if (location && location !== "body") deathEvent.hitLocation = location;
-            const killWeapon = decoder.readString();
-            if (killWeapon) deathEvent.killWeapon = killWeapon;
-          }
-          state.events.push(deathEvent);
-          break;
-        }
-
-        case 12: // award
-          state.events.push({
-            type,
-            awardType: decoder.readString(),
-            playerId: decoder.readString(),
-            playerName: decoder.readString(),
-            targetName: decoder.readString(),
-            value: decoder.readUint16(),
-          });
-          break;
-
-        case 14: // chat
-          state.events.push({
-            type,
-            senderId: decoder.readString(),
-            senderName: decoder.readString(),
-            team: decoder.readString(),
-            text: decoder.readString(),
-          });
-          break;
-
-        case 15: // pickup_notify
-          state.events.push({
-            type,
-            entityId: decoder.readString(),
-            label: decoder.readString(),
-          });
-          break;
-
-        case 16: // voltaic_beam
-        case 17: // electro_rail (identical payload; `type` resolves to the right name)
-          state.events.push({
-            type,
-            entityId: decoder.readString(),
-            originX: decoder.readFloat32(),
-            originY: decoder.readFloat32(),
-            originZ: decoder.readFloat32(),
-            dirX: decoder.readFloat32(),
-            dirY: decoder.readFloat32(),
-            dirZ: decoder.readFloat32(),
-            endX: decoder.readFloat32(),
-            endY: decoder.readFloat32(),
-            endZ: decoder.readFloat32(),
-            normalX: decoder.readFloat32(),
-            normalY: decoder.readFloat32(),
-            normalZ: decoder.readFloat32(),
-            impactKind: decoder.readUint8(),
-          });
-          break;
-
-        case 18: // powerup_state
-          state.events.push({
-            type,
-            entityId: decoder.readString(),
-            kind: decoder.readString(),
-            seconds: decoder.readUint16(),
-          });
-          break;
-
-        case 19: // powerup_spawn
-          state.events.push({
-            type,
-            kind: decoder.readString(),
-            x: decoder.readFloat32(),
-            y: decoder.readFloat32(),
-            z: decoder.readFloat32(),
-          });
-          break;
-
-        case 20: {
-          // agent_directives
-          const entityId = decoder.readString();
-          const raw = decoder.readString();
-          let directives: unknown = [];
-          try {
-            directives = JSON.parse(raw);
-          } catch {
-            // A malformed payload must not poison the whole snapshot decode.
-            directives = [];
-          }
-          state.events.push({ type, entityId, directives });
-          break;
-        }
-
-        case 22: {
-          // knockback_state
-          const entityId = decoder.readString();
-          const age = decoder.readUint8();
-          state.events.push({ type, entityId, ageTicks: age === 255 ? null : age });
-          break;
-        }
+      // knockback_state: the owner's drag age after this tick. Repeated state
+      // in one byte; 255 means no drag, and so does anything that is not an
+      // integer age a byte can hold — truncating one would invent an age.
+      case 22: {
+        const age = event.ageTicks;
+        encoder.writeString(event.entityId ?? "");
+        encoder.writeUint8(typeof age === "number" && Number.isInteger(age) && age >= 0 && age < 255 ? age : 255);
+        break;
       }
     }
   }
 }
+
+function decodeEvents(decoder: BinaryDecoder, state: GameState): void {
+  const eventCount = decoder.readUint16();
+
+  for (let i = 0; i < eventCount; i++) {
+    const typeCode = decoder.readUint8();
+    const type = EVT_NAME_MAP[typeCode];
+
+    switch (typeCode) {
+      case 1: // combat_state
+        state.events.push({
+          type,
+          entityId: decoder.readString(),
+          health: decoder.readUint16(),
+          armor: decoder.readUint16(),
+          dead: decoder.readUint8() !== 0,
+        });
+        break;
+
+      case 2: // match_state — JSON
+        state.events.push({ type, ...JSON.parse(decoder.readString()) });
+        break;
+
+      case 21: {
+        // lift_state
+        const lifts = [];
+        for (let l = decoder.readUint8(); l > 0; l--) {
+          const modelIndex = decoder.readUint16();
+          const offset = decoder.readFloat32();
+          const phase = LIFT_PHASES[decoder.readUint8()] ?? "bottom";
+          const remaining = decoder.readFloat32();
+          const cooldowns = [];
+          for (let c = decoder.readUint8(); c > 0; c--) cooldowns.push(decoder.readFloat32());
+          lifts.push({ modelIndex, offset, phase, remaining, cooldowns });
+        }
+        state.events.push({ type, lifts });
+        break;
+      }
+
+      case 3: // weapon_state
+        state.events.push({
+          type,
+          entityId: decoder.readString(),
+          currentWeapon: decoder.readString(),
+          weapons: JSON.parse(decoder.readString()),
+          ammo: JSON.parse(decoder.readString()),
+          reloading: decoder.readUint8() !== 0,
+          lastFireTick: decoder.readUint32(),
+        });
+        break;
+
+      case 4: // weapon_fire
+      case 24: {
+        // weapon_fire with a pellet seed (code 24); code 4 has none
+        const fireEvent: GameState["events"][number] = {
+          type,
+          entityId: decoder.readString(),
+          weaponId: decoder.readString(),
+          originX: decoder.readFloat32(),
+          originY: decoder.readFloat32(),
+          originZ: decoder.readFloat32(),
+          dirX: decoder.readFloat32(),
+          dirY: decoder.readFloat32(),
+          dirZ: decoder.readFloat32(),
+        };
+        if (typeCode === FIRE_SEEDED) {
+          fireEvent.pelletSeed = decoder.readInt32();
+          fireEvent.pelletSpread = decoder.readFloat32();
+        }
+        state.events.push(fireEvent);
+        break;
+      }
+
+      case 5: // weapon_charge
+        state.events.push({
+          type,
+          entityId: decoder.readString(),
+          weaponId: decoder.readString(),
+          charging: decoder.readUint8() !== 0,
+        });
+        break;
+
+      case 13: {
+        // weapon_chain
+        const entityId = decoder.readString();
+        const count = decoder.readUint8();
+        const points: { x: number; y: number; z: number }[] = [];
+        for (let p = 0; p < count; p++) {
+          points.push({ x: decoder.readFloat32(), y: decoder.readFloat32(), z: decoder.readFloat32() });
+        }
+        state.events.push({ type, entityId, points });
+        break;
+      }
+
+      case 6: // projectile_spawn
+        state.events.push({
+          type,
+          entityId: decoder.readString(),
+          defId: decoder.readString(),
+        });
+        break;
+
+      case 7: // projectile_impact
+        state.events.push({
+          type,
+          defId: decoder.readString(),
+          x: decoder.readFloat32(),
+          y: decoder.readFloat32(),
+          z: decoder.readFloat32(),
+          normalX: decoder.readFloat32(),
+          normalY: decoder.readFloat32(),
+          normalZ: decoder.readFloat32(),
+        });
+        break;
+
+      case 8: // item_pickup
+        state.events.push({
+          type,
+          pickupId: decoder.readInt16(),
+          weaponId: decoder.readString(),
+          entityId: decoder.readString(),
+          droppedWeaponId: decoder.readString(),
+          x: decoder.readFloat32(),
+          y: decoder.readFloat32(),
+          z: decoder.readFloat32(),
+        });
+        break;
+
+      case 9: // weapon_drop
+        state.events.push({
+          type,
+          entityId: decoder.readString(),
+          weaponId: decoder.readString(),
+          x: decoder.readFloat32(),
+          y: decoder.readFloat32(),
+          z: decoder.readFloat32(),
+          velX: decoder.readFloat32(),
+          velY: decoder.readFloat32(),
+          velZ: decoder.readFloat32(),
+        });
+        break;
+
+      case 10: // damage
+      case 23:
+      case 25: {
+        // damage with a hit location (codes 23 and 25); code 10 has none, which means a body
+        // hit. Only 25 carries the pain tier.
+        const damageEvent: GameState["events"][number] = {
+          type,
+          entityId: decoder.readString(),
+          attackerId: decoder.readString(),
+          damage: decoder.readUint16(),
+          weaponId: decoder.readString(),
+          x: decoder.readFloat32(),
+          y: decoder.readFloat32(),
+          z: decoder.readFloat32(),
+        };
+        if (typeCode === DAMAGE_LOCATED) {
+          damageEvent.hitLocation = HIT_LOCATIONS[decoder.readUint8()] ?? "body";
+        } else if (typeCode === DAMAGE_PAINED) {
+          // A body hit is left without a location, as code 10 leaves it
+          const location = HIT_LOCATIONS[decoder.readUint8()];
+          if (location && location !== "body") damageEvent.hitLocation = location;
+        }
+        if (typeCode === DAMAGE_PAINED) damageEvent.painTier = Math.min(3, decoder.readUint8());
+        state.events.push(damageEvent);
+        break;
+      }
+
+      case 11: // death
+      case 26: {
+        // Code 26 adds the hit location and the killing weapon; code 11 has neither
+        const deathEvent: GameState["events"][number] = {
+          type,
+          entityId: decoder.readString(),
+          killerId: decoder.readString(),
+          weaponId: decoder.readString(),
+          damageType: decoder.readString(),
+          finalDamage: decoder.readUint16(),
+          x: decoder.readFloat32(),
+          y: decoder.readFloat32(),
+          z: decoder.readFloat32(),
+          velX: decoder.readFloat32(),
+          velY: decoder.readFloat32(),
+          velZ: decoder.readFloat32(),
+          kbDirX: decoder.readFloat32(),
+          kbDirY: decoder.readFloat32(),
+          kbDirZ: decoder.readFloat32(),
+        };
+        if (typeCode === DEATH_LOCATED) {
+          // A body hit is left without a location, as code 11 leaves it
+          const location = HIT_LOCATIONS[decoder.readUint8()];
+          if (location && location !== "body") deathEvent.hitLocation = location;
+          const killWeapon = decoder.readString();
+          if (killWeapon) deathEvent.killWeapon = killWeapon;
+        }
+        state.events.push(deathEvent);
+        break;
+      }
+
+      case 12: // award
+        state.events.push({
+          type,
+          awardType: decoder.readString(),
+          playerId: decoder.readString(),
+          playerName: decoder.readString(),
+          targetName: decoder.readString(),
+          value: decoder.readUint16(),
+        });
+        break;
+
+      case 14: // chat
+        state.events.push({
+          type,
+          senderId: decoder.readString(),
+          senderName: decoder.readString(),
+          team: decoder.readString(),
+          text: decoder.readString(),
+        });
+        break;
+
+      case 15: // pickup_notify
+        state.events.push({
+          type,
+          entityId: decoder.readString(),
+          label: decoder.readString(),
+        });
+        break;
+
+      case 16: // voltaic_beam
+      case 17: // electro_rail (identical payload; `type` resolves to the right name)
+        state.events.push({
+          type,
+          entityId: decoder.readString(),
+          originX: decoder.readFloat32(),
+          originY: decoder.readFloat32(),
+          originZ: decoder.readFloat32(),
+          dirX: decoder.readFloat32(),
+          dirY: decoder.readFloat32(),
+          dirZ: decoder.readFloat32(),
+          endX: decoder.readFloat32(),
+          endY: decoder.readFloat32(),
+          endZ: decoder.readFloat32(),
+          normalX: decoder.readFloat32(),
+          normalY: decoder.readFloat32(),
+          normalZ: decoder.readFloat32(),
+          impactKind: decoder.readUint8(),
+        });
+        break;
+
+      case 18: // powerup_state
+        state.events.push({
+          type,
+          entityId: decoder.readString(),
+          kind: decoder.readString(),
+          seconds: decoder.readUint16(),
+        });
+        break;
+
+      case 19: // powerup_spawn
+        state.events.push({
+          type,
+          kind: decoder.readString(),
+          x: decoder.readFloat32(),
+          y: decoder.readFloat32(),
+          z: decoder.readFloat32(),
+        });
+        break;
+
+      case 20: {
+        // agent_directives
+        const entityId = decoder.readString();
+        const raw = decoder.readString();
+        let directives: unknown = [];
+        try {
+          directives = JSON.parse(raw);
+        } catch {
+          // A malformed payload must not poison the whole snapshot decode.
+          directives = [];
+        }
+        state.events.push({ type, entityId, directives });
+        break;
+      }
+
+      case 22: {
+        // knockback_state
+        const entityId = decoder.readString();
+        const age = decoder.readUint8();
+        state.events.push({ type, entityId, ageTicks: age === 255 ? null : age });
+        break;
+      }
+    }
+  }
+}
+
+/**
+ * Binary protocol for network messages.
+ * Handles encoding/decoding of game state with delta compression.
+ */
+export const BinaryProtocol = {
+  encodeSnapshot,
+  decodeSnapshot,
+  encodeCommand,
+  decodeCommand,
+};
 
 /**
  * Message types for network protocol

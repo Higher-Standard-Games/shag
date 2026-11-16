@@ -68,533 +68,568 @@ export interface CvarInstance {
   onChange?: (value: CvarValue, oldValue: CvarValue) => void;
 }
 
-export class Cvar {
-  private static cvars: Map<string, CvarInstance> = new Map();
-  /** Loaded preferences have no declared default until their owner registers them. */
-  private static registered = new WeakSet<CvarInstance>();
-  private static initialized = false;
-  private static consoleIntegration: ((cvar: CvarInstance) => void) | null = null;
+const registry: Map<string, CvarInstance> = new Map();
 
-  /**
-   * Initialize the cvar system (loads persisted values)
-   */
-  static init(): void {
-    if (Cvar.initialized) return;
-    Cvar.initialized = true;
-    Cvar.loadFromStorage();
-    console.log(`[Cvar] Initialized with ${Cvar.cvars.size} cvars`);
-  }
+/** Loaded preferences have no declared default until their owner registers them. */
+const registered = new WeakSet<CvarInstance>();
 
-  /**
-   * Set console integration callback (called when cvars are registered)
-   * This allows ConsoleCommandRegistry to auto-register cvars as commands
-   */
-  static setConsoleIntegration(callback: (cvar: CvarInstance) => void): void {
-    Cvar.consoleIntegration = callback;
-    // Register existing cvars
-    for (const cvar of Cvar.cvars.values()) {
-      callback(cvar);
-    }
-  }
+let initialized = false;
+let consoleIntegration: ((cvar: CvarInstance) => void) | null = null;
 
-  /**
-   * Register a new cvar
-   */
-  static register(name: string, defaultValue: CvarValue, options: CvarOptions = {}): CvarInstance {
-    const lowerName = name.toLowerCase();
-    const locked = lowerName === "developer" && DEVELOPER_LOCKED;
-    if (locked) {
-      defaultValue = 0;
-      options = { ...options, type: "int", readonly: true, persist: false };
-    }
+/** Forget every cvar and the console hook, as a page that has registered none. For tests. */
+function clearAll(): void {
+  registry.clear();
+  initialized = false;
+  consoleIntegration = null;
+}
 
-    // Detect type from default value if not specified
-    const type = options.type ?? Cvar.detectType(defaultValue);
+/**
+ * Initialize the cvar system (loads persisted values)
+ */
+function init(): void {
+  if (initialized) return;
+  initialized = true;
+  loadFromStorage();
+  console.log(`[Cvar] Initialized with ${registry.size} cvars`);
+}
 
-    // Validate default value matches type
-    const validatedDefault = Cvar.coerceValue(defaultValue, type, options.min, options.max);
-
-    const cvar: CvarInstance = {
-      name: lowerName,
-      type,
-      value: validatedDefault,
-      defaultValue: validatedDefault,
-      min: options.min,
-      max: options.max,
-      description: options.description ?? "",
-      flags: {
-        developer: options.developer ?? false,
-        persist: options.persist ?? true,
-        readonly: options.readonly ?? false,
-        cheat: options.cheat ?? false,
-        hidden: options.hidden ?? false,
-      },
-      onChange: options.onChange,
-    };
-
-    // Check if we have a persisted value
-    const existing = Cvar.cvars.get(lowerName);
-    if (!locked && !(options.developer && DEVELOPER_LOCKED) && existing && Cvar.validValue(existing.value, type)) {
-      // Keep the persisted/current value, held to the type and bounds this
-      // registration declares — storage kept it before either was known.
-      cvar.value = Cvar.coerceValue(existing.value, type, options.min, options.max);
-    }
-
-    Cvar.cvars.set(lowerName, cvar);
-    Cvar.registered.add(cvar);
-
-    // Notify console integration
-    if (Cvar.consoleIntegration) {
-      Cvar.consoleIntegration(cvar);
-    }
-
-    return cvar;
-  }
-
-  /**
-   * Get a cvar's current value
-   */
-  static get(name: string): CvarValue | undefined {
-    if (name.toLowerCase() === "developer" && DEVELOPER_LOCKED) return 0;
-    return Cvar.cvars.get(name.toLowerCase())?.value;
-  }
-
-  /** Production browser builds cannot enable developer controls. */
-  static isDeveloperLocked(): boolean {
-    return DEVELOPER_LOCKED;
-  }
-
-  /** Whether the current developer setting permits editing this variable. */
-  static canEdit(name: string): boolean {
-    const cvar = Cvar.getCvar(name);
-    return cvar !== undefined && !cvar.flags.readonly && (!cvar.flags.developer || Cvar.getBool("developer"));
-  }
-
-  /**
-   * Get as string
-   */
-  static getString(name: string): string {
-    const value = Cvar.get(name);
-    if (value === undefined) return "";
-    return String(value);
-  }
-
-  /**
-   * Get as number
-   */
-  static getNumber(name: string): number {
-    const value = Cvar.get(name);
-    if (value === undefined) return 0;
-    if (typeof value === "boolean") return value ? 1 : 0;
-    if (typeof value === "number") return value;
-    return parseFloat(value) || 0;
-  }
-
-  /**
-   * Get as boolean
-   */
-  static getBool(name: string): boolean {
-    const value = Cvar.get(name);
-    if (value === undefined) return false;
-    if (typeof value === "boolean") return value;
-    if (typeof value === "number") return value !== 0;
-    return value.toLowerCase() !== "0" && value.toLowerCase() !== "false" && value !== "";
-  }
-
-  /**
-   * Get as integer
-   */
-  static getInt(name: string): number {
-    return Math.round(Cvar.getNumber(name));
-  }
-
-  /**
-   * Set a cvar's value
-   */
-  static set(name: string, value: CvarValue): boolean {
-    if (name.toLowerCase() === "developer" && DEVELOPER_LOCKED) return false;
-    if (!Cvar.validValue(value)) return false;
-    const cvar = Cvar.cvars.get(name.toLowerCase());
-    if (!cvar) {
-      console.warn(`[Cvar] Unknown cvar: ${name}`);
-      return false;
-    }
-
-    if (cvar.flags.readonly) {
-      console.warn(`[Cvar] ${name} is read-only`);
-      return false;
-    }
-    if (cvar.flags.developer && !Cvar.getBool("developer")) {
-      return false;
-    }
-
-    // Reject malformed numeric text before coercion.
-    if ((cvar.type === "int" || cvar.type === "float") && typeof value === "string") {
-      const text = value.trim();
-      if (text === "" || !Number.isFinite(Number(text))) {
-        console.warn(`[Cvar] ${name} takes a number, not "${value}"`);
-        return false;
-      }
-    }
-
-    const oldValue = cvar.value;
-    const newValue = Cvar.coerceValue(value, cvar.type, cvar.min, cvar.max);
-
-    if (oldValue === newValue) {
-      return true; // No change needed
-    }
-
-    cvar.value = newValue;
-
-    // Trigger onChange callback
-    if (cvar.onChange) {
-      try {
-        cvar.onChange(newValue, oldValue);
-      } catch (e) {
-        console.error(`[Cvar] onChange error for ${name}:`, e);
-      }
-    }
-
-    // Persist if enabled
-    if (cvar.flags.persist) {
-      Cvar.saveToStorage();
-    }
-
-    return true;
-  }
-
-  /**
-   * Toggle a boolean cvar
-   */
-  static toggle(name: string): boolean {
-    const cvar = Cvar.cvars.get(name.toLowerCase());
-    if (!cvar) {
-      console.warn(`[Cvar] Unknown cvar: ${name}`);
-      return false;
-    }
-
-    if (cvar.type !== "bool") {
-      // For non-bool, toggle between 0 and 1
-      const current = Cvar.getNumber(name);
-      return Cvar.set(name, current === 0 ? 1 : 0);
-    }
-
-    return Cvar.set(name, !Cvar.getBool(name));
-  }
-
-  /**
-   * Reset a cvar to its default value
-   */
-  static reset(name: string): boolean {
-    const cvar = Cvar.cvars.get(name.toLowerCase());
-    if (!cvar) {
-      console.warn(`[Cvar] Unknown cvar: ${name}`);
-      return false;
-    }
-
-    if (!Cvar.registered.has(cvar)) {
-      Cvar.cvars.delete(cvar.name);
-      Cvar.saveToStorage();
-      return true;
-    }
-    return Cvar.set(name, cvar.defaultValue);
-  }
-
-  /**
-   * Reset all cvars to defaults
-   */
-  static resetAll(): void {
-    for (const cvar of Cvar.cvars.values()) {
-      if (cvar.name !== "developer" && Cvar.canEdit(cvar.name)) {
-        Cvar.reset(cvar.name);
-      }
-    }
-    if (Cvar.canEdit("developer")) Cvar.reset("developer");
-  }
-
-  /**
-   * Get cvar instance (for detailed info)
-   */
-  static getCvar(name: string): CvarInstance | undefined {
-    return Cvar.cvars.get(name.toLowerCase());
-  }
-
-  /**
-   * List all cvars (optionally filtered by prefix)
-   */
-  static list(filter?: string): CvarInstance[] {
-    const result: CvarInstance[] = [];
-    const filterLower = filter?.toLowerCase();
-
-    for (const cvar of Cvar.cvars.values()) {
-      if (cvar.flags.hidden || (cvar.flags.developer && !Cvar.getBool("developer"))) continue;
-      if (filterLower && !cvar.name.startsWith(filterLower)) continue;
-      result.push(cvar);
-    }
-
-    return result.sort((a, b) => a.name.localeCompare(b.name));
-  }
-
-  /**
-   * Get all cvar names (for autocomplete)
-   */
-  static getNames(): string[] {
-    return Array.from(Cvar.cvars.keys())
-      .filter((name) => {
-        const flags = Cvar.cvars.get(name)?.flags;
-        return !flags?.hidden && (!flags?.developer || Cvar.getBool("developer"));
-      })
-      .sort();
-  }
-
-  /**
-   * Check if a cvar exists
-   */
-  static exists(name: string): boolean {
-    return Cvar.cvars.has(name.toLowerCase());
-  }
-
-  /** Whether the owner has declared this cvar's type, bounds and default. */
-  static isRegistered(name: string): boolean {
-    const cvar = Cvar.cvars.get(name.toLowerCase());
-    return cvar !== undefined && Cvar.registered.has(cvar);
-  }
-
-  /** Replace a subset of preferences, retaining values for owners that register later. */
-  static replacePersistedValues(values: Record<string, CvarValue>, accepts: (name: string) => boolean): void {
-    Cvar.init();
-    const incoming = new Map(Object.entries(values).map(([name, value]) => [name.toLowerCase(), value]));
-    for (const [name, cvar] of Cvar.cvars) {
-      if (!accepts(name) || !cvar.flags.persist || cvar.flags.readonly) continue;
-      if (!Cvar.registered.has(cvar)) Cvar.cvars.delete(name);
-      else if (incoming.has(name)) Cvar.set(name, incoming.get(name)!);
-      else Cvar.reset(name);
-    }
-    for (const [name, value] of incoming) {
-      if (accepts(name) && !Cvar.exists(name) && Cvar.validValue(value)) Cvar.preload(name, value);
-    }
-    Cvar.saveToStorage();
-  }
-
-  /**
-   * Format cvar info for console display
-   */
-  static formatInfo(name: string): string {
-    const cvar = Cvar.cvars.get(name.toLowerCase());
-    if (!cvar) return `Unknown cvar: ${name}`;
-
-    let info = `"${cvar.name}" is "${cvar.value}"`;
-    if (cvar.value !== cvar.defaultValue) {
-      info += ` (default: "${cvar.defaultValue}")`;
-    }
-    if (cvar.min !== undefined || cvar.max !== undefined) {
-      info += ` [${cvar.min ?? ""}..${cvar.max ?? ""}]`;
-    }
-    if (cvar.description) {
-      info += `\n  ${cvar.description}`;
-    }
-    if (cvar.flags.readonly) {
-      info += " [readonly]";
-    }
-    if (cvar.flags.developer) info += " [developer]";
-    return info;
-  }
-
-  // ==================== Persistence ====================
-
-  /**
-   * Load cvars from localStorage
-   */
-  private static loadFromStorage(): void {
-    try {
-      const stored = localStorage.getItem(CVAR_STORAGE_KEY);
-      if (!stored) return;
-
-      const data: unknown = JSON.parse(stored);
-      if (!data || typeof data !== "object" || Array.isArray(data)) return;
-      for (const [name, value] of Object.entries(data)) {
-        if (name.toLowerCase() === "developer" && DEVELOPER_LOCKED) continue;
-        const cvar = Cvar.cvars.get(name.toLowerCase());
-        if (cvar?.flags.developer && DEVELOPER_LOCKED) continue;
-        if (!Cvar.validValue(value, cvar?.type)) continue;
-        if (cvar?.flags.persist) {
-          cvar.value = Cvar.coerceValue(value, cvar.type, cvar.min, cvar.max);
-        } else if (!cvar) {
-          Cvar.preload(name, value);
-        }
-      }
-      console.log(`[Cvar] Loaded ${Object.keys(data).length} cvars from storage`);
-    } catch (e) {
-      console.warn("[Cvar] Failed to load from storage:", e);
-    }
-  }
-
-  private static preload(name: string, value: CvarValue): void {
-    Cvar.cvars.set(name.toLowerCase(), {
-      name: name.toLowerCase(),
-      type: Cvar.detectType(value),
-      value,
-      defaultValue: value,
-      description: "",
-      flags: { persist: true },
-    });
-  }
-
-  /**
-   * Save cvars to localStorage
-   */
-  private static saveToStorage(): void {
-    try {
-      const data: Record<string, CvarValue> = {};
-      for (const cvar of Cvar.cvars.values()) {
-        if (cvar.flags.persist && (!Cvar.registered.has(cvar) || cvar.value !== cvar.defaultValue)) {
-          data[cvar.name] = cvar.value;
-        }
-      }
-      writePreference(CVAR_STORAGE_KEY, JSON.stringify(data));
-    } catch (e) {
-      console.warn("[Cvar] Failed to save to storage:", e);
-    }
-  }
-
-  // ==================== Helpers ====================
-
-  private static validValue(value: unknown, type?: CvarType): value is CvarValue {
-    if (typeof value === "number") return Number.isFinite(value);
-    if (typeof value === "boolean") return true;
-    if (typeof value !== "string") return false;
-    if (type === "int" || type === "float") return value.trim() !== "" && Number.isFinite(Number(value));
-    return true;
-  }
-
-  /**
-   * Detect type from value
-   */
-  private static detectType(value: CvarValue): CvarType {
-    if (typeof value === "boolean") return "bool";
-    if (typeof value === "number") {
-      return Number.isInteger(value) ? "int" : "float";
-    }
-    return "string";
-  }
-
-  /**
-   * Coerce value to correct type with bounds checking
-   */
-  private static coerceValue(value: CvarValue, type: CvarType, min?: number, max?: number): CvarValue {
-    let result: CvarValue;
-
-    switch (type) {
-      case "bool":
-        if (typeof value === "boolean") {
-          result = value;
-        } else if (typeof value === "number") {
-          result = value !== 0;
-        } else {
-          const lower = value.toLowerCase();
-          result = lower !== "0" && lower !== "false" && lower !== "";
-        }
-        break;
-
-      case "int":
-        if (typeof value === "boolean") {
-          result = value ? 1 : 0;
-        } else if (typeof value === "number") {
-          result = Math.round(value);
-        } else {
-          result = Math.round(parseFloat(value) || 0);
-        }
-        // Apply bounds
-        if (min !== undefined) result = Math.max(min, result as number);
-        if (max !== undefined) result = Math.min(max, result as number);
-        break;
-
-      case "float":
-        if (typeof value === "boolean") {
-          result = value ? 1 : 0;
-        } else if (typeof value === "number") {
-          result = value;
-        } else {
-          result = parseFloat(value) || 0;
-        }
-        // Apply bounds
-        if (min !== undefined) result = Math.max(min, result as number);
-        if (max !== undefined) result = Math.min(max, result as number);
-        break;
-      default:
-        result = String(value);
-        break;
-    }
-
-    return result;
-  }
-
-  // ==================== Batch Operations ====================
-
-  /**
-   * Register multiple cvars at once
-   */
-  static registerMany(cvars: Array<[string, CvarValue, CvarOptions?]>): void {
-    for (const [name, defaultValue, options] of cvars) {
-      Cvar.register(name, defaultValue, options);
-    }
-  }
-
-  /**
-   * Export all non-default cvars as config string
-   */
-  static exportConfig(): string {
-    const lines: string[] = [];
-    for (const cvar of Cvar.cvars.values()) {
-      if (
-        cvar.value !== cvar.defaultValue &&
-        !cvar.flags.hidden &&
-        (!cvar.flags.developer || Cvar.getBool("developer"))
-      ) {
-        lines.push(`${cvar.name} ${JSON.stringify(String(cvar.value))}`);
-      }
-    }
-    return lines.sort().join("\n");
-  }
-
-  /**
-   * Execute a config string (set multiple cvars)
-   */
-  static execConfig(config: string): { accepted: number; rejected: Array<{ line: number; reason: string }> } {
-    const result = { accepted: 0, rejected: [] as Array<{ line: number; reason: string }> };
-    const lines = config.split("\n");
-    for (const [index, line] of lines.entries()) {
-      const trimmed = line.trim();
-      if (!trimmed || trimmed.startsWith("//") || trimmed.startsWith("#")) continue;
-
-      // Parse: name "value" or name value
-      const match = trimmed.match(/^(\S+)\s+("(?:[^"\\]|\\.)*"|[^"\s]+)$/);
-      if (!match) {
-        result.rejected.push({ line: index + 1, reason: "Expected a setting name and value" });
-        continue;
-      }
-      const name = match[1];
-      let value = match[2];
-      if (value.startsWith('"')) {
-        try {
-          value = JSON.parse(value) as string;
-        } catch {
-          // Legacy quoted strings allowed literal backslashes (e.g. asset paths).
-          value = value.slice(1, -1);
-        }
-      }
-      const cvar = Cvar.getCvar(name);
-      const reason = !cvar
-        ? "Unknown setting"
-        : cvar.flags.readonly
-          ? "Read-only setting"
-          : cvar.flags.developer && !Cvar.getBool("developer")
-            ? "Requires developer mode"
-            : null;
-      if (reason || !Cvar.set(name, value)) {
-        result.rejected.push({ line: index + 1, reason: reason ?? "Invalid value" });
-      } else result.accepted++;
-    }
-    return result;
+/**
+ * Set console integration callback (called when cvars are registered)
+ * This allows ConsoleCommandRegistry to auto-register cvars as commands
+ */
+function setConsoleIntegration(callback: (cvar: CvarInstance) => void): void {
+  consoleIntegration = callback;
+  // Register existing cvars
+  for (const cvar of registry.values()) {
+    callback(cvar);
   }
 }
+
+/**
+ * Register a new cvar
+ */
+function register(name: string, defaultValue: CvarValue, options: CvarOptions = {}): CvarInstance {
+  const lowerName = name.toLowerCase();
+  const locked = lowerName === "developer" && DEVELOPER_LOCKED;
+  if (locked) {
+    defaultValue = 0;
+    options = { ...options, type: "int", readonly: true, persist: false };
+  }
+
+  // Detect type from default value if not specified
+  const type = options.type ?? detectType(defaultValue);
+
+  // Validate default value matches type
+  const validatedDefault = coerceValue(defaultValue, type, options.min, options.max);
+
+  const cvar: CvarInstance = {
+    name: lowerName,
+    type,
+    value: validatedDefault,
+    defaultValue: validatedDefault,
+    min: options.min,
+    max: options.max,
+    description: options.description ?? "",
+    flags: {
+      developer: options.developer ?? false,
+      persist: options.persist ?? true,
+      readonly: options.readonly ?? false,
+      cheat: options.cheat ?? false,
+      hidden: options.hidden ?? false,
+    },
+    onChange: options.onChange,
+  };
+
+  // Check if we have a persisted value
+  const existing = registry.get(lowerName);
+  if (!locked && !(options.developer && DEVELOPER_LOCKED) && existing && validValue(existing.value, type)) {
+    // Keep the persisted/current value, held to the type and bounds this
+    // registration declares — storage kept it before either was known.
+    cvar.value = coerceValue(existing.value, type, options.min, options.max);
+  }
+
+  registry.set(lowerName, cvar);
+  registered.add(cvar);
+
+  // Notify console integration
+  if (consoleIntegration) {
+    consoleIntegration(cvar);
+  }
+
+  return cvar;
+}
+
+/**
+ * Get a cvar's current value
+ */
+function get(name: string): CvarValue | undefined {
+  if (name.toLowerCase() === "developer" && DEVELOPER_LOCKED) return 0;
+  return registry.get(name.toLowerCase())?.value;
+}
+
+/** Production browser builds cannot enable developer controls. */
+function isDeveloperLocked(): boolean {
+  return DEVELOPER_LOCKED;
+}
+
+/** Whether the current developer setting permits editing this variable. */
+function canEdit(name: string): boolean {
+  const cvar = Cvar.getCvar(name);
+  return cvar !== undefined && !cvar.flags.readonly && (!cvar.flags.developer || Cvar.getBool("developer"));
+}
+
+/**
+ * Get as string
+ */
+function getString(name: string): string {
+  const value = Cvar.get(name);
+  if (value === undefined) return "";
+  return String(value);
+}
+
+/**
+ * Get as number
+ */
+function getNumber(name: string): number {
+  const value = Cvar.get(name);
+  if (value === undefined) return 0;
+  if (typeof value === "boolean") return value ? 1 : 0;
+  if (typeof value === "number") return value;
+  return parseFloat(value) || 0;
+}
+
+/**
+ * Get as boolean
+ */
+function getBool(name: string): boolean {
+  const value = Cvar.get(name);
+  if (value === undefined) return false;
+  if (typeof value === "boolean") return value;
+  if (typeof value === "number") return value !== 0;
+  return value.toLowerCase() !== "0" && value.toLowerCase() !== "false" && value !== "";
+}
+
+/**
+ * Get as integer
+ */
+function getInt(name: string): number {
+  return Math.round(Cvar.getNumber(name));
+}
+
+/**
+ * Set a cvar's value
+ */
+function set(name: string, value: CvarValue): boolean {
+  if (name.toLowerCase() === "developer" && DEVELOPER_LOCKED) return false;
+  if (!validValue(value)) return false;
+  const cvar = registry.get(name.toLowerCase());
+  if (!cvar) {
+    console.warn(`[Cvar] Unknown cvar: ${name}`);
+    return false;
+  }
+
+  if (cvar.flags.readonly) {
+    console.warn(`[Cvar] ${name} is read-only`);
+    return false;
+  }
+  if (cvar.flags.developer && !Cvar.getBool("developer")) {
+    return false;
+  }
+
+  // Reject malformed numeric text before coercion.
+  if ((cvar.type === "int" || cvar.type === "float") && typeof value === "string") {
+    const text = value.trim();
+    if (text === "" || !Number.isFinite(Number(text))) {
+      console.warn(`[Cvar] ${name} takes a number, not "${value}"`);
+      return false;
+    }
+  }
+
+  const oldValue = cvar.value;
+  const newValue = coerceValue(value, cvar.type, cvar.min, cvar.max);
+
+  if (oldValue === newValue) {
+    return true; // No change needed
+  }
+
+  cvar.value = newValue;
+
+  // Trigger onChange callback
+  if (cvar.onChange) {
+    try {
+      cvar.onChange(newValue, oldValue);
+    } catch (e) {
+      console.error(`[Cvar] onChange error for ${name}:`, e);
+    }
+  }
+
+  // Persist if enabled
+  if (cvar.flags.persist) {
+    saveToStorage();
+  }
+
+  return true;
+}
+
+/**
+ * Toggle a boolean cvar
+ */
+function toggle(name: string): boolean {
+  const cvar = registry.get(name.toLowerCase());
+  if (!cvar) {
+    console.warn(`[Cvar] Unknown cvar: ${name}`);
+    return false;
+  }
+
+  if (cvar.type !== "bool") {
+    // For non-bool, toggle between 0 and 1
+    const current = Cvar.getNumber(name);
+    return Cvar.set(name, current === 0 ? 1 : 0);
+  }
+
+  return Cvar.set(name, !Cvar.getBool(name));
+}
+
+/**
+ * Reset a cvar to its default value
+ */
+function reset(name: string): boolean {
+  const cvar = registry.get(name.toLowerCase());
+  if (!cvar) {
+    console.warn(`[Cvar] Unknown cvar: ${name}`);
+    return false;
+  }
+
+  if (!registered.has(cvar)) {
+    registry.delete(cvar.name);
+    saveToStorage();
+    return true;
+  }
+  return Cvar.set(name, cvar.defaultValue);
+}
+
+/**
+ * Reset all cvars to defaults
+ */
+function resetAll(): void {
+  for (const cvar of registry.values()) {
+    if (cvar.name !== "developer" && Cvar.canEdit(cvar.name)) {
+      Cvar.reset(cvar.name);
+    }
+  }
+  if (Cvar.canEdit("developer")) Cvar.reset("developer");
+}
+
+/**
+ * Get cvar instance (for detailed info)
+ */
+function getCvar(name: string): CvarInstance | undefined {
+  return registry.get(name.toLowerCase());
+}
+
+/**
+ * List all cvars (optionally filtered by prefix)
+ */
+function list(filter?: string): CvarInstance[] {
+  const result: CvarInstance[] = [];
+  const filterLower = filter?.toLowerCase();
+
+  for (const cvar of registry.values()) {
+    if (cvar.flags.hidden || (cvar.flags.developer && !Cvar.getBool("developer"))) continue;
+    if (filterLower && !cvar.name.startsWith(filterLower)) continue;
+    result.push(cvar);
+  }
+
+  return result.sort((a, b) => a.name.localeCompare(b.name));
+}
+
+/**
+ * Get all cvar names (for autocomplete)
+ */
+function getNames(): string[] {
+  return Array.from(registry.keys())
+    .filter((name) => {
+      const flags = registry.get(name)?.flags;
+      return !flags?.hidden && (!flags?.developer || Cvar.getBool("developer"));
+    })
+    .sort();
+}
+
+/**
+ * Check if a cvar exists
+ */
+function exists(name: string): boolean {
+  return registry.has(name.toLowerCase());
+}
+
+/** Whether the owner has declared this cvar's type, bounds and default. */
+function isRegistered(name: string): boolean {
+  const cvar = registry.get(name.toLowerCase());
+  return cvar !== undefined && registered.has(cvar);
+}
+
+/** Replace a subset of preferences, retaining values for owners that register later. */
+function replacePersistedValues(values: Record<string, CvarValue>, accepts: (name: string) => boolean): void {
+  Cvar.init();
+  const incoming = new Map(Object.entries(values).map(([name, value]) => [name.toLowerCase(), value]));
+  for (const [name, cvar] of registry) {
+    if (!accepts(name) || !cvar.flags.persist || cvar.flags.readonly) continue;
+    if (!registered.has(cvar)) registry.delete(name);
+    else if (incoming.has(name)) Cvar.set(name, incoming.get(name)!);
+    else Cvar.reset(name);
+  }
+  for (const [name, value] of incoming) {
+    if (accepts(name) && !Cvar.exists(name) && validValue(value)) preload(name, value);
+  }
+  saveToStorage();
+}
+
+/**
+ * Format cvar info for console display
+ */
+function formatInfo(name: string): string {
+  const cvar = registry.get(name.toLowerCase());
+  if (!cvar) return `Unknown cvar: ${name}`;
+
+  let info = `"${cvar.name}" is "${cvar.value}"`;
+  if (cvar.value !== cvar.defaultValue) {
+    info += ` (default: "${cvar.defaultValue}")`;
+  }
+  if (cvar.min !== undefined || cvar.max !== undefined) {
+    info += ` [${cvar.min ?? ""}..${cvar.max ?? ""}]`;
+  }
+  if (cvar.description) {
+    info += `\n  ${cvar.description}`;
+  }
+  if (cvar.flags.readonly) {
+    info += " [readonly]";
+  }
+  if (cvar.flags.developer) info += " [developer]";
+  return info;
+}
+
+// ==================== Persistence ====================
+
+/**
+ * Load cvars from localStorage
+ */
+function loadFromStorage(): void {
+  try {
+    const stored = localStorage.getItem(CVAR_STORAGE_KEY);
+    if (!stored) return;
+
+    const data: unknown = JSON.parse(stored);
+    if (!data || typeof data !== "object" || Array.isArray(data)) return;
+    for (const [name, value] of Object.entries(data)) {
+      if (name.toLowerCase() === "developer" && DEVELOPER_LOCKED) continue;
+      const cvar = registry.get(name.toLowerCase());
+      if (cvar?.flags.developer && DEVELOPER_LOCKED) continue;
+      if (!validValue(value, cvar?.type)) continue;
+      if (cvar?.flags.persist) {
+        cvar.value = coerceValue(value, cvar.type, cvar.min, cvar.max);
+      } else if (!cvar) {
+        preload(name, value);
+      }
+    }
+    console.log(`[Cvar] Loaded ${Object.keys(data).length} cvars from storage`);
+  } catch (e) {
+    console.warn("[Cvar] Failed to load from storage:", e);
+  }
+}
+
+function preload(name: string, value: CvarValue): void {
+  registry.set(name.toLowerCase(), {
+    name: name.toLowerCase(),
+    type: detectType(value),
+    value,
+    defaultValue: value,
+    description: "",
+    flags: { persist: true },
+  });
+}
+
+/**
+ * Save cvars to localStorage
+ */
+function saveToStorage(): void {
+  try {
+    const data: Record<string, CvarValue> = {};
+    for (const cvar of registry.values()) {
+      if (cvar.flags.persist && (!registered.has(cvar) || cvar.value !== cvar.defaultValue)) {
+        data[cvar.name] = cvar.value;
+      }
+    }
+    writePreference(CVAR_STORAGE_KEY, JSON.stringify(data));
+  } catch (e) {
+    console.warn("[Cvar] Failed to save to storage:", e);
+  }
+}
+
+// ==================== Helpers ====================
+
+function validValue(value: unknown, type?: CvarType): value is CvarValue {
+  if (typeof value === "number") return Number.isFinite(value);
+  if (typeof value === "boolean") return true;
+  if (typeof value !== "string") return false;
+  if (type === "int" || type === "float") return value.trim() !== "" && Number.isFinite(Number(value));
+  return true;
+}
+
+/**
+ * Detect type from value
+ */
+function detectType(value: CvarValue): CvarType {
+  if (typeof value === "boolean") return "bool";
+  if (typeof value === "number") {
+    return Number.isInteger(value) ? "int" : "float";
+  }
+  return "string";
+}
+
+/**
+ * Coerce value to correct type with bounds checking
+ */
+function coerceValue(value: CvarValue, type: CvarType, min?: number, max?: number): CvarValue {
+  let result: CvarValue;
+
+  switch (type) {
+    case "bool":
+      if (typeof value === "boolean") {
+        result = value;
+      } else if (typeof value === "number") {
+        result = value !== 0;
+      } else {
+        const lower = value.toLowerCase();
+        result = lower !== "0" && lower !== "false" && lower !== "";
+      }
+      break;
+
+    case "int":
+      if (typeof value === "boolean") {
+        result = value ? 1 : 0;
+      } else if (typeof value === "number") {
+        result = Math.round(value);
+      } else {
+        result = Math.round(parseFloat(value) || 0);
+      }
+      // Apply bounds
+      if (min !== undefined) result = Math.max(min, result as number);
+      if (max !== undefined) result = Math.min(max, result as number);
+      break;
+
+    case "float":
+      if (typeof value === "boolean") {
+        result = value ? 1 : 0;
+      } else if (typeof value === "number") {
+        result = value;
+      } else {
+        result = parseFloat(value) || 0;
+      }
+      // Apply bounds
+      if (min !== undefined) result = Math.max(min, result as number);
+      if (max !== undefined) result = Math.min(max, result as number);
+      break;
+    default:
+      result = String(value);
+      break;
+  }
+
+  return result;
+}
+
+// ==================== Batch Operations ====================
+
+/**
+ * Register multiple cvars at once
+ */
+function registerMany(cvars: Array<[string, CvarValue, CvarOptions?]>): void {
+  for (const [name, defaultValue, options] of cvars) {
+    Cvar.register(name, defaultValue, options);
+  }
+}
+
+/**
+ * Export all non-default cvars as config string
+ */
+function exportConfig(): string {
+  const lines: string[] = [];
+  for (const cvar of registry.values()) {
+    if (
+      cvar.value !== cvar.defaultValue &&
+      !cvar.flags.hidden &&
+      (!cvar.flags.developer || Cvar.getBool("developer"))
+    ) {
+      lines.push(`${cvar.name} ${JSON.stringify(String(cvar.value))}`);
+    }
+  }
+  return lines.sort().join("\n");
+}
+
+/**
+ * Execute a config string (set multiple cvars)
+ */
+function execConfig(config: string): { accepted: number; rejected: Array<{ line: number; reason: string }> } {
+  const result = { accepted: 0, rejected: [] as Array<{ line: number; reason: string }> };
+  const lines = config.split("\n");
+  for (const [index, line] of lines.entries()) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("//") || trimmed.startsWith("#")) continue;
+
+    // Parse: name "value" or name value
+    const match = trimmed.match(/^(\S+)\s+("(?:[^"\\]|\\.)*"|[^"\s]+)$/);
+    if (!match) {
+      result.rejected.push({ line: index + 1, reason: "Expected a setting name and value" });
+      continue;
+    }
+    const name = match[1];
+    let value = match[2];
+    if (value.startsWith('"')) {
+      try {
+        value = JSON.parse(value) as string;
+      } catch {
+        // Legacy quoted strings allowed literal backslashes (e.g. asset paths).
+        value = value.slice(1, -1);
+      }
+    }
+    const cvar = Cvar.getCvar(name);
+    const reason = !cvar
+      ? "Unknown setting"
+      : cvar.flags.readonly
+        ? "Read-only setting"
+        : cvar.flags.developer && !Cvar.getBool("developer")
+          ? "Requires developer mode"
+          : null;
+    if (reason || !Cvar.set(name, value)) {
+      result.rejected.push({ line: index + 1, reason: reason ?? "Invalid value" });
+    } else result.accepted++;
+  }
+  return result;
+}
+
+export const Cvar = {
+  clearAll,
+  init,
+  setConsoleIntegration,
+  register,
+  get,
+  isDeveloperLocked,
+  canEdit,
+  getString,
+  getNumber,
+  getBool,
+  getInt,
+  set,
+  toggle,
+  reset,
+  resetAll,
+  getCvar,
+  list,
+  getNames,
+  exists,
+  isRegistered,
+  replacePersistedValues,
+  formatInfo,
+  registerMany,
+  exportConfig,
+  execConfig,
+};

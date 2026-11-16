@@ -2,8 +2,13 @@
 
 import { NullEngine } from "@babylonjs/core/Engines/nullEngine";
 import { ImportMeshAsync } from "@babylonjs/core/Loading/sceneLoader";
+import type { TransformNode } from "@babylonjs/core/Meshes/transformNode";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { EditorSession } from "../EditorSession";
+
+/** The model previews a session keeps for its props, which it does not expose. */
+const previewsOf = (session: EditorSession) =>
+  (session as unknown as { modelPreviews: Map<string, TransformNode> }).modelPreviews;
 
 vi.mock("@babylonjs/core/Loading/sceneLoader", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@babylonjs/core/Loading/sceneLoader")>()),
@@ -62,14 +67,14 @@ describe("model preview lifecycle", () => {
     const form = session.root.querySelector<HTMLFormElement>("[data-entity-form]")!;
     form.querySelector<HTMLInputElement>('[name="key:model"]')!.value = "models/props/crate.glb";
     form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
-    await vi.waitFor(() => expect(session["modelPreviews"].size).toBe(1));
+    await vi.waitFor(() => expect(previewsOf(session).size).toBe(1));
     const id = session.document.snapshot().entities[0].id;
-    const preview = session["modelPreviews"].get(id)!;
+    const preview = previewsOf(session).get(id)!;
     expect(ImportMeshAsync).toHaveBeenCalledTimes(1);
     session.root.querySelector<HTMLButtonElement>('[data-action="select"]')!.click();
     pointer("pointerdown", 264);
     pointer("pointerup", 264);
-    expect(session["modelPreviews"].get(id)).toBe(preview);
+    expect(previewsOf(session).get(id)).toBe(preview);
     pointer("pointerdown", 264);
     pointer("pointermove", 280);
     pointer("pointerup", 280);

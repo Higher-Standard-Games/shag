@@ -83,124 +83,137 @@ export type PostRenderHook = (
   results: Map<string, EntityHandlerResult[]>,
 ) => void | Promise<void>;
 
+const handlersByClass: Map<string, EntityHandler> = new Map();
+let preRenderHooks: PreRenderHook[] = [];
+let postRenderHooks: PostRenderHook[] = [];
+
+/**
+ * Register a handler for an entity classname
+ * @param classname Entity classname (e.g., 'build_zone', 'npc_sprite')
+ * @param handler Handler function
+ */
+function register(classname: string, handler: EntityHandler): void {
+  if (handlersByClass.has(classname)) {
+    console.warn(`[EntityHandlerRegistry] Overwriting handler for '${classname}'`);
+  }
+  handlersByClass.set(classname, handler);
+  devLog(`[EntityHandlerRegistry] Registered handler for '${classname}'`);
+}
+
+/**
+ * Register multiple handlers at once
+ */
+function registerAll(handlers: Record<string, EntityHandler>): void {
+  for (const [classname, handler] of Object.entries(handlers)) {
+    EntityHandlerRegistry.register(classname, handler);
+  }
+}
+
+/**
+ * Unregister a handler
+ */
+function unregister(classname: string): void {
+  handlersByClass.delete(classname);
+}
+
+/**
+ * Get a handler for a classname
+ */
+function getHandler(classname: string): EntityHandler | undefined {
+  return handlersByClass.get(classname);
+}
+
+/**
+ * Check if a handler exists for a classname
+ */
+function hasHandler(classname: string): boolean {
+  return handlersByClass.has(classname);
+}
+
+/**
+ * Get all registered classnames
+ */
+function getRegisteredClassnames(): string[] {
+  return Array.from(handlersByClass.keys());
+}
+
+/**
+ * Add a pre-render hook
+ */
+function addPreRenderHook(hook: PreRenderHook): void {
+  if (!preRenderHooks.includes(hook)) {
+    preRenderHooks.push(hook);
+  }
+}
+
+/**
+ * Add a post-render hook
+ */
+function addPostRenderHook(hook: PostRenderHook): void {
+  postRenderHooks.push(hook);
+}
+
+/**
+ * Run all pre-render hooks
+ */
+async function runPreRenderHooks(entities: EntityData[], scene: Scene): Promise<void> {
+  for (const hook of preRenderHooks) {
+    await hook(entities, scene);
+  }
+}
+
+/**
+ * Run all post-render hooks
+ */
+async function runPostRenderHooks(
+  entities: EntityData[],
+  scene: Scene,
+  results: Map<string, EntityHandlerResult[]>,
+): Promise<void> {
+  for (const hook of postRenderHooks) {
+    await hook(entities, scene, results);
+  }
+}
+
+/**
+ * Clear all handlers and hooks (for testing)
+ */
+function clear(): void {
+  handlersByClass.clear();
+  preRenderHooks = [];
+  postRenderHooks = [];
+}
+
+/**
+ * Get debug info
+ */
+function getDebugInfo(): {
+  handlers: string[];
+  preRenderHooks: number;
+  postRenderHooks: number;
+} {
+  return {
+    handlers: EntityHandlerRegistry.getRegisteredClassnames(),
+    preRenderHooks: preRenderHooks.length,
+    postRenderHooks: postRenderHooks.length,
+  };
+}
+
 /**
  * Registry for entity handlers
  * Allows game code to extend MapRenderer without engine modifications
  */
-export class EntityHandlerRegistry {
-  private static handlers: Map<string, EntityHandler> = new Map();
-  private static preRenderHooks: PreRenderHook[] = [];
-  private static postRenderHooks: PostRenderHook[] = [];
-
-  /**
-   * Register a handler for an entity classname
-   * @param classname Entity classname (e.g., 'build_zone', 'npc_sprite')
-   * @param handler Handler function
-   */
-  public static register(classname: string, handler: EntityHandler): void {
-    if (EntityHandlerRegistry.handlers.has(classname)) {
-      console.warn(`[EntityHandlerRegistry] Overwriting handler for '${classname}'`);
-    }
-    EntityHandlerRegistry.handlers.set(classname, handler);
-    devLog(`[EntityHandlerRegistry] Registered handler for '${classname}'`);
-  }
-
-  /**
-   * Register multiple handlers at once
-   */
-  public static registerAll(handlers: Record<string, EntityHandler>): void {
-    for (const [classname, handler] of Object.entries(handlers)) {
-      EntityHandlerRegistry.register(classname, handler);
-    }
-  }
-
-  /**
-   * Unregister a handler
-   */
-  public static unregister(classname: string): void {
-    EntityHandlerRegistry.handlers.delete(classname);
-  }
-
-  /**
-   * Get a handler for a classname
-   */
-  public static getHandler(classname: string): EntityHandler | undefined {
-    return EntityHandlerRegistry.handlers.get(classname);
-  }
-
-  /**
-   * Check if a handler exists for a classname
-   */
-  public static hasHandler(classname: string): boolean {
-    return EntityHandlerRegistry.handlers.has(classname);
-  }
-
-  /**
-   * Get all registered classnames
-   */
-  public static getRegisteredClassnames(): string[] {
-    return Array.from(EntityHandlerRegistry.handlers.keys());
-  }
-
-  /**
-   * Add a pre-render hook
-   */
-  public static addPreRenderHook(hook: PreRenderHook): void {
-    if (!EntityHandlerRegistry.preRenderHooks.includes(hook)) {
-      EntityHandlerRegistry.preRenderHooks.push(hook);
-    }
-  }
-
-  /**
-   * Add a post-render hook
-   */
-  public static addPostRenderHook(hook: PostRenderHook): void {
-    EntityHandlerRegistry.postRenderHooks.push(hook);
-  }
-
-  /**
-   * Run all pre-render hooks
-   */
-  public static async runPreRenderHooks(entities: EntityData[], scene: Scene): Promise<void> {
-    for (const hook of EntityHandlerRegistry.preRenderHooks) {
-      await hook(entities, scene);
-    }
-  }
-
-  /**
-   * Run all post-render hooks
-   */
-  public static async runPostRenderHooks(
-    entities: EntityData[],
-    scene: Scene,
-    results: Map<string, EntityHandlerResult[]>,
-  ): Promise<void> {
-    for (const hook of EntityHandlerRegistry.postRenderHooks) {
-      await hook(entities, scene, results);
-    }
-  }
-
-  /**
-   * Clear all handlers and hooks (for testing)
-   */
-  public static clear(): void {
-    EntityHandlerRegistry.handlers.clear();
-    EntityHandlerRegistry.preRenderHooks = [];
-    EntityHandlerRegistry.postRenderHooks = [];
-  }
-
-  /**
-   * Get debug info
-   */
-  public static getDebugInfo(): {
-    handlers: string[];
-    preRenderHooks: number;
-    postRenderHooks: number;
-  } {
-    return {
-      handlers: EntityHandlerRegistry.getRegisteredClassnames(),
-      preRenderHooks: EntityHandlerRegistry.preRenderHooks.length,
-      postRenderHooks: EntityHandlerRegistry.postRenderHooks.length,
-    };
-  }
-}
+export const EntityHandlerRegistry = {
+  register,
+  registerAll,
+  unregister,
+  getHandler,
+  hasHandler,
+  getRegisteredClassnames,
+  addPreRenderHook,
+  addPostRenderHook,
+  runPreRenderHooks,
+  runPostRenderHooks,
+  clear,
+  getDebugInfo,
+};

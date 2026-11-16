@@ -43,9 +43,7 @@ function client(
 beforeEach(() => {
   vi.useFakeTimers();
   localStorage.clear();
-  Reflect.set(Cvar, "cvars", new Map());
-  Reflect.set(Cvar, "initialized", false);
-  Reflect.set(Cvar, "consoleIntegration", null);
+  Cvar.clearAll();
 });
 
 afterEach(() => {

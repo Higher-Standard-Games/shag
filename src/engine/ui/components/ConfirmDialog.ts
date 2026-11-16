@@ -21,115 +21,119 @@ export interface ConfirmOptions {
   onCancel?: () => void;
 }
 
-export class ConfirmDialog {
-  private static overlay: Overlay | null = null;
-  private static panel: HTMLDivElement | null = null;
-  private static stylesInjected = false;
+let overlay: Overlay | null = null;
+let panel: HTMLDivElement | null = null;
+let stylesInjected = false;
 
-  private static injectStyles(): void {
-    if (ConfirmDialog.stylesInjected) return;
-    ConfirmDialog.stylesInjected = true;
-    UIStyles.injectCSS("confirm-dialog", confirmDialogCSS);
-  }
+function injectStyles(): void {
+  if (stylesInjected) return;
+  stylesInjected = true;
+  UIStyles.injectCSS("confirm-dialog", confirmDialogCSS);
+}
 
-  /**
-   * Show a confirmation dialog
-   */
-  public static show(options: ConfirmOptions): void {
-    // Hide any existing confirm dialog
-    ConfirmDialog.hide();
-    ConfirmDialog.injectStyles();
+/**
+ * Show a confirmation dialog
+ */
+function show(options: ConfirmOptions): void {
+  // Hide any existing confirm dialog
+  ConfirmDialog.hide();
+  injectStyles();
 
-    const {
-      title,
-      message,
-      confirmText = "Confirm",
-      cancelText = "Cancel",
-      confirmVariant = "danger",
-      onConfirm,
-      onCancel,
-    } = options;
+  const {
+    title,
+    message,
+    confirmText = "Confirm",
+    cancelText = "Cancel",
+    confirmVariant = "danger",
+    onConfirm,
+    onCancel,
+  } = options;
 
-    // Create overlay (don't close on click for confirm dialogs)
-    ConfirmDialog.overlay = new Overlay(
-      {
-        id: "confirm-dialog",
-        opacity: 0.8,
-        blur: 0,
-        zIndex: UIManager.getInstance().getZIndex("CONFIRM"),
-        closeOnClick: false,
-        animate: true,
-      },
-      () => {
-        // Called when overlay is closed (e.g., by ESC)
+  // Create overlay (don't close on click for confirm dialogs)
+  overlay = new Overlay(
+    {
+      id: "confirm-dialog",
+      opacity: 0.8,
+      blur: 0,
+      zIndex: UIManager.getInstance().getZIndex("CONFIRM"),
+      closeOnClick: false,
+      animate: true,
+    },
+    () => {
+      // Called when overlay is closed (e.g., by ESC)
+      onCancel?.();
+    },
+  );
+  overlay.show();
+
+  // Create panel
+  panel = document.createElement("div");
+  panel.className = "ui-confirm-panel";
+  panel.style.zIndex = String(UIManager.getInstance().getZIndex("CONFIRM") + 1);
+
+  // Title
+  const titleEl = document.createElement("h3");
+  titleEl.className = "ui-confirm-title";
+  titleEl.textContent = title;
+  panel.appendChild(titleEl);
+
+  // Message
+  const messageEl = document.createElement("p");
+  messageEl.className = "ui-confirm-message";
+  messageEl.textContent = message;
+  panel.appendChild(messageEl);
+
+  // Buttons
+  const buttonRow = createButtonRow([
+    {
+      text: cancelText,
+      variant: "secondary",
+      onClick: () => {
+        ConfirmDialog.hide();
         onCancel?.();
       },
-    );
-    ConfirmDialog.overlay.show();
-
-    // Create panel
-    ConfirmDialog.panel = document.createElement("div");
-    ConfirmDialog.panel.className = "ui-confirm-panel";
-    ConfirmDialog.panel.style.zIndex = String(UIManager.getInstance().getZIndex("CONFIRM") + 1);
-
-    // Title
-    const titleEl = document.createElement("h3");
-    titleEl.className = "ui-confirm-title";
-    titleEl.textContent = title;
-    ConfirmDialog.panel.appendChild(titleEl);
-
-    // Message
-    const messageEl = document.createElement("p");
-    messageEl.className = "ui-confirm-message";
-    messageEl.textContent = message;
-    ConfirmDialog.panel.appendChild(messageEl);
-
-    // Buttons
-    const buttonRow = createButtonRow([
-      {
-        text: cancelText,
-        variant: "secondary",
-        onClick: () => {
-          ConfirmDialog.hide();
-          onCancel?.();
-        },
+    },
+    {
+      text: confirmText,
+      variant: confirmVariant,
+      onClick: () => {
+        ConfirmDialog.hide();
+        onConfirm();
       },
-      {
-        text: confirmText,
-        variant: confirmVariant,
-        onClick: () => {
-          ConfirmDialog.hide();
-          onConfirm();
-        },
-      },
-    ]);
-    ConfirmDialog.panel.appendChild(buttonRow);
+    },
+  ]);
+  panel.appendChild(buttonRow);
 
-    document.body.appendChild(ConfirmDialog.panel);
+  document.body.appendChild(panel);
+}
+
+/**
+ * Hide the confirmation dialog
+ */
+function hide(): void {
+  if (panel) {
+    panel.style.animation = "uiFadeOut 0.15s ease";
+    setTimeout(() => {
+      panel?.remove();
+      panel = null;
+    }, 150);
   }
 
-  /**
-   * Hide the confirmation dialog
-   */
-  public static hide(): void {
-    if (ConfirmDialog.panel) {
-      ConfirmDialog.panel.style.animation = "uiFadeOut 0.15s ease";
-      setTimeout(() => {
-        ConfirmDialog.panel?.remove();
-        ConfirmDialog.panel = null;
-      }, 150);
-    }
-
-    if (ConfirmDialog.overlay) {
-      ConfirmDialog.overlay.hide();
-      ConfirmDialog.overlay = null;
-    }
-  }
-
-  /**
-   * Check if dialog is currently visible
-   */
-  public static isVisible(): boolean {
-    return ConfirmDialog.panel !== null;
+  if (overlay) {
+    overlay.hide();
+    overlay = null;
   }
 }
+
+/**
+ * Check if dialog is currently visible
+ */
+function isVisible(): boolean {
+  return panel !== null;
+}
+
+export const ConfirmDialog = {
+  show,
+  hide,
+  isVisible,
+};

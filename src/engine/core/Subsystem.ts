@@ -58,79 +58,88 @@ export interface InitializableSubsystem<T = unknown> extends Subsystem<T> {
   isInitialized(): boolean;
 }
 
+const subsystems: Map<string, Subsystem> = new Map();
+
+/**
+ * Register a subsystem
+ */
+function register(name: string, subsystem: Subsystem): void {
+  subsystems.set(name, subsystem);
+}
+
+/**
+ * Unregister a subsystem
+ */
+function unregister(name: string): void {
+  subsystems.delete(name);
+}
+
+/**
+ * Get a registered subsystem
+ */
+function get<T extends Subsystem>(name: string): T | undefined {
+  return subsystems.get(name) as T | undefined;
+}
+
+/**
+ * Get all registered subsystems
+ */
+function getAll(): Map<string, Subsystem> {
+  return new Map(subsystems);
+}
+
+/**
+ * Collect state from all registered subsystems
+ */
+function collectAllStates(): Record<string, unknown> {
+  const states: Record<string, unknown> = {};
+  for (const [name, subsystem] of subsystems) {
+    states[name] = subsystem.getState();
+  }
+  return states;
+}
+
+/**
+ * Load state into all registered subsystems
+ */
+function loadAllStates(states: Record<string, unknown>): void {
+  for (const [name, subsystem] of subsystems) {
+    if (states[name]) {
+      subsystem.loadState(states[name]);
+    }
+  }
+}
+
+/**
+ * Clear all registered subsystems
+ */
+function clearAll(): void {
+  for (const subsystem of subsystems.values()) {
+    subsystem.clear();
+  }
+}
+
+/**
+ * Dispose all registered subsystems
+ */
+function disposeAll(): void {
+  for (const subsystem of subsystems.values()) {
+    subsystem.dispose();
+  }
+  subsystems.clear();
+}
+
 /**
  * Registry for tracking all subsystems
  * Useful for batch operations like saveAll, loadAll, clearAll
  */
-export class SubsystemRegistry {
-  private static subsystems: Map<string, Subsystem> = new Map();
-
-  /**
-   * Register a subsystem
-   */
-  public static register(name: string, subsystem: Subsystem): void {
-    SubsystemRegistry.subsystems.set(name, subsystem);
-  }
-
-  /**
-   * Unregister a subsystem
-   */
-  public static unregister(name: string): void {
-    SubsystemRegistry.subsystems.delete(name);
-  }
-
-  /**
-   * Get a registered subsystem
-   */
-  public static get<T extends Subsystem>(name: string): T | undefined {
-    return SubsystemRegistry.subsystems.get(name) as T | undefined;
-  }
-
-  /**
-   * Get all registered subsystems
-   */
-  public static getAll(): Map<string, Subsystem> {
-    return new Map(SubsystemRegistry.subsystems);
-  }
-
-  /**
-   * Collect state from all registered subsystems
-   */
-  public static collectAllStates(): Record<string, unknown> {
-    const states: Record<string, unknown> = {};
-    for (const [name, subsystem] of SubsystemRegistry.subsystems) {
-      states[name] = subsystem.getState();
-    }
-    return states;
-  }
-
-  /**
-   * Load state into all registered subsystems
-   */
-  public static loadAllStates(states: Record<string, unknown>): void {
-    for (const [name, subsystem] of SubsystemRegistry.subsystems) {
-      if (states[name]) {
-        subsystem.loadState(states[name]);
-      }
-    }
-  }
-
-  /**
-   * Clear all registered subsystems
-   */
-  public static clearAll(): void {
-    for (const subsystem of SubsystemRegistry.subsystems.values()) {
-      subsystem.clear();
-    }
-  }
-
-  /**
-   * Dispose all registered subsystems
-   */
-  public static disposeAll(): void {
-    for (const subsystem of SubsystemRegistry.subsystems.values()) {
-      subsystem.dispose();
-    }
-    SubsystemRegistry.subsystems.clear();
-  }
-}
+export const SubsystemRegistry = {
+  register,
+  unregister,
+  get,
+  getAll,
+  collectAllStates,
+  loadAllStates,
+  clearAll,
+  disposeAll,
+};

@@ -1,9 +1,9 @@
 /**
  * biome-gate — fail-on-NEW-diagnostics ratchet (QA-WO6 / QA-12).
  *
- * Biome has no built-in baseline, and the repo carries ~1,500 legacy
- * diagnostics that can't all be fixed at once. This gate runs `biome check src`
- * and compares the total error/warning counts against `biome-baseline.json`:
+ * Biome has no built-in baseline. This gate runs `biome check src` and
+ * compares the total error/warning counts against `biome-baseline.json`, which
+ * stands at zero, so any diagnostic fails it:
  *
  *   - counts ABOVE baseline  → exit 1 (you introduced new diagnostics)
  *   - counts BELOW baseline  → exit 0 + a nudge to ratchet the baseline down
@@ -12,9 +12,7 @@
  * Update the baseline (after fixing diagnostics, never to admit new ones):
  *   node scripts/biome-gate.mjs --update
  *
- * Used by the pre-commit hook and CI. Count-based is deliberately simple; it
- * can't catch a fix+regress swap within one commit, but it holds the total
- * line and costs ~3s.
+ * Used by the pre-commit hook and CI; it costs ~3s.
  */
 import { execFileSync } from "node:child_process";
 import { readFileSync, writeFileSync } from "node:fs";

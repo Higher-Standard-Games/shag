@@ -58,6 +58,7 @@ function setup(): any {
     shutdownAll: vi.fn(),
     reissueSeat: vi.fn(),
   };
+  // biome-ignore lint/suspicious/noExplicitAny: reaches private lobby internals
   const server = new LobbyServer(0, spawner as never) as any;
   server.gametypes = [DUEL, SND];
   server.mapNames = { wdm2: "WDM2", wsnd1: "WSND1" };

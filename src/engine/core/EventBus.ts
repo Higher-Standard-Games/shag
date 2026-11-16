@@ -30,199 +30,211 @@ interface EventSubscription {
   priority: number;
 }
 
-export class EventBus {
-  private static listeners: Map<string, EventSubscription[]> = new Map();
-  private static eventHistory: Array<{ event: string; data: unknown; timestamp: number }> = [];
-  private static historyEnabled: boolean = false;
-  private static maxHistorySize: number = 100;
+const listeners: Map<string, EventSubscription[]> = new Map();
+let eventHistory: Array<{ event: string; data: unknown; timestamp: number }> = [];
+let historyEnabled: boolean = false;
+let maxHistorySize: number = 100;
 
-  /**
-   * Subscribe to an event
-   * @param event Event name (e.g., "map:loaded", "entity:created")
-   * @param callback Function to call when event is emitted
-   * @param priority Higher priority handlers run first (default: 0)
-   * @returns Unsubscribe function
-   */
-  public static on<T = unknown>(event: string, callback: EventCallback<T>, priority: number = 0): () => void {
-    if (!EventBus.listeners.has(event)) {
-      EventBus.listeners.set(event, []);
-    }
-
-    const subscription: EventSubscription = {
-      callback: callback as EventCallback<unknown>,
-      once: false,
-      priority,
-    };
-
-    const subs = EventBus.listeners.get(event)!;
-    subs.push(subscription);
-    // Sort by priority (higher first)
-    subs.sort((a, b) => b.priority - a.priority);
-
-    // Return unsubscribe function
-    return () => EventBus.off(event, callback);
+/**
+ * Subscribe to an event
+ * @param event Event name (e.g., "map:loaded", "entity:created")
+ * @param callback Function to call when event is emitted
+ * @param priority Higher priority handlers run first (default: 0)
+ * @returns Unsubscribe function
+ */
+function on<T = unknown>(event: string, callback: EventCallback<T>, priority: number = 0): () => void {
+  if (!listeners.has(event)) {
+    listeners.set(event, []);
   }
 
-  /**
-   * Subscribe to an event once (auto-unsubscribes after first call)
-   */
-  public static once<T = unknown>(event: string, callback: EventCallback<T>, priority: number = 0): () => void {
-    if (!EventBus.listeners.has(event)) {
-      EventBus.listeners.set(event, []);
-    }
+  const subscription: EventSubscription = {
+    callback: callback as EventCallback<unknown>,
+    once: false,
+    priority,
+  };
 
-    const subscription: EventSubscription = {
-      callback: callback as EventCallback<unknown>,
-      once: true,
-      priority,
-    };
+  const subs = listeners.get(event)!;
+  subs.push(subscription);
+  // Sort by priority (higher first)
+  subs.sort((a, b) => b.priority - a.priority);
 
-    const subs = EventBus.listeners.get(event)!;
-    subs.push(subscription);
-    subs.sort((a, b) => b.priority - a.priority);
+  // Return unsubscribe function
+  return () => EventBus.off(event, callback);
+}
 
-    return () => EventBus.off(event, callback);
+/**
+ * Subscribe to an event once (auto-unsubscribes after first call)
+ */
+function once<T = unknown>(event: string, callback: EventCallback<T>, priority: number = 0): () => void {
+  if (!listeners.has(event)) {
+    listeners.set(event, []);
   }
 
-  /**
-   * Unsubscribe from an event
-   */
-  public static off<T = unknown>(event: string, callback: EventCallback<T>): void {
-    const subs = EventBus.listeners.get(event);
-    if (!subs) return;
+  const subscription: EventSubscription = {
+    callback: callback as EventCallback<unknown>,
+    once: true,
+    priority,
+  };
 
-    const index = subs.findIndex((s) => s.callback === callback);
+  const subs = listeners.get(event)!;
+  subs.push(subscription);
+  subs.sort((a, b) => b.priority - a.priority);
+
+  return () => EventBus.off(event, callback);
+}
+
+/**
+ * Unsubscribe from an event
+ */
+function off<T = unknown>(event: string, callback: EventCallback<T>): void {
+  const subs = listeners.get(event);
+  if (!subs) return;
+
+  const index = subs.findIndex((s) => s.callback === callback);
+  if (index !== -1) {
+    subs.splice(index, 1);
+  }
+}
+
+/**
+ * Emit an event to all subscribers
+ * @param event Event name
+ * @param data Data to pass to handlers
+ */
+function emit<T = unknown>(event: string, data?: T): void {
+  // Record in history if enabled
+  if (historyEnabled) {
+    eventHistory.push({
+      event,
+      data,
+      timestamp: Date.now(),
+    });
+    // Trim history if too large
+    if (eventHistory.length > maxHistorySize) {
+      eventHistory.shift();
+    }
+  }
+
+  const subs = listeners.get(event);
+  if (!subs || subs.length === 0) return;
+
+  // Create a copy to avoid issues if handlers modify the list
+  const toCall = [...subs];
+  const toRemove: EventSubscription[] = [];
+
+  for (const sub of toCall) {
+    try {
+      sub.callback(data);
+      if (sub.once) {
+        toRemove.push(sub);
+      }
+    } catch (error) {
+      console.error(`EventBus: Error in handler for "${event}":`, error);
+    }
+  }
+
+  // Remove one-time handlers
+  for (const sub of toRemove) {
+    const index = subs.indexOf(sub);
     if (index !== -1) {
       subs.splice(index, 1);
     }
   }
+}
 
-  /**
-   * Emit an event to all subscribers
-   * @param event Event name
-   * @param data Data to pass to handlers
-   */
-  public static emit<T = unknown>(event: string, data?: T): void {
-    // Record in history if enabled
-    if (EventBus.historyEnabled) {
-      EventBus.eventHistory.push({
-        event,
-        data,
-        timestamp: Date.now(),
-      });
-      // Trim history if too large
-      if (EventBus.eventHistory.length > EventBus.maxHistorySize) {
-        EventBus.eventHistory.shift();
+/**
+ * Emit an event and wait for async handlers
+ */
+async function emitAsync<T = unknown>(event: string, data?: T): Promise<void> {
+  const subs = listeners.get(event);
+  if (!subs || subs.length === 0) return;
+
+  const toCall = [...subs];
+  const toRemove: EventSubscription[] = [];
+
+  for (const sub of toCall) {
+    try {
+      await sub.callback(data);
+      if (sub.once) {
+        toRemove.push(sub);
       }
-    }
-
-    const subs = EventBus.listeners.get(event);
-    if (!subs || subs.length === 0) return;
-
-    // Create a copy to avoid issues if handlers modify the list
-    const toCall = [...subs];
-    const toRemove: EventSubscription[] = [];
-
-    for (const sub of toCall) {
-      try {
-        sub.callback(data);
-        if (sub.once) {
-          toRemove.push(sub);
-        }
-      } catch (error) {
-        console.error(`EventBus: Error in handler for "${event}":`, error);
-      }
-    }
-
-    // Remove one-time handlers
-    for (const sub of toRemove) {
-      const index = subs.indexOf(sub);
-      if (index !== -1) {
-        subs.splice(index, 1);
-      }
+    } catch (error) {
+      console.error(`EventBus: Error in async handler for "${event}":`, error);
     }
   }
 
-  /**
-   * Emit an event and wait for async handlers
-   */
-  public static async emitAsync<T = unknown>(event: string, data?: T): Promise<void> {
-    const subs = EventBus.listeners.get(event);
-    if (!subs || subs.length === 0) return;
-
-    const toCall = [...subs];
-    const toRemove: EventSubscription[] = [];
-
-    for (const sub of toCall) {
-      try {
-        await sub.callback(data);
-        if (sub.once) {
-          toRemove.push(sub);
-        }
-      } catch (error) {
-        console.error(`EventBus: Error in async handler for "${event}":`, error);
-      }
+  for (const sub of toRemove) {
+    const index = subs.indexOf(sub);
+    if (index !== -1) {
+      subs.splice(index, 1);
     }
-
-    for (const sub of toRemove) {
-      const index = subs.indexOf(sub);
-      if (index !== -1) {
-        subs.splice(index, 1);
-      }
-    }
-  }
-
-  /**
-   * Check if an event has any listeners
-   */
-  public static hasListeners(event: string): boolean {
-    const subs = EventBus.listeners.get(event);
-    return subs !== undefined && subs.length > 0;
-  }
-
-  /**
-   * Get count of listeners for an event
-   */
-  public static listenerCount(event: string): number {
-    return EventBus.listeners.get(event)?.length ?? 0;
-  }
-
-  /**
-   * Remove all listeners for an event (or all events if no event specified)
-   */
-  public static clear(event?: string): void {
-    if (event) {
-      EventBus.listeners.delete(event);
-    } else {
-      EventBus.listeners.clear();
-    }
-  }
-
-  /**
-   * Enable/disable event history recording (useful for debugging)
-   */
-  public static setHistoryEnabled(enabled: boolean, maxSize: number = 100): void {
-    EventBus.historyEnabled = enabled;
-    EventBus.maxHistorySize = maxSize;
-    if (!enabled) {
-      EventBus.eventHistory = [];
-    }
-  }
-
-  /**
-   * Get event history (if enabled)
-   */
-  public static getHistory(): Array<{ event: string; data: unknown; timestamp: number }> {
-    return [...EventBus.eventHistory];
-  }
-
-  /**
-   * Get all registered event names
-   */
-  public static getEventNames(): string[] {
-    return Array.from(EventBus.listeners.keys());
   }
 }
+
+/**
+ * Check if an event has any listeners
+ */
+function hasListeners(event: string): boolean {
+  const subs = listeners.get(event);
+  return subs !== undefined && subs.length > 0;
+}
+
+/**
+ * Get count of listeners for an event
+ */
+function listenerCount(event: string): number {
+  return listeners.get(event)?.length ?? 0;
+}
+
+/**
+ * Remove all listeners for an event (or all events if no event specified)
+ */
+function clear(event?: string): void {
+  if (event) {
+    listeners.delete(event);
+  } else {
+    listeners.clear();
+  }
+}
+
+/**
+ * Enable/disable event history recording (useful for debugging)
+ */
+function setHistoryEnabled(enabled: boolean, maxSize: number = 100): void {
+  historyEnabled = enabled;
+  maxHistorySize = maxSize;
+  if (!enabled) {
+    eventHistory = [];
+  }
+}
+
+/**
+ * Get event history (if enabled)
+ */
+function getHistory(): Array<{ event: string; data: unknown; timestamp: number }> {
+  return [...eventHistory];
+}
+
+/**
+ * Get all registered event names
+ */
+function getEventNames(): string[] {
+  return Array.from(listeners.keys());
+}
+
+export const EventBus = {
+  on,
+  once,
+  off,
+  emit,
+  emitAsync,
+  hasListeners,
+  listenerCount,
+  clear,
+  setHistoryEnabled,
+  getHistory,
+  getEventNames,
+};
 
 // ==================== Engine Event Types ====================
 // These are generic engine-level events, not game-specific

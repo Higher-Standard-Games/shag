@@ -196,6 +196,19 @@
 
 /* ── States: order matters, later rules win ties ── */
 
+/* Unlit: the key stays where it is and its lettering goes dark */
+.raised-key:disabled {
+  cursor: not-allowed;
+}
+
+.raised-key:disabled .raised-key__face {
+  filter: saturate(0.45) brightness(0.94);
+}
+
+.raised-key:disabled :is(.raised-key__label, .raised-key__hint) {
+  opacity: 0.5;
+}
+
 .raised-key:is(:hover, :focus-visible, .controller-focus):not(:disabled) {
   --key-press: -0.35;
   --key-face: linear-gradient(180deg, hsl(278 92% 75%), hsl(273 80% 61%) 55%, hsl(268 72% 50%));
@@ -224,17 +237,4 @@
   --key-side: linear-gradient(180deg, hsl(252 44% 5%), hsl(252 44% 3%));
   --key-text: hsl(46 100% 60%);
   --key-sub: hsla(46, 100%, 60%, 0.66);
-}
-
-/* Unlit: the key stays where it is and its lettering goes dark */
-.raised-key:disabled {
-  cursor: not-allowed;
-}
-
-.raised-key:disabled .raised-key__face {
-  filter: saturate(0.45) brightness(0.94);
-}
-
-.raised-key:disabled :is(.raised-key__label, .raised-key__hint) {
-  opacity: 0.5;
 }

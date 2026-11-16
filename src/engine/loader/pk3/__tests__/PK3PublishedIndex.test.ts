@@ -82,7 +82,7 @@ function serve(parts: Map<string, string | Uint8Array>) {
       const manifest = JSON.parse(value);
       if (manifest.indexFile) {
         const prefix = path.slice(0, -"pk3_manifest.json".length);
-        const text = parts.get(prefix + "pk3_index.json");
+        const text = parts.get(`${prefix}pk3_index.json`);
         if (text !== undefined) parts.set(prefix + manifest.indexFile, text);
       }
     }
