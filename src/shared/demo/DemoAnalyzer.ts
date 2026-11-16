@@ -29,6 +29,8 @@ export type HighlightType =
 export type HighlightTag =
   | "airborne"
   | "rocket_jump"
+  | "air_rocket"
+  | "blade"
   | "low_hp"
   | "close_range"
   | "long_range"
@@ -56,6 +58,7 @@ export interface HighlightCandidate {
   primaryPlayerName: string;
   victimPlayer?: string;
   victimPlayerName?: string;
+  /** The weapon that made the frag (rlauncher, blade, …); older recordings give only its kind of damage (explosion, melee, …). */
   weaponId?: string;
   killCount?: number;
   tags: HighlightTag[];
@@ -214,6 +217,8 @@ const BASE_SCORE_MOVEMENT = 5;
 const TAG_MULTIPLIERS: Record<HighlightTag, number> = {
   airborne: 1.5,
   rocket_jump: 1.8,
+  air_rocket: 1.9,
+  blade: 1.6,
   low_hp: 1.3,
   close_range: 1.1,
   long_range: 1.2,
@@ -230,6 +235,15 @@ const TAG_MULTIPLIERS: Record<HighlightTag, number> = {
   slide: 1.1,
   bunny_hop: 1.2,
 };
+
+/** A rocket or grenade frag: the weapon, or in older recordings its damage. */
+function isExplosive(weaponId: string | undefined): boolean {
+  return weaponId === "rlauncher" || weaponId === "glauncher" || weaponId === "explosion";
+}
+
+function isBlade(weaponId: string | undefined): boolean {
+  return weaponId === "blade" || weaponId === "melee";
+}
 
 // ── DemoAnalyzer ─────────────────────────────────────────────────────────────
 
@@ -341,7 +355,7 @@ export class DemoAnalyzer {
 
         const victimId = ev.entityId as string;
         const killerId = ev.killerId as string;
-        const weaponId = (ev.weaponId as string) || undefined;
+        const weaponId = (ev.killWeapon as string) || (ev.weaponId as string) || undefined;
 
         if (victimId) {
           const list = deaths.get(victimId) ?? [];
@@ -418,6 +432,15 @@ export class DemoAnalyzer {
             tags.push("airborne");
           }
         }
+
+        // A rocket or grenade caught a victim in the air; a blade frag
+        const victimVelocity = state.entities.get(victimId)?.getComponent("velocity") as VelocityComponent | undefined;
+        const victimAirborne =
+          victimVelocity !== undefined &&
+          !victimVelocity.grounded &&
+          this._clearance(victimPos, victimTracker) >= AIRBORNE_MIN_CLEARANCE;
+        if (victimAirborne && isExplosive(weaponId)) tags.push("air_rocket");
+        if (isBlade(weaponId)) tags.push("blade");
 
         // Distance-based tags
         if (killerPos) {

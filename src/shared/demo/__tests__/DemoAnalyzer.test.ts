@@ -304,6 +304,39 @@ describe("DemoAnalyzer", () => {
     });
   });
 
+  describe("air rockets and blade frags", () => {
+    const header = makeHeader([{ playerId: "k1", name: "K" }]);
+    const frag = (event: Record<string, unknown>, victimGrounded: boolean, victimY = 80) => {
+      const killer = makeEntity("player_k1", { grounded: true });
+      const standing = makeEntity("player_v1", { grounded: true, posX: 500 });
+      const victim = makeEntity("player_v1", { grounded: victimGrounded, posX: 500, posY: victimY });
+      return analyzer.analyze(
+        [makeFrame(100, [], [killer, standing]), makeFrame(110, [{ ...event, y: victimY }], [killer, victim])],
+        header,
+        5000,
+      ).highlights[0];
+    };
+    const death = (weapon: Record<string, unknown>) => ({
+      ...deathEvent("player_k1", "player_v1", { x: 500, y: 80 }),
+      ...weapon,
+    });
+
+    it("tags a rocket or grenade into a victim in the air, by weapon or by damage in older recordings", () => {
+      expect(frag(death({ weaponId: "explosion", killWeapon: "rlauncher" }), false).tags).toContain("air_rocket");
+      expect(frag(death({ weaponId: "explosion" }), false).tags).toContain("air_rocket");
+      expect(frag(death({ weaponId: "explosion", killWeapon: "glauncher" }), false).weaponId).toBe("glauncher");
+      // On the ground, a hop above it, or another weapon: no air rocket
+      expect(frag(death({ weaponId: "explosion" }), true).tags).not.toContain("air_rocket");
+      expect(frag(death({ weaponId: "explosion" }), false, 8).tags).not.toContain("air_rocket");
+      expect(frag(death({ weaponId: "rail", killWeapon: "electrobolt" }), false).tags).not.toContain("air_rocket");
+    });
+
+    it("tags a blade frag", () => {
+      expect(frag(death({ weaponId: "melee", killWeapon: "blade" }), true).tags).toContain("blade");
+      expect(frag(death({ weaponId: "melee" }), true).tags).toContain("blade");
+    });
+  });
+
   describe("multi-kill and frag sequence grouping", () => {
     it("merges two kills 2.5 s apart into a multi_kill with killCount=2", () => {
       // Killer at origin, victims at x=500 (neutral distance — no distance tags)

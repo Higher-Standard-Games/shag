@@ -152,9 +152,9 @@ const SEQ_CHASE_SPEED = 1.35;
 /** An opening chase shorter than this is left out. */
 const SEQ_CHASE_MIN_SECONDS = 0.8;
 
-/** How long a freeze frame holds, and how many a reel has at most. */
+/** How long a freeze frame holds, and how many a reel has: this many, while it has the frag scenes. */
 const FREEZE_MS = 1400;
-const FREEZE_MAX = 3;
+const FREEZE_COUNT = 3;
 /** A freeze lands just after the frag, when the hit is on screen. */
 const FREEZE_AFTER_SECONDS = 0.1;
 
@@ -351,20 +351,15 @@ export class SequenceBuilder {
   }
 
   /**
-   * The scenes that end on a freeze frame: the reel's best frag, and any
-   * three-frag play, the best first; one scene in three at most, and never
-   * more than FREEZE_MAX, so a freeze stays a moment.
+   * The scenes that end on a freeze frame: the reel's FREEZE_COUNT coolest
+   * frag scenes, three-frag plays, air rockets and blade frags before the
+   * rest, the higher score first among equals.
    */
   private _freezeScenes(selected: HighlightCandidate[]): Set<HighlightCandidate> {
-    const frags = selected.filter((h) => h.type !== "movement").sort((a, b) => b.score - a.score);
-    const most = Math.min(FREEZE_MAX, Math.max(1, Math.floor(selected.length / 3)));
-    const chosen = new Set<HighlightCandidate>();
-    if (frags[0]) chosen.add(frags[0]);
-    for (const h of frags) {
-      if (chosen.size >= most) break;
-      if ((h.killCount ?? 1) >= 3) chosen.add(h);
-    }
-    return chosen;
+    const frags = selected
+      .filter((h) => h.type !== "movement")
+      .sort((a, b) => freezeRank(b) - freezeRank(a) || b.score - a.score);
+    return new Set(frags.slice(0, FREEZE_COUNT));
   }
 
   // ── Private: a movement clip ──────────────────────────────────────────────
@@ -682,6 +677,15 @@ function sceneCostMs(h: HighlightCandidate, tickRate: number): number {
   return ((h.endTick - h.startTick) / tickRate) * 1000 + SEQUENCE_ENDING_MS;
 }
 
+/** How much a frag deserves a freeze frame: the rarer the play, the higher. */
+function freezeRank(h: HighlightCandidate): number {
+  if ((h.killCount ?? 1) >= 3) return 4;
+  if (h.tags.includes("air_rocket") || h.tags.includes("blade")) return 3;
+  if (h.tags.includes("rocket_jump")) return 2;
+  if ((h.killCount ?? 1) === 2 || h.tags.includes("airborne") || h.tags.includes("long_range")) return 1;
+  return 0;
+}
+
 /** The word on a freeze frame. */
 export function freezeCaption(h: HighlightCandidate): string {
   const kills = h.killCount ?? 1;
@@ -689,6 +693,8 @@ export function freezeCaption(h: HighlightCandidate): string {
   if (kills === 4) return "QUAD!";
   if (kills === 3) return "TRIPLE!";
   if (kills === 2) return "DOUBLE!";
+  if (h.tags.includes("air_rocket")) return "AIR ROCKET!";
+  if (h.tags.includes("blade")) return "SLICED!";
   if (h.tags.includes("rocket_jump")) return "ROCKET JUMP!";
   if (h.tags.includes("airborne")) return "AIRSHOT!";
   if (h.tags.includes("long_range")) return "SNIPED!";

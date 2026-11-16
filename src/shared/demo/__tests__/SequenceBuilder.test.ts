@@ -404,19 +404,30 @@ describe("SequenceBuilder freeze frames and speed lines", () => {
       }),
     );
 
-  it("freezes only the reel's best frag when nothing else earns it", () => {
-    const reel = new SequenceBuilder().build(makeAnalysis(frags([10, 30, 20]), 20000), 5, TICK_RATE, HEADER);
+  it("freezes three frag scenes, the best scores among equal plays", () => {
+    const reel = new SequenceBuilder().build(makeAnalysis(frags([10, 30, 20, 5, 25]), 20000), 5, TICK_RATE, HEADER);
     const frozen = reel.segments.filter((s) => s.freeze);
-    expect(frozen).toHaveLength(1);
-    expect(frozen[0].highlight.score).toBe(30);
-    expect(frozen[0].role).toBe("ending");
+    expect(frozen.map((s) => s.highlight.score)).toEqual([30, 20, 25]);
+    expect(frozen.every((s) => s.role === "ending")).toBe(true);
   });
 
-  it("freezes one scene in three at most, however many earn it", () => {
-    const triples = frags([10, 30, 20]).map((h) => ({ ...h, killCount: 3 }));
-    const reel = new SequenceBuilder().build(makeAnalysis(triples, 20000), 5, TICK_RATE, HEADER);
+  it("saves the freezes for three-frag plays, air rockets and blade frags before a higher score", () => {
+    const [a, b, c, d, e] = frags([10, 30, 20, 5, 25]);
+    const plays = [
+      { ...a, tags: ["blade" as const] },
+      b,
+      { ...c, killCount: 3 },
+      { ...d, tags: ["air_rocket" as const] },
+      e,
+    ];
+    const reel = new SequenceBuilder().build(makeAnalysis(plays, 20000), 5, TICK_RATE, HEADER);
     const frozen = reel.segments.filter((s) => s.freeze);
-    expect(frozen.map((s) => s.highlight.score)).toEqual([30]);
+    expect(frozen.map((s) => s.freeze?.caption)).toEqual(["SLICED!", "TRIPLE!", "AIR ROCKET!"]);
+  });
+
+  it("freezes every frag scene of a reel with fewer than three", () => {
+    const reel = new SequenceBuilder().build(makeAnalysis(frags([10, 30]), 20000), 5, TICK_RATE, HEADER);
+    expect(reel.segments.filter((s) => s.freeze)).toHaveLength(2);
   });
 
   it("brings some of the reel's best scenes in on speed lines: one cut in three, never two running", () => {
