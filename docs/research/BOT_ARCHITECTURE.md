@@ -2,8 +2,8 @@
 
 Written 2026-11-13, at the end of the `bot/strategy-layer` work, and reviewed
 again 2026-11-16 with a CPU profile and memory measurements of a 10-bot S&D
-match. It describes how a bot runs, the weak points, what a match costs, and
-the refactors to make, in order. Items that change what a bot does are marked.
+match. It describes how a bot runs, the weak points, what a match costs, the
+process model ahead, and the approved plan with its implementation matrix.
 
 Measurements and tuning history are in [BOT_STRATEGY_LAYER.md](BOT_STRATEGY_LAYER.md).
 Code paths below are under `src/games/fps/bot/`.
@@ -188,9 +188,10 @@ about 280 MB after it. Most of that is render data (lightmaps, draw vertices,
 faces) that bots never read; collision needs brushes, planes, patches and
 models. Ten `BotClient`s sharing the vision add 33 MB.
 
-## Process model and a compiled core (brainstorm, 2026-11-16)
+## Process model and a compiled core
 
-Not decided; written down to steer the work after the cleanup steps.
+Worked out 2026-11-16 and taken into the plan (steps 8 and 9): a bot runner
+per match, started by the lobby, and a collision-core prototype.
 
 ### What one process costs
 
@@ -319,51 +320,37 @@ Questions to investigate:
 A first investigation: record a few thousand traces with inputs and results
 from a bot match, port the trace kernel, and compare exactness and time.
 
+## Plan (approved 2026-11-16)
+
+Work happens on `bot/architecture`, branched from `staging` in both
+repositories. Each step is its own commit with the bot tests, and a step that
+should not change what a bot does gets a `bot:ab` run against the step before
+showing no difference. Steps that change behaviour are measured like any tuning
+change, against people as well as bots. This matrix is kept up to date as the
+steps land.
+
+### Implementation matrix
+
+| # | Step | Changes behaviour | Status | Commits (fps / outer) | Result |
+| --- | --- | --- | --- | --- | --- |
+| 1 | Nav graphs built off the bots' event loop (`BotNavWorker` in a worker thread) | No | Done | `3a4ce59` / `bad81189` | washoi_snd1 built in 10.1 s; the main thread's worst stall 11 ms (was 9 s for every bot) |
+| 2 | Cost per bot measured: snapshot and decision percentiles (`BotClient.timings`) in `bot:motion` and `bot:ab` | No | Done | `f54d87a` / `bdaae4ce` | Snapshot p50 0.36 ms, p99 up to 4.1 ms, max 44 ms (10-bot S&D) |
+| 3 | Hot spots: a spatial grid for nearest-node lookups, route costs reused briefly, cheaper item sight checks | No (item checks measured) | Next | | |
+| 4 | Collision-only map data in `createBotVision` (no lightmaps, draw vertices or faces) | No | Planned | | |
+| 5 | Brain split: a life object made new on spawn; states, after-steps, navigation and the S&D coach as modules; one owner per input channel | No | Planned | | |
+| 6 | One route pipeline: learned routes through the base graph's edge checks; `bot:routes --check` | No | Planned | | |
+| 7 | The neural-network path removed (after confirming the host passes no `--models`); the Duel string checks moved into the weight profiles | No | Planned | | |
+| 8 | A bot runner per match: the lobby holds room bots as seats, `GameServerSpawner` starts a runner beside the game server, `bot:server` becomes the runner | No (bots play as now) | Planned, after 4 | | |
+| 9 | Collision core prototype in Rust compiled to WebAssembly, against recorded traces: exactness and speed | No (investigation) | Planned, beside 8 | | |
+| 10 | One scheduler; decisions staggered, below the snapshot rate, aim and steering at the tick rate | Yes | Later | | |
+| 11 | Fight, hunt and hold-ground scored as goals beside the items | Yes | Later | | |
+
 ### Order
 
-The cleanup steps come first (decide time measured, hot spots, collision-only
-map data, the brain split): they make the runner affordable and give the
-numbers to judge it by. The runner per match and the collision-core
-investigation follow, and can go side by side.
-
-## Plan
-
-Step 1 of the 2026-11-13 plan (decision trace and test switches) is done:
-`DecisionTrace.ts`, `TraceStats.ts`, `BotOptions.trace` and `BotOptions.weights`,
-summarised by `bot:motion --trace`. The rest, reordered by the measurements,
-each step its own commit with the bot tests and a `bot:ab` run against the
-step before showing no difference:
-
-1. **No nav build on the live event loop.** Done 2026-11-16: `BotNavWorker`
-   builds in a worker thread in the bundled server (10.1 s for washoi_snd1,
-   the main thread's worst stall 11 ms meanwhile). Building graphs ahead at
-   deploy (a `bot:nav --build` step) would also spare the first match on a map
-   its seconds without one.
-2. **Decide time measured** per bot, as percentiles, in `bot:motion` and
-   `bot:ab`. Done 2026-11-16: `BotClient.timings` (`TimeHistogram`). The
-   washoi_snd1 match, five a side, 90 s: a snapshot p50 0.36 ms, p95 1.2–2.0 ms,
-   p99 2.9–4.1 ms, max 44 ms; a decision p50 0.13–0.18 ms, p99 2.0–2.4 ms,
-   max 43 ms. The tail matters more than the median: a 44 ms decision holds
-   the other bots' commands for five server ticks.
-3. **Hot spots, with no change in behaviour:** a spatial grid for nearest-node
-   lookups, route costs reused for a short while, item sight checks at a lower
-   rate.
-4. **Collision-only map data:** `createBotVision` keeps brushes, planes,
-   patches, models and entities, not the render data.
-5. **Split the brain** (one life object made new on spawn; each state's
-   executor, the after-steps, navigation and the S&D coach in their own modules)
-   and **one owner per input channel.**
-6. **One route pipeline**, as below.
-7. **One scheduler** for all bots, decisions staggered across them. **Changes
-   behaviour** if decisions run below the snapshot rate; aim and steering keep
-   the tick rate.
-8. **Process model,** decided on the numbers from steps 2–4: a bot runner per
-   match is the lead option (see above); with it, the collision-core
-   investigation.
-9. **The neural-network path** removed once the host is confirmed not to use
-   it; the Duel string checks moved into the weight profiles.
-10. **Changes behaviour:** fight, hunt and hold-ground scored as goals beside
-    the items.
+Steps 3 and 4 first: they cut the cost the runner would pay per match and
+give the numbers to judge it by. Then the brain split (5), routes (6) and the
+leftovers (7). The runner (8) follows step 4; the collision prototype (9) can
+run beside it. Steps 10 and 11 change how bots play and come last.
 
 ## Plan of 2026-11-13
 
