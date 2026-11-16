@@ -192,7 +192,8 @@ A room is one gametype, one map vote and up to that gametype's player count.
   may switch without a vote; a shuffle needs `ceil(players / 2)` votes.
 - **Maps.** Three are drawn from the gametype's pool, and only maps that are
   actually installed are offered. Most votes wins, ties are random.
-- **Bots** play in private rooms only, invited through the bot server, at `easy`,
+- **Bots** play in private rooms only, invited through the bot server (or seated
+  by the lobby itself with `--bot-seats`, see [Bots without a bot server](#bots-without-a-bot-server)), at `easy`,
   `medium`, `hard` or `insane`. An invite that names no level (the room's
   **+ Add bot**) fields the preset whose fixed strength is nearest the
   inviter's Overall rating in the room's mode, with a minimum of Hard. A player with no rating meets
@@ -635,6 +636,23 @@ starts first. The bot server's control port listens on loopback only and closes
 any connection that does not present it. The lobby treats a connection as a bot
 only with that secret, from its own machine — so nobody can dodge the
 human-presence accounting that decides both room eviction and ranking.
+
+### Bots without a bot server
+
+With `--bot-seats` the lobby seats invited and campaign bots itself and no bot
+server runs. Each bot is a lobby client on a connection inside the lobby's
+process, so it joins, readies and is rated exactly as one from the bot server:
+same secret check, same rating identity (its preset, goal arbiter and the
+behaviour digest of the bot code, computed from its options; no brain is
+built in the lobby). When the match starts, its bots play in a **match
+runner**, a child process per game server (`dist-server/bot-runner.mjs`) that
+loads the map once for them and exits with the match. Match reports go to
+`bot-intel.db` from the lobby. A lobby holding seats used about 63 MB; a
+runner with ten bots on `washoi_snd1`, 240–290 MB while its match lasts.
+
+```bash
+npm --prefix src/games/fps run lobby:server -- --data-dir ./server-data --bot-seats
+```
 
 ## Bot behaviour
 

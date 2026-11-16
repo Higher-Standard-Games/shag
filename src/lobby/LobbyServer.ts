@@ -38,6 +38,7 @@ import {
 import { CampaignStore } from "./CampaignStore";
 import { MIN_LISTED_DEMO_MS, selectFeaturedDemos } from "./FeaturedDemos";
 import { GameServerSpawner } from "./GameServerSpawner";
+import { LocalSocket } from "./LocalSocket";
 import type { MatchResultStore } from "./MatchResultStore";
 import { DELETED_ACCOUNT_NAME, type PlayerNameReservation } from "./PlayerIdentity";
 import { RATING_POOLS } from "./PlayerStatsStore";
@@ -271,6 +272,29 @@ const BOT_INVITE_TIMEOUT_MS = 8000;
 const CAMPAIGN_PLAYER_TEAM: LobbyTeam = "alpha";
 const CAMPAIGN_ENEMY_TEAM: LobbyTeam = "bravo";
 
+/** A bot to seat in a room, and how it reaches the lobby. */
+export interface BotSeatRequest {
+  lobbyId: string;
+  inviteToken?: string;
+  gametype: string;
+  difficulty: BotPreset;
+  /** A campaign bot's name; others are named by the seat. */
+  name?: string;
+  /** A connection to this lobby in its own process (LocalSocket), for the seat's lobby client. */
+  connect: () => LocalSocket;
+  /** Aborted when the invite is cancelled or times out. */
+  signal: AbortSignal;
+}
+
+/**
+ * Bots seated by the lobby's own process instead of a bot server: each a
+ * lobby client on an in-process connection, playing its match where the
+ * provider puts it (a match runner). Resolves with the bot's name once seated.
+ */
+export interface LobbyBotSeats {
+  seat(request: BotSeatRequest): Promise<string>;
+}
+
 export interface LobbyServerOptions {
   /** Application reservations for the lobby-owned in-memory account store. Supplied stores own their policy. */
   reservePlayerName?: PlayerNameReservation;
@@ -280,6 +304,8 @@ export interface LobbyServerOptions {
   botSecret?: string;
   /** Override the local bot control endpoint, primarily for isolated server instances. */
   botServerUrl?: string;
+  /** Seat bots in this process (LobbyBotSeats) instead of asking the bot server at botServerUrl. */
+  botSeats?: LobbyBotSeats;
   /** Player accounts. Without one the lobby keeps accounts in memory until it stops. */
   players?: PlayerStore;
   /** Durable results; omitted in ephemeral test/dev lobbies. */
@@ -595,6 +621,8 @@ export class LobbyServer {
   private readonly botSecret: string | undefined;
   private readonly resolveDemoMap: (map: string) => string;
   private readonly botServerUrl: string;
+  /** Bots seated in this process, when given; else the bot server is asked. */
+  private readonly botSeats: LobbyBotSeats | null;
   private readonly accounts: PlayerStore;
   private readonly results: MatchResultStore | undefined;
   /** Close the store on stop only if this server opened it. */
@@ -625,6 +653,7 @@ export class LobbyServer {
     this.botSecret = options.botSecret;
     this.resolveDemoMap = options.resolveDemoMap ?? normalizeDemoMapName;
     this.botServerUrl = options.botServerUrl ?? BOT_SERVER_URL;
+    this.botSeats = options.botSeats ?? null;
     this.ownsAccounts = !options.players;
     this.accounts = options.players ?? new PlayerStore(":memory:", options.reservePlayerName);
     this.ownsSettings = !options.settings;
@@ -1662,6 +1691,7 @@ export class LobbyServer {
    * bot's name once the BIS acknowledges, or rejects on timeout/error.
    */
   private requestBotForLobby(lobby: MatchLobby, difficulty: BotPreset, name?: string): Promise<string> {
+    if (this.botSeats) return this.seatBot(this.botSeats, lobby, difficulty, name);
     return new Promise<string>((resolve, reject) => {
       if (!this.botSecret) {
         reject(new Error("Bot server secret not configured"));
@@ -1735,6 +1765,48 @@ export class LobbyServer {
         finish(() => reject(new Error("Bot server closed the connection")));
       });
     });
+  }
+
+  /**
+   * Seat a bot through this process's seats: its lobby client connects over a
+   * LocalSocket and joins the room as a bot from the bot server would. The
+   * invite is cancelled like one to the bot server, and times out after
+   * BOT_INVITE_PREPARATION_TIMEOUT_MS.
+   */
+  private async seatBot(
+    seats: LobbyBotSeats,
+    lobby: MatchLobby,
+    difficulty: BotPreset,
+    name?: string,
+  ): Promise<string> {
+    const abort = new AbortController();
+    const cancel = () => abort.abort();
+    const pending = this.pendingBotInvites.get(lobby.id) ?? new Set<() => void>();
+    pending.add(cancel);
+    this.pendingBotInvites.set(lobby.id, pending);
+    const timer = setTimeout(cancel, BOT_INVITE_PREPARATION_TIMEOUT_MS);
+    try {
+      return await seats.seat({
+        lobbyId: lobby.id,
+        ...(lobby.inviteToken ? { inviteToken: lobby.inviteToken } : {}),
+        gametype: lobby.gametype.id,
+        difficulty,
+        ...(name ? { name } : {}),
+        connect: () => {
+          const { client, server } = LocalSocket.pair();
+          this.handleConnection(server as unknown as WebSocket, "127.0.0.1");
+          return client;
+        },
+        signal: abort.signal,
+      });
+    } catch (error) {
+      throw abort.signal.aborted ? new Error("Bot invite cancelled: the lobby closed, started or timed out.") : error;
+    } finally {
+      clearTimeout(timer);
+      const left = this.pendingBotInvites.get(lobby.id);
+      left?.delete(cancel);
+      if (left?.size === 0) this.pendingBotInvites.delete(lobby.id);
+    }
   }
 
   private cancelBotInvites(lobbyId: string): void {
