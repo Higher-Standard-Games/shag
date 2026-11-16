@@ -320,6 +320,40 @@ Questions to investigate:
 A first investigation: record a few thousand traces with inputs and results
 from a bot match, port the trace kernel, and compare exactness and time.
 
+#### Results (2026-11-16)
+
+The prototype is in `prototypes/collision-wasm/` (its README has the
+commands). It ports the world part of `SweepCollisionBackend.trace` (the node
+walk, leaf brushes with containment pruning, the clip fallback and patch
+facets; not the movers) and reads the TypeScript backend's own prepared
+tables. 400,000 traces per map were recorded from 40 s matches with six bots
+(the game server's and the bots' alike) and replayed through both.
+
+| Map | Differ | TypeScript | WebAssembly | A call per trace | World tables |
+| --- | --- | --- | --- | --- | --- |
+| washoi_dm2 | 0 of 400,000 | 2.47 µs | 1.25 µs (1.98×) | 1.28 µs (1.93×) | 5.2 MB |
+| washoi_snd1 | 0 of 400,000 | 1.69 µs | 0.90 µs (1.87×) | 0.99 µs (1.71×) | 12.2 MB |
+
+- **Exact:** every field (fraction, end, normal, solid flags, contents, hit
+  brush, surface flags) matches bit for bit. Rust's f64 arithmetic in the same
+  order gives the same answers; Math.max and Math.min need their signed-zero
+  rule copied.
+- **Speed:** about twice as fast. A call per trace through a buffer in
+  WebAssembly memory costs 3-9% over one batch, so the boundary is cheap.
+  With traces about half of the bots' time, that is roughly a quarter off a
+  bot's CPU, before any change to how often bots trace.
+- **Memory:** the world's tables are 5-12 MB. Today they would sit beside the
+  TypeScript backend's copy; a backend that traced only through WebAssembly
+  could drop most of that copy.
+- **Found on the way:** on washoi_snd1 the full trace costs 1.74× its world
+  part, because the five switchable brush models are swept brush by brush with
+  no model-level bounds check (lifts have one). A bounds check there is exact
+  and cheap, in TypeScript, whatever comes of the port.
+- **Left:** the movers; making it the backend for the bot runners, the game
+  server and the browser (one implementation, so all three at once); cargo in
+  the build and CI; and whether the native clients' repositories already have
+  a BSP collision to share, which was not checked.
+
 ## Plan (approved 2026-11-16)
 
 Work happens on `bot/architecture`, branched from `staging` in both
@@ -341,7 +375,7 @@ steps land.
 | 6 | One route pipeline: learned routes through the base graph's edge checks; `bot:routes --check` | Slightly: a learned landing's links get the wall cost and the walk flood's way round | Done | `2938f58` / (this commit) | `_walkEdges` builds the graph's walk edges and learned landings' links through one `WalkTest`; `checkEdges` and `bot:routes --check` report what fails. Found: walk edges whose straight sweep goes only the other way (dm2 4, snd1 39, dm16 17: tested one way, added both) and 1-2 learned routes per map whose start walks to none of its 8 nearest nodes. Not fixed here: testing each direction changes the graphs |
 | 7 | The neural-network path removed (after confirming the host passes no `--models`); the Duel string checks moved into the weight profiles | No | Half done: the Duel checks | `65d1592` / (this commit) | `GametypeHabits` beside the weight profiles (territory, height, lead handicap) replace five gametype-name checks. The neural-network path waits for the owner: the host's service unit is the place to confirm no `--models`, and the manual documents training (`tools/bot-training.md`) |
 | 8 | A bot runner per match: the lobby holds room bots as seats, `GameServerSpawner` starts a runner beside the game server, `bot:server` becomes the runner | No (bots play as now) | Half done: the runner | `697d1c6` / (this commit) | `bot:server --match-runners`: seats stay in the bot server (lobby protocol, secret and rating identities unchanged); each match's bots play in a child process per game server (`MatchRunnerPool`, `cli/bot-runner.ts`) that exits with its last bot. 10 bots on snd1 in a bundled runner: 240-290 MB. Checked through a real lobby (3 invited bots, one runner, exit when the game server stopped). Left: lobby-held seats and `GameServerSpawner` starting the runner, which need the bot's rating identity (`behavior` digest, preset) decided on the lobby's side |
-| 9 | Collision core prototype in Rust compiled to WebAssembly, against recorded traces: exactness and speed | No (investigation) | Planned, beside 8 | | |
+| 9 | Collision core prototype in Rust compiled to WebAssembly, against recorded traces: exactness and speed | No (investigation) | Done | — / (this commit) | `prototypes/collision-wasm`: the world trace, 0 of 800,000 recorded traces differ on dm2 and snd1, 1.9-2.0× faster (1.7-1.9× with a call per trace), tables 5-12 MB. See Results under the compiled core |
 | 10 | One scheduler; decisions staggered, below the snapshot rate, aim and steering at the tick rate | Yes | Later | | |
 | 11 | Fight, hunt and hold-ground scored as goals beside the items | Yes | Later | | |
 
