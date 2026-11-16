@@ -3,6 +3,11 @@
 **Opened:** 2026-09-23, during the v0.9.24 QA cycle
 **Branch:** `0.9.24-qa-improvements`
 **Status:** audited, nothing rebuilt yet
+**Removed 2026-11-16:** the neural brain, its training and the TensorFlow
+dependency are gone (fps `eacd57c`): trained models never reached production
+play, learned little on the data there was, and cost about six times a rules
+decision. Demos keep recording what people press. See
+`BOT_ARCHITECTURE.md`, plan step 7.
 
 ## The goal
 

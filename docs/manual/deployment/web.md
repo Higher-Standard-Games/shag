@@ -129,8 +129,7 @@ What a deployment has to do with bundles:
   the code they started with.
 - **The lobby and bot server** pick it up on restart. Restarting the lobby ends
   its live rooms (matches are its child processes), so restart when idle.
-- Keep `node_modules` installed: the bundles leave `ws` and TensorFlow.js
-  external.
+- Keep `node_modules` installed: the bundles leave `ws` external.
 
 ## Verification
 
