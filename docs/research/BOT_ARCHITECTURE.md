@@ -188,6 +188,104 @@ about 280 MB after it. Most of that is render data (lightmaps, draw vertices,
 faces) that bots never read; collision needs brushes, planes, patches and
 models. Ten `BotClient`s sharing the vision add 33 MB.
 
+## Process model and a compiled core (brainstorm, 2026-11-16)
+
+Not decided; written down to steer the work after the cleanup steps.
+
+### What one process costs
+
+Measured with vite-node (the bundled server's baseline is lower and not yet
+measured):
+
+| One Node process | RSS |
+| --- | --- |
+| Bare | 39 MB |
+| With the bot modules | 160 MB |
+| Plus one map's vision (washoi_snd1) | 612 MB |
+| Plus ten `BotClient`s sharing it | 645 MB |
+
+### A process per bot
+
+Memory would grow with the bot count: every process loads its own map, so ten
+bots would hold about 6 GB where one process holds 0.65 GB. With collision-only
+map data (plan step 4) a process might hold 100–150 MB (an estimate), still
+several times one shared process. CPU would barely grow, since every bot
+decodes its own snapshot already. What it buys is cores and isolation, and a
+process per match buys both too.
+
+### A bot runner per match
+
+The bot server becomes a supervisor, as the lobby is for game servers: when a
+match with bots starts, a runner process starts for it with that match's bots
+(up to ten), loads the map once, and exits when the game server does (its
+sockets close) or when the supervisor ends it.
+
+For it:
+
+- Two people's matches never share a runner: one match's slow decision, nav
+  build or crash touches only that match.
+- The process count follows the matches, and the OS spreads them over cores.
+- A runner's lifetime is its match's; nothing outlives the match.
+- Memory and CPU are measurable per match.
+
+Against it, or still to settle:
+
+- Each runner loads its map. At today's 450 MB per map that is too much;
+  collision-only map data (plan step 4) comes first.
+- Start-up: a runner loads collision (about 0.4 s for washoi_snd1's collision
+  world in the profile) and reads the nav cache; a missed cache is built in
+  the runner, which stalls only that match's bots.
+- Who starts it. **(a)** The bot server starts it on the lobby's request, and
+  the lobby stays as it is. **(b)** The lobby's `GameServerSpawner` starts it
+  beside the game server with the bots' admission tickets, so a match's bots
+  live and die with it, without the bot server in between. Either way, bots
+  that sit in a room before the match (`BotLobbyClient`) are light, with no map
+  loaded, and can stay in the supervisor.
+- Process or worker thread. Worker threads share memory
+  (`SharedArrayBuffer`, shared `WebAssembly.Memory`), so a map could be loaded
+  once for every runner on it; a process has OS isolation, its own memory
+  limit, and can be killed outright. A process is the simpler first step, as
+  the game servers already are.
+
+### A compiled collision core (Rust to WebAssembly)
+
+Collision traces (`SweepCollisionBackend`: `traceBrush`, `traceNode`,
+`traceLeaf`, `traceFacet`, `traceFaceMesh`, and `CollisionSpatialIndex`) are
+the largest share of the bots' CPU in the profile. A Rust implementation
+compiled to WebAssembly could serve the game server, the bot runners and the
+browser client alike, so there is still one implementation of collision.
+
+Porting the whole bot to Rust was weighed and set aside: a bot uses the
+server's collision, movement simulation (its jump and steering rollouts),
+snapshot protocol, BSP loading and weapon and item tables, and each would
+become a second copy that has to match the TypeScript server exactly.
+
+Questions to investigate:
+
+- **Speed:** the trace kernel in Rust/WebAssembly against V8 on the same
+  traces. Time it on traces recorded from a bot match.
+- **Boundary:** a call per trace costs little; the trace's vectors and result
+  should pass through a buffer in WebAssembly memory, not as objects.
+- **Exactness:** the server's movement is the authority, so a WebAssembly
+  trace must give the same results as the TypeScript one, compared bit for
+  bit on the recorded traces.
+- **Memory:** the collision world in WebAssembly memory, compact and shareable
+  between worker threads.
+- **Reuse:** whether the `shagger` and `wash-fps-rust` repositories (the
+  native clients) already have a BSP collision implementation to start from.
+- **Toolchain:** cargo and wasm-pack in the build and CI, and the browser
+  bundle's size.
+
+A first investigation: record a few thousand traces with inputs and results
+from a bot match, port the trace kernel, and compare exactness and time.
+
+### Order
+
+The cleanup steps come first (decide time measured, hot spots, collision-only
+map data, the brain split): they make the runner affordable and give the
+numbers to judge it by. The runner per match and the collision-core
+investigation follow, and can go side by side.
+
 ## Plan
 
 Step 1 of the 2026-11-13 plan (decision trace and test switches) is done:
@@ -215,8 +313,9 @@ step before showing no difference:
 7. **One scheduler** for all bots, decisions staggered across them. **Changes
    behaviour** if decisions run below the snapshot rate; aim and steering keep
    the tick rate.
-8. **Process model,** decided on the numbers from steps 2–4: one process, a
-   worker thread per match, or a process per bot.
+8. **Process model,** decided on the numbers from steps 2–4: a bot runner per
+   match is the lead option (see above); with it, the collision-core
+   investigation.
 9. **The neural-network path** removed once the host is confirmed not to use
    it; the Duel string checks moved into the weight profiles.
 10. **Changes behaviour:** fight, hunt and hold-ground scored as goals beside
