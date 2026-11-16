@@ -192,7 +192,8 @@ A room is one gametype, one map vote and up to that gametype's player count.
   may switch without a vote; a shuffle needs `ceil(players / 2)` votes.
 - **Maps.** Three are drawn from the gametype's pool, and only maps that are
   actually installed are offered. Most votes wins, ties are random.
-- **Bots** play in private rooms only, invited through the bot server, at `easy`,
+- **Bots** play in private rooms only, seated by the lobby itself (see
+  [Bots without a bot server](#bots-without-a-bot-server)), at `easy`,
   `medium`, `hard` or `insane`. An invite that names no level (the room's
   **+ Add bot**) fields the preset whose fixed strength is nearest the
   inviter's Overall rating in the room's mode, with a minimum of Hard. A player with no rating meets
@@ -636,6 +637,22 @@ any connection that does not present it. The lobby treats a connection as a bot
 only with that secret, from its own machine — so nobody can dodge the
 human-presence accounting that decides both room eviction and ranking.
 
+### Bots without a bot server
+
+The lobby seats invited and campaign bots itself, and no bot server runs. Each bot is a lobby client on a connection inside the lobby's
+process, so it joins, readies and is rated exactly as one from the bot server:
+same secret check, same rating identity (its preset, goal arbiter and the
+behaviour digest of the bot code, computed from its options; no brain is
+built in the lobby). When the match starts, its bots play in a **match
+runner**, a child process per game server (`dist-server/bot-runner.mjs`) that
+loads the map once for them and exits with the match. Match reports go to
+`bot-intel.db` from the lobby. A lobby holding seats used about 63 MB; a
+runner with ten bots on `washoi_snd1`, about 175 MB while its match lasts.
+
+With `--bot-server` the lobby asks a running `bot:server` for bots instead, over
+its control port, as before match runners. It is there while production still
+runs the bot server as a service.
+
 ## Bot behaviour
 
 Washoi owns the shared bot-name list and gametype weight profiles in
@@ -645,10 +662,9 @@ the bot service selects gametype, role and round-state policy from
 
 The Washoi bot application lives in `src/games/fps/bot/`, with startup at
 `src/games/fps/cli/bot-server.ts`. Its development tools also live in that game's
-`cli/`: `bot-analyze.ts`, `bot-learn.ts`, `bot-train.ts`, `bot-bench.ts` and
-`bot-motion.ts`. Run their `bot:analyze`, `bot:learn`, `bot:train`, `bot:bench`
-and `bot:motion` npm commands
-from the assembled root; model, route and report paths resolve from that cwd.
+`cli/`: `bot-analyze.ts`, `bot-learn.ts` and `bot-motion.ts`. Run their
+`bot:analyze`, `bot:learn` and `bot:motion` npm commands from the assembled
+root; route and report paths resolve from that cwd.
 
 Bot clients play over the same protocol as a browser and are bound by the same rules:
 

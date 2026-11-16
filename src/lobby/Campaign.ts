@@ -114,13 +114,17 @@ function parseBot(value: unknown, where: string, hasTeams: boolean): CampaignBot
 const positiveInteger = (value: unknown, max: number) =>
   typeof value === "number" && Number.isInteger(value) && value > 0 && value <= max;
 
+const wholeNumber = (value: unknown, max: number) =>
+  typeof value === "number" && Number.isInteger(value) && value >= 0 && value <= max;
+
 function parseLimits(value: unknown, where: string): { scoreLimit?: number; timeLimit?: number } | undefined {
   if (value === undefined) return undefined;
   const limits = value as Record<string, unknown> | null;
   if (!limits || typeof limits !== "object") fail(`${where}.limits must be an object`);
   knownKeys(limits, ["scoreLimit", "timeLimit"], `${where}.limits`);
-  if (limits.scoreLimit !== undefined && !positiveInteger(limits.scoreLimit, 500))
-    fail(`${where}.limits.scoreLimit must be a whole number from 1`);
+  // A score limit of 0 is none: the match runs its full time
+  if (limits.scoreLimit !== undefined && !wholeNumber(limits.scoreLimit, 500))
+    fail(`${where}.limits.scoreLimit must be a whole number from 0`);
   if (limits.timeLimit !== undefined && !positiveInteger(limits.timeLimit, 3600))
     fail(`${where}.limits.timeLimit must be whole seconds from 1`);
   return {
@@ -132,7 +136,7 @@ function parseLimits(value: unknown, where: string): { scoreLimit?: number; time
 function parseSurvival(value: unknown, where: string, enemies: number): CampaignSurvivalRules {
   const survival = value as Record<string, unknown> | null;
   if (!survival || typeof survival !== "object") fail(`${where}.survival must be an object`);
-  knownKeys(survival, ["waves", "waveSeconds", "seconds", "robotKits"], `${where}.survival`);
+  knownKeys(survival, ["waves", "waveSeconds", "seconds", "robotKits", "lives"], `${where}.survival`);
   const waves = survival.waves;
   if (
     !Array.isArray(waves) ||
@@ -152,6 +156,8 @@ function parseSurvival(value: unknown, where: string, enemies: number): Campaign
   for (const key of ["waveSeconds", "seconds"] as const) {
     if (!positiveInteger(survival[key], 3600)) fail(`${where}.survival.${key} must be a whole number from 1`);
   }
+  if (survival.lives !== undefined && !positiveInteger(survival.lives, 9))
+    fail(`${where}.survival.lives must be a whole number from 1 to 9`);
   const kits = survival.robotKits;
   if (!Array.isArray(kits) || kits.length === 0) fail(`${where}.survival.robotKits must list at least one kit`);
   const robotKits = (kits as unknown[]).map((value, i): CampaignRobotKit => {
@@ -173,6 +179,7 @@ function parseSurvival(value: unknown, where: string, enemies: number): Campaign
     waveSeconds: survival.waveSeconds as number,
     seconds: survival.seconds as number,
     robotKits,
+    ...(survival.lives !== undefined ? { lives: survival.lives as number } : {}),
   };
 }
 

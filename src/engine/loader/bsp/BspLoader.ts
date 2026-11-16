@@ -1166,7 +1166,8 @@ export class BspLoader {
 
     const numClusters = lump.data.getInt32(0, true);
     const bytesPerCluster = lump.data.getInt32(4, true);
-    const bitVectors = new Uint8Array(this.data.buffer, lump.offset + 8, numClusters * bytesPerCluster);
+    // A copy, not a view: a view keeps the whole file alive for as long as the PVS is
+    const bitVectors = new Uint8Array(this.data.buffer, lump.offset + 8, numClusters * bytesPerCluster).slice();
 
     devLog(`[BspLoader] Loaded PVS: ${numClusters} clusters, ${bytesPerCluster} bytes/cluster`);
 

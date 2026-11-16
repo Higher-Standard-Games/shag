@@ -1,9 +1,9 @@
 # Bot server architecture: review and refactor plan
 
-Written 2026-11-13, at the end of the `bot/strategy-layer` work. It describes
-how a bot runs now, the weak points that work ran into, and the refactors to
-make in the next cycle, in order. None of these changes what a bot does; the
-last item is marked where it would.
+Written 2026-11-13, at the end of the `bot/strategy-layer` work, and reviewed
+again 2026-11-16 with a CPU profile and memory measurements of a 10-bot S&D
+match. It describes how a bot runs, the weak points, what a match costs, the
+process model ahead, and the approved plan with its implementation matrix.
 
 Measurements and tuning history are in [BOT_STRATEGY_LAYER.md](BOT_STRATEGY_LAYER.md).
 Code paths below are under `src/games/fps/bot/`.
@@ -59,9 +59,11 @@ routes) are sent command by command.
 
 ### 1. One class holds the brain
 
-`StateMachineBrain.ts` is 2,923 lines with 58 private fields, 87 constants and
-41 imports. On death `_decide` resets about 20 of those fields by hand; a field
-added later and not reset carries over into the next life.
+`StateMachineBrain.ts` is 3,807 lines with 61 private fields, 124 constants and
+47 imports (2,923 lines, 58 fields, 87 constants and 41 imports on 2026-11-13:
+the S&D coach, steering, cover and unstick work of the three days between
+added 916 lines through it). On death `_decide` resets about 20 of those fields
+by hand; a field added later and not reset carries over into the next life.
 
 ### 2. Two decision systems with no common scale
 
@@ -88,6 +90,8 @@ coast disagreeing about the crouch button.
 
 ### 4. No decision trace
 
+Solved 2026-11-14 (`DecisionTrace.ts`, `bot:motion --trace`); kept for the record.
+
 There is no per-decision record of state, strategy, chosen goal and the top
 candidates with their scores, path step, sequence phase and position. Finding
 why the bot stood still at learned-route links, why it bobbed, and why it left
@@ -95,6 +99,8 @@ the Red Armor each took temporary logging patched into the brain and
 `bot:motion`, removed afterwards.
 
 ### 5. A/B tests cannot switch code paths
+
+Solved for tuning 2026-11-14 (`BotOptions.weights`); named switches for code paths are still to come.
 
 `bot:ab` arms differ only by `BotOptions` (`difficulty`, `strategy`,
 `strategies`, `habitItem`, `goalArbiter`, and `routesRoot`). A scoring or
@@ -114,7 +120,8 @@ build edges differently and nothing reports a bad edge.
 Each bot has its own 8 ms timer, and its traces and `decide` run in the same
 event loop as every other bot's. On Windows the timers fire about every
 15.6 ms (the send loop catches up by the clock). A slow `decide` delays every
-bot's commands, and decide time is not measured.
+bot's commands, and decide time is not measured. The 9-second nav build
+measured below stalled every bot at once.
 
 ### 8. Leftovers
 
@@ -127,7 +134,290 @@ bot's commands, and decide time is not measured.
   places in the brain, where the weight profiles mean gametypes to differ by
   data.
 
-## Plan for the next cycle
+### 9. Everything runs at the snapshot rate
+
+Each bot perceives, traces and decides on every snapshot, about 62 a second.
+Item beliefs, goal choice and route costs do not change that fast, and a
+person reacts in 150–250 ms.
+
+### 10. Map memory is render data
+
+`createBotVision` keeps what the renderer needs. A bot server with several maps
+in use holds about 450 MB per map, and a process per bot would hold it per bot.
+
+## What a match costs
+
+Measured 2026-11-16: one `bot:ab` match on washoi_snd1, Search & Destroy, five
+bots a side, 90 seconds, under `NODE_OPTIONS=--cpu-prof`. The `bot:ab` worker
+process holds the game server and both bot servers, so the profile splits them
+by source file.
+
+| | |
+| --- | --- |
+| Busy CPU of the worker process | 46.4 s of 113 s |
+| Bots (`bot/` and what they call) | 37.6 s, 81% |
+| Game server | 3.2 s, 7% |
+| One bot's snapshot handled (`_handleSnapshot`, steady state) | about 0.47 ms |
+| Nav graph build at match start (`buildFromVision`) | 9.0 s, synchronous |
+
+A snapshot's handling, inclusive:
+
+| Part | Time | Share |
+| --- | --- | --- |
+| `decide` | 12.2 s | 46% |
+| of it, choosing an item goal (`ItemGoalPlanner.select`) | 5.2 s | |
+| of that, route costs (`estimateTravelCost`, `_findStandingNode` scanning every node) | 4.2 s | |
+| `BotPerception.perceive` | 5.3 s | 20% |
+| of it, item beliefs (`_believeItems`, a sight line to items each snapshot) | 3.5 s | |
+| `BotVision.getVisibleState` (sight lines to enemies) | 3.5 s | 13% |
+| Decoding the snapshot (`shared/net`, pako, `BotGameState.update`) | about 4.3 s | 16% |
+
+Sight lines (`canSee`) are 7.6 s of collision time and the nav graph's flood
+fill 7.2 s, most of it in the start-up build.
+
+The nav graph cache missed in this run (a recent change altered what it is
+keyed on), so the graph was built in the bot server's only event loop: the game
+server logged every bot silent for 10.5 s. In production that happens on the
+first match of each map after a deploy that changes the key, to every bot in
+every match the process runs.
+
+**Memory.** One Node process with the bot modules loaded holds 160 MB (a bare
+Node process 39 MB). Loading one map's vision (`createBotVision`) takes it to
+612 MB: the BSP file is 92 MB, its parse is 220 MB of heap, and buffers hold
+about 280 MB after it. Most of that is render data (lightmaps, draw vertices,
+faces) that bots never read; collision needs brushes, planes, patches and
+models. Ten `BotClient`s sharing the vision add 33 MB.
+
+## Process model and a compiled core
+
+Worked out 2026-11-16 and taken into the plan (steps 8 and 9): a bot runner
+per match, started by the lobby, and a collision-core prototype.
+
+### What one process costs
+
+Measured with vite-node (the bundled server's baseline is lower and not yet
+measured):
+
+| One Node process | RSS |
+| --- | --- |
+| Bare | 39 MB |
+| With the bot modules | 160 MB |
+| Plus one map's vision (washoi_snd1) | 612 MB |
+| Plus ten `BotClient`s sharing it | 645 MB |
+
+### A process per bot
+
+Memory would grow with the bot count: every process loads its own map, so ten
+bots would hold about 6 GB where one process holds 0.65 GB. With collision-only
+map data (plan step 4) a process might hold 100–150 MB (an estimate), still
+several times one shared process. CPU would barely grow, since every bot
+decodes its own snapshot already. What it buys is cores and isolation, and a
+process per match buys both too.
+
+### A bot runner per match
+
+The bot server becomes a supervisor, as the lobby is for game servers: when a
+match with bots starts, a runner process starts for it with that match's bots
+(up to ten), loads the map once, and exits when the game server does (its
+sockets close) or when the supervisor ends it.
+
+For it:
+
+- Two people's matches never share a runner: one match's slow decision, nav
+  build or crash touches only that match.
+- The process count follows the matches, and the OS spreads them over cores.
+- A runner's lifetime is its match's; nothing outlives the match.
+- Memory and CPU are measurable per match.
+
+Against it, or still to settle:
+
+- Each runner loads its map. At today's 450 MB per map that is too much;
+  collision-only map data (plan step 4) comes first.
+- Start-up: a runner loads collision (about 0.4 s for washoi_snd1's collision
+  world in the profile) and reads the nav cache; a missed cache is built in
+  the runner, which stalls only that match's bots.
+- Who starts it: the lobby, beside the game server (below).
+- Process or worker thread (below: processes). Worker threads share memory
+  (`SharedArrayBuffer`, shared `WebAssembly.Memory`), so a map could be loaded
+  once for every runner on it; a process has OS isolation, its own memory
+  limit, and can be killed outright. A process is the simpler first step, as
+  the game servers already are.
+
+### The room before the match, and who starts a runner
+
+A bot in a room is a `BotLobbyClient`: a WebSocket to the lobby, authenticated
+with the bot secret. In the room it joins by id, readies itself, sends its
+rating identity (`bot:reference`: preset, goal arbiter, model) and ignores the
+rest; on `lobby:connect` it makes the `BotClient` that plays. Nothing it does in
+the room needs a process of its own: the lobby knows the bot's name,
+difficulty and team when it invites it, and the preset and arbiter are what
+its rating identity carries once the neural-network path is gone.
+
+So the always-running bot server could go:
+
+- **In the room,** a bot is a seat the lobby holds itself (name, difficulty,
+  team, rating identity), always ready, with no connection behind it.
+- **At match start,** `GameServerSpawner` starts the game server and, when the
+  match has bots, a bot runner beside it with the bots' admission tickets and
+  options, as it passes a game server its admission manifest. The runner exits
+  with its game server.
+- **`bot:server`** becomes the runner: one match, started by the lobby on
+  demand, or by hand against a game server for development. The bot tools
+  (`bot:ab`, `bot:motion`) keep running bots in their own process, as they do.
+
+The lobby asks for bots only while a room waits (a player's invite, and
+`fillCampaignBots` seating a mission's bots one at a time, each a round trip
+through the bot server), so a runner's bots are all known when it starts, and
+a campaign room would seat its bots at once.
+
+To settle before building it:
+
+- The bot secret and the `bot:` messages the lobby accepts from bot
+  connections, which a lobby holding bot seats no longer needs.
+- What a bot says in the room chat, if anything is wanted there.
+
+### Shared map memory: worth it?
+
+Two bot matches at once share a map only if they play the same one. With the
+lobby's pools in `config/maps.json`, two matches of one gametype pick the same
+map with odds of 1 in 3 (S&D, Amphi: three maps each), 1 in 8 (Duel) and 1 in
+11 (FFA), and less across gametypes; each campaign mission has its own map.
+The collision world itself adds about 40 MB to the parsed BSP (measured on
+washoi_snd1); with collision-only map data a runner's map is tens of
+megabytes, so sharing it would rarely happen and save little. Processes, then,
+not threads: OS isolation, a memory limit per match, and a runner the lobby
+can kill like a game server.
+
+### A compiled collision core (Rust to WebAssembly)
+
+Collision traces (`SweepCollisionBackend`: `traceBrush`, `traceNode`,
+`traceLeaf`, `traceFacet`, `traceFaceMesh`, and `CollisionSpatialIndex`) are
+the largest share of the bots' CPU in the profile. A Rust implementation
+compiled to WebAssembly could serve the game server, the bot runners and the
+browser client alike, so there is still one implementation of collision.
+
+Porting the whole bot to Rust was weighed and set aside: a bot uses the
+server's collision, movement simulation (its jump and steering rollouts),
+snapshot protocol, BSP loading and weapon and item tables, and each would
+become a second copy that has to match the TypeScript server exactly.
+
+Questions to investigate:
+
+- **Speed:** the trace kernel in Rust/WebAssembly against V8 on the same
+  traces. Time it on traces recorded from a bot match.
+- **Boundary:** a call per trace costs little; the trace's vectors and result
+  should pass through a buffer in WebAssembly memory, not as objects.
+- **Exactness:** the server's movement is the authority, so a WebAssembly
+  trace must give the same results as the TypeScript one, compared bit for
+  bit on the recorded traces.
+- **Memory:** the collision world in WebAssembly memory, compact and shareable
+  between worker threads.
+- **Reuse:** whether the `shagger` and `wash-fps-rust` repositories (the
+  native clients) already have a BSP collision implementation to start from.
+- **Toolchain:** cargo and wasm-pack in the build and CI, and the browser
+  bundle's size.
+
+A first investigation: record a few thousand traces with inputs and results
+from a bot match, port the trace kernel, and compare exactness and time.
+
+#### Results (2026-11-16)
+
+The prototype is in `prototypes/collision-wasm/` (its README has the
+commands). It ports the world part of `SweepCollisionBackend.trace` (the node
+walk, leaf brushes with containment pruning, the clip fallback and patch
+facets; not the movers) and reads the TypeScript backend's own prepared
+tables. 400,000 traces per map were recorded from 40 s matches with six bots
+(the game server's and the bots' alike) and replayed through both.
+
+| Map | Differ | TypeScript | WebAssembly | A call per trace | World tables |
+| --- | --- | --- | --- | --- | --- |
+| washoi_dm2 | 0 of 400,000 | 2.47 µs | 1.25 µs (1.98×) | 1.28 µs (1.93×) | 5.2 MB |
+| washoi_snd1 | 0 of 400,000 | 1.69 µs | 0.90 µs (1.87×) | 0.99 µs (1.71×) | 12.2 MB |
+
+- **Exact:** every field (fraction, end, normal, solid flags, contents, hit
+  brush, surface flags) matches bit for bit. Rust's f64 arithmetic in the same
+  order gives the same answers; Math.max and Math.min need their signed-zero
+  rule copied.
+- **Speed:** about twice as fast. A call per trace through a buffer in
+  WebAssembly memory costs 3-9% over one batch, so the boundary is cheap.
+  With traces about half of the bots' time, that is roughly a quarter off a
+  bot's CPU, before any change to how often bots trace.
+- **Memory:** the world's tables are 5-12 MB. Today they would sit beside the
+  TypeScript backend's copy; a backend that traced only through WebAssembly
+  could drop most of that copy.
+- **Found on the way:** on washoi_snd1 the full trace costs 1.74× its world
+  part, because the five switchable brush models are swept brush by brush with
+  no model-level bounds check (lifts have one). A bounds check there is exact
+  and cheap, in TypeScript, whatever comes of the port.
+- **Left:** the movers; making it the backend for the bot runners, the game
+  server and the browser (one implementation, so all three at once); cargo in
+  the build and CI; and whether the native clients' repositories already have
+  a BSP collision to share, which was not checked.
+
+## Plan (approved 2026-11-16)
+
+Work happens on `bot/architecture`, branched from `staging` in both
+repositories. Each step is its own commit with the bot tests, and a step that
+should not change what a bot does gets a `bot:ab` run against the step before
+showing no difference. Steps that change behaviour are measured like any tuning
+change, against people as well as bots. This matrix is kept up to date as the
+steps land.
+
+### Implementation matrix
+
+| # | Step | Changes behaviour | Status | Commits (fps / outer) | Result |
+| --- | --- | --- | --- | --- | --- |
+| 1 | Nav graphs built off the bots' event loop (`BotNavWorker` in a worker thread) | No | Done | `3a4ce59` / `bad81189` | washoi_snd1 built in 10.1 s; the main thread's worst stall 11 ms (was 9 s for every bot) |
+| 2 | Cost per bot measured: snapshot and decision percentiles (`BotClient.timings`) in `bot:motion` and `bot:ab` | No | Done | `f54d87a` / `bdaae4ce` | Snapshot p50 0.36 ms, p99 up to 4.1 ms, max 44 ms (10-bot S&D) |
+| 3 | Hot spots, exact: nearest-node and standing-node lookups remembered until the nodes change; one item sight trace per spot per snapshot | No (same answers) | Done | `0e14db7` / `685d5af0` | Goal choice 5.2 → 1.9 s and `decide` 12.2 → 9.5 s per match; snapshot p50 0.36 → 0.22–0.30 ms. Left: sight traces are half the bots' time (steps 9, 10); the slowest decisions (43–46 ms) are a graph's first, building its distance table |
+| 4 | Collision-only map data: `createBotVision` parses with `BspLoader.loadCollision` through a transient pk3 loader; the PVS is copied out of the file buffer | No (traces identical) | Done | `0277ba7` / `93080432` | One map's vision about 60 MB live in a bundled process (was about 450 MB); 0 of 60,000 traces differ on three maps. A bundled process with the bot code: 54 MB RSS |
+| 5 | Brain split: (a) a life object made new on spawn, (b) the body's per-life fields in it too, (c) navigation, (d) after-steps, (e) one owner per input channel, (f) each state's executor and the S&D coach as modules | No, except (b) at a respawn's first moments | Done | `989019d`, `e43f9de`, `e3fe9ed`, `0f36109`, `b35f6ae`, `4ee20e5`, `c54d814`, `4a76063` / `e7aee480`, `1a08c5c7`, `48ceb9ec`, `6dd5da58` | `BotLife`: 25 fields, made new at each death (15 cleared by hand before, 10 never cleared); a test checks a death leaves a fresh life; (c) route following in `navigation/BotNavigator` (429 lines) and traversal sequences in `navigation/BotTraversal` (538), each behind a typed host interface; (d) steering in `movement/BotSteering` (363) and the roaming look in `view/BotLook` (226), the after-steps run from `_afterSteps` in a listed order; (e) `InputClaims`: who holds movement and how (exactly, or open to corrections), checked by corrections and takeovers, in the trace and `bot:motion --trace`; (f) `states/BotFight` (666), `states/BotRoam` (384) and `orders/BotOrders` (246, the bot side of the coach's orders): `StateMachineBrain` 3,807 → 1,508 lines, deciding the state and running its executor and the after-steps. The coach itself is in `server/gametypes/SearchAndDestroy.ts` |
+| 6 | One route pipeline: learned routes through the base graph's edge checks; `bot:routes --check` | Slightly: a learned landing's links get the wall cost and the walk flood's way round; walk edges only the way they walk | Done | `2938f58`, `4d34832` / `662658bd`, (this commit) | `_walkEdges` builds the graph's walk edges and learned landings' links through one `WalkTest`; `checkEdges` and `bot:routes --check` report what fails. Found: walk edges whose straight sweep goes only the other way (dm2 4, snd1 39, dm16 17: tested one way, added both) and 1-2 learned routes per map whose start walks to none of its 8 nearest nodes. Fixed after (`4d34832`): each way is tested on its own, nav cache schema 5; the check finds none on the three maps |
+| 7 | The neural-network path removed (after confirming the host passes no `--models`); the Duel string checks moved into the weight profiles | No | Done | `65d1592`, `eacd57c` / `662658bd`, (this commit) | `GametypeHabits` beside the weight profiles (territory, height, lead handicap) replace five gametype-name checks. The neural-network path removed on the owner's word: 14 modules, `bot:train`, `bot:bench`, `--models`, the Bot Training page and `@tensorflow/tfjs-node` (925 MB of `node_modules`); 7,815 lines. A bot's rating identity keeps its model field, always "none". Learned estimates inside the scored goals, from the data tools, are the place for learning now |
+| 8 | A bot runner per match: the lobby holds room bots as seats, `GameServerSpawner` starts a runner beside the game server, `bot:server` becomes the runner | No (bots play as now) | Done | `697d1c6`, `806010a` / `662658bd`, (this commit) | `bot:server --match-runners`: seats stay in the bot server (lobby protocol, secret and rating identities unchanged); each match's bots play in a child process per game server (`MatchRunnerPool`, `cli/bot-runner.ts`) that exits with its last bot. 10 bots on snd1 in a bundled runner: 240-290 MB. Checked through a real lobby (3 invited bots, one runner, exit when the game server stopped). Then `lobby:server --bot-seats`: the lobby seats bots itself (`LobbyBotSeats`), each a `BotLobbyClient` on an in-process `LocalSocket`, so admission, rooms and ratings take the same path; the rating identity comes from the bot's options (preset, goal arbiter, behaviour digest of the same checkout), with no brain built in the lobby; the runner starts with the match's first bot rather than from `GameServerSpawner`, to the same effect. Checked with no bot server: a private FFA with three bots and campaign mission 1; the lobby holding seats 63 MB |
+| 9 | Collision core prototype in Rust compiled to WebAssembly, against recorded traces: exactness and speed | No | Done, in use for bots | — / `1e177a5f`, (this commit) | `prototypes/collision-wasm`: the world trace, 0 of 800,000 recorded traces differ on dm2 and snd1, 1.9-2.0× faster (1.7-1.9× with a call per trace), tables 5-12 MB. See Results under the compiled core |
+| 10 | One scheduler; decisions staggered, below the snapshot rate, aim and steering at the tick rate | Yes | Done, on by default (fps `3048b04`) | `81fa813` / `14f9da4f` | `BotScheduler`: one 125 Hz timer for every bot in a process (commands unchanged). `decideEvery` (default 1) decides on every n-th snapshot while roaming, bots taking turns; fights, dodges and sequences decide every snapshot; aim turns every tick. `bot:ab` with 2 against 1: Duel dm2 12 matches, frag gap -0.42 (-1.20 to 0.36), decisions -17%; S&D snd1 6 matches, rounds 9-10, kills per death 1.03 against 0.97, decisions -34%, snapshot p95 1.7 → 1.2 ms. Steering still runs in the decision, not every tick. Default 2 since the owner's call (2026-11-16): the cost judged worth the CPU |
+| 11 | Fight, hunt and hold-ground scored as goals beside the items | Yes | Hunt and hold done, on by default (fps `3048b04`); fight not scored | `81fa813` / `14f9da4f` | `scoredGoals`: roaming chooses the item arbiter's best goal, the freshest sighting (the seek bar when just seen, falling over its window) or the territory (half of mapControl, in modes that keep one) by desire (`goals/RoamChoice.ts`). `bot:ab` on against off: Duel dm2 12 matches, frag gap -0.17 (-1.44 to 1.11); FFA dm2 8 matches, -0.75 (-3.14 to 1.64): no difference shown. A fight stays a rule: scoring it beside items needs an item run that fights under fire |
+
+### After the plan (2026-11-16)
+
+A profile of a 10-bot S&D match with steps 1–9 in: bots 73% of the CPU, sight
+checks 25% of theirs (half of that item spots), decisions 37%, the slowest
+snapshot 57 ms (a map's first decision building every distance row). Three
+changes, each giving the same answers:
+
+| Change | Proof | Result |
+| --- | --- | --- |
+| `BotPvs`: the map's PVS before a sight trace (fps `48445c2`; bots' forked visions got it in `2fd3337`) | 0 of 238,000 recorded sight checks the trace sees ruled out, on dm2, snd1, dm16, amphi1 | 25–60% of sight traces not run; in a 10-bot snd1 match, sight traces per bot-second about 185 → 67 |
+| Brush model and button bounds check in `SweepCollisionBackend.trace` (`15c3533c`) | Every inline model's parts inside its box on all 17 maps; 800,000 recorded traces identical | snd1 full trace 3.04 → 2.20 µs; dm2 unchanged |
+| Distance rows built as asked for (fps `446fac6`) | Same algorithm per row | First estimate on snd1 31 → 1.5 ms |
+| A headless owner reads the map's BSP straight from its pk3 (`947c5a73`) | Identical bytes on every map | Loading snd1's vision peaks at 250 MB RSS (was 289); extracting the BSP holds about 120 MB of buffers (was about 215) |
+
+The slowest snapshot of the same match: 57 → 20–23 ms (before the PVS reached the bots).
+
+Then, with the slow snapshots profiled one by one (`spikes`: each part of a
+snapshot over 10 ms timed, GC pauses beside them):
+
+| Change | Proof | Result |
+| --- | --- | --- |
+| A wall-jump check steps both flights side by side and stops when they are the same (fps `03112bd`) | 1,190 recorded checks, 227 with a wall jump, every answer the same | Checks 2.3–3× faster; 79 ms worst snapshot gone |
+| Route lines shared per stretch, joined at the nearest point (fps `1d7099e`) | `bot:motion` on dm2 and snd1 the same or slightly better | 63% fewer lines built; slow snapshots 119 → about 25 a minute, worst about 22 ms |
+| The world trace compiled to WebAssembly for bots (step 9 made real, this commit) | 800,000 recorded traces through the full trace, every field and texture name identical; a seeded-trace test on dm2 | Full trace 1.55× (snd1) and 1.78× (dm2) faster |
+| Match runners with a 4 MB young generation (`RUNNER_NODE_FLAGS`) | Same snapshot cost in a 10-bot S&D match | 10-bot snd1 runner 420 → 173 MB RSS (V8 heap reserved 250 → 85 MB); live heap about 75 MB |
+
+After loading, a bundled bot process with snd1 has a 26 MB JS heap and 15–30 MB
+of buffers, but keeps 140–160 MB of RSS on Windows: memory the load freed and
+the OS did not take back. Linux usually returns large freed blocks at once, so
+a runner there may sit lower; not measured.
+
+### Order
+
+Steps 3 and 4 first (both done): they cut the cost the runner would pay per match and
+give the numbers to judge it by. Then the brain split (5), routes (6) and the
+leftovers (7). The runner (8) follows step 4; the collision prototype (9) can
+run beside it. Steps 10 and 11 change how bots play and come last.
+
+## Plan of 2026-11-13
 
 On a fresh branch from `staging`, each step its own commit with the bot tests
 and a `bot:ab` run of the result against the step before showing no

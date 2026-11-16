@@ -167,10 +167,7 @@ npm --prefix src/games/fps run anticheat:calibrate -- --trials 40 --ticks 1500
 ```
 
 `demo:record` starts a server, connects AI bots and records one match. It takes
-`--map`, `--bots`, `--seconds`, `--gametype`, `--difficulty`, `--port` and
-`--models <dir>`; with `--models` the bots play with those trained weights, which
-is how a trained model gets watched in a real match. Its recordings carry no
-verified players, so training reads them only with `--include-bots`.
+`--map`, `--bots`, `--seconds`, `--gametype`, `--difficulty` and `--port`.
 
 `demo:verify` replays a re-simulation bundle (`.shagverify`, distinct from a
 `.shagdemo` playback file) through the deterministic simulation and checks that

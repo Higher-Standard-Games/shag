@@ -72,6 +72,7 @@
         ],
         "waveSeconds": 60,
         "seconds": 300,
+        "lives": 2,
         "robotKits": [
           { "weapons": ["machinegun"] },
           { "weapons": ["machinegun"], "ads": false },
@@ -94,28 +95,28 @@
       "gametype": "snd",
       "side": "attack",
       "bots": [
-        { "name": "Ratchet", "difficulty": "hard", "side": "ally", "model": "cartel" },
+        { "name": "Cartel_King", "difficulty": "hard", "side": "ally", "model": "cartel" },
         { "name": "Socket", "difficulty": "hard", "side": "ally", "model": "riotkitty" },
         { "name": "Torque", "difficulty": "hard", "side": "ally", "model": "cartel" },
         { "name": "Pliers", "difficulty": "hard", "side": "ally", "model": "riotkitty" },
-        { "name": "Visor_Nyx", "difficulty": "hard" },
-        { "name": "Visor_Rae", "difficulty": "hard" },
-        { "name": "Visor_Kai", "difficulty": "hard" },
-        { "name": "Unit_07", "difficulty": "hard", "model": "robot" },
-        { "name": "Unit_17", "difficulty": "hard", "model": "robot" }
+        { "name": "Visor_Nyx", "difficulty": "insane" },
+        { "name": "Visor_Rae", "difficulty": "insane" },
+        { "name": "Visor_Kai", "difficulty": "insane" },
+        { "name": "Unit_07", "difficulty": "insane", "model": "robot" },
+        { "name": "Unit_17", "difficulty": "insane", "model": "robot" }
       ],
-      "models": { "ally": "robot", "enemy": "female" }
+      "models": { "ally": "robot", "enemy": "police" }
     },
     {
       "id": "road-ends",
       "map": "washoi_dm5",
       "gametype": "tdm",
       "bots": [
-        { "name": "Officer_Kane", "difficulty": "insane", "model": "police" },
-        { "name": "Officer_Reyes", "difficulty": "insane", "model": "female" }
+        { "name": "Officer_Wasabi", "difficulty": "insane", "model": "police" },
+        { "name": "Officer_Mochi", "difficulty": "insane", "model": "female" }
       ],
-      "models": { "ally": "robot", "enemy": "police" },
-      "limits": { "scoreLimit": 15, "timeLimit": 600 }
+      "models": { "ally": "cartel", "enemy": "police" },
+      "limits": { "scoreLimit": 0, "timeLimit": 600 }
     }
   ]
 }

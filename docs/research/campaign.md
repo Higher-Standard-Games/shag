@@ -20,11 +20,12 @@ classified until they are written.
 | 04 | `washoi_dm2` | Duel | Glitch Punk Leader | 1 Medium | robot / riotkitty | Rival gang leader | card4 |
 | 05 | `washoi_dm18` | Survival | Rival Cartel Bot Guards | 7 Medium robots, in waves of 4-7, 30-50 health, kits in turn | robot / robot | Caught in the bot trap | card5 (3 panels) |
 | 06 | `washoi_amphi1` | Amphi | Heavy Siege Bot (2.5x) | 1 Hard, scale 2.5, random kit | robot / robot | The final robot boss | card6 (2 panels) |
-| 07 | `washoi_snd6` (Depot) | S&D, attack only | Pink-Visor Spec-Ops and Unit 07 | 4 Hard allies, 5 Hard enemies | robot / female (Unit 07s robot) | High-profile cash heist | to come |
-| 08 | `washoi_dm5` | TDM 1v2 | Metropol Police Duo | 2 Insane (police, female) | robot / police | "Your road ends here" | to come |
+| 07 | `washoi_snd6` (Depot) | S&D, attack only | Rogue Spec-Ops and Unit 07 | 4 Hard allies (Cartel King, cartel, 2 riotkitty), 5 Insane enemies (3 police, 2 robot) | robot / police | High-profile cash heist | card7 (3 panels) |
+| 08 | `washoi_dm5` | TDM 1v2 | Metropol Police Duo | 2 Insane (Officer_Wasabi police, Officer_Mochi female) | cartel / police | "Your road ends here" | card8 (2 panels) |
 
 The protagonist in the art is the hooded robot with the anarchy mark, so the
-player's own model is `robot` throughout. Missions 1 and 2 are the ones built
+player's own model is `robot`, apart from Road's End, where you play as the
+Cartel King (`cartel`). Missions 1 and 2 are the ones built
 and tested first; 3 and 4 have their rules in the catalog so they unlock in
 order, but S&D bot team play is still being worked on in another branch.
 
@@ -319,7 +320,7 @@ Collected for review; the implementation picks a default for each.
    with more frags updates the best.
 7. **Cards on replay.** Should the comic card be skippable at once (Esc) on a
    replay? Click already advances.
-8. **Missions 5-8**: planned above; art to come.
+8. **Missions 5-8**: planned above; all eight now have their cards.
 9. **Co-op seats.** A full room refuses a second human. Should ally bots (the
    S&D crew) give up their seat to a joining friend?
 10. **Bot names.** Bots follow the player-name rule (2-16 letters, digits, `_`,
@@ -332,7 +333,7 @@ Collected for review; the implementation picks a default for each.
 
 ## Operations 5-8 (2026-11-15)
 
-Built from the owner's plan, art still to come; an operation without a card
+Built from the owner's plan; each now has its card. An operation without a card
 starts straight from the black screen, and its row shows its number in place
 of the card.
 
@@ -384,5 +385,7 @@ of the card.
   game server in `randomKits`; the controller gives it a kit drawn at random
   at every spawn, never the one it last had (`randomLoadout`, seeded from the
   spawn tick and entity like spawn points, on its own stream).
-- **Limits.** Road's End sets a 15-frag, 10-minute team deathmatch
-  (`limits` in the mission, `MatchState.setLimits`).
+- **Limits.** Road's End sets a 10-minute team deathmatch with no frag limit
+  (`"scoreLimit": 0`; `limits` in the mission, `MatchState.setLimits`). Team
+  deathmatch plays a tie at the time limit on in one-minute overtimes, as
+  Duel does; Survival, built on it, turns that off.

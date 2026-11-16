@@ -15,6 +15,7 @@ import * as path from "node:path";
 import { readPublishedBuild } from "../../editor/server/PublishedBuild";
 import { PK3Index } from "./PK3Index";
 import { PK3Loader } from "./PK3Loader";
+import { readZipEntry } from "./ZipEntry";
 
 // processPK3ArrayBuffer is private on PK3Loader; the Node bootstrap path needs it
 // (there's no fetch()). Same access pattern as headless-game.ts.
@@ -66,6 +67,11 @@ export async function ingestPk3Dir(dir: string): Promise<number> {
  * `map_*.pk3` in the dirs, until the index knows the map. Only the pk3s needed
  * are read — no full-library load.
  *
+ * A private owner (`PK3Loader.createTransient()`: bots, game servers, tools)
+ * gets the published build's or the conventional package's BSP read straight
+ * from the file (readZipEntry), without loading the archive; any other
+ * package, and the shared loader, goes through PK3Loader and PK3Index.
+ *
  * @returns the BSP ArrayBuffer, or null if the map can't be found.
  */
 export async function resolveMapBspViaIndex(
@@ -75,6 +81,10 @@ export async function resolveMapBspViaIndex(
 ): Promise<ArrayBuffer | null> {
   const index = PK3Index.getInstance();
   const name = mapName.toLowerCase();
+  const entry = `maps/${name}.bsp`;
+  // The map alone, for an owner that keeps nothing else of the package
+  const direct = (dir: string, pk3File: string): ArrayBuffer | null =>
+    loader === PK3Loader.getInstance() ? null : readZipEntry(path.join(dir, pk3File), entry);
   const hasMap = () => !!index.findMap(name) && loader.hasFile(`maps/${name}.bsp`);
   const ingest = async (dir: string, filename: string) => {
     const loaded = await ingestPk3File(dir, filename, loader);
@@ -89,8 +99,11 @@ export async function resolveMapBspViaIndex(
   for (const dir of dirs) {
     const build = await readPublishedBuild(dir, name);
     if (!build) continue;
-    if (!(await ingest(dir, build.package))) throw new Error(`Published map package is missing: ${build.package}`);
-    const bsp = await loader.getFile(`maps/${name}.bsp`);
+    let bsp = direct(dir, build.package);
+    if (!bsp) {
+      if (!(await ingest(dir, build.package))) throw new Error(`Published map package is missing: ${build.package}`);
+      bsp = await loader.getFile(entry);
+    }
     if (!bsp || createHash("sha256").update(new Uint8Array(bsp)).digest("hex") !== build.bspHash)
       throw new Error(`Published map build mismatch: ${build.buildId}`);
     return bsp;
@@ -98,6 +111,10 @@ export async function resolveMapBspViaIndex(
 
   // 1. Fast path: the conventional map pk3 in each dir.
   for (const dir of dirs) {
+    if (!hasMap()) {
+      const bsp = direct(dir, `map_${name}.pk3`);
+      if (bsp) return bsp;
+    }
     if (hasMap()) break;
     await ingest(dir, `map_${name}.pk3`).catch(() => false);
   }

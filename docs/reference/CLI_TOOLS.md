@@ -18,7 +18,7 @@ at the SHAG root. `cli:bsp` and `net:client` remain engine commands.
 | <code>server:tick</code> / <code>server:fuzz</code> | Server regressions |
 | <code>test:simulation</code> / <code>test:physics</code> | Deterministic and collision checks |
 | <code>demo:record</code> / <code>demo:verify</code> | Demo capture and checksum reconciliation |
-| <code>bot:server</code> / <code>bot:analyze</code> / <code>bot:train</code> | Bot workflows |
+| <code>bot:server</code> / <code>bot:analyze</code> / <code>bot:learn</code> / <code>bot:motion</code> | Bot workflows |
 
 Core validation:
 

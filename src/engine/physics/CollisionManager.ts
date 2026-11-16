@@ -86,6 +86,18 @@ export class CollisionManager {
   }
 
   /**
+   * Trace the world part of `bsp`'s collision with the compiled kernel in
+   * `instance` (SweepCollisionBackend.useCompiledWorldTrace), when `bsp` is
+   * still the map loaded: an instance made while the next map loaded is
+   * refused. The next init goes back to TypeScript, with the same answers.
+   */
+  useCompiledWorldTrace(instance: WebAssembly.Instance, bsp: BspFile): boolean {
+    if (this.bsp !== bsp) return false;
+    const backend = this.backends.get("q3");
+    return backend instanceof SweepCollisionBackend && backend.useCompiledWorldTrace(instance);
+  }
+
+  /**
    * The parsed BSP this manager was initialized with (null before init).
    * Used by game modules that need map entity/model data at the same
    * lifetime as collision (e.g. trigger volumes for client prediction).

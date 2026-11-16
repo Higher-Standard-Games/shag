@@ -24,6 +24,7 @@ import {
   type TraceResult,
 } from "./CollisionBackend";
 import { type CollisionBounds, CollisionSpatialIndex, planeBounds } from "./CollisionSpatialIndex";
+import { CompiledWorldTrace } from "./CompiledWorldTrace";
 import { buildFacetPlanes, type FacetPlane } from "./FacetBevels";
 import { PatchTessellator } from "./PatchTessellator";
 import { PLAYER_HEIGHT, PLAYER_MINS_Z, PLAYER_RADIUS, STEPSIZE } from "./PlayerPhysicsConstants";
@@ -59,6 +60,30 @@ const SurfaceFlags = {
 // Default content mask for player collision
 const PLAYER_CONTENTS = ContentFlags.SOLID | ContentFlags.PLAYERCLIP;
 const NO_LIFTS: LiftSystem["definitions"] = [];
+
+/**
+ * Whether a hull swept from `start` to `end` stays clear of a model's box,
+ * the model moved by `shift` (Q3 axes), with a tenth of a unit to spare:
+ * then nothing of the model can be hit, and its brushes and patches need no
+ * test. A model's box holds all its brushes and surfaces.
+ */
+function sweepMissesModel(
+  model: { mins: ArrayLike<number>; maxs: ArrayLike<number> },
+  shift: ArrayLike<number>,
+  start: ArrayLike<number>,
+  end: ArrayLike<number>,
+  mins: ArrayLike<number>,
+  maxs: ArrayLike<number>,
+): boolean {
+  for (let j = 0; j < 3; j++) {
+    if (
+      Math.min(start[j], end[j]) + mins[j] > model.maxs[j] + shift[j] + 0.1 ||
+      Math.max(start[j], end[j]) + maxs[j] < model.mins[j] + shift[j] - 0.1
+    )
+      return true;
+  }
+  return false;
+}
 const NO_BUTTONS: LiftSystem["buttons"] = [];
 
 interface CollisionTexture {
@@ -232,6 +257,8 @@ export class SweepCollisionBackend implements CollisionBackend {
 
   async init(bsp: BspCollisionData, _scene?: Scene): Promise<void> {
     this.bsp = bsp;
+    // A compiled trace holds the last map's tables
+    this.compiledWorld = null;
     this.brushModels = new BrushModelState(extractBrushModels(bsp.entities, bsp.models));
     this.brushModelBrushes.clear();
     this.brushModelFaces.clear();
@@ -594,6 +621,31 @@ export class SweepCollisionBackend implements CollisionBackend {
   /**
    * Main trace function - performs swept box collision
    */
+  /** The world part of every trace in WebAssembly (CompiledWorldTrace), once set. */
+  private compiledWorld: CompiledWorldTrace | null = null;
+
+  /**
+   * Trace the world part (the BSP tree, clip brushes and patches) of this map
+   * with the compiled kernel in `instance` (a fresh instance of
+   * WorldTrace.wasm); the movers stay in TypeScript. Call after init; the
+   * next init goes back to TypeScript until this is called again.
+   */
+  useCompiledWorldTrace(instance: WebAssembly.Instance): boolean {
+    if (!this.bsp) return false;
+    const bsp = this.bsp;
+    this.compiledWorld = CompiledWorldTrace.create(instance, {
+      bsp,
+      textures: this.collisionTextures,
+      brushTexture: (i) => this.getBrushTexture(bsp.brushes[i]),
+      brushBounds: this.brushBounds,
+      brushParents: this.brushParents,
+      excludedBrush: (i) => this.liftBrushes.has(i) || this.brushModelBrushes.has(i),
+      clipBrushIndices: this.clipBrushIndices,
+      faceMeshes: this.faceCollisionMeshes,
+    });
+    return this.compiledWorld !== null;
+  }
+
   trace(start: Vector3, end: Vector3, options?: TraceOptions, excludeModel = -1, onlyModel = -1): TraceResult {
     if (!this.bsp) {
       return createDefaultTraceResult(start, end);
@@ -684,10 +736,14 @@ export class SweepCollisionBackend implements CollisionBackend {
 
     // Traverse BSP tree for solid brushes
     this.splitDepth = 0;
-    if (onlyModel < 0) this.traceNode(0, 0.0, 1.0, state.start, state.end, state);
-
-    // Spatial fallback for named clip brushes not reached through BSP leaves.
-    if (onlyModel < 0) this.traceAllClipBrushes(state);
+    if (onlyModel < 0 && this.compiledWorld) {
+      // The same walk, compiled (CompiledWorldTrace): the tree, the clip fallback, patches
+      this.compiledWorld.trace(state);
+    } else if (onlyModel < 0) {
+      this.traceNode(0, 0.0, 1.0, state.start, state.end, state);
+      // Spatial fallback for named clip brushes not reached through BSP leaves.
+      this.traceAllClipBrushes(state);
+    }
 
     // Inline brushes use model-local traces; retain the earliest world/model hit.
     const lifts = this.lifts;
@@ -702,13 +758,7 @@ export class SweepCollisionBackend implements CollisionBackend {
       shift[1] = d.origin.z;
       shift[2] = d.origin.y + lifts!.travelAt(li);
       const model = this.bsp.models[d.modelIndex];
-      let apart = false;
-      for (let j = 0; j < 3 && !apart; j++) {
-        apart =
-          Math.min(q3Start[j], q3End[j]) + mins[j] > model.maxs[j] + shift[j] + 0.1 ||
-          Math.max(q3Start[j], q3End[j]) + maxs[j] < model.mins[j] + shift[j] - 0.1;
-      }
-      if (apart) continue;
+      if (sweepMissesModel(model, shift, q3Start, q3End, mins, maxs)) continue;
       for (let j = 0; j < 3; j++) {
         state.start[j] = q3Start[j] - shift[j];
         state.end[j] = q3End[j] - shift[j];
@@ -723,6 +773,13 @@ export class SweepCollisionBackend implements CollisionBackend {
       if (!this.brushModels?.isEnabled(definition.modelIndex)) continue;
       if (definition.modelIndex === excludeModel || (onlyModel >= 0 && definition.modelIndex !== onlyModel)) continue;
       const origin = definition.origin;
+      const model = this.bsp.models[definition.modelIndex];
+      // A model the swept hull cannot reach holds nothing to hit
+      const shift = this._liftShift;
+      shift[0] = origin.x;
+      shift[1] = origin.z;
+      shift[2] = origin.y;
+      if (sweepMissesModel(model, shift, q3Start, q3End, mins, maxs)) continue;
       // In place: assigning new arrays replaced the pooled ones on every trace
       state.start[0] = q3Start[0] - origin.x;
       state.start[1] = q3Start[1] - origin.z;
@@ -730,7 +787,6 @@ export class SweepCollisionBackend implements CollisionBackend {
       state.end[0] = q3End[0] - origin.x;
       state.end[1] = q3End[1] - origin.z;
       state.end[2] = q3End[2] - origin.y;
-      const model = this.bsp.models[definition.modelIndex];
       for (let i = model.firstBrush; i < model.firstBrush + model.numBrushes; i++) {
         const brush = this.bsp.brushes[i];
         const texture = this.getBrushTexture(brush);
@@ -748,13 +804,18 @@ export class SweepCollisionBackend implements CollisionBackend {
       if (button.modelIndex === excludeModel || (onlyModel >= 0 && button.modelIndex !== onlyModel)) continue;
       if (this.liftBrushes.has(this.bsp.models[button.modelIndex].firstBrush)) continue;
       const press = lifts!.buttonOffset(button.modelIndex, this._buttonPress);
+      const model = this.bsp.models[button.modelIndex];
+      const shift = this._liftShift;
+      shift[0] = press.x;
+      shift[1] = press.z;
+      shift[2] = press.y;
+      if (sweepMissesModel(model, shift, q3Start, q3End, mins, maxs)) continue;
       state.start[0] = q3Start[0] - press.x;
       state.start[1] = q3Start[1] - press.z;
       state.start[2] = q3Start[2] - press.y;
       state.end[0] = q3End[0] - press.x;
       state.end[1] = q3End[1] - press.z;
       state.end[2] = q3End[2] - press.y;
-      const model = this.bsp.models[button.modelIndex];
       for (let i = model.firstBrush; i < model.firstBrush + model.numBrushes; i++) {
         const brush = this.bsp.brushes[i];
         const texture = this.getBrushTexture(brush);

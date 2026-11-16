@@ -11,6 +11,7 @@ import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import type { BspCollisionData } from "../engine/loader/bsp/BspLoader";
 import { SweepBackendAdapter } from "../engine/physics/SweepBackendAdapter";
 import { SweepCollisionBackend } from "../engine/physics/SweepCollisionBackend";
+import { worldTraceInstance } from "../engine/physics/WorldTraceWasm";
 import type { CollisionWorld } from "../shared/collision/CollisionWorld";
 import { SharedCollisionWorld } from "../shared/collision/SharedCollisionWorld";
 
@@ -18,11 +19,21 @@ import { SharedCollisionWorld } from "../shared/collision/SharedCollisionWorld";
  * Create a server-side CollisionWorld from BSP data.
  *
  * Returns SharedCollisionWorld (same code as client) wrapping a fresh
- * SweepCollisionBackend initialized with the BSP.
+ * SweepCollisionBackend initialized with the BSP. With `compiled`, the
+ * backend traces the world in WebAssembly (CompiledWorldTrace) when the module
+ * is there, with the same answers.
  */
-export async function createHeadlessCollisionWorld(bsp: BspCollisionData): Promise<CollisionWorld> {
+export async function createHeadlessCollisionWorld(
+  bsp: BspCollisionData,
+  options: { compiled?: boolean } = {},
+): Promise<CollisionWorld> {
   const backend = new SweepCollisionBackend();
   await backend.init(bsp);
+  if (options.compiled) {
+    const instance = worldTraceInstance();
+    const compiled = instance !== null && backend.useCompiledWorldTrace(instance);
+    console.log(`[HeadlessBSPCollisionWorld] World trace: ${compiled ? "compiled (WebAssembly)" : "TypeScript"}`);
+  }
 
   console.log("[HeadlessBSPCollisionWorld] Initialized with SweepCollisionBackend");
 
