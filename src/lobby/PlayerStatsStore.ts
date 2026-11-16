@@ -1,7 +1,13 @@
 /** Authenticated own-account reads. Game stats never change rating eligibility. */
 import type { DatabaseSync } from "node:sqlite";
 import { canonicalMatchStats, type MatchStats } from "../shared/ranking/MatchStats";
-import { displayRating, isProvisional, RATING_POLICY, type RatingMode } from "../shared/ranking/RatingPolicy";
+import {
+  displayRating,
+  isProvisional,
+  isRatingMode,
+  RATING_POLICY,
+  type RatingMode,
+} from "../shared/ranking/RatingPolicy";
 import type { MatchResultStore } from "./MatchResultStore";
 import type { RankingScope, RatingPool } from "./types";
 
@@ -60,7 +66,7 @@ export class PlayerStatsStore {
     if (
       !Number.isSafeInteger(accountId) ||
       accountId < 1 ||
-      !Object.keys(RATING_POLICY.drawProbability).includes(query.gametype) ||
+      !isRatingMode(query.gametype) ||
       !RATING_POOLS.includes(query.scope)
     )
       throw new Error("Invalid player stats query");

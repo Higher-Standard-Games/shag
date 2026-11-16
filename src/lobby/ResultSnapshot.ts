@@ -6,7 +6,7 @@ import type {
 } from "../engine/server/network/MatchResultReport";
 import { type BotReference, canonicalBotReference } from "../shared/ranking/BotReference";
 import { canonicalMatchStats } from "../shared/ranking/MatchStats";
-import type { RatingMode } from "../shared/ranking/RatingPolicy";
+import { isRatingMode, type RatingMode } from "../shared/ranking/RatingPolicy";
 import { normalizeTeamId } from "../shared/server/gametype";
 import type { RankingScope } from "./types";
 
@@ -137,7 +137,7 @@ export function normalizeResult(report: MatchResultReport, context: ResultContex
 export function canonicalSnapshot(value: ResultSnapshot): ResultSnapshot {
   if (
     value.version !== 2 ||
-    !["duel", "amphi", "ffa", "snd"].includes(value.gametype) ||
+    !isRatingMode(value.gametype) ||
     !["public", "private"].includes(value.scope) ||
     typeof value.matchId !== "string" ||
     !value.matchId ||

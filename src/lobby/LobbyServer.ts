@@ -21,6 +21,7 @@ import { type DemoHeader, DemoReader } from "../shared/demo/DemoReader";
 import { BOT_ACCOUNT_PRESETS as BOT_PRESETS, type BotPreset } from "../shared/ranking/BotMatchRatingGroups";
 import { BOT_INVITE_PREPARATION_TIMEOUT_MS } from "../shared/ranking/BotPreparation";
 import { type BotReference, canonicalBotReference, sameBotReference } from "../shared/ranking/BotReference";
+import { isRatingMode } from "../shared/ranking/RatingPolicy";
 import {
   type CampaignCatalog,
   campaignBotNames,
@@ -2318,7 +2319,7 @@ export class LobbyServer {
       typeof msg.requestId === "string" && /^[A-Za-z0-9_-]{1,64}$/.test(msg.requestId) ? msg.requestId : "";
     if (
       !requestId ||
-      !["duel", "amphi", "ffa", "snd"].includes(msg.gametype) ||
+      !isRatingMode(msg.gametype) ||
       (msg.scope !== undefined && !RATING_POOLS.includes(msg.scope)) ||
       (msg.period !== undefined && !["month", "all"].includes(msg.period)) ||
       (msg.limit !== undefined && (!Number.isSafeInteger(msg.limit) || msg.limit < 1 || msg.limit > 50)) ||
@@ -2358,7 +2359,7 @@ export class LobbyServer {
       typeof msg.requestId === "string" && /^[A-Za-z0-9_-]{1,64}$/.test(msg.requestId) ? msg.requestId : "";
     if (
       !requestId ||
-      !["duel", "amphi", "ffa", "snd"].includes(msg.gametype) ||
+      !isRatingMode(msg.gametype) ||
       (msg.period !== "month" && msg.period !== "all") ||
       !Number.isSafeInteger(msg.offset) ||
       msg.offset < 0 ||
@@ -2650,7 +2651,7 @@ export class LobbyServer {
       limit < 1 ||
       limit > 10 ||
       typeof gametype !== "string" ||
-      !["all", "duel", "amphi", "ffa", "snd"].includes(gametype) ||
+      (gametype !== "all" && !isRatingMode(gametype)) ||
       typeof map !== "string" ||
       (map !== "all" && !/^[A-Za-z0-9_-]{1,64}$/.test(map))
     ) {

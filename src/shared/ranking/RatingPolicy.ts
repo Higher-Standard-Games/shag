@@ -26,6 +26,15 @@ export const RATING_POLICY = Object.freeze({
 });
 
 export type RatingMode = keyof typeof RATING_POLICY.drawProbability;
+
+/** The gametypes rated, kept in results and shown on the boards: every mode the policy has. */
+export const RATING_MODES: readonly RatingMode[] = Object.freeze(
+  Object.keys(RATING_POLICY.drawProbability) as RatingMode[],
+);
+
+export function isRatingMode(value: unknown): value is RatingMode {
+  return typeof value === "string" && (RATING_MODES as readonly string[]).includes(value);
+}
 export type BotReferencePreset = keyof typeof RATING_POLICY.botReferences;
 
 /** The fixed strength a bot preset is rated against. */

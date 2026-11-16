@@ -14,7 +14,7 @@ import { filterPlayerName } from "../engine/server/ChatFilter";
 import type { MatchResultReport } from "../engine/server/network/MatchResultReport";
 import type { BotPreset } from "../shared/ranking/BotMatchRatingGroups";
 import { chooseBotPreset } from "../shared/ranking/BotPresetChoice";
-import { displayRating, isProvisional, RATING_POLICY, type RatingMode } from "../shared/ranking/RatingPolicy";
+import { displayRating, isProvisional, isRatingMode, RATING_POLICY } from "../shared/ranking/RatingPolicy";
 import { PlayerStatsStore, POOL_MATCHES, RATING_POOLS } from "./PlayerStatsStore";
 import { RatingStore } from "./RatingStore";
 import { ResultDeliveryStore } from "./ResultDeliveryStore";
@@ -422,8 +422,8 @@ export class MatchResultStore {
    * fixed strength is nearest their Overall rating.
    */
   botPresetFor(accountId: number | null, gametype: string): BotPreset {
-    if (!(gametype in RATING_POLICY.drawProbability)) return "medium";
-    const mu = accountId === null ? null : this.ratings.getRating(accountId, gametype as RatingMode, "overall");
+    if (!isRatingMode(gametype)) return "medium";
+    const mu = accountId === null ? null : this.ratings.getRating(accountId, gametype, "overall");
     return chooseBotPreset(mu?.state.mu ?? null);
   }
 

@@ -2,6 +2,7 @@ import { Rating, rate, TrueSkill } from "ts-trueskill";
 import {
   conservativeScore,
   displayRating,
+  isRatingMode,
   RATING_POLICY,
   RatingError,
   type RatingMode,
@@ -37,7 +38,7 @@ function compareId(a: string, b: string): number {
  * Returns every update or throws; no input state is modified.
  */
 export function rateMatch(mode: RatingMode, groups: readonly RatingGroup[]): RatingUpdate[] {
-  if (!Object.keys(RATING_POLICY.drawProbability).includes(mode)) {
+  if (!isRatingMode(mode)) {
     throw new RatingError("invalid_input", "Unsupported rating mode");
   }
   if (groups.length < 2) {
