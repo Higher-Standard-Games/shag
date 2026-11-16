@@ -1,9 +1,9 @@
 # Bot server architecture: review and refactor plan
 
-Written 2026-11-13, at the end of the `bot/strategy-layer` work. It describes
-how a bot runs now, the weak points that work ran into, and the refactors to
-make in the next cycle, in order. None of these changes what a bot does; the
-last item is marked where it would.
+Written 2026-11-13, at the end of the `bot/strategy-layer` work, and reviewed
+again 2026-11-16 with a CPU profile and memory measurements of a 10-bot S&D
+match. It describes how a bot runs, the weak points, what a match costs, and
+the refactors to make, in order. Items that change what a bot does are marked.
 
 Measurements and tuning history are in [BOT_STRATEGY_LAYER.md](BOT_STRATEGY_LAYER.md).
 Code paths below are under `src/games/fps/bot/`.
@@ -59,9 +59,11 @@ routes) are sent command by command.
 
 ### 1. One class holds the brain
 
-`StateMachineBrain.ts` is 2,923 lines with 58 private fields, 87 constants and
-41 imports. On death `_decide` resets about 20 of those fields by hand; a field
-added later and not reset carries over into the next life.
+`StateMachineBrain.ts` is 3,807 lines with 61 private fields, 124 constants and
+47 imports (2,923 lines, 58 fields, 87 constants and 41 imports on 2026-11-13:
+the S&D coach, steering, cover and unstick work of the three days between
+added 916 lines through it). On death `_decide` resets about 20 of those fields
+by hand; a field added later and not reset carries over into the next life.
 
 ### 2. Two decision systems with no common scale
 
@@ -88,6 +90,8 @@ coast disagreeing about the crouch button.
 
 ### 4. No decision trace
 
+Solved 2026-11-14 (`DecisionTrace.ts`, `bot:motion --trace`); kept for the record.
+
 There is no per-decision record of state, strategy, chosen goal and the top
 candidates with their scores, path step, sequence phase and position. Finding
 why the bot stood still at learned-route links, why it bobbed, and why it left
@@ -95,6 +99,8 @@ the Red Armor each took temporary logging patched into the brain and
 `bot:motion`, removed afterwards.
 
 ### 5. A/B tests cannot switch code paths
+
+Solved for tuning 2026-11-14 (`BotOptions.weights`); named switches for code paths are still to come.
 
 `bot:ab` arms differ only by `BotOptions` (`difficulty`, `strategy`,
 `strategies`, `habitItem`, `goalArbiter`, and `routesRoot`). A scoring or
@@ -114,7 +120,8 @@ build edges differently and nothing reports a bad edge.
 Each bot has its own 8 ms timer, and its traces and `decide` run in the same
 event loop as every other bot's. On Windows the timers fire about every
 15.6 ms (the send loop catches up by the clock). A slow `decide` delays every
-bot's commands, and decide time is not measured.
+bot's commands, and decide time is not measured. The 9-second nav build
+measured below stalled every bot at once.
 
 ### 8. Leftovers
 
@@ -127,7 +134,93 @@ bot's commands, and decide time is not measured.
   places in the brain, where the weight profiles mean gametypes to differ by
   data.
 
-## Plan for the next cycle
+### 9. Everything runs at the snapshot rate
+
+Each bot perceives, traces and decides on every snapshot, about 62 a second.
+Item beliefs, goal choice and route costs do not change that fast, and a
+person reacts in 150–250 ms.
+
+### 10. Map memory is render data
+
+`createBotVision` keeps what the renderer needs. A bot server with several maps
+in use holds about 450 MB per map, and a process per bot would hold it per bot.
+
+## What a match costs
+
+Measured 2026-11-16: one `bot:ab` match on washoi_snd1, Search & Destroy, five
+bots a side, 90 seconds, under `NODE_OPTIONS=--cpu-prof`. The `bot:ab` worker
+process holds the game server and both bot servers, so the profile splits them
+by source file.
+
+| | |
+| --- | --- |
+| Busy CPU of the worker process | 46.4 s of 113 s |
+| Bots (`bot/` and what they call) | 37.6 s, 81% |
+| Game server | 3.2 s, 7% |
+| One bot's snapshot handled (`_handleSnapshot`, steady state) | about 0.47 ms |
+| Nav graph build at match start (`buildFromVision`) | 9.0 s, synchronous |
+
+A snapshot's handling, inclusive:
+
+| Part | Time | Share |
+| --- | --- | --- |
+| `decide` | 12.2 s | 46% |
+| of it, choosing an item goal (`ItemGoalPlanner.select`) | 5.2 s | |
+| of that, route costs (`estimateTravelCost`, `_findStandingNode` scanning every node) | 4.2 s | |
+| `BotPerception.perceive` | 5.3 s | 20% |
+| of it, item beliefs (`_believeItems`, a sight line to items each snapshot) | 3.5 s | |
+| `BotVision.getVisibleState` (sight lines to enemies) | 3.5 s | 13% |
+| Decoding the snapshot (`shared/net`, pako, `BotGameState.update`) | about 4.3 s | 16% |
+
+Sight lines (`canSee`) are 7.6 s of collision time and the nav graph's flood
+fill 7.2 s, most of it in the start-up build.
+
+The nav graph cache missed in this run (a recent change altered what it is
+keyed on), so the graph was built in the bot server's only event loop: the game
+server logged every bot silent for 10.5 s. In production that happens on the
+first match of each map after a deploy that changes the key, to every bot in
+every match the process runs.
+
+**Memory.** One Node process with the bot modules loaded holds 160 MB (a bare
+Node process 39 MB). Loading one map's vision (`createBotVision`) takes it to
+612 MB: the BSP file is 92 MB, its parse is 220 MB of heap, and buffers hold
+about 280 MB after it. Most of that is render data (lightmaps, draw vertices,
+faces) that bots never read; collision needs brushes, planes, patches and
+models. Ten `BotClient`s sharing the vision add 33 MB.
+
+## Plan
+
+Step 1 of the 2026-11-13 plan (decision trace and test switches) is done:
+`DecisionTrace.ts`, `TraceStats.ts`, `BotOptions.trace` and `BotOptions.weights`,
+summarised by `bot:motion --trace`. The rest, reordered by the measurements,
+each step its own commit with the bot tests and a `bot:ab` run against the
+step before showing no difference:
+
+1. **No nav build on the live event loop.** Graphs built ahead (a
+   `bot:nav --build` step in the deploy) or in a worker thread while the bots
+   wait, never synchronously in the loop every bot shares.
+2. **Decide time measured** per bot, as percentiles, in `bot:motion` and
+   `bot:ab`.
+3. **Hot spots, with no change in behaviour:** a spatial grid for nearest-node
+   lookups, route costs reused for a short while, item sight checks at a lower
+   rate.
+4. **Collision-only map data:** `createBotVision` keeps brushes, planes,
+   patches, models and entities, not the render data.
+5. **Split the brain** (one life object made new on spawn; each state's
+   executor, the after-steps, navigation and the S&D coach in their own modules)
+   and **one owner per input channel.**
+6. **One route pipeline**, as below.
+7. **One scheduler** for all bots, decisions staggered across them. **Changes
+   behaviour** if decisions run below the snapshot rate; aim and steering keep
+   the tick rate.
+8. **Process model,** decided on the numbers from steps 2–4: one process, a
+   worker thread per match, or a process per bot.
+9. **The neural-network path** removed once the host is confirmed not to use
+   it; the Duel string checks moved into the weight profiles.
+10. **Changes behaviour:** fight, hunt and hold-ground scored as goals beside
+    the items.
+
+## Plan of 2026-11-13
 
 On a fresh branch from `staging`, each step its own commit with the bot tests
 and a `bot:ab` run of the result against the step before showing no
