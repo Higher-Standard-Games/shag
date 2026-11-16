@@ -72,6 +72,7 @@
         ],
         "waveSeconds": 60,
         "seconds": 300,
+        "lives": 2,
         "robotKits": [
           { "weapons": ["machinegun"] },
           { "weapons": ["machinegun"], "ads": false },

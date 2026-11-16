@@ -109,6 +109,7 @@ describe("parseCampaign", () => {
       waveSeconds: 60,
       seconds: 300,
       robotKits: [{ weapons: ["machinegun"] }, { weapons: ["machinegun"], ads: false }, { weapons: ["glauncher"] }],
+      lives: 2,
     });
     expect(campaignMatchRules(siege)).toEqual({
       scales: { Siege_Bot: 2.5 },

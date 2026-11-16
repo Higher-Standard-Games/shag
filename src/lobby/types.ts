@@ -139,8 +139,10 @@ export interface CampaignSurvivalRules {
   waves: CampaignSurvivalWave[];
   /** Seconds each wave lasts before the next. */
   waveSeconds: number;
-  /** How long the players must last, in seconds, without a death. Lasting it clears the mission. */
+  /** How long the players must last, in seconds. Lasting it clears the mission. */
   seconds: number;
+  /** Lives each player has: the death that uses the last loses the mission. 1 when absent. */
+  lives?: number;
   /** The robots' kits, handed out in turn as robots first spawn: the first robot the first kit, and so on round. */
   robotKits: CampaignRobotKit[];
 }
