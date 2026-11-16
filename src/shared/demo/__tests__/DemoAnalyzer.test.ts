@@ -304,8 +304,8 @@ describe("DemoAnalyzer", () => {
     });
   });
 
-  describe("multi-kill grouping", () => {
-    it("merges two kills within 200 ticks into a multi_kill with killCount=2", () => {
+  describe("multi-kill and frag sequence grouping", () => {
+    it("merges two kills 2.5 s apart into a multi_kill with killCount=2", () => {
       // Killer at origin, victims at x=500 (neutral distance — no distance tags)
       const killer = makeEntity("player_k1", { grounded: true, posX: 0, posY: 0, posZ: 0 });
       const frames = [
@@ -329,7 +329,7 @@ describe("DemoAnalyzer", () => {
       expect(h.score).toBe(15);
     });
 
-    it("does NOT merge two kills that are 201 ticks apart", () => {
+    it("does NOT merge two kills ten seconds apart", () => {
       const killer = makeEntity("player_k1", { grounded: true });
       const frames = [
         makeFrame(100, [deathEvent("player_k1", "player_v1")], [killer]),
@@ -360,17 +360,70 @@ describe("DemoAnalyzer", () => {
       expect(killerHighlights.every((h) => h.type !== "multi_kill")).toBe(true);
     });
 
-    it("merges exactly at the boundary (200 ticks apart)", () => {
+    // At 60 Hz: seconds → ticks
+    const s = (seconds: number) => Math.round(seconds * 60);
+    const chain = (offsets: number[], extra: ReturnType<typeof makeFrame>[] = []) => {
       const killer = makeEntity("player_k1", { grounded: true });
       const frames = [
-        makeFrame(100, [deathEvent("player_k1", "player_v1")], [killer]),
-        makeFrame(300, [deathEvent("player_k1", "player_v2")], [killer]),
-      ];
+        ...offsets.map((offset, i) => makeFrame(1000 + s(offset), [deathEvent("player_k1", `player_v${i}`)], [killer])),
+        ...extra,
+        makeFrame(0, [], [killer]),
+        makeFrame(1000 + s(30), [], [killer]),
+      ].sort((a, b) => a.tick - b.tick);
       const header = makeHeader([{ playerId: "k1", name: "K" }]);
-      const result = analyzer.analyze(frames, header, 10000);
-      const h = result.highlights.find((x) => x.type === "multi_kill");
-      expect(h).toBeDefined();
-      expect(h?.killCount).toBe(2);
+      return analyzer
+        .analyze(frames, header, 60000)
+        .highlights.filter((h) => h.primaryPlayer === "player_k1" && (h.killCount ?? 1) > 1);
+    };
+
+    it("chains two frags within five seconds into a frag sequence, with each frag kept", () => {
+      const [h] = chain([0, 5]);
+      expect(h.type).toBe("frag_sequence");
+      expect(h.killCount).toBe(2);
+      expect(h.kills?.map((k) => k.tick)).toEqual([1000, 1000 + s(5)]);
+      expect(h.kills?.map((k) => k.victimPlayer)).toEqual(["player_v0", "player_v1"]);
+      // The window runs from before the first frag, not only the last
+      expect(h.startTick).toBe(1000 - s(3));
+      expect(h.endTick).toBe(1000 + s(5) + s(2));
+    });
+
+    it("keeps two frags apart when the second comes later than five seconds", () => {
+      expect(chain([0, 5.2])).toHaveLength(0);
+    });
+
+    it("chains three frags within ten seconds even when one gap is longer than five", () => {
+      const [h] = chain([0, 6, 9.5]);
+      expect(h?.killCount).toBe(3);
+      expect(chain([0, 6, 12])).toHaveLength(0);
+    });
+
+    it("keeps a chain going for as long as it keeps up", () => {
+      expect(chain([0, 4, 8, 12, 16])[0]?.killCount).toBe(5);
+    });
+
+    it("calls frags landing within three seconds a multi-kill", () => {
+      const [h] = chain([0, 2.5]);
+      expect(h.type).toBe("multi_kill");
+    });
+
+    it("breaks the chain when the killer dies between two frags", () => {
+      const killer = makeEntity("player_k1", { grounded: true });
+      const died = makeFrame(1000 + s(2), [deathEvent("player_x", "player_k1")], [killer]);
+      expect(chain([0, 4], [died])).toHaveLength(0);
+    });
+
+    it("gives a frag sequence the killer's route through it, for the camera that chases them", () => {
+      const killer = makeEntity("player_k1", { grounded: true });
+      const frames = [
+        ...Array.from({ length: 12 }, (_, i) => makeFrame(1000 + i * 30, [], [killer])),
+        makeFrame(1000 + s(1), [deathEvent("player_k1", "player_v1")], [killer]),
+        makeFrame(1000 + s(5), [deathEvent("player_k1", "player_v2")], [killer]),
+      ].sort((a, b) => a.tick - b.tick);
+      const [h] = analyzer
+        .analyze(frames, makeHeader([{ playerId: "k1", name: "K" }]), 60000)
+        .highlights.filter((x) => x.type === "frag_sequence");
+      expect(h.path?.length).toBeGreaterThan(2);
+      expect(h.path?.every((p) => p.tick >= h.startTick && p.tick <= h.endTick)).toBe(true);
     });
   });
 

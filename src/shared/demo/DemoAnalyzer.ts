@@ -17,7 +17,14 @@ import type { DemoFrame, DemoHeader } from "./DemoReader";
 
 // ── Public types ─────────────────────────────────────────────────────────────
 
-export type HighlightType = "frag" | "multi_kill" | "airborne_frag" | "streak_kill" | "first_blood" | "movement";
+export type HighlightType =
+  | "frag"
+  | "multi_kill"
+  | "frag_sequence"
+  | "airborne_frag"
+  | "streak_kill"
+  | "first_blood"
+  | "movement";
 
 export type HighlightTag =
   | "airborne"
@@ -59,8 +66,30 @@ export interface HighlightCandidate {
   killerYaw?: number;
   /** The victim was looking at the killer when the frag landed: they saw it coming. */
   victimFacedKiller?: boolean;
-  /** A movement highlight's route, sampled about every 0.1 s, for a camera that follows it. */
-  path?: Array<{ tick: number; x: number; y: number; z: number }>;
+  /**
+   * The player's route, sampled about every 0.1 s, for a camera that follows
+   * it: a movement run, or the killer through a frag sequence. `yaw` is where
+   * they looked, where the recording has it.
+   */
+  path?: RouteSample[];
+  /** Each frag of a multi-kill or frag sequence, in order. */
+  kills?: KillMoment[];
+}
+
+export interface RouteSample {
+  tick: number;
+  x: number;
+  y: number;
+  z: number;
+  yaw?: number;
+}
+
+/** One frag inside a grouped highlight. */
+export interface KillMoment {
+  tick: number;
+  victimPlayer: string;
+  victimPos?: { x: number; y: number; z: number };
+  killerPos?: { x: number; y: number; z: number };
 }
 
 export interface DemoAnalysis {
@@ -139,7 +168,18 @@ interface PlayerTracker {
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
-const MULTI_KILL_WINDOW = 200; // ticks
+/**
+ * One killer's frags chain into one highlight: two within
+ * SEQUENCE_PAIR_SECONDS of each other, or three within
+ * SEQUENCE_TRIPLE_SECONDS, and so on for as long as it keeps up. A death of
+ * the killer breaks the chain.
+ */
+const SEQUENCE_PAIR_SECONDS = 5;
+const SEQUENCE_TRIPLE_SECONDS = 10;
+/** A chain whose frags all land within this is one multi-kill; a longer one is a frag sequence. */
+const MULTI_KILL_SPAN_SECONDS = 3;
+/** How often a player's route is sampled for a camera following a frag sequence. */
+const ROUTE_SAMPLE_SECONDS = 0.1;
 const LEADIN_SECONDS = 3;
 const FOLLOWTHROUGH_SECONDS = 2;
 const LONG_RANGE_THRESHOLD = 1500;
@@ -262,6 +302,11 @@ export class DemoAnalyzer {
     const lastYaw = new Map<string, number>();
     const runs = new Map<string, MovementRun>();
     const moves: HighlightCandidate[] = [];
+    /** Every death of each player, suicides and the world's too: a death ends a frag chain. */
+    const deaths = new Map<string, number[]>();
+    /** Each player's route through the whole demo, for a camera following a frag sequence. */
+    const routes = new Map<string, RouteSample[]>();
+    const routeStep = ROUTE_SAMPLE_SECONDS * tickRate;
 
     for (const frame of frames) {
       const { tick, state } = frame;
@@ -298,6 +343,11 @@ export class DemoAnalyzer {
         const killerId = ev.killerId as string;
         const weaponId = (ev.weaponId as string) || undefined;
 
+        if (victimId) {
+          const list = deaths.get(victimId) ?? [];
+          list.push(tick);
+          deaths.set(victimId, list);
+        }
         if (!killerId || killerId === victimId) continue; // self-kill / suicide
 
         const killerTracker = getTracker(killerId);
@@ -466,6 +516,16 @@ export class DemoAnalyzer {
 
         const t = getTracker(entityId);
         const position = (entity.getComponent("transform") as TransformComponent | undefined)?.position;
+        if (position) {
+          let route = routes.get(entityId);
+          if (!route) {
+            route = [];
+            routes.set(entityId, route);
+          }
+          const last = route.at(-1);
+          if (!last || tick - last.tick >= routeStep)
+            route.push({ tick, x: position.x, y: position.y, z: position.z, ...(yaw === undefined ? {} : { yaw }) });
+        }
         if (!velocity.grounded) {
           t.consecutiveAirFrames += 1;
         } else {
@@ -493,13 +553,17 @@ export class DemoAnalyzer {
       if (finished) moves.push(finished);
     }
 
-    // ── 4. Multi-kill grouping ────────────────────────────────────────
-    const grouped = this._groupMultiKills(rawFrags);
+    // ── 4. Multi-kill and frag sequence grouping ──────────────────────
+    const grouped = this._groupFragChains(rawFrags, deaths, tickRate);
 
     // ── 5. Expand context windows ─────────────────────────────────────
+    // A grouped highlight runs from before its first frag to after its last
     for (const c of grouped) {
-      c.startTick = Math.max(firstTick, c.peakTick - leadin);
+      c.startTick = Math.max(firstTick, (c.kills?.[0]?.tick ?? c.peakTick) - leadin);
       c.endTick = Math.min(lastTick, c.peakTick + followthrough);
+      if (c.type === "frag_sequence") {
+        c.path = (routes.get(c.primaryPlayer) ?? []).filter((p) => p.tick >= c.startTick && p.tick <= c.endTick);
+      }
     }
 
     // ── 6. Compute scores ─────────────────────────────────────────────
@@ -569,8 +633,22 @@ export class DemoAnalyzer {
     return names;
   }
 
-  private _groupMultiKills(frags: HighlightCandidate[]): HighlightCandidate[] {
+  /**
+   * Chain each killer's frags (see SEQUENCE_PAIR_SECONDS). A chain of two or
+   * more becomes one highlight: a multi-kill when it all lands within
+   * MULTI_KILL_SPAN_SECONDS, a frag sequence when it takes longer.
+   */
+  private _groupFragChains(
+    frags: HighlightCandidate[],
+    deaths: Map<string, number[]>,
+    tickRate: number,
+  ): HighlightCandidate[] {
     if (frags.length === 0) return [];
+    const pair = SEQUENCE_PAIR_SECONDS * tickRate;
+    const triple = SEQUENCE_TRIPLE_SECONDS * tickRate;
+    const span = MULTI_KILL_SPAN_SECONDS * tickRate;
+    const diedBetween = (player: string, from: number, to: number) =>
+      (deaths.get(player) ?? []).some((tick) => tick > from && tick < to);
 
     // Group frags by primaryPlayer
     const byPlayer = new Map<string, HighlightCandidate[]>();
@@ -591,16 +669,24 @@ export class DemoAnalyzer {
 
       let i = 0;
       while (i < playerFrags.length) {
-        // Collect a run of frags within the window
+        // Chain the frags that follow quickly enough, while the killer stays alive
         const group: HighlightCandidate[] = [playerFrags[i]];
         let j = i + 1;
-        while (j < playerFrags.length && playerFrags[j].peakTick - playerFrags[i].peakTick <= MULTI_KILL_WINDOW) {
+        while (j < playerFrags.length) {
+          const killer = playerFrags[j].primaryPlayer;
+          const tick = playerFrags[j].peakTick;
+          const previous = group[group.length - 1].peakTick;
+          const beforeThat = group.length >= 2 ? group[group.length - 2].peakTick : Number.NEGATIVE_INFINITY;
+          // Or the frag after this one makes three within the longer window with them
+          const after = playerFrags[j + 1]?.peakTick;
+          const makesThree = after !== undefined && after - previous <= triple && !diedBetween(killer, tick, after);
+          if (tick - previous > pair && tick - beforeThat > triple && !makesThree) break;
+          if (diedBetween(killer, previous, tick)) break;
           group.push(playerFrags[j]);
           j++;
         }
 
         if (group.length >= 2) {
-          // Merge into a multi-kill
           const first = group[0];
           const last = group[group.length - 1];
 
@@ -616,7 +702,7 @@ export class DemoAnalyzer {
             peakTick: last.peakTick,
             endTick: last.endTick,
             score: 0,
-            type: "multi_kill",
+            type: last.peakTick - first.peakTick <= span ? "multi_kill" : "frag_sequence",
             primaryPlayer: first.primaryPlayer,
             primaryPlayerName: first.primaryPlayerName,
             // Keep last victim as the representative victim
@@ -629,6 +715,12 @@ export class DemoAnalyzer {
             victimPos: last.victimPos,
             killerVelocity: last.killerVelocity,
             ...(last.killerYaw === undefined ? {} : { killerYaw: last.killerYaw }),
+            kills: group.map((g) => ({
+              tick: g.peakTick,
+              victimPlayer: g.victimPlayer ?? "",
+              ...(g.victimPos ? { victimPos: g.victimPos } : {}),
+              ...(g.killerPos ? { killerPos: g.killerPos } : {}),
+            })),
           };
           result.push(merged);
         } else {

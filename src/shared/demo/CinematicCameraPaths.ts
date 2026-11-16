@@ -267,11 +267,15 @@ const TRAIL_SIDE = 80;
 const TRAIL_UP = 60;
 /** Keyframes along a run this far apart: close enough to follow it, far enough to stay smooth. */
 const TRAIL_KEYFRAME_SECONDS = 0.3;
+/** A route covering less than this over its heading window (about 0.4 s) is standing about. */
+const TRAIL_MOVING_UNITS = 60;
 
 /**
- * Trail a movement run along its recorded route: behind the player and a
- * little to the side, looking just ahead of them. The heading is taken over
- * a few samples, so a single bump in the route doesn't swing the camera.
+ * Trail a player along their recorded route (a movement run, or a killer
+ * through a frag sequence): behind them and a little to the side, looking
+ * just ahead. The heading is taken over a few samples, so a single bump in
+ * the route doesn't swing the camera; a player standing about is trailed
+ * from behind where they look.
  */
 function _trickFollow(
   highlight: HighlightCandidate,
@@ -288,7 +292,15 @@ function _trickFollow(
     const dx = to.x - from.x;
     const dz = to.z - from.z;
     const length = Math.hypot(dx, dz);
-    const forward = length > 1 ? { x: dx / length, y: 0, z: dz / length } : fallback.forward;
+    // Moving: along the route. Nearly still (a duel strafe): where they look.
+    const forward =
+      length > TRAIL_MOVING_UNITS
+        ? { x: dx / length, y: 0, z: dz / length }
+        : typeof p.yaw === "number"
+          ? { x: Math.sin(p.yaw), y: 0, z: Math.cos(p.yaw) }
+          : length > 1
+            ? { x: dx / length, y: 0, z: dz / length }
+            : fallback.forward;
     const right = { x: forward.z, y: 0, z: -forward.x };
     return {
       tick: p.tick,

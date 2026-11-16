@@ -5,7 +5,13 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import type { DemoAnalysis, HighlightCandidate } from "../DemoAnalyzer";
 import type { DemoHeader } from "../DemoReader";
-import { SequenceBuilder } from "../SequenceBuilder";
+import {
+  alignSceneCutsToBeats,
+  type CinematicSegment,
+  plannedDurationMs,
+  plannedSpeedAt,
+  SequenceBuilder,
+} from "../SequenceBuilder";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -91,7 +97,7 @@ describe("SequenceBuilder", () => {
     const h = makeHighlight({ startTick: 100, peakTick: 400, endTick: 520 });
     const [intro, pov, ending] = builder.build(makeAnalysis([h]), 5, TICK_RATE, HEADER).segments;
     expect(intro).toMatchObject({ startTick: 400 - 2 * TICK_RATE, endTick: 400 });
-    expect(intro.speedKeyframes).toEqual([{ tick: 400 - 0.6 * TICK_RATE, speed: 0.35 }]);
+    expect(intro.speedKeyframes).toEqual([{ tick: 400 - 0.6 * TICK_RATE, speed: 0.35, ramp: 24 }]);
     expect(pov).toMatchObject({ startTick: 400 - 2 * TICK_RATE, endTick: 520 });
     expect(ending.startTick).toBeLessThan(400);
     expect(ending.endTick).toBeGreaterThan(400);
@@ -186,7 +192,7 @@ describe("SequenceBuilder", () => {
     );
     expect(endings.at(-1)!.transitionOut).toBe("fade_to_black");
     for (const ending of endings.slice(0, -1)) {
-      expect(["fade_to_black", "white_flash", "crossfade"]).toContain(ending.transitionOut);
+      expect(["fade_to_black", "white_flash", "crossfade", "speed_wipe"]).toContain(ending.transitionOut);
       expect(reel.segments[ending.segmentIndex + 1].transitionIn).toBe(ending.transitionOut);
     }
   });
@@ -240,8 +246,11 @@ describe("SequenceBuilder", () => {
     const intro = reel.segments[0];
 
     expect(reel.tickRate).toBe(125);
-    // 2 s up to the frag: 1.4 s at full speed, then 0.6 s at 0.35×
-    expect(intro.durationMs).toBeCloseTo(1400 + 600 / 0.35, 6);
+    // 2 s up to the frag: 1.4 s at full speed, then 0.6 s at 0.35×, with
+    // a little more for easing into the slow motion over the ramp before it
+    expect(intro.durationMs).toBeCloseTo(plannedDurationMs(intro, intro.startTick, intro.endTick, 125), 6);
+    expect(intro.durationMs).toBeGreaterThan(1400 + 600 / 0.35);
+    expect(intro.durationMs).toBeLessThan(1400 + 600 / 0.35 + 400 / 0.35);
   });
 });
 
@@ -312,5 +321,188 @@ describe("SequenceBuilder movement clips", () => {
     const reel = new SequenceBuilder().build(makeAnalysis([move(100), move(2000)], 20000), 5, TICK_RATE, HEADER);
     expect(reel.totalScenes).toBe(2);
     expect(reel.segments.at(-1)!.transitionOut).toBe("fade_to_black");
+  });
+});
+
+describe("SequenceBuilder victim's eyes", () => {
+  it("ends the victim's eyes on the frag and cuts straight into the orbit there", () => {
+    const h = makeHighlight({ startTick: 100, peakTick: 400, endTick: 520, victimFacedKiller: true });
+    const [, pov, ending] = new SequenceBuilder().build(makeAnalysis([h]), 5, TICK_RATE, HEADER).segments;
+    expect(pov).toMatchObject({ cameraPreset: "victim_pov", cameraTarget: "player_2", endTick: 400 });
+    expect(ending).toMatchObject({ cameraPreset: "replay_orbit", startTick: 400, transitionIn: "cut" });
+  });
+
+  it("never shows a multi-kill through a victim's eyes", () => {
+    const h = makeHighlight({ type: "multi_kill", killCount: 2, victimFacedKiller: true, peakTick: 130 });
+    const reel = new SequenceBuilder().build(makeAnalysis([h]), 5, TICK_RATE, HEADER);
+    expect(reel.segments.find((s) => s.role === "pov")?.cameraPreset).toBe("chase_hero");
+  });
+});
+
+describe("SequenceBuilder frag sequences", () => {
+  // Frags at 2 s, 4 s and 12 s of a window from 0 to 14 s
+  const sequence = (killTimes = [2, 4, 12]) =>
+    makeHighlight({
+      type: "frag_sequence",
+      startTick: 1000,
+      peakTick: 1000 + killTimes[killTimes.length - 1] * TICK_RATE,
+      endTick: 1000 + (killTimes[killTimes.length - 1] + 2) * TICK_RATE,
+      killCount: killTimes.length,
+      score: 40,
+      kills: killTimes.map((t, i) => ({ tick: 1000 + t * TICK_RATE, victimPlayer: `player_${i + 5}` })),
+    });
+
+  it("chases the killer between frags and sees each frag through their eyes, counted", () => {
+    const reel = new SequenceBuilder().build(makeAnalysis([sequence()], 20000), 5, TICK_RATE, HEADER);
+    const shots = reel.segments.map((s) => s.cameraPreset);
+    expect(shots).toEqual(["trick_follow", "chase_hero", "trick_follow", "chase_hero", "replay_orbit"]);
+    const [opening, eyes, between, lastEyes] = reel.segments;
+    // The first two frags share one eyes shot; each eyes shot counts its frags
+    expect(eyes.stamps?.map((s) => s.text)).toEqual(["1", "2"]);
+    expect(lastEyes.stamps?.map((s) => s.text)).toEqual(["3"]);
+    expect(eyes.cameraTarget).toBe("player_1");
+    // The chase frames the victim of the frag it leads to, and runs fast
+    expect(opening.victimTarget).toBe("player_5");
+    expect(between.victimTarget).toBe("player_7");
+    expect(between.playbackSpeed).toBeGreaterThan(1);
+    // Every shot follows on from the one before in time
+    for (let i = 1; i < 4; i++) expect(reel.segments[i].startTick).toBeGreaterThanOrEqual(reel.segments[i - 1].endTick);
+  });
+
+  it("jumps ahead through speed lines across a long wait between frags", () => {
+    const reel = new SequenceBuilder().build(makeAnalysis([sequence()], 20000), 5, TICK_RATE, HEADER);
+    const [, eyes, between] = reel.segments;
+    expect(eyes.transitionOut).toBe("speed_wipe");
+    expect(between.transitionIn).toBe("speed_wipe");
+    expect(between.endTick - between.startTick).toBeLessThanOrEqual(3 * TICK_RATE);
+  });
+
+  it("cuts straight from eyes to chase when the wait is short", () => {
+    const reel = new SequenceBuilder().build(makeAnalysis([sequence([2, 6])], 20000), 5, TICK_RATE, HEADER);
+    const between = reel.segments.find((s, i) => i > 1 && s.cameraPreset === "trick_follow");
+    expect(between?.transitionIn).toBe("cut");
+  });
+
+  it("ends a three-frag sequence on a freeze frame with its count", () => {
+    const reel = new SequenceBuilder().build(makeAnalysis([sequence()], 20000), 5, TICK_RATE, HEADER);
+    const ending = reel.segments[reel.segments.length - 1];
+    expect(ending.freeze).toMatchObject({ caption: "TRIPLE!", ms: 1400 });
+    expect(ending.freeze?.tick).toBeGreaterThan(ending.highlight.peakTick);
+    expect(ending.freeze?.tick).toBeLessThan(ending.endTick);
+  });
+});
+
+describe("SequenceBuilder freeze frames and speed lines", () => {
+  const frags = (scores: number[]) =>
+    scores.map((score, i) =>
+      makeHighlight({
+        startTick: 1000 + i * 2000,
+        peakTick: 1100 + i * 2000,
+        endTick: 1200 + i * 2000,
+        score,
+        primaryPlayer: `player_${i}`,
+      }),
+    );
+
+  it("freezes only the reel's best frag when nothing else earns it", () => {
+    const reel = new SequenceBuilder().build(makeAnalysis(frags([10, 30, 20]), 20000), 5, TICK_RATE, HEADER);
+    const frozen = reel.segments.filter((s) => s.freeze);
+    expect(frozen).toHaveLength(1);
+    expect(frozen[0].highlight.score).toBe(30);
+    expect(frozen[0].role).toBe("ending");
+  });
+
+  it("freezes one scene in three at most, however many earn it", () => {
+    const triples = frags([10, 30, 20]).map((h) => ({ ...h, killCount: 3 }));
+    const reel = new SequenceBuilder().build(makeAnalysis(triples, 20000), 5, TICK_RATE, HEADER);
+    const frozen = reel.segments.filter((s) => s.freeze);
+    expect(frozen.map((s) => s.highlight.score)).toEqual([30]);
+  });
+
+  it("brings some of the reel's best scenes in on speed lines: one cut in three, never two running", () => {
+    const scores = [10, 30, 25, 5, 6, 7, 20, 8];
+    const reel = new SequenceBuilder().build(makeAnalysis(frags(scores), 20000), 5, TICK_RATE, HEADER);
+    const wiped = scores.filter(
+      (score) => reel.segments.find((s) => s.highlight.score === score)?.transitionIn === "speed_wipe",
+    );
+    // Seven cuts: two wipes. 25 comes straight after 30, so 20 has the other.
+    expect(wiped).toEqual([30, 20]);
+  });
+});
+
+describe("planned speed", () => {
+  const plan: Pick<CinematicSegment, "playbackSpeed" | "speedKeyframes"> = {
+    playbackSpeed: 1,
+    speedKeyframes: [
+      { tick: 100, speed: 0.5, ramp: 20 },
+      { tick: 150, speed: 1, ramp: 10 },
+    ],
+  };
+
+  it("eases over each keyframe's ramp, then holds", () => {
+    expect(plannedSpeedAt(plan, 70)).toBe(1);
+    expect(plannedSpeedAt(plan, 90)).toBeCloseTo(0.75);
+    expect(plannedSpeedAt(plan, 100)).toBe(0.5);
+    expect(plannedSpeedAt(plan, 130)).toBe(0.5);
+    expect(plannedSpeedAt(plan, 145)).toBeCloseTo(0.75);
+    expect(plannedSpeedAt(plan, 200)).toBe(1);
+  });
+
+  it("times a stretch at its planned speeds", () => {
+    const steps = { playbackSpeed: 1, speedKeyframes: [{ tick: 60, speed: 0.5 }] };
+    expect(plannedDurationMs(steps, 0, 120, 60)).toBeCloseTo(1000 + 2000, 6);
+    // A ramp into slow motion takes longer than the step it smooths
+    const ramped = { playbackSpeed: 1, speedKeyframes: [{ tick: 60, speed: 0.5, ramp: 12 }] };
+    expect(plannedDurationMs(ramped, 0, 120, 60)).toBeGreaterThan(3000);
+  });
+});
+
+describe("cuts on the beat", () => {
+  const reel = () =>
+    new SequenceBuilder().build(
+      makeAnalysis(
+        [0, 1, 2].map((i) =>
+          makeHighlight({
+            startTick: 1000 + i * 2000,
+            peakTick: 1100 + i * 2000,
+            endTick: 1200 + i * 2000,
+            primaryPlayer: `player_${i}`,
+          }),
+        ),
+        20000,
+      ),
+      5,
+      TICK_RATE,
+      HEADER,
+    );
+  /** Where each scene's last shot ends, in reel time, as planned. */
+  const sceneEnds = (r: ReturnType<typeof reel>, titleMs: number) => {
+    let at = titleMs;
+    const ends: number[] = [];
+    r.segments.forEach((s, i) => {
+      at = s.cutAtMs ?? at + s.durationMs;
+      if (r.segments[i + 1] && r.segments[i + 1].scene !== s.scene) ends.push(at);
+    });
+    return ends;
+  };
+
+  it("moves each cut between scenes onto the nearest beat, running a shot on to reach a later one", () => {
+    const original = reel();
+    const planned = sceneEnds(original, 2000);
+    // The first cut moving 300 ms later moves the second scene's end with it
+    const beats = [planned[0] + 300, planned[0] + 2000, planned[1] + 300 - 200, planned[1] + 5000];
+    const aligned = alignSceneCutsToBeats(original, beats, 2000);
+    const cuts = aligned.segments.filter((s) => s.cutAtMs !== undefined);
+    expect(cuts.map((s) => s.cutAtMs)).toEqual([beats[0], beats[2]]);
+    // The first scene's ending runs on past its planned end to reach its beat
+    const first = cuts[0].segmentIndex;
+    expect(aligned.segments[first].endTick).toBeGreaterThan(original.segments[first].endTick);
+    // The given reel is left as it was
+    expect(original.segments.every((s) => s.cutAtMs === undefined)).toBe(true);
+  });
+
+  it("leaves a cut where it was when no beat is near it", () => {
+    const aligned = alignSceneCutsToBeats(reel(), [], 2000);
+    expect(aligned.segments.every((s) => s.cutAtMs === undefined)).toBe(true);
   });
 });
