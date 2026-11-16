@@ -89,19 +89,21 @@ alone does not change that selection. The
 describes the regional scripts, automatic activation and rollback. Updating this
 operator configuration does not itself publish a new application release.
 
-The static build is only the client. Multiplayer needs three Node 24 processes
-beside it:
+The static build is only the client. Multiplayer needs the lobby, a Node 24
+process, beside it. The lobby starts a match server for each match and, when
+the match has bots, a match runner that plays them; both are its child
+processes and exit with the match.
 
-The table below uses Washoi's package commands from the SHAG root. For normal
-lobby play, start the lobby and bot service in separate terminals; the lobby
-starts match servers as needed. Use the standalone match command for direct
-connections. Give lobby and bot commands the same `-- --data-dir <path>` when
-overriding storage; relative paths resolve at the SHAG root.
+The table below uses Washoi's package commands from the SHAG root. Use the
+standalone match command for direct connections. The bot server is needed
+only by a lobby started with `--bot-server`; give both the same
+`-- --data-dir <path>` when overriding storage. Relative paths resolve at the
+SHAG root.
 
 | Process | Start (production) | Start (development) |
 | --- | --- | --- |
 | Lobby (spawns one match server per match) | `npm --prefix src/games/fps run lobby:server` | `npm --prefix src/games/fps run lobby:server:dev` |
-| Bot server | `npm --prefix src/games/fps run bot:server` | `npm --prefix src/games/fps run bot:server:dev` |
+| Bot server (only for `lobby:server -- --bot-server`) | `npm --prefix src/games/fps run bot:server` | `npm --prefix src/games/fps run bot:server:dev` |
 | Match server (normally spawned by the lobby) | `npm --prefix src/games/fps run net:server` | `npm --prefix src/games/fps run net:server:dev` |
 
 The production scripts build `dist-server/` (`npm --prefix src/games/fps run build:server`) and run
@@ -127,8 +129,12 @@ What a deployment has to do with bundles:
   lobby spawns during the build still gets a whole bundle.
 - **Match servers** pick up a rebuild at their next spawn; running matches keep
   the code they started with.
-- **The lobby and bot server** pick it up on restart. Restarting the lobby ends
-  its live rooms (matches are its child processes), so restart when idle.
+- **The lobby** picks it up on restart, and match runners at their next
+  spawn. Restarting the lobby ends its live rooms (matches are its child
+  processes), so restart when idle.
+- Keep `WorldTrace.wasm` beside the bundles (`build:server` copies it there):
+  bots and match servers trace collision with it, and fall back to the slower
+  TypeScript trace without it.
 - Keep `node_modules` installed: the bundles leave `ws` external.
 
 ## Verification
