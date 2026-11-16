@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   betterClear,
+  campaignBotNames,
   campaignFinished,
   campaignMatchRules,
   campaignMission,
@@ -36,6 +37,31 @@ const mission = (id: string, extra: Record<string, unknown> = {}) => ({
 });
 
 describe("parseCampaign", () => {
+  it("refuses a key the format does not have, wherever it is", () => {
+    expect(() =>
+      parseCampaign(
+        { missions: [mission("one", { bots: [{ name: "Rival", difficulty: "easy", slimeImune: true }] })] },
+        SHAPES,
+      ),
+    ).toThrow("missions[0].bots[0]: unknown key slimeImune");
+    expect(() => parseCampaign({ missions: [mission("one", { limit: { timeLimit: 60 } })] }, SHAPES)).toThrow(
+      "missions[0]: unknown key limit",
+    );
+    expect(() =>
+      parseCampaign(
+        { missions: [mission("one", { gametype: "survival", survival: { ...SURVIVAL, wave: 1 } })] },
+        SHAPES,
+      ),
+    ).toThrow("missions[0].survival: unknown key wave");
+  });
+
+  it("names every campaign bot, lowercased, from a file of any shape", () => {
+    expect(campaignBotNames({ missions: [mission("one"), { bots: [{ name: "Siege_Bot" }, {}] }] })).toEqual(
+      new Set(["rival", "siege_bot"]),
+    );
+    expect(campaignBotNames(null).size).toBe(0);
+  });
+
   it("numbers missions in order, defaults bots to enemies and names maps", () => {
     const catalog = parseCampaign({ length: 8, missions: [mission("one"), mission("two")] }, SHAPES, (map) =>
       map.toUpperCase(),

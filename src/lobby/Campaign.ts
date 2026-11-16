@@ -58,9 +58,16 @@ function fail(message: string): never {
   throw new Error(`campaign.json: ${message}`);
 }
 
+/** Refuse a key the file format does not have: a misspelt rule would otherwise do nothing, silently. */
+function knownKeys(value: object, keys: readonly string[], where: string): void {
+  const unknown = Object.keys(value).filter((key) => !keys.includes(key));
+  if (unknown.length) fail(`${where}: unknown ${unknown.length > 1 ? "keys" : "key"} ${unknown.join(", ")}`);
+}
+
 function parseModels(value: unknown, where: string): CampaignModels {
   const models = value as Partial<CampaignModels> | null;
   if (!models || typeof models !== "object") fail(`${where}: models must be an object`);
+  knownKeys(models, ["ally", "enemy"], `${where}.models`);
   for (const side of ["ally", "enemy"] as const) {
     if (!CAMPAIGN_MODELS.includes(models[side] as (typeof CAMPAIGN_MODELS)[number]))
       fail(`${where}: models.${side} must be one of ${CAMPAIGN_MODELS.join(", ")}`);
@@ -71,6 +78,7 @@ function parseModels(value: unknown, where: string): CampaignModels {
 function parseBot(value: unknown, where: string, hasTeams: boolean): CampaignBotInfo {
   const bot = value as Partial<CampaignBotInfo> | null;
   if (!bot || typeof bot !== "object") fail(`${where} must be an object`);
+  knownKeys(bot, ["name", "difficulty", "side", "model", "scale", "kit", "health", "armor", "slimeImmune"], where);
   // The same names a player may pick, so every list and scoreboard can show them
   if (typeof bot.name !== "string" || !NAME_PATTERN.test(bot.name))
     fail(`${where}.name must be 2-16 letters, digits, _ or -`);
@@ -110,6 +118,7 @@ function parseLimits(value: unknown, where: string): { scoreLimit?: number; time
   if (value === undefined) return undefined;
   const limits = value as Record<string, unknown> | null;
   if (!limits || typeof limits !== "object") fail(`${where}.limits must be an object`);
+  knownKeys(limits, ["scoreLimit", "timeLimit"], `${where}.limits`);
   if (limits.scoreLimit !== undefined && !positiveInteger(limits.scoreLimit, 500))
     fail(`${where}.limits.scoreLimit must be a whole number from 1`);
   if (limits.timeLimit !== undefined && !positiveInteger(limits.timeLimit, 3600))
@@ -123,6 +132,7 @@ function parseLimits(value: unknown, where: string): { scoreLimit?: number; time
 function parseSurvival(value: unknown, where: string, enemies: number): CampaignSurvivalRules {
   const survival = value as Record<string, unknown> | null;
   if (!survival || typeof survival !== "object") fail(`${where}.survival must be an object`);
+  knownKeys(survival, ["waves", "waveSeconds", "seconds", "robotKits"], `${where}.survival`);
   const waves = survival.waves;
   if (
     !Array.isArray(waves) ||
@@ -136,6 +146,7 @@ function parseSurvival(value: unknown, where: string, enemies: number): Campaign
     )
   )
     fail(`${where}.survival.waves must list each wave's robots and health, as whole numbers from 1`);
+  for (const [i, wave] of waves.entries()) knownKeys(wave, ["robots", "health"], `${where}.survival.waves[${i}]`);
   if (Math.max(...(waves as CampaignSurvivalWave[]).map((wave) => wave.robots)) > enemies)
     fail(`${where}.survival.waves needs as many enemy bots as its biggest wave`);
   for (const key of ["waveSeconds", "seconds"] as const) {
@@ -153,6 +164,7 @@ function parseSurvival(value: unknown, where: string, enemies: number): Campaign
       !kit.weapons.every((w) => typeof w === "string" && SURVIVAL_WEAPONS.includes(w))
     )
       fail(`${at}.weapons must list weapons from ${SURVIVAL_WEAPONS.join(", ")}`);
+    knownKeys(kit, ["weapons", "ads"], at);
     if (kit.ads !== undefined && typeof kit.ads !== "boolean") fail(`${at}.ads must be true or false`);
     return { weapons: [...kit.weapons], ...(kit.ads === false ? { ads: false } : {}) };
   });
@@ -175,6 +187,7 @@ export function parseCampaign(
 ): CampaignCatalog {
   const file = raw as { length?: unknown; missions?: unknown } | null;
   if (!file || typeof file !== "object") fail("must be an object");
+  knownKeys(file, ["length", "missions"], "the file");
   if (!Array.isArray(file.missions)) fail("missions must be an array");
   const length = file.length ?? file.missions.length;
   if (!Number.isInteger(length) || (length as number) < file.missions.length || (length as number) > 64)
@@ -184,6 +197,7 @@ export function parseCampaign(
     const where = `missions[${index}]`;
     const mission = value as Record<string, unknown> | null;
     if (!mission || typeof mission !== "object") fail(`${where} must be an object`);
+    knownKeys(mission, ["id", "map", "gametype", "bots", "models", "side", "limits", "survival"], where);
     const id = mission.id;
     if (typeof id !== "string" || !MISSION_ID.test(id)) fail(`${where}.id must be lowercase letters, digits and -`);
     if (ids.has(id)) fail(`${where}.id ${id} is used twice`);
@@ -272,6 +286,27 @@ export function lobbyCampaignInfo(mission: CampaignMissionInfo): LobbyCampaignIn
     ...(Object.keys(botScales).length ? { botScales } : {}),
     ...(slimeImmune.length ? { slimeImmune } : {}),
   };
+}
+
+/**
+ * Every bot name a campaign file's missions use, lowercased. No account may
+ * take one (a campaign gives its bots their looks and size by name), and the
+ * bot tools tell these bots from people by it. Reads the file's shape loosely:
+ * a file the lobby would refuse still reserves the names it lists.
+ */
+export function campaignBotNames(raw: unknown): Set<string> {
+  const names = new Set<string>();
+  const missions = (raw as { missions?: unknown } | null)?.missions;
+  if (!Array.isArray(missions)) return names;
+  for (const mission of missions) {
+    const bots = (mission as { bots?: unknown } | null)?.bots;
+    if (!Array.isArray(bots)) continue;
+    for (const bot of bots) {
+      const name = (bot as { name?: unknown } | null)?.name;
+      if (typeof name === "string") names.add(name.toLowerCase());
+    }
+  }
+  return names;
 }
 
 /** The names of a mission's bots slime and lava do not hurt. */

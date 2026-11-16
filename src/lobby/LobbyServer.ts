@@ -23,6 +23,7 @@ import { BOT_INVITE_PREPARATION_TIMEOUT_MS } from "../shared/ranking/BotPreparat
 import { type BotReference, canonicalBotReference, sameBotReference } from "../shared/ranking/BotReference";
 import {
   type CampaignCatalog,
+  campaignBotNames,
   campaignFinished,
   campaignMatchRules,
   campaignMission,
@@ -584,6 +585,8 @@ export class LobbyServer {
   private readonly CAMPAIGN_CONFIG_PATH = path.join(process.cwd(), "config", "campaign.json");
   /** The campaign's missions, read from config/campaign.json at start. */
   private campaignCatalog: CampaignCatalog = EMPTY_CAMPAIGN;
+  /** The campaign's bot names, lowercased: reserved from accounts. */
+  private campaignBots = new Set<string>();
   /** Running campaign matches: the mission each plays. */
   private readonly campaignMatches = new Map<string, CampaignMissionInfo>();
   private readonly PK3_DIR = path.join(process.cwd(), "public", "data");
@@ -1740,6 +1743,11 @@ export class LobbyServer {
 
   // ── Campaign ────────────────────────────────────────────────
 
+  /** Whether `name` is one of the campaign's bots, which no account may be named. */
+  isCampaignBotName(name: string): boolean {
+    return this.campaignBots.has(name.toLowerCase());
+  }
+
   /** Read config/campaign.json; a lobby without one, or with a broken one, runs no campaign. */
   private loadCampaign(): void {
     this.campaignCatalog = EMPTY_CAMPAIGN;
@@ -1751,6 +1759,7 @@ export class LobbyServer {
         console.warn(`[LobbyServer] Campaign not loaded: ${(err as Error).message}`);
       return;
     }
+    this.campaignBots = campaignBotNames(raw);
     try {
       const shapes = new Map(
         [...this.gametypes, ...this.campaignGametypes].map((g) => [

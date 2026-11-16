@@ -56,6 +56,8 @@ interface FakePlayer {
 }
 
 interface Internals {
+  CAMPAIGN_CONFIG_PATH: string;
+  loadCampaign(): void;
   players: Map<string, FakePlayer>;
   gametypes: GametypeInfo[];
   campaignCatalog: ReturnType<typeof parseCampaign>;
@@ -179,6 +181,20 @@ afterEach(() => {
 });
 
 describe("campaign rooms", () => {
+  it("keeps the campaign's bot names from accounts, from the file it reads", async () => {
+    const { mkdtempSync, writeFileSync } = await import("node:fs");
+    const { join } = await import("node:path");
+    const { tmpdir } = await import("node:os");
+    const file = join(mkdtempSync(join(tmpdir(), "campaign-")), "campaign.json");
+    writeFileSync(file, JSON.stringify(CAMPAIGN));
+    const { server, internal } = makeServer();
+    internal.CAMPAIGN_CONFIG_PATH = file;
+    internal.loadCampaign();
+    const name = CAMPAIGN.missions[0].bots[0].name;
+    expect(server.isCampaignBotName(name.toUpperCase())).toBe(true);
+    expect(server.isCampaignBotName("Player_7")).toBe(false);
+  });
+
   it("sends the campaign with unlock state on request", () => {
     const { internal } = makeServer();
     const host = connect(internal, "Host");
