@@ -235,17 +235,57 @@ Against it, or still to settle:
 - Start-up: a runner loads collision (about 0.4 s for washoi_snd1's collision
   world in the profile) and reads the nav cache; a missed cache is built in
   the runner, which stalls only that match's bots.
-- Who starts it. **(a)** The bot server starts it on the lobby's request, and
-  the lobby stays as it is. **(b)** The lobby's `GameServerSpawner` starts it
-  beside the game server with the bots' admission tickets, so a match's bots
-  live and die with it, without the bot server in between. Either way, bots
-  that sit in a room before the match (`BotLobbyClient`) are light, with no map
-  loaded, and can stay in the supervisor.
-- Process or worker thread. Worker threads share memory
+- Who starts it: the lobby, beside the game server (below).
+- Process or worker thread (below: processes). Worker threads share memory
   (`SharedArrayBuffer`, shared `WebAssembly.Memory`), so a map could be loaded
   once for every runner on it; a process has OS isolation, its own memory
   limit, and can be killed outright. A process is the simpler first step, as
   the game servers already are.
+
+### The room before the match, and who starts a runner
+
+A bot in a room is a `BotLobbyClient`: a WebSocket to the lobby, authenticated
+with the bot secret. In the room it joins by id, readies itself, sends its
+rating identity (`bot:reference`: preset, goal arbiter, model) and ignores the
+rest; on `lobby:connect` it makes the `BotClient` that plays. Nothing it does in
+the room needs a process of its own: the lobby knows the bot's name,
+difficulty and team when it invites it, and the preset and arbiter are what
+its rating identity carries once the neural-network path is gone.
+
+So the always-running bot server could go:
+
+- **In the room,** a bot is a seat the lobby holds itself (name, difficulty,
+  team, rating identity), always ready, with no connection behind it.
+- **At match start,** `GameServerSpawner` starts the game server and, when the
+  match has bots, a bot runner beside it with the bots' admission tickets and
+  options, as it passes a game server its admission manifest. The runner exits
+  with its game server.
+- **`bot:server`** becomes the runner: one match, started by the lobby on
+  demand, or by hand against a game server for development. The bot tools
+  (`bot:ab`, `bot:motion`) keep running bots in their own process, as they do.
+
+The lobby asks for bots only while a room waits (a player's invite, and
+`fillCampaignBots` seating a mission's bots one at a time, each a round trip
+through the bot server), so a runner's bots are all known when it starts, and
+a campaign room would seat its bots at once.
+
+To settle before building it:
+
+- The bot secret and the `bot:` messages the lobby accepts from bot
+  connections, which a lobby holding bot seats no longer needs.
+- What a bot says in the room chat, if anything is wanted there.
+
+### Shared map memory: worth it?
+
+Two bot matches at once share a map only if they play the same one. With the
+lobby's pools in `config/maps.json`, two matches of one gametype pick the same
+map with odds of 1 in 3 (S&D, Amphi: three maps each), 1 in 8 (Duel) and 1 in
+11 (FFA), and less across gametypes; each campaign mission has its own map.
+The collision world itself adds about 40 MB to the parsed BSP (measured on
+washoi_snd1); with collision-only map data a runner's map is tens of
+megabytes, so sharing it would rarely happen and save little. Processes, then,
+not threads: OS isolation, a memory limit per match, and a runner the lobby
+can kill like a game server.
 
 ### A compiled collision core (Rust to WebAssembly)
 
