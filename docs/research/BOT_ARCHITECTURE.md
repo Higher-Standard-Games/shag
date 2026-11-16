@@ -379,6 +379,27 @@ steps land.
 | 10 | One scheduler; decisions staggered, below the snapshot rate, aim and steering at the tick rate | Yes (the rate, behind a switch) | Done, default waits | `81fa813` / `14f9da4f` | `BotScheduler`: one 125 Hz timer for every bot in a process (commands unchanged). `decideEvery` (default 1) decides on every n-th snapshot while roaming, bots taking turns; fights, dodges and sequences decide every snapshot; aim turns every tick. `bot:ab` with 2 against 1: Duel dm2 12 matches, frag gap -0.42 (-1.20 to 0.36), decisions -17%; S&D snd1 6 matches, rounds 9-10, kills per death 1.03 against 0.97, decisions -34%, snapshot p95 1.7 → 1.2 ms. Steering still runs in the decision, not every tick. The default stays 1 until measured against people |
 | 11 | Fight, hunt and hold-ground scored as goals beside the items | Yes (behind a switch) | Hunt and hold done, default waits; fight not scored | `81fa813` / `14f9da4f` | `scoredGoals`: roaming chooses the item arbiter's best goal, the freshest sighting (the seek bar when just seen, falling over its window) or the territory (half of mapControl, in modes that keep one) by desire (`goals/RoamChoice.ts`). `bot:ab` on against off: Duel dm2 12 matches, frag gap -0.17 (-1.44 to 1.11); FFA dm2 8 matches, -0.75 (-3.14 to 1.64): no difference shown. A fight stays a rule: scoring it beside items needs an item run that fights under fire |
 
+### After the plan (2026-11-16)
+
+A profile of a 10-bot S&D match with steps 1–9 in: bots 73% of the CPU, sight
+checks 25% of theirs (half of that item spots), decisions 37%, the slowest
+snapshot 57 ms (a map's first decision building every distance row). Three
+changes, each giving the same answers:
+
+| Change | Proof | Result |
+| --- | --- | --- |
+| `BotPvs`: the map's PVS before a sight trace (fps `48445c2`; bots' forked visions got it in `2fd3337`) | 0 of 238,000 recorded sight checks the trace sees ruled out, on dm2, snd1, dm16, amphi1 | 25–60% of sight traces not run; in a 10-bot snd1 match, sight traces per bot-second about 185 → 67 |
+| Brush model and button bounds check in `SweepCollisionBackend.trace` (`15c3533c`) | Every inline model's parts inside its box on all 17 maps; 800,000 recorded traces identical | snd1 full trace 3.04 → 2.20 µs; dm2 unchanged |
+| Distance rows built as asked for (fps `446fac6`) | Same algorithm per row | First estimate on snd1 31 → 1.5 ms |
+| A headless owner reads the map's BSP straight from its pk3 (`947c5a73`) | Identical bytes on every map | Loading snd1's vision peaks at 250 MB RSS (was 289); extracting the BSP holds about 120 MB of buffers (was about 215) |
+
+The slowest snapshot of the same match: 57 → 20–23 ms (before the PVS reached the bots).
+
+After loading, a bundled bot process with snd1 has a 26 MB JS heap and 15–30 MB
+of buffers, but keeps 140–160 MB of RSS on Windows: memory the load freed and
+the OS did not take back. Linux usually returns large freed blocks at once, so
+a runner there may sit lower; not measured.
+
 ### Order
 
 Steps 3 and 4 first (both done): they cut the cost the runner would pay per match and
