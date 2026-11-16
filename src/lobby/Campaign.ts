@@ -114,13 +114,17 @@ function parseBot(value: unknown, where: string, hasTeams: boolean): CampaignBot
 const positiveInteger = (value: unknown, max: number) =>
   typeof value === "number" && Number.isInteger(value) && value > 0 && value <= max;
 
+const wholeNumber = (value: unknown, max: number) =>
+  typeof value === "number" && Number.isInteger(value) && value >= 0 && value <= max;
+
 function parseLimits(value: unknown, where: string): { scoreLimit?: number; timeLimit?: number } | undefined {
   if (value === undefined) return undefined;
   const limits = value as Record<string, unknown> | null;
   if (!limits || typeof limits !== "object") fail(`${where}.limits must be an object`);
   knownKeys(limits, ["scoreLimit", "timeLimit"], `${where}.limits`);
-  if (limits.scoreLimit !== undefined && !positiveInteger(limits.scoreLimit, 500))
-    fail(`${where}.limits.scoreLimit must be a whole number from 1`);
+  // A score limit of 0 is none: the match runs its full time
+  if (limits.scoreLimit !== undefined && !wholeNumber(limits.scoreLimit, 500))
+    fail(`${where}.limits.scoreLimit must be a whole number from 0`);
   if (limits.timeLimit !== undefined && !positiveInteger(limits.timeLimit, 3600))
     fail(`${where}.limits.timeLimit must be whole seconds from 1`);
   return {

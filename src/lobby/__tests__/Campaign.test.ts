@@ -125,7 +125,9 @@ describe("parseCampaign", () => {
       ["enemy", "police"],
       ["enemy", "female"],
     ]);
-    expect(campaignMatchRules(road)).toEqual({ scoreLimit: 15, timeLimit: 600 });
+    expect(road.bots.map((bot) => bot.name)).toEqual(["Officer_Wasabi", "Officer_Mochi"]);
+    // No frag limit: the match runs its full ten minutes
+    expect(campaignMatchRules(road)).toEqual({ scoreLimit: 0, timeLimit: 600 });
     // An operation with nothing beyond its map and gametype sends no rules
     expect(campaignMatchRules(catalog.missions[0])).toBeNull();
   });
@@ -172,7 +174,7 @@ describe("parseCampaign", () => {
       { missions: [mission("one", { bots: [{ name: "A1", difficulty: "easy", scale: 4 }] })] },
       ".scale",
     ],
-    ["a bad limit", { missions: [mission("one", { limits: { scoreLimit: 0 } })] }, "scoreLimit"],
+    ["a bad limit", { missions: [mission("one", { limits: { scoreLimit: -1 } })] }, "scoreLimit"],
     ["an attack side outside S&D", { missions: [mission("one", { side: "attack" })] }, ".side"],
     ["an unknown side", { missions: [mission("one", { gametype: "snd", side: "defend" })] }, ".side"],
     [
