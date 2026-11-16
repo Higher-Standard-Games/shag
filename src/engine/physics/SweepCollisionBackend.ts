@@ -24,6 +24,7 @@ import {
   type TraceResult,
 } from "./CollisionBackend";
 import { type CollisionBounds, CollisionSpatialIndex, planeBounds } from "./CollisionSpatialIndex";
+import { CompiledWorldTrace } from "./CompiledWorldTrace";
 import { buildFacetPlanes, type FacetPlane } from "./FacetBevels";
 import { PatchTessellator } from "./PatchTessellator";
 import { PLAYER_HEIGHT, PLAYER_MINS_Z, PLAYER_RADIUS, STEPSIZE } from "./PlayerPhysicsConstants";
@@ -618,6 +619,31 @@ export class SweepCollisionBackend implements CollisionBackend {
   /**
    * Main trace function - performs swept box collision
    */
+  /** The world part of every trace in WebAssembly (CompiledWorldTrace), once set. */
+  private compiledWorld: CompiledWorldTrace | null = null;
+
+  /**
+   * Trace the world part (the BSP tree, clip brushes and patches) with the
+   * compiled kernel built from `wasm`, the module's bytes; the movers stay in
+   * TypeScript. False, and nothing changes, when it will not run here. Call
+   * after init.
+   */
+  useCompiledWorldTrace(wasm: Uint8Array<ArrayBuffer>): boolean {
+    if (!this.bsp) return false;
+    const bsp = this.bsp;
+    this.compiledWorld = CompiledWorldTrace.create(wasm, {
+      bsp,
+      textures: this.collisionTextures,
+      brushTexture: (i) => this.getBrushTexture(bsp.brushes[i]),
+      brushBounds: this.brushBounds,
+      brushParents: this.brushParents,
+      excludedBrush: (i) => this.liftBrushes.has(i) || this.brushModelBrushes.has(i),
+      clipBrushIndices: this.clipBrushIndices,
+      faceMeshes: this.faceCollisionMeshes,
+    });
+    return this.compiledWorld !== null;
+  }
+
   trace(start: Vector3, end: Vector3, options?: TraceOptions, excludeModel = -1, onlyModel = -1): TraceResult {
     if (!this.bsp) {
       return createDefaultTraceResult(start, end);
@@ -708,10 +734,14 @@ export class SweepCollisionBackend implements CollisionBackend {
 
     // Traverse BSP tree for solid brushes
     this.splitDepth = 0;
-    if (onlyModel < 0) this.traceNode(0, 0.0, 1.0, state.start, state.end, state);
-
-    // Spatial fallback for named clip brushes not reached through BSP leaves.
-    if (onlyModel < 0) this.traceAllClipBrushes(state);
+    if (onlyModel < 0 && this.compiledWorld) {
+      // The same walk, compiled (CompiledWorldTrace): the tree, the clip fallback, patches
+      this.compiledWorld.trace(state);
+    } else if (onlyModel < 0) {
+      this.traceNode(0, 0.0, 1.0, state.start, state.end, state);
+      // Spatial fallback for named clip brushes not reached through BSP leaves.
+      this.traceAllClipBrushes(state);
+    }
 
     // Inline brushes use model-local traces; retain the earliest world/model hit.
     const lifts = this.lifts;

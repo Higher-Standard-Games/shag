@@ -1,7 +1,7 @@
 // Record the collision traces of a bot match: a game server and bots in this
 // process, every SweepCollisionBackend.trace call logged (start, end, hull,
 // content mask), the game server's and the bots' alike.
-// Usage: node node_modules/vite-node/vite-node.mjs prototypes/collision-wasm/record.ts -- <map> <bots> <seconds> <out.f64>
+// Usage: node node_modules/vite-node/vite-node.mjs native/collision-wasm/record.ts -- <map> <bots> <seconds> <out.f64>
 import { writeFileSync } from "node:fs";
 import type { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { SweepCollisionBackend } from "../../src/engine/physics/SweepCollisionBackend";

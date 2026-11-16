@@ -115,3 +115,6 @@ sourcemaps/
 server-data/
 # Scratch server state from local test runs (server-data-mapcheck/ and the like)
 server-data-*/
+
+# The compiled world trace is committed (scripts/build-collision-wasm.mjs)
+!src/engine/physics/WorldTrace.wasm

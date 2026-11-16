@@ -84,6 +84,8 @@ struct State {
     contents: i32,
     hit_brush: i32,
     hit_surface_flags: i32,
+    /** The texture of the brush or face hit (its collision texture's index), -1 before a hit. */
+    hit_texture: i32,
     face_index: usize,
 }
 
@@ -347,6 +349,7 @@ impl World {
             };
             s.contents = self.textures[tex];
             s.hit_surface_flags = self.textures[tex + 1];
+            s.hit_texture = texture;
         }
     }
 
@@ -453,6 +456,7 @@ impl World {
             s.contents = self.textures[tex];
             s.hit_brush = b as i32;
             s.hit_surface_flags = if hit_side_flags >= 0 { hit_side_flags } else { self.textures[tex + 1] };
+            s.hit_texture = texture;
         }
     }
 
@@ -526,7 +530,7 @@ fn world() -> World {
 }
 
 /// One trace. `input`: start3 end3 mins3 maxs3 contentMask (Q3 axes).
-/// `output`: fraction endPos3 normal3 hasNormal startSolid allSolid contents hitBrush hitSurfaceFlags.
+/// `output`: fraction endPos3 normal3 hasNormal startSolid allSolid contents hitBrush hitSurfaceFlags hitTexture.
 fn trace_one(input: &[f64], output: &mut [f64]) {
     let mut w = world();
     let mut s = State {
@@ -543,6 +547,7 @@ fn trace_one(input: &[f64], output: &mut [f64]) {
         contents: 0,
         hit_brush: -1,
         hit_surface_flags: 0,
+        hit_texture: -1,
         face_index: 0,
     };
     for a in 0..3 {
@@ -571,10 +576,11 @@ fn trace_one(input: &[f64], output: &mut [f64]) {
     output[10] = s.contents as f64;
     output[11] = s.hit_brush as f64;
     output[12] = s.hit_surface_flags as f64;
+    output[13] = s.hit_texture as f64;
 }
 
 pub const IN: usize = 13;
-pub const OUT: usize = 13;
+pub const OUT: usize = 14;
 
 /// `count` traces: inputs at `input`, IN f64 each; results at `output`, OUT each.
 #[no_mangle]

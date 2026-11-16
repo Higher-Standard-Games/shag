@@ -1,7 +1,7 @@
 // Replay recorded traces through SweepCollisionBackend's world trace in
 // TypeScript and through the Rust/WebAssembly kernel; compare the results bit
 // for bit and time both.
-// Usage: node node_modules/vite-node/vite-node.mjs prototypes/collision-wasm/compare.ts -- <map> <traces.f64>
+// Usage: node node_modules/vite-node/vite-node.mjs native/collision-wasm/compare.ts -- <map> <traces.f64>
 import { readFileSync } from "node:fs";
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import path from "node:path";
@@ -16,7 +16,9 @@ const args = process.argv.slice(2).filter((a) => a !== "--");
 const [map = "washoi_dm2", tracesFile = `.cache/traces-${map}.f64`] = args;
 const PLAYER_CONTENTS = 0x1 | 0x10000;
 const IN = 13;
-const OUT = 13;
+/** The kernel writes 14 values a trace; the first 13 are compared (the 14th, the hit texture, is checked by the engine's test). */
+const OUT = 14;
+const COMPARED = 13;
 
 // ── The map and the TypeScript backend ───────────────────────────────
 const buffer = await resolveMapBspViaIndex(
@@ -161,7 +163,7 @@ const meshBounds = new Float64Array(meshes.length * 6);
 meshes.forEach((m, k) => meshBounds.set([m.mins.x, m.mins.z, m.mins.y, m.maxs.x, m.maxs.z, m.maxs.y], k * 6));
 
 // ── The kernel ───────────────────────────────────────────────────────
-const wasmFile = "prototypes/collision-wasm/target/wasm32-unknown-unknown/release/collision_wasm.wasm";
+const wasmFile = "src/engine/physics/WorldTrace.wasm";
 const { instance } = await WebAssembly.instantiate(readFileSync(wasmFile));
 const k = instance.exports as {
   memory: WebAssembly.Memory;
@@ -205,12 +207,12 @@ for (let t = 0; t < count; t++) tsWorld(inputs, t * IN, ts, t * OUT);
 k.trace_batch(inPtr, outPtr, count);
 const wasm = new Float64Array(k.memory.buffer, outPtr, count * OUT).slice();
 const names = ["fraction", "endX", "endY", "endZ", "nX", "nY", "nZ", "hasNormal", "startSolid", "allSolid", "contents", "hitBrush", "surfaceFlags"];
-const fieldDiffs = new Array(OUT).fill(0);
+const fieldDiffs = new Array(COMPARED).fill(0);
 let differ = 0;
 let firstDiff = -1;
 for (let t = 0; t < count; t++) {
   let any = false;
-  for (let f = 0; f < OUT; f++) {
+  for (let f = 0; f < COMPARED; f++) {
     if (!Object.is(ts[t * OUT + f], wasm[t * OUT + f])) {
       fieldDiffs[f]++;
       any = true;

@@ -648,7 +648,7 @@ built in the lobby). When the match starts, its bots play in a **match
 runner**, a child process per game server (`dist-server/bot-runner.mjs`) that
 loads the map once for them and exits with the match. Match reports go to
 `bot-intel.db` from the lobby. A lobby holding seats used about 63 MB; a
-runner with ten bots on `washoi_snd1`, 240–290 MB while its match lasts.
+runner with ten bots on `washoi_snd1`, about 175 MB while its match lasts.
 
 ```bash
 npm --prefix src/games/fps run lobby:server -- --data-dir ./server-data --bot-seats

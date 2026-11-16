@@ -9,6 +9,7 @@
     "dev": "vite",
     "prebuild": "npm run tools:pk3-index",
     "build": "tsc && vite build",
+    "build:collision-wasm": "node scripts/build-collision-wasm.mjs",
     "postbuild": "node scripts/relocate-sourcemaps.mjs",
     "build:prod": "npm run tools:textures && npm run build",
     "preview": "vite preview",
