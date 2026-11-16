@@ -196,9 +196,11 @@ summarised by `bot:motion --trace`. The rest, reordered by the measurements,
 each step its own commit with the bot tests and a `bot:ab` run against the
 step before showing no difference:
 
-1. **No nav build on the live event loop.** Graphs built ahead (a
-   `bot:nav --build` step in the deploy) or in a worker thread while the bots
-   wait, never synchronously in the loop every bot shares.
+1. **No nav build on the live event loop.** Done 2026-11-16: `BotNavWorker`
+   builds in a worker thread in the bundled server (10.1 s for washoi_snd1,
+   the main thread's worst stall 11 ms meanwhile). Building graphs ahead at
+   deploy (a `bot:nav --build` step) would also spare the first match on a map
+   its seconds without one.
 2. **Decide time measured** per bot, as percentiles, in `bot:motion` and
    `bot:ab`.
 3. **Hot spots, with no change in behaviour:** a spatial grid for nearest-node
