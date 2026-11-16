@@ -335,8 +335,8 @@ steps land.
 | --- | --- | --- | --- | --- | --- |
 | 1 | Nav graphs built off the bots' event loop (`BotNavWorker` in a worker thread) | No | Done | `3a4ce59` / `bad81189` | washoi_snd1 built in 10.1 s; the main thread's worst stall 11 ms (was 9 s for every bot) |
 | 2 | Cost per bot measured: snapshot and decision percentiles (`BotClient.timings`) in `bot:motion` and `bot:ab` | No | Done | `f54d87a` / `bdaae4ce` | Snapshot p50 0.36 ms, p99 up to 4.1 ms, max 44 ms (10-bot S&D) |
-| 3 | Hot spots, exact: nearest-node and standing-node lookups remembered until the nodes change; one item sight trace per spot per snapshot | No (same answers) | Done | `0e14db7` / (this commit) | Goal choice 5.2 → 1.9 s and `decide` 12.2 → 9.5 s per match; snapshot p50 0.36 → 0.22–0.30 ms. Left: sight traces are half the bots' time (steps 9, 10); the slowest decisions (43–46 ms) are a graph's first, building its distance table |
-| 4 | Collision-only map data in `createBotVision` (no lightmaps, draw vertices or faces) | No | Planned | | |
+| 3 | Hot spots, exact: nearest-node and standing-node lookups remembered until the nodes change; one item sight trace per spot per snapshot | No (same answers) | Done | `0e14db7` / `685d5af0` | Goal choice 5.2 → 1.9 s and `decide` 12.2 → 9.5 s per match; snapshot p50 0.36 → 0.22–0.30 ms. Left: sight traces are half the bots' time (steps 9, 10); the slowest decisions (43–46 ms) are a graph's first, building its distance table |
+| 4 | Collision-only map data: `createBotVision` parses with `BspLoader.loadCollision` through a transient pk3 loader; the PVS is copied out of the file buffer | No (traces identical) | Done | `0277ba7` / (this commit) | One map's vision about 60 MB live in a bundled process (was about 450 MB); 0 of 60,000 traces differ on three maps. A bundled process with the bot code: 54 MB RSS |
 | 5 | Brain split: a life object made new on spawn; states, after-steps, navigation and the S&D coach as modules; one owner per input channel | No | Planned | | |
 | 6 | One route pipeline: learned routes through the base graph's edge checks; `bot:routes --check` | No | Planned | | |
 | 7 | The neural-network path removed (after confirming the host passes no `--models`); the Duel string checks moved into the weight profiles | No | Planned | | |
@@ -347,7 +347,7 @@ steps land.
 
 ### Order
 
-Steps 3 and 4 first (3 done): they cut the cost the runner would pay per match and
+Steps 3 and 4 first (both done): they cut the cost the runner would pay per match and
 give the numbers to judge it by. Then the brain split (5), routes (6) and the
 leftovers (7). The runner (8) follows step 4; the collision prototype (9) can
 run beside it. Steps 10 and 11 change how bots play and come last.
