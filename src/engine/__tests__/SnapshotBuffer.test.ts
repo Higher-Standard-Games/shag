@@ -6,7 +6,7 @@
  */
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { type EntitySnapshot, lerpPitch, SnapshotBuffer } from "../network/client/SnapshotBuffer";
+import { type EntitySnapshot, interpolateEntity, lerpPitch, SnapshotBuffer } from "../network/client/SnapshotBuffer";
 
 // Mock Cvar to avoid dependency on console variable system
 vi.mock("../../core/Cvar", () => ({
@@ -393,5 +393,51 @@ describe("SnapshotBuffer held for a pause", () => {
     buffer.push(7, new Map([["a", makeEntity({ x: 60, vx: 600, grounded: true })]]));
     expect(buffer.getInterpDelay()).toBe(delay);
     vi.restoreAllMocks();
+  });
+});
+
+describe("interpolateEntity", () => {
+  // Required: a field added to EntitySnapshot must be named here, and then reach the blend
+  const full = (x: number): Required<EntitySnapshot> => ({
+    x,
+    y: 0,
+    z: 0,
+    yaw: 0,
+    pitch: 0.1,
+    vx: 0,
+    vy: 0,
+    vz: 0,
+    grounded: true,
+    crouching: false,
+    sliding: false,
+    wallJumping: false,
+    aiming: true,
+    crouchViewOffset: -8,
+    strafeInput: 1,
+    forwardInput: -1,
+    slidePhase: 0.5,
+    ledgeGrabPhase: 0.25,
+    powerupMask: 1,
+    waterLevel: 2,
+    onLadder: true,
+  });
+
+  it("carries every field of a snapshot into the blend", () => {
+    const a = full(0);
+    const b = full(10);
+    const result = interpolateEntity(a, b, 0.5);
+    for (const key of Object.keys(a) as (keyof EntitySnapshot)[]) {
+      expect(result[key], key).toBeDefined();
+    }
+    expect(result.x).toBe(5);
+  });
+
+  it("takes the newer powerups, and stepped states from the nearer end", () => {
+    const a = { ...full(0), powerupMask: 0, waterLevel: 0 as const };
+    const b = full(10);
+    const early = interpolateEntity(a, b, 0.1);
+    expect(early.powerupMask).toBe(1);
+    expect(early.waterLevel).toBe(0);
+    expect(interpolateEntity(a, b, 0.9).waterLevel).toBe(2);
   });
 });

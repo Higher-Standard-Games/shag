@@ -69,46 +69,8 @@ export interface BufferedSnapshot {
   serverLocalTime?: number;
 }
 
-/** Interpolated result for a single entity */
-export interface InterpolatedEntity {
-  x: number;
-  y: number;
-  z: number;
-  yaw: number;
-  /** View pitch in radians, as the player aims; absent from an older recording. */
-  pitch?: number;
-  vx: number;
-  vy: number;
-  vz: number;
-  grounded: boolean;
-  crouching: boolean;
-  sliding: boolean;
-  wallJumping: boolean;
-  /** Holding the sights up. Absent from a recording made before the server sent it. Stepped. */
-  aiming?: boolean;
-  /** Recorded camera offset from the entity origin (0 standing, negative crouched). */
-  crouchViewOffset?: number;
-  /** Strafe keys: -1 left, 0 none, 1 right. Stepped, never interpolated. */
-  strafeInput?: -1 | 0 | 1;
-  /** Forward keys: -1 back, 0 none, 1 forward. Stepped, never interpolated. */
-  forwardInput?: -1 | 0 | 1;
-  /** Slide camera dip, 0 – 1. */
-  slidePhase?: number;
-  /** Ledge grab camera phase, 0 – 1. */
-  ledgeGrabPhase?: number;
-  /**
-   * Held powerups as a bitmask over the game's POWERUP_KINDS.
-   * Never interpolated — it is stepped, like `crouching`.
-   */
-  powerupMask?: number;
-  /**
-   * How deep in liquid: 0 dry, 1 wading, 2 swimming, 3 submerged.
-   * Stepped, never interpolated — a fractional water level is not a state.
-   */
-  waterLevel?: 0 | 1 | 2 | 3;
-  /** Attached to a ladder. Stepped like waterLevel, never interpolated. */
-  onLadder?: boolean;
-}
+/** One entity's state at a moment between snapshots: the same fields as a snapshot's. */
+export type InterpolatedEntity = EntitySnapshot;
 
 const EMPTY_IDS: ReadonlySet<string> = new Set();
 
@@ -148,6 +110,64 @@ function copyEntity(entity: EntitySnapshot, out: InterpolatedEntity | null): Int
   out.onLadder = entity.onLadder;
   out.powerupMask = entity.powerupMask;
   return out;
+}
+
+/**
+ * The pose between `a` and `b` at `t` (clamped to 0–1), into `out` when given:
+ * position, velocity, view and phases blended, the stepped flags and keys from
+ * the nearer end, and the held powerups from the newer. Live play and demo
+ * playback both blend through this, so every field reaches both; what a jump
+ * too long to blend means is the caller's to decide.
+ */
+export function interpolateEntity(
+  a: EntitySnapshot,
+  b: EntitySnapshot,
+  t: number,
+  out: InterpolatedEntity | null = null,
+): InterpolatedEntity {
+  const clampedT = Math.max(0, Math.min(1, t));
+
+  const x = a.x + (b.x - a.x) * clampedT;
+  const y = a.y + (b.y - a.y) * clampedT;
+  const z = a.z + (b.z - a.z) * clampedT;
+
+  // Shortest-path angle interpolation for yaw
+  let yawDelta = b.yaw - a.yaw;
+  while (yawDelta > Math.PI) yawDelta -= Math.PI * 2;
+  while (yawDelta < -Math.PI) yawDelta += Math.PI * 2;
+  const yaw = a.yaw + yawDelta * clampedT;
+
+  // Lerp velocity (for animation)
+  const vx = a.vx + (b.vx - a.vx) * clampedT;
+  const vy = a.vy + (b.vy - a.vy) * clampedT;
+  const vz = a.vz + (b.vz - a.vz) * clampedT;
+
+  const near = clampedT < 0.5 ? a : b;
+  const result = out ?? ({} as InterpolatedEntity);
+  result.x = x;
+  result.y = y;
+  result.z = z;
+  result.yaw = yaw;
+  result.pitch = lerpPitch(a.pitch, b.pitch, clampedT);
+  result.vx = vx;
+  result.vy = vy;
+  result.vz = vz;
+  result.grounded = near.grounded;
+  result.crouching = near.crouching;
+  result.sliding = near.sliding;
+  result.wallJumping = near.wallJumping;
+  result.aiming = near.aiming;
+  result.crouchViewOffset = lerpOptional(a.crouchViewOffset, b.crouchViewOffset, clampedT);
+  result.slidePhase = lerpOptional(a.slidePhase, b.slidePhase, clampedT);
+  result.ledgeGrabPhase = lerpOptional(a.ledgeGrabPhase, b.ledgeGrabPhase, clampedT);
+  result.strafeInput = near.strafeInput;
+  result.forwardInput = near.forwardInput;
+  result.waterLevel = near.waterLevel;
+  result.onLadder = near.onLadder;
+  // Take the NEWER mask rather than the nearer one: a quad expiring or
+  // being grabbed should read the moment the server says so.
+  result.powerupMask = b.powerupMask ?? a.powerupMask;
+  return result;
 }
 
 /** Server gravity constant (must match server physics) */
@@ -538,8 +558,6 @@ export class SnapshotBuffer {
     t: number,
     out: InterpolatedEntity | null = null,
   ): InterpolatedEntity {
-    const clampedT = Math.max(0, Math.min(1, t));
-
     // Teleport discontinuity: interpolating across a huge inter-snapshot jump
     // would streak the entity across the map. Snap to the newer snapshot
     // instead (same idea as Q3's EF_TELEPORT_BIT no-lerp).
@@ -547,49 +565,7 @@ export class SnapshotBuffer {
     if (jumpSq > SnapshotBuffer.TELEPORT_SNAP_DIST * SnapshotBuffer.TELEPORT_SNAP_DIST) {
       return copyEntity(b, out);
     }
-
-    // Lerp position
-    const x = a.x + (b.x - a.x) * clampedT;
-    const y = a.y + (b.y - a.y) * clampedT;
-    const z = a.z + (b.z - a.z) * clampedT;
-
-    // Shortest-path angle interpolation for yaw
-    let yawDelta = b.yaw - a.yaw;
-    while (yawDelta > Math.PI) yawDelta -= Math.PI * 2;
-    while (yawDelta < -Math.PI) yawDelta += Math.PI * 2;
-    const yaw = a.yaw + yawDelta * clampedT;
-
-    // Lerp velocity (for animation)
-    const vx = a.vx + (b.vx - a.vx) * clampedT;
-    const vy = a.vy + (b.vy - a.vy) * clampedT;
-    const vz = a.vz + (b.vz - a.vz) * clampedT;
-
-    const near = clampedT < 0.5 ? a : b;
-    const result = out ?? ({} as InterpolatedEntity);
-    result.x = x;
-    result.y = y;
-    result.z = z;
-    result.yaw = yaw;
-    result.pitch = lerpPitch(a.pitch, b.pitch, clampedT);
-    result.vx = vx;
-    result.vy = vy;
-    result.vz = vz;
-    result.grounded = near.grounded;
-    result.crouching = near.crouching;
-    result.sliding = near.sliding;
-    result.wallJumping = near.wallJumping;
-    result.aiming = near.aiming;
-    result.crouchViewOffset = lerpOptional(a.crouchViewOffset, b.crouchViewOffset, clampedT);
-    result.slidePhase = lerpOptional(a.slidePhase, b.slidePhase, clampedT);
-    result.ledgeGrabPhase = lerpOptional(a.ledgeGrabPhase, b.ledgeGrabPhase, clampedT);
-    result.strafeInput = near.strafeInput;
-    result.forwardInput = near.forwardInput;
-    result.waterLevel = near.waterLevel;
-    result.onLadder = near.onLadder;
-    // Take the NEWER mask rather than the nearer one: a quad expiring or
-    // being grabbed should read the moment the server says so.
-    result.powerupMask = b.powerupMask ?? a.powerupMask;
-    return result;
+    return interpolateEntity(a, b, t, out);
   }
 
   /**
