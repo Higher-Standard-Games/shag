@@ -7,8 +7,9 @@
  * (native/collision-wasm/compare.ts replays recorded traces through both);
  * the movers stay in TypeScript. About twice as fast as the TypeScript walk.
  *
- * Built by the backend (`useCompiledWorldTrace`) from the module's bytes,
- * which `WorldTraceWasm.ts` reads off disk in Node.
+ * Built by the backend (`useCompiledWorldTrace`) from an instance of the
+ * module, one per map: `WorldTraceWasm.ts` makes them in Node,
+ * `WorldTraceWasmBrowser.ts` in the browser.
  */
 
 import type { BspCollisionData } from "../loader/bsp/BspLoader";
@@ -80,14 +81,9 @@ export class CompiledWorldTrace {
     this.output = new Float64Array(kernel.memory.buffer, this.outputPtr, OUT);
   }
 
-  /** The kernel for a map, or null when the module will not instantiate here. */
-  static create(bytes: Uint8Array<ArrayBuffer>, source: CompiledWorldSource): CompiledWorldTrace | null {
-    let kernel: Exports;
-    try {
-      kernel = new WebAssembly.Instance(new WebAssembly.Module(bytes), {}).exports as unknown as Exports;
-    } catch {
-      return null;
-    }
+  /** The kernel for a map in `instance`, a fresh instance of the module, which it then owns. */
+  static create(instance: WebAssembly.Instance, source: CompiledWorldSource): CompiledWorldTrace {
+    const kernel = instance.exports as unknown as Exports;
     const tables = worldTables(source);
     tables.forEach((table, id) => {
       const ptr = kernel.alloc(Math.ceil(table.byteLength / 8));

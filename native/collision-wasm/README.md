@@ -8,9 +8,14 @@ movers (lifts, switchable brush models, buttons) stay in TypeScript. It reads
 the TypeScript backend's own prepared tables (`CompiledWorldTrace.ts` copies
 them into its memory), so it needs nothing of its own at load.
 
-Bots use it: `createBotVision` makes its collision world with
-`createHeadlessCollisionWorld(bsp, { compiled: true })`, and the backend's
-`useCompiledWorldTrace` runs the world part here when the module is there.
+Bots, game servers and the browser use it. In Node, `createHeadlessCollisionWorld(bsp, { compiled: true })`
+(the bots' vision and `loadBspCollision`) hands the backend an instance from
+`WorldTraceWasm.ts`. In the browser, `MapLoader` fetches and instantiates the
+module asynchronously (`WorldTraceWasmBrowser.ts`, shipped as a Vite asset)
+once a map's collision is up, and `CollisionManager.useCompiledWorldTrace`
+switches to it; until then, and wherever it fails to load, the TypeScript
+walk gives the same answers. Each map gets a fresh instance, and `init`
+drops the last one.
 
 ## Building
 

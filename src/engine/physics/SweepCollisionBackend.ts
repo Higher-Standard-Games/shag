@@ -257,6 +257,8 @@ export class SweepCollisionBackend implements CollisionBackend {
 
   async init(bsp: BspCollisionData, _scene?: Scene): Promise<void> {
     this.bsp = bsp;
+    // A compiled trace holds the last map's tables
+    this.compiledWorld = null;
     this.brushModels = new BrushModelState(extractBrushModels(bsp.entities, bsp.models));
     this.brushModelBrushes.clear();
     this.brushModelFaces.clear();
@@ -623,15 +625,15 @@ export class SweepCollisionBackend implements CollisionBackend {
   private compiledWorld: CompiledWorldTrace | null = null;
 
   /**
-   * Trace the world part (the BSP tree, clip brushes and patches) with the
-   * compiled kernel built from `wasm`, the module's bytes; the movers stay in
-   * TypeScript. False, and nothing changes, when it will not run here. Call
-   * after init.
+   * Trace the world part (the BSP tree, clip brushes and patches) of this map
+   * with the compiled kernel in `instance` (a fresh instance of
+   * WorldTrace.wasm); the movers stay in TypeScript. Call after init; the
+   * next init goes back to TypeScript until this is called again.
    */
-  useCompiledWorldTrace(wasm: Uint8Array<ArrayBuffer>): boolean {
+  useCompiledWorldTrace(instance: WebAssembly.Instance): boolean {
     if (!this.bsp) return false;
     const bsp = this.bsp;
-    this.compiledWorld = CompiledWorldTrace.create(wasm, {
+    this.compiledWorld = CompiledWorldTrace.create(instance, {
       bsp,
       textures: this.collisionTextures,
       brushTexture: (i) => this.getBrushTexture(bsp.brushes[i]),

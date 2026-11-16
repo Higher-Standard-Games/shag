@@ -11,7 +11,7 @@ import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import type { BspCollisionData } from "../engine/loader/bsp/BspLoader";
 import { SweepBackendAdapter } from "../engine/physics/SweepBackendAdapter";
 import { SweepCollisionBackend } from "../engine/physics/SweepCollisionBackend";
-import { worldTraceWasm } from "../engine/physics/WorldTraceWasm";
+import { worldTraceInstance } from "../engine/physics/WorldTraceWasm";
 import type { CollisionWorld } from "../shared/collision/CollisionWorld";
 import { SharedCollisionWorld } from "../shared/collision/SharedCollisionWorld";
 
@@ -30,8 +30,8 @@ export async function createHeadlessCollisionWorld(
   const backend = new SweepCollisionBackend();
   await backend.init(bsp);
   if (options.compiled) {
-    const wasm = worldTraceWasm();
-    const compiled = wasm !== null && backend.useCompiledWorldTrace(wasm);
+    const instance = worldTraceInstance();
+    const compiled = instance !== null && backend.useCompiledWorldTrace(instance);
     console.log(`[HeadlessBSPCollisionWorld] World trace: ${compiled ? "compiled (WebAssembly)" : "TypeScript"}`);
   }
 

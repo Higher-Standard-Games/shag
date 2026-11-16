@@ -8,7 +8,7 @@ import { BspLoader } from "../../loader/bsp/BspLoader";
 import { resolveMapBspViaIndex } from "../../loader/pk3/NodePk3";
 import { PK3Loader } from "../../loader/pk3/PK3Loader";
 import { SweepCollisionBackend } from "../SweepCollisionBackend";
-import { worldTraceWasm } from "../WorldTraceWasm";
+import { worldTraceInstance } from "../WorldTraceWasm";
 
 const root = path.resolve(__dirname, "../../../..");
 const MAP = "washoi_dm2";
@@ -18,7 +18,7 @@ describe("the compiled world trace", () => {
   it("is built from the Rust source as it stands (npm run build:collision-wasm)", () => {
     const recorded = fs.readFileSync(path.join(root, "src/engine/physics/WorldTrace.wasm.source"), "utf8").trim();
     expect(recorded).toBe(worldTraceSourceHash(root));
-    expect(worldTraceWasm()).not.toBeNull();
+    expect(worldTraceInstance()).not.toBeNull();
   });
 
   it.skipIf(!fs.existsSync(mapPackage))(
@@ -29,7 +29,7 @@ describe("the compiled world trace", () => {
       const compiled = new SweepCollisionBackend();
       await plain.init(BspLoader.loadCollision(buffer!));
       await compiled.init(BspLoader.loadCollision(buffer!));
-      expect(compiled.useCompiledWorldTrace(worldTraceWasm()!)).toBe(true);
+      expect(compiled.useCompiledWorldTrace(worldTraceInstance()!)).toBe(true);
 
       // Seeded traces across the map's box: points, a player's hull and a small one
       let seed = 7;

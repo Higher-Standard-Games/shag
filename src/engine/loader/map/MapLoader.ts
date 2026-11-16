@@ -653,6 +653,18 @@ export class MapLoader {
       } catch (e) {
         throw new Error(`Could not initialize required map collision: ${String(e)}`);
       }
+      // The world part of collision in WebAssembly, with the same answers;
+      // without it (it failed to load, say) the TypeScript walk carries on
+      try {
+        const { instantiateWorldTrace } = await import("../../physics/WorldTraceWasmBrowser");
+        const { getCollisionManager } = await import("../../physics");
+        const instance = await instantiateWorldTrace();
+        if (instance && getCollisionManager().useCompiledWorldTrace(instance, bsp)) {
+          devLog("[MapLoader] World trace compiled (WebAssembly)");
+        }
+      } catch (e) {
+        devLog(`[MapLoader] World trace stays in TypeScript: ${String(e)}`);
+      }
 
       // Phase 10: Preload pickup assets (weapons/ammo models)
       progress("Assets", "Preloading pickup models");
