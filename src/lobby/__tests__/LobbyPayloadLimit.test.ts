@@ -48,3 +48,26 @@ it("rejects oversized lobby frames and still accepts normal logins", async () =>
     demos: [],
   });
 });
+
+it("closes a connection that floods messages and survives junk frames", async () => {
+  server = new LobbyServer(0, { shutdownAll: vi.fn() } as never);
+  vi.spyOn(server as unknown as { _scanDemos(): void }, "_scanDemos").mockImplementation(() => {});
+  vi.spyOn(console, "warn").mockImplementation(() => {});
+  await server.start();
+  const port = (server as unknown as { wss: { address(): { port: number } } }).wss.address().port;
+
+  const junk = new WebSocket(`ws://127.0.0.1:${port}`);
+  sockets.push(junk);
+  await once(junk, "open");
+  for (const frame of ["not json", "null", "42", '"text"']) junk.send(frame);
+  const reply = once(junk, "message");
+  junk.send(JSON.stringify({ type: "auth" }));
+  expect(JSON.parse(String((await reply)[0])).type).toBe("welcome");
+
+  const flood = new WebSocket(`ws://127.0.0.1:${port}`);
+  sockets.push(flood);
+  await once(flood, "open");
+  const closed = once(flood, "close");
+  for (let i = 0; i < 201; i++) flood.send(JSON.stringify({ type: "campaign:get" }));
+  expect((await closed)[0]).toBe(1008);
+});

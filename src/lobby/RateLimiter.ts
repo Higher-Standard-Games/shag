@@ -5,6 +5,7 @@
  */
 export class RateLimiter {
   private readonly events = new Map<string, number[]>();
+  private lastSweep = 0;
 
   constructor(
     private readonly limit: number,
@@ -22,6 +23,7 @@ export class RateLimiter {
     const events = this.recent(key);
     events.push(this.now());
     this.events.set(key, events);
+    this.sweep();
   }
 
   /** Count an event if `key` still has room, and say whether it did. */
@@ -34,6 +36,26 @@ export class RateLimiter {
   /** Release connection-scoped counters when their socket leaves. */
   forget(key: string): void {
     this.events.delete(key);
+  }
+
+  /**
+   * Drop keys whose events have all expired, at most once a window. A key is
+   * otherwise only pruned when it is asked about again, so every address that
+   * ever connected would stay in the map.
+   */
+  private sweep(): void {
+    const now = this.now();
+    if (now - this.lastSweep < this.windowMs) return;
+    this.lastSweep = now;
+    const since = now - this.windowMs;
+    for (const [key, events] of this.events) {
+      if (events[events.length - 1] <= since) this.events.delete(key);
+    }
+  }
+
+  /** How many keys are held; for tests. */
+  get size(): number {
+    return this.events.size;
   }
 
   private recent(key: string): number[] {

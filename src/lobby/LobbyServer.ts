@@ -236,6 +236,15 @@ const RENAME_LIMIT = { limit: 10, windowMs: 60_000 };
 const PRACTICE_SPAWN_LIMIT = { limit: 3, windowMs: 60_000 };
 /** Per account: synced settings reads and writes (clients debounce, so this is generous). */
 const SETTINGS_LIMIT = { limit: 30, windowMs: 60_000 };
+/** Per connection: lobby and room chat lines, as the game server allows in a match. */
+const CHAT_LIMIT = { limit: 5, windowMs: 5_000 };
+/**
+ * Per connection: every message. A client sends a few a second at most, so a
+ * connection past this is flooding and is closed.
+ */
+const MESSAGE_LIMIT = { limit: 200, windowMs: 10_000 };
+/** Close code for a connection closed for flooding (RFC 6455 policy violation). */
+const FLOOD_CLOSE_CODE = 1008;
 /** Players online at once when the operator sets no cap. Bots don't count. */
 export const DEFAULT_MAX_PLAYERS = 64;
 /** How long a player turned away at the cap waits before the client tries again. */
@@ -639,6 +648,8 @@ export class LobbyServer {
   private readonly leaderboardReads = new RateLimiter(60, 60_000);
   private readonly featuredReads = new RateLimiter(60, 60_000);
   private readonly settingsRequests = new RateLimiter(SETTINGS_LIMIT.limit, SETTINGS_LIMIT.windowMs);
+  private readonly chatLines = new RateLimiter(CHAT_LIMIT.limit, CHAT_LIMIT.windowMs);
+  private readonly messageBudget = new RateLimiter(MESSAGE_LIMIT.limit, MESSAGE_LIMIT.windowMs);
   private readonly resultDiagnostics = new ResultDiagnostics();
   private readonly maxPlayers: number;
   /** Account id → when it disconnected, for RETURN_GRACE_MS. */
@@ -775,11 +786,29 @@ export class LobbyServer {
     this.players.set(playerId, player);
 
     ws.on("message", (data) => {
+      if (!player.isBot && !this.messageBudget.tryRecord(player.id)) {
+        log.warnRateLimited(
+          "LobbyServer",
+          `Closed ${playerId}: more than ${MESSAGE_LIMIT.limit} messages in ${MESSAGE_LIMIT.windowMs / 1000} s`,
+        );
+        ws.close(FLOOD_CLOSE_CODE, "Too many messages");
+        return;
+      }
+      let msg: LobbyMessage;
       try {
-        const msg = JSON.parse(data.toString()) as LobbyMessage;
+        msg = JSON.parse(data.toString()) as LobbyMessage;
+      } catch {
+        log.warnRateLimited("LobbyServer", `Unreadable message from ${playerId}`);
+        return;
+      }
+      if (typeof msg !== "object" || msg === null) {
+        log.warnRateLimited("LobbyServer", `Message that is not an object from ${playerId}`);
+        return;
+      }
+      try {
         this.handleMessage(player, msg);
       } catch (err) {
-        console.error(`[LobbyServer] Parse error from ${playerId}:`, err);
+        log.errorRateLimited("LobbyServer", `Handling ${String(msg.type).slice(0, 64)} from ${playerId} failed:`, err);
       }
     });
 
@@ -796,6 +825,8 @@ export class LobbyServer {
     console.log(`[LobbyServer] Disconnected: ${player.name || player.id}`);
     this.leaderboardReads.forget(player.id);
     this.featuredReads.forget(player.id);
+    this.chatLines.forget(player.id);
+    this.messageBudget.forget(player.id);
 
     // Leave lobby if in one
     if (player.lobbyId) {
@@ -1193,6 +1224,7 @@ export class LobbyServer {
 
   private handleChatSend(player: ConnectedPlayer, text: unknown): void {
     if (typeof text !== "string" || text.trim().length === 0) return;
+    if (!this.chatAllowed(player)) return;
 
     const chatMsg: ChatMsg = {
       from: player.name,
@@ -1212,8 +1244,13 @@ export class LobbyServer {
       type: "chat:message",
       ...chatMsg,
     });
+  }
 
-    console.log(`[LobbyServer] Chat: <${player.name}> ${chatMsg.text}`);
+  /** Whether a chat line from this connection is within its budget; a line over it is dropped and the sender told. */
+  private chatAllowed(player: ConnectedPlayer): boolean {
+    if (player.isBot || this.chatLines.tryRecord(player.id)) return true;
+    this.send(player, { type: "lobby:error", error: "You are sending messages too fast." });
+    return false;
   }
 
   private handleRoomChatSend(player: ConnectedPlayer, lobbyId: unknown, text: unknown): void {
@@ -1229,6 +1266,7 @@ export class LobbyServer {
     if (typeof text !== "string") return;
     const clean = text.trim().slice(0, 500);
     if (!clean) return;
+    if (!this.chatAllowed(player)) return;
 
     const message: ChatMsg = { from: player.name, fromId: player.id, text: filterChatText(clean, 500), ts: Date.now() };
     lobby.chatHistory.push(message);

@@ -73,6 +73,7 @@ afterEach(() => {
   for (const server of servers) (server as unknown as { accounts: { close: () => void } }).accounts.close();
   servers.length = 0;
   vi.restoreAllMocks();
+  vi.useRealTimers();
 });
 
 describe("room chat", () => {
@@ -138,16 +139,20 @@ describe("room chat", () => {
   });
 
   it("sends bounded history to a returning member and stops delivery after leave", () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
     const server = makeServer();
     const alice = connect(server, "Alice");
     const bob = connect(server, "Bob");
     const room = createRoom(server, alice.player, alice.sent);
     send(server, bob.player, { type: "lobby:join", lobbyId: room });
     for (let index = 0; index < 52; index++) {
+      // Spaced past the chat limit
+      vi.setSystemTime(Date.now() + 1_100);
       send(server, alice.player, { type: "lobby:chat_send", lobbyId: room, text: `message ${index}` });
     }
     send(server, bob.player, { type: "lobby:leave", lobbyId: room });
     const before = messages(bob.sent, "lobby:chat_message").length;
+    vi.setSystemTime(Date.now() + 5_100);
     send(server, alice.player, { type: "lobby:chat_send", lobbyId: room, text: "later" });
     expect(messages(bob.sent, "lobby:chat_message")).toHaveLength(before);
     send(server, bob.player, { type: "lobby:chat_send", lobbyId: room, text: "after leave" });
@@ -172,5 +177,29 @@ describe("room chat", () => {
     expect(messages(alice.sent, "lobby:chat_message")).toEqual([]);
     send(server, alice.player, { type: "lobby:chat_send", lobbyId: room, text: "x".repeat(600) });
     expect((messages(alice.sent, "lobby:chat_message")[0].text as string).length).toBe(500);
+  });
+
+  it("drops chat past five lines in five seconds, in the room and the lobby, and tells the sender", () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    const server = makeServer();
+    const alice = connect(server, "Alice");
+    const bob = connect(server, "Bob");
+    const room = createRoom(server, alice.player, alice.sent);
+    send(server, bob.player, { type: "lobby:join", lobbyId: room });
+    for (let index = 0; index < 4; index++) {
+      send(server, alice.player, { type: "lobby:chat_send", lobbyId: room, text: `room ${index}` });
+    }
+    send(server, alice.player, { type: "chat:send", text: "lobby 4" });
+    send(server, alice.player, { type: "chat:send", text: "lobby 5" });
+    send(server, alice.player, { type: "lobby:chat_send", lobbyId: room, text: "room 6" });
+    expect(messages(bob.sent, "lobby:chat_message")).toHaveLength(4);
+    expect(messages(bob.sent, "chat:message").map((m) => m.text)).toEqual(["lobby 4"]);
+    expect(messages(alice.sent, "lobby:error").at(-1)?.error).toBe("You are sending messages too fast.");
+    // Another player's budget is their own
+    send(server, bob.player, { type: "chat:send", text: "bob" });
+    expect(messages(alice.sent, "chat:message").at(-1)?.text).toBe("bob");
+    vi.setSystemTime(Date.now() + 5_100);
+    send(server, alice.player, { type: "chat:send", text: "later" });
+    expect(messages(bob.sent, "chat:message").at(-1)?.text).toBe("later");
   });
 });
