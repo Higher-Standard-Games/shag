@@ -88,7 +88,9 @@ describe("featured demo selection", () => {
   it("advertises and serves featured picks over an authenticated lobby socket", async () => {
     // The fixture cache below replaces the scan. Scanning this machine's demo
     // folder would only make the test as slow as that folder is large.
-    vi.spyOn(LobbyServer.prototype as unknown as { _scanDemos(): void }, "_scanDemos").mockImplementation(() => {});
+    vi.spyOn(LobbyServer.prototype as unknown as { _scanDemos(): Promise<void> }, "_scanDemos").mockImplementation(
+      async () => {},
+    );
     const lobby = new LobbyServer(0, new GameServerSpawner());
     await lobby.start();
     const internal = lobby as unknown as { _demoCache: DemoInfo[]; wss: { address(): { port: number } } };

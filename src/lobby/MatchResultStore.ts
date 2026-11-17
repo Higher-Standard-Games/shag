@@ -9,7 +9,7 @@
 
 import { existsSync } from "node:fs";
 import path from "node:path";
-import { DatabaseSync } from "node:sqlite";
+import { DatabaseSync, type StatementSync } from "node:sqlite";
 import { filterPlayerName } from "../engine/server/ChatFilter";
 import type { MatchResultReport } from "../engine/server/network/MatchResultReport";
 import type { BotPreset } from "../shared/ranking/BotMatchRatingGroups";
@@ -174,6 +174,7 @@ function rowOf(row: Record<string, unknown>): RankingRow {
 
 export class MatchResultStore {
   private readonly db: DatabaseSync;
+  private demoAccountsQuery: StatementSync | undefined;
   readonly ratings: RatingStore;
   readonly deliveries: ResultDeliveryStore;
   readonly playerStats: PlayerStatsStore;
@@ -430,14 +431,13 @@ export class MatchResultStore {
   /** Accounts proved by a stored result for this exact match, mode and map. */
   verifiedDemoAccounts(matchId: string, gametype: string, map: string, startedAt: number): number[] {
     if (!matchId || !gametype || !map || !Number.isSafeInteger(startedAt)) return [];
-    return this.db
-      .prepare(
-        `SELECT mp.account_id FROM match_participants mp
-         JOIN matches m ON m.id = mp.match_id
-         WHERE m.id = ? AND m.gametype = ? AND m.map = ? AND m.ended_at >= ?`,
-      )
-      .all(matchId, gametype, map, startedAt)
-      .map((row) => Number(row.account_id));
+    // Asked once per demo on every demo scan: compiled once
+    this.demoAccountsQuery ??= this.db.prepare(
+      `SELECT mp.account_id FROM match_participants mp
+       JOIN matches m ON m.id = mp.match_id
+       WHERE m.id = ? AND m.gametype = ? AND m.map = ? AND m.ended_at >= ?`,
+    );
+    return this.demoAccountsQuery.all(matchId, gametype, map, startedAt).map((row) => Number(row.account_id));
   }
 
   close(): void {

@@ -11,6 +11,8 @@ import { randomBytes, randomUUID } from "node:crypto";
 import * as fs from "node:fs";
 import type { IncomingMessage } from "node:http";
 import * as path from "node:path";
+import { promisify } from "node:util";
+import { gunzip } from "node:zlib";
 import { WebSocket, WebSocketServer } from "ws";
 import { background, logRejection } from "../engine/core/AsyncErrors";
 import { log } from "../engine/core/Log";
@@ -229,6 +231,8 @@ export function clientAddress(req: IncomingMessage): string {
 }
 
 /** Per player address: new accounts, wrong keys, renames. */
+const gunzipAsync = promisify(gunzip) as (data: Uint8Array) => Promise<Uint8Array>;
+
 const ACCOUNT_CREATION_LIMIT = { limit: 30, windowMs: 60 * 60_000 };
 const KEY_FAILURE_LIMIT = { limit: 20, windowMs: 60_000 };
 const RENAME_LIMIT = { limit: 10, windowMs: 60_000 };
@@ -595,6 +599,9 @@ export class LobbyServer {
 
   // Demo listing cache
   private _demoCache: DemoInfo[] = [];
+  /** The demo scan running now, if one is. */
+  private _demoScan: Promise<void> | null = null;
+  private _demoCountLogged = 0;
   /** What each demo file holds, by name, read once per file version (see _scanDemos). */
   private readonly _demoFiles = new Map<
     string,
@@ -715,8 +722,11 @@ export class LobbyServer {
         );
 
         // Initial demo scan + periodic refresh
-        this._scanDemos();
-        this._demoCacheTimer = setInterval(() => this._scanDemos(), this.DEMO_CACHE_INTERVAL);
+        background(this._scanDemos(), "LobbyServer");
+        this._demoCacheTimer = setInterval(
+          () => background(this._scanDemos(), "LobbyServer"),
+          this.DEMO_CACHE_INTERVAL,
+        );
         if (this.results) this.resultRetryTimer = setInterval(() => this.retryResults(), 5_000);
 
         resolve();
@@ -737,6 +747,8 @@ export class LobbyServer {
       clearInterval(this.resultRetryTimer);
       this.resultRetryTimer = null;
     }
+    // A scan still reading uses the stores closed below
+    await this._demoScan;
 
     // Shutdown all game servers
     await this.spawner.shutdownAll();
@@ -2836,7 +2848,20 @@ export class LobbyServer {
    * Scan public/data/demos/ for .shagdemo files and parse their headers.
    * Results are cached and sorted newest-first.
    */
-  private _scanDemos(): void {
+  /**
+   * Rebuild the demo list from the demo folder. Reading and decompressing a new
+   * file is asynchronous: the first scan reads every demo (hundreds of
+   * megabytes), and done synchronously it held the lobby for seconds at start.
+   * One scan runs at a time; a call while one runs waits for it.
+   */
+  private _scanDemos(): Promise<void> {
+    this._demoScan ??= this.scanDemosNow().finally(() => {
+      this._demoScan = null;
+    });
+    return this._demoScan;
+  }
+
+  private async scanDemosNow(): Promise<void> {
     try {
       if (!fs.existsSync(this.DEMO_DIR)) {
         this._demoCache = [];
@@ -2845,8 +2870,7 @@ export class LobbyServer {
         return;
       }
 
-      const files = fs
-        .readdirSync(this.DEMO_DIR)
+      const files = (await fs.promises.readdir(this.DEMO_DIR))
         .filter((f) => f.endsWith(".shagdemo"))
         .sort()
         .reverse(); // newest first by filename (contains date)
@@ -2863,12 +2887,15 @@ export class LobbyServer {
       for (const filename of files) {
         try {
           const filepath = path.join(this.DEMO_DIR, filename);
-          const stat = fs.statSync(filepath);
+          const stat = await fs.promises.stat(filepath);
           let parsed = this._demoFiles.get(filename);
           if (!parsed || parsed.mtimeMs !== stat.mtimeMs || parsed.size !== stat.size) {
             parsed = { mtimeMs: stat.mtimeMs, size: stat.size, header: null, durationMs: 0 };
             this._demoFiles.set(filename, parsed);
-            const reader = new DemoReader(new Uint8Array(fs.readFileSync(filepath)));
+            const bytes = new Uint8Array(await fs.promises.readFile(filepath));
+            // Decompressed on the thread pool, not the lobby's thread
+            const gzipped = bytes.length >= 2 && bytes[0] === 0x1f && bytes[1] === 0x8b;
+            const reader = new DemoReader(gzipped ? await gunzipAsync(bytes) : bytes);
             parsed.header = reader.readHeader();
             const index = reader.readIndex();
             // Duration from the index: (last tick - first tick) / tick rate
@@ -2918,9 +2945,11 @@ export class LobbyServer {
       this._demoOwnership = ownership;
       this._demoPlayerAccounts = playerAccounts;
       this.renameDeletedInDemos(this.accounts.deletedAccountIds());
-      if (demos.length > 0) {
+      // Once a minute: said only when the count moved
+      if (demos.length > 0 && demos.length !== this._demoCountLogged) {
         console.log(`[LobbyServer] Demo scan: ${demos.length} demos found`);
       }
+      this._demoCountLogged = demos.length;
     } catch (err) {
       console.error("[LobbyServer] Demo scan failed:", err);
     }

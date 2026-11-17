@@ -15,7 +15,7 @@ afterEach(async () => {
 it("rejects oversized lobby frames and still accepts normal logins", async () => {
   server = new LobbyServer(0, { shutdownAll: vi.fn() } as never);
   // Keep this transport regression independent of the developer's demo archive.
-  vi.spyOn(server as unknown as { _scanDemos(): void }, "_scanDemos").mockImplementation(() => {});
+  vi.spyOn(server as unknown as { _scanDemos(): Promise<void> }, "_scanDemos").mockImplementation(async () => {});
   await server.start();
   const port = (server as unknown as { wss: { address(): { port: number } } }).wss.address().port;
   const oversized = new WebSocket(`ws://127.0.0.1:${port}`);
@@ -51,7 +51,7 @@ it("rejects oversized lobby frames and still accepts normal logins", async () =>
 
 it("closes a connection that floods messages and survives junk frames", async () => {
   server = new LobbyServer(0, { shutdownAll: vi.fn() } as never);
-  vi.spyOn(server as unknown as { _scanDemos(): void }, "_scanDemos").mockImplementation(() => {});
+  vi.spyOn(server as unknown as { _scanDemos(): Promise<void> }, "_scanDemos").mockImplementation(async () => {});
   vi.spyOn(console, "warn").mockImplementation(() => {});
   await server.start();
   const port = (server as unknown as { wss: { address(): { port: number } } }).wss.address().port;
