@@ -95,6 +95,9 @@ export { MIN_LISTED_DEMO_MS };
 // Configuration
 // ============================================================================
 
+/** Demos read between updates of the list while the first scan runs. */
+const DEMO_SCAN_BATCH = 25;
+
 const gunzipAsync = promisify(gunzip) as (data: Uint8Array) => Promise<Uint8Array>;
 
 /** Per player address: new accounts, wrong keys, renames. */
@@ -2549,9 +2552,20 @@ export class LobbyServer {
       const present = new Set(files);
       for (const filename of this._demoFiles.keys()) if (!present.has(filename)) this._demoFiles.delete(filename);
 
+      // The first scan after a start reads every file and can take a while:
+      // the newest demos are listed as they are read rather than at the end
+      const firstScan = this._demoCache.length === 0;
+      const publish = () => {
+        this._demoCache = demos;
+        this._demoOwnership = ownership;
+        this._demoPlayerAccounts = playerAccounts;
+        this.renameDeletedInDemos(this.accounts.deletedAccountIds());
+      };
+      let read = 0;
       for (const filename of files) {
         // A stopping lobby does not wait for the rest of a long scan
         if (this.demoScanStopped) return;
+        if (firstScan && ++read % DEMO_SCAN_BATCH === 0) publish();
         try {
           const filepath = path.join(this.DEMO_DIR, filename);
           const stat = await fs.promises.stat(filepath);
@@ -2608,10 +2622,7 @@ export class LobbyServer {
         }
       }
 
-      this._demoCache = demos;
-      this._demoOwnership = ownership;
-      this._demoPlayerAccounts = playerAccounts;
-      this.renameDeletedInDemos(this.accounts.deletedAccountIds());
+      publish();
       // Once a minute: said only when the count moved
       if (demos.length > 0 && demos.length !== this._demoCountLogged) {
         console.log(`[LobbyServer] Demo scan: ${demos.length} demos found`);
