@@ -41,6 +41,8 @@ interface ActivePopup {
   config: PopupConfig;
   element: HTMLElement;
   overlay: HTMLElement;
+  /** Its document listeners (Escape), which go when it closes however it closes. */
+  listeners: AbortController;
 }
 
 const popups: Map<string, ActivePopup> = new Map();
@@ -137,18 +139,19 @@ function show(config: PopupConfig): void {
   document.body.appendChild(overlay);
 
   // Handle escape key
+  const listeners = new AbortController();
   if (config.closeOnEscape !== false) {
-    const escHandler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        PopupSystem.close(config.id);
-        document.removeEventListener("keydown", escHandler);
-      }
-    };
-    document.addEventListener("keydown", escHandler);
+    document.addEventListener(
+      "keydown",
+      (e: KeyboardEvent) => {
+        if (e.key === "Escape") PopupSystem.close(config.id);
+      },
+      { signal: listeners.signal },
+    );
   }
 
   // Store reference
-  popups.set(config.id, { config, element: popup, overlay });
+  popups.set(config.id, { config, element: popup, overlay, listeners });
 
   // Emit event
   EventBus.emit("popup:opened", { id: config.id });
@@ -165,13 +168,16 @@ function show(config: PopupConfig): void {
 function close(id: string): void {
   const popup = popups.get(id);
   if (!popup) return;
+  // Closed from now: a second close does nothing, and a popup shown again
+  // under this id during the fade is a new one, which the fade leaves alone
+  popups.delete(id);
+  popup.listeners.abort();
 
   popup.overlay.classList.remove("popup-visible");
 
   // Wait for animation
   setTimeout(() => {
     popup.overlay.remove();
-    popups.delete(id);
 
     if (popup.config.onClose) {
       popup.config.onClose();
