@@ -93,6 +93,12 @@ export class MatchLobbyView {
   private inviteBotPending = false;
   /** Quick play: bots still to add before this player readies up; 0 when off. */
   private autoFillBots = 0;
+  /**
+   * Ready pressed while quick play is still adding its bots: shown at once,
+   * sent once the last of them is seated. Sent at once, the room could start
+   * as soon as it had its minimum, short of the bots quick play asked for.
+   */
+  private heldReady = false;
   private phase: "waiting" | "starting" = "waiting";
   /** True when the room's match was already running as this player walked in. */
   private matchInProgress = false;
@@ -256,7 +262,7 @@ export class MatchLobbyView {
       this.lobbyClient.on("lobby:bot_invite_failed", (msg) => {
         console.warn("[MatchLobbyView] Bot invite failed:", msg.error);
         this.inviteBotPending = false;
-        this.autoFillBots = 0;
+        this.endAutoFill();
         this.updateInviteBotState();
         if (this.inviteBotBtn) {
           setRaisedKeyText(this.inviteBotBtn, "+ Add bot", "No bots available");
@@ -1006,9 +1012,20 @@ export class MatchLobbyView {
     this.localReady = ready;
     const localPlayer = this.players.find((p) => p.isLocal);
     if (localPlayer) localPlayer.ready = ready;
+    // Held while quick play still has bots to add; an unready goes at once
+    this.heldReady = ready && this.autoFillBots > 0;
     this.fillRoster();
     this.refreshStatus();
-    this.lobbyClient.setReady(this.lobbyId, ready);
+    if (!this.heldReady) this.lobbyClient.setReady(this.lobbyId, ready);
+  }
+
+  /** Quick play has no more bots to add: a Ready held for them goes now. */
+  private endAutoFill(): void {
+    this.autoFillBots = 0;
+    if (!this.heldReady || this.disposed) return;
+    this.heldReady = false;
+    this.refreshStatus();
+    this.lobbyClient.setReady(this.lobbyId, true);
   }
 
   private refreshReadyKey(): void {
@@ -1027,11 +1044,13 @@ export class MatchLobbyView {
         ? "Match running"
         : this.phase === "starting"
           ? "Starting"
-          : enough
-            ? `${readyCount} / ${this.players.length} ready`
-            : this.localReady
-              ? "Waiting for the rest"
-              : "Click when set",
+          : this.heldReady
+            ? "Adding bots"
+            : enough
+              ? `${readyCount} / ${this.players.length} ready`
+              : this.localReady
+                ? "Waiting for the rest"
+                : "Click when set",
     );
   }
 
@@ -1143,7 +1162,7 @@ export class MatchLobbyView {
     this.schedule(() => {
       if (this.inviteBotPending) {
         this.inviteBotPending = false;
-        this.autoFillBots = 0;
+        this.endAutoFill();
         this.updateInviteBotState();
       }
     }, 9000);
@@ -1153,7 +1172,7 @@ export class MatchLobbyView {
   private continueAutoFill(): void {
     if (this.autoFillBots === 0 || this.disposed) return;
     if (this.phase === "starting") {
-      this.autoFillBots = 0;
+      this.endAutoFill();
       return;
     }
     const bots = this.players.filter((p) => p.botLevel).length;
@@ -1161,7 +1180,7 @@ export class MatchLobbyView {
       this.requestBot();
       return;
     }
-    this.autoFillBots = 0;
+    this.endAutoFill();
   }
 
   /** Enable/disable the invite-bot button by capacity and pending state. */

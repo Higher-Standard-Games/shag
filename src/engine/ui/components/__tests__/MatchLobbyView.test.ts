@@ -532,6 +532,53 @@ describe("MatchLobbyView bots", () => {
     vi.restoreAllMocks();
   });
 
+  it("holds a Ready pressed while quick play adds bots until the last one is seated", () => {
+    const client = new FakeLobbyClient();
+    const room: MatchLobbyInfo = {
+      ...lobby,
+      gametype: "snd",
+      visibility: "private",
+      players: [lobby.players[0]],
+      // Two are enough to start: sent at once, Ready would start a duel
+      config: { maxPlayers: 10, minPlayers: 2, hasTeams: true },
+    };
+    const view = new MatchLobbyView("snd", client as never, room, "host", { fillWithBots: 4 });
+    client.emit("lobby:player_joined", {
+      player: { id: "bot1", name: "Bot 1", team: "bravo", ready: true, botLevel: "hard" },
+    });
+    view.root.querySelector<HTMLButtonElement>(".raised-key--ready")?.click();
+    expect(client.setReady).not.toHaveBeenCalled();
+    expect(view.root.querySelector(".raised-key--ready .raised-key__hint")?.textContent).toBe("Adding bots");
+    for (let n = 2; n <= 4; n += 1) {
+      client.emit("lobby:player_joined", {
+        player: { id: `bot${n}`, name: `Bot ${n}`, team: n % 2 ? "bravo" : "alpha", ready: true, botLevel: "hard" },
+      });
+    }
+    expect(client.setReady).toHaveBeenCalledOnce();
+    expect(client.setReady).toHaveBeenCalledWith(room.id, true);
+    view.destroy();
+  });
+
+  it("sends a held Ready when quick play stops early, and an unready at once", () => {
+    const client = new FakeLobbyClient();
+    const room: MatchLobbyInfo = {
+      ...lobby,
+      gametype: "ffa",
+      visibility: "private",
+      players: [lobby.players[0]],
+      config: { maxPlayers: 8, minPlayers: 4, hasTeams: false },
+    };
+    const view = new MatchLobbyView("ffa", client as never, room, "host", { fillWithBots: 4 });
+    const ready = () => view.root.querySelector<HTMLButtonElement>(".raised-key--ready")!;
+    ready().click();
+    ready().click();
+    expect(client.setReady).toHaveBeenCalledWith(room.id, false);
+    ready().click();
+    client.emit("lobby:bot_invite_failed", { lobbyId: room.id, error: "Bot server did not respond" });
+    expect(client.setReady).toHaveBeenLastCalledWith(room.id, true);
+    view.destroy();
+  });
+
   it("quick play stops when no bot comes, and leaves the player unready", () => {
     const client = new FakeLobbyClient();
     const room: MatchLobbyInfo = {
