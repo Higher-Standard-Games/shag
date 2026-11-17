@@ -96,11 +96,13 @@ export function readZipEntry(file: string, entry: string): ArrayBuffer | null {
         bytes = new Uint8Array(inflated.buffer, inflated.byteOffset, inflated.byteLength);
       } else return null;
       if (!crc32 || bytes.length !== uncompressed || crc32(bytes) !== crc) return null;
-      // The bytes as an ArrayBuffer of their own: the chunk's own store cut to
-      // length in place, or a copy when they share a store with other bytes
+      // The bytes as an ArrayBuffer of their own: inflate's chunk cut to length
+      // in place, or a copy. A stored entry's bytes may sit in Node's shared
+      // Buffer pool (a small read), which must never be cut or handed out.
       const store = bytes.buffer as ArrayBuffer;
-      if (bytes.byteOffset !== 0) return store.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
       if (store.byteLength === bytes.byteLength) return store;
+      if (method === STORED || bytes.byteOffset !== 0)
+        return store.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
       return (store as ArrayBuffer & { transfer(length: number): ArrayBuffer }).transfer(bytes.byteLength);
     }
     return null;
