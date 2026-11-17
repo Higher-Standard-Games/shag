@@ -369,6 +369,17 @@ describe("SequenceBuilder frag sequences", () => {
     for (let i = 1; i < 4; i++) expect(reel.segments[i].startTick).toBeGreaterThanOrEqual(reel.segments[i - 1].endTick);
   });
 
+  it("holds the slow motion through frags closer than its beat", () => {
+    const reel = new SequenceBuilder().build(makeAnalysis([sequence([2, 2.25, 12])], 20000), 5, TICK_RATE, HEADER);
+    const eyes = reel.segments[1];
+    const ticks = eyes.speedKeyframes?.map((k) => k.tick) ?? [];
+    expect(ticks).toEqual([...ticks].sort((a, b) => a - b));
+    expect(eyes.speedKeyframes?.map((k) => k.speed)).toEqual([0.5, 1]);
+    const second = 1000 + 2.25 * TICK_RATE;
+    expect(plannedSpeedAt(eyes, second)).toBe(0.5);
+    expect(plannedSpeedAt(eyes, second + Math.round(0.35 * TICK_RATE))).toBe(1);
+  });
+
   it("jumps ahead through speed lines across a long wait between frags", () => {
     const reel = new SequenceBuilder().build(makeAnalysis([sequence()], 20000), 5, TICK_RATE, HEADER);
     const [, eyes, between] = reel.segments;

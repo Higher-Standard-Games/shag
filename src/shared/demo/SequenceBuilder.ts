@@ -502,9 +502,14 @@ export class SequenceBuilder {
 
     runs.forEach((run, r) => {
       const keyframes: SpeedKeyframe[] = [];
+      // A beat of slow motion round each frag; frags closer than that share one
+      let slowUntil = Number.NEGATIVE_INFINITY;
       for (const i of run.kills) {
-        keyframes.push({ tick: kills[i].tick - ticks(0.1), speed: 0.5, ramp });
-        keyframes.push({ tick: kills[i].tick + ticks(0.35), speed: 1, ramp });
+        const from = kills[i].tick - ticks(0.1);
+        const until = kills[i].tick + ticks(0.35);
+        if (from <= slowUntil) keyframes[keyframes.length - 1].tick = until;
+        else keyframes.push({ tick: from, speed: 0.5, ramp }, { tick: until, speed: 1, ramp });
+        slowUntil = until;
       }
       const eyes = this._segment(h, scene, "pov", "chase_hero", run.start, run.end, tickRate, 1, keyframes);
       eyes.cameraTarget = h.primaryPlayer;

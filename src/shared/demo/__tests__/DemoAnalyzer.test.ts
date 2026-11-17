@@ -456,6 +456,12 @@ describe("DemoAnalyzer", () => {
       expect(chain([0, 4], [died])).toHaveLength(0);
     });
 
+    it("breaks the chain when the killer dies in the frame of their frag, a trade", () => {
+      const killer = makeEntity("player_k1", { grounded: true });
+      const traded = makeFrame(1000, [deathEvent("player_x", "player_k1")], [killer]);
+      expect(chain([0, 4], [traded])).toHaveLength(0);
+    });
+
     it("gives a frag sequence the killer's route through it, for the camera that chases them", () => {
       const killer = makeEntity("player_k1", { grounded: true });
       const frames = [

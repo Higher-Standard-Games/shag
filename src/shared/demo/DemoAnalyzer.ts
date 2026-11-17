@@ -677,8 +677,9 @@ export class DemoAnalyzer {
     const triple = SEQUENCE_TRIPLE_SECONDS * tickRate;
     const span = MULTI_KILL_SPAN_SECONDS * tickRate;
     const longest = SEQUENCE_MAX_SECONDS * tickRate;
+    // A death on the frag's own tick counts: a trade ends the chain there
     const diedBetween = (player: string, from: number, to: number) =>
-      (deaths.get(player) ?? []).some((tick) => tick > from && tick < to);
+      (deaths.get(player) ?? []).some((tick) => tick >= from && tick < to);
 
     // Group frags by primaryPlayer
     const byPlayer = new Map<string, HighlightCandidate[]>();
