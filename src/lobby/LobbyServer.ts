@@ -1289,7 +1289,7 @@ export class LobbyServer {
 
     const gametype = this.gametypes.find((g) => g.id === gametypeId);
     if (!gametype) {
-      this.send(player, { type: "lobby:error", error: `Unknown gametype: ${gametypeId}` });
+      this.send(player, { type: "lobby:error", error: `Unknown gametype: ${String(gametypeId).slice(0, 32)}` });
       return;
     }
     if (visibility !== "public" && visibility !== "private") {
@@ -1587,7 +1587,9 @@ export class LobbyServer {
 
   // ── Lobby: Ready ─────────────────────────────────────────────
 
-  private handleLobbyReady(player: ConnectedPlayer, lobbyId: string, ready: boolean): void {
+  private handleLobbyReady(player: ConnectedPlayer, lobbyId: string, value: unknown): void {
+    // Only a real true readies: anything else a client sends is "not ready", never relayed as sent
+    const ready = value === true;
     const lobby = this.lobbies.get(lobbyId);
     if (!lobby?.players.has(player.id) || lobby.state !== "waiting" || lobby.isStarting) return;
 
@@ -2044,7 +2046,7 @@ export class LobbyServer {
 
     const gametype = this.gametypes.find((g) => g.id === gametypeId);
     if (!gametype) {
-      this.send(player, { type: "lobby:error", error: `Unknown gametype: ${gametypeId}` });
+      this.send(player, { type: "lobby:error", error: `Unknown gametype: ${String(gametypeId).slice(0, 32)}` });
       return;
     }
 
@@ -2140,14 +2142,16 @@ export class LobbyServer {
     requestedGametype: string,
     trainingDemo?: string,
   ): Promise<void> {
+    // The request id is echoed back: anything but a short id is not
+    if (typeof requestId !== "string" || !/^[A-Za-z0-9_-]{1,64}$/.test(requestId)) return;
     const refuse = (error: string) => this.send(player, { type: "dev:server_spawn_failed", requestId, error });
     const practice = !isLoopbackAddress(player.address);
 
     const map = String(mapName || "")
       .trim()
       .toLowerCase();
-    if (!/^[a-z0-9_-]+$/.test(map)) {
-      refuse(`Invalid map name: ${mapName}`);
+    if (!/^[a-z0-9_-]{1,64}$/.test(map)) {
+      refuse(`Invalid map name: ${String(mapName).slice(0, 64)}`);
       return;
     }
 
@@ -2156,14 +2160,14 @@ export class LobbyServer {
       refuse(
         practice
           ? "Training demos are recorded from the lobby's own machine only."
-          : `Invalid training demo name: ${trainingDemo} (letters, digits, _ and -)`,
+          : `Invalid training demo name: ${String(trainingDemo).slice(0, 48)} (letters, digits, _ and -)`,
       );
       return;
     }
 
     let gametypeId = normalizeGametype(requestedGametype);
     if (!gametypeId) {
-      refuse(`Unknown gametype: ${requestedGametype}`);
+      refuse(`Unknown gametype: ${String(requestedGametype).slice(0, 32)}`);
       return;
     }
 

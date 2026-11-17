@@ -202,4 +202,21 @@ describe("room chat", () => {
     send(server, alice.player, { type: "chat:send", text: "later" });
     expect(messages(bob.sent, "chat:message").at(-1)?.text).toBe("later");
   });
+
+  it("relays a ready flag only as a boolean, whatever a client sends", () => {
+    const server = makeServer();
+    const alice = connect(server, "Alice");
+    const bob = connect(server, "Bob");
+    const room = createRoom(server, alice.player, alice.sent);
+    send(server, bob.player, { type: "lobby:join", lobbyId: room });
+    send(server, alice.player, { type: "lobby:ready", lobbyId: room, ready: { junk: "x".repeat(100) } });
+    expect(messages(bob.sent, "lobby:player_updated").at(-1)).toEqual({
+      type: "lobby:player_updated",
+      playerId: alice.player.id,
+      ready: false,
+    });
+    const cara = connect(server, "Cara");
+    send(server, cara.player, { type: "lobby:create", gametype: "y".repeat(500) });
+    expect(messages(cara.sent, "lobby:error").at(-1)?.error).toBe(`Unknown gametype: ${"y".repeat(32)}`);
+  });
 });
