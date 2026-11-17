@@ -23,6 +23,8 @@ export interface ConfirmOptions {
 
 let overlay: Overlay | null = null;
 let panel: HTMLDivElement | null = null;
+/** How the dialog showing settles: once, by its buttons, Escape, or a newer dialog. */
+let settle: ((answer: "confirm" | "cancel" | "dismiss") => void) | null = null;
 let stylesInjected = false;
 
 function injectStyles(): void {
@@ -35,7 +37,8 @@ function injectStyles(): void {
  * Show a confirmation dialog
  */
 function show(options: ConfirmOptions): void {
-  // Hide any existing confirm dialog
+  // Take down any existing confirm dialog, answering nothing for it
+  settle?.("dismiss");
   ConfirmDialog.hide();
   injectStyles();
 
@@ -49,7 +52,21 @@ function show(options: ConfirmOptions): void {
     onCancel,
   } = options;
 
-  // Create overlay (don't close on click for confirm dialogs)
+  // Each dialog settles once: its buttons and Escape each take it down with
+  // the one callback that belongs to them; a newer dialog takes it down silently
+  let settled = false;
+  settle = (answer) => {
+    if (settled) return;
+    settled = true;
+    settle = null;
+    ConfirmDialog.hide();
+    if (answer === "confirm") onConfirm();
+    else if (answer === "cancel") onCancel?.();
+  };
+  const answer = settle;
+
+  // Create overlay (don't close on click for confirm dialogs). Its close is
+  // Escape (or this dialog being hidden), which cancels.
   overlay = new Overlay(
     {
       id: "confirm-dialog",
@@ -59,10 +76,7 @@ function show(options: ConfirmOptions): void {
       closeOnClick: false,
       animate: true,
     },
-    () => {
-      // Called when overlay is closed (e.g., by ESC)
-      onCancel?.();
-    },
+    () => answer("cancel"),
   );
   overlay.show();
 
@@ -88,18 +102,12 @@ function show(options: ConfirmOptions): void {
     {
       text: cancelText,
       variant: "secondary",
-      onClick: () => {
-        ConfirmDialog.hide();
-        onCancel?.();
-      },
+      onClick: () => answer("cancel"),
     },
     {
       text: confirmText,
       variant: confirmVariant,
-      onClick: () => {
-        ConfirmDialog.hide();
-        onConfirm();
-      },
+      onClick: () => answer("confirm"),
     },
   ]);
   panel.appendChild(buttonRow);
@@ -111,18 +119,18 @@ function show(options: ConfirmOptions): void {
  * Hide the confirmation dialog
  */
 function hide(): void {
-  if (panel) {
-    panel.style.animation = "uiFadeOut 0.15s ease";
-    setTimeout(() => {
-      panel?.remove();
-      panel = null;
-    }, 150);
+  // This panel goes, never a newer one shown before the fade is over
+  const leaving = panel;
+  panel = null;
+  if (leaving) {
+    leaving.style.animation = "uiFadeOut 0.15s ease";
+    setTimeout(() => leaving.remove(), 150);
   }
 
-  if (overlay) {
-    overlay.hide();
-    overlay = null;
-  }
+  const closing = overlay;
+  overlay = null;
+  // Hidden from outside, the dialog is cancelled (its overlay's close answers)
+  closing?.hide();
 }
 
 /**
