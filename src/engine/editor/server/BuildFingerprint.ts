@@ -6,18 +6,28 @@ import JSZip from "jszip";
 import { type BuildQuality, buildRecipe } from "./BuildRecipe";
 import type { CompilerConfig } from "./CompilerConfig";
 
-const memo = new Map<string, { stamp: string; hash: string }>();
+const memo = new Map<string, { stamp: string; hash: string; hashedAtMs: number }>();
+
+/**
+ * How close to the moment a file was hashed its timestamps may be and still be
+ * trusted. A file rewritten with content of the same size within one tick of
+ * the file system's clock keeps its stamp; one modified this close to its hash
+ * is read again.
+ */
+const STAMP_TRUST_MARGIN_MS = 2_000;
 
 async function digest(file: string): Promise<string> {
   try {
     const info = await stat(file, { bigint: true });
     const stamp = `${info.size}:${info.mtimeNs}:${info.ctimeNs}:${info.ino}`;
     const cached = memo.get(file);
-    if (cached?.stamp === stamp) return cached.hash;
+    const changedMs = Number((info.mtimeNs > info.ctimeNs ? info.mtimeNs : info.ctimeNs) / 1_000_000n);
+    if (cached?.stamp === stamp && changedMs < cached.hashedAtMs - STAMP_TRUST_MARGIN_MS) return cached.hash;
+    const hashedAtMs = Date.now();
     const hash = createHash("sha256");
     for await (const chunk of createReadStream(file)) hash.update(new Uint8Array(chunk));
     const result = hash.digest("hex");
-    memo.set(file, { stamp, hash: result });
+    memo.set(file, { stamp, hash: result, hashedAtMs });
     return result;
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === "ENOENT") return "missing";
