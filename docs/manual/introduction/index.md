@@ -53,5 +53,6 @@ Start with [Getting started](../getting-started/) and use [Feature status](./fea
 
 [SHAGGER](./shagger.md) ports SHAG to Rust, and the native Washiki Washoi
 client is built on it. Its simulation and wire format match SHAG's bit for bit,
-so changes to SHAG's deterministic code and protocol carry over to it; see
-[SHAGGER](./shagger.md) for what that means for a change here.
+so changes to SHAG's deterministic code and protocol carry over to it. It has
+its own manual for the Rust side, which links back here for behaviour; see
+[SHAGGER](./shagger.md) for both, and for what a change here owes it.
