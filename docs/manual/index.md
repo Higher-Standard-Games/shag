@@ -42,7 +42,7 @@ The map check requires compatible external PK3 data. The development server runs
 | Project | What it is |
 | --- | --- |
 | [Washiki Washoi](https://github.com/Higher-Standard-Games/wash-fps) | The arena FPS built on SHAG, at `src/games/fps`, with its own manual |
-| [SHAGGER](./introduction/shagger.md) | The Rust counterpart of SHAG ([repository](https://github.com/Higher-Standard-Games/shagger), [manual](https://github.com/Higher-Standard-Games/shagger/tree/main/docs/manual)) |
+| [SHAGGER](./introduction/shagger.md) | The Rust counterpart of SHAG ([repository](https://github.com/Higher-Standard-Games/shagger), [manual](https://shagger.shag.dev/)) |
 | [wash-fps-rust](https://github.com/Higher-Standard-Games/wash-fps-rust) | The native Washiki Washoi client, built on SHAGGER |
 
 ## For repository agents

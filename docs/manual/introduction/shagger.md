@@ -13,9 +13,8 @@ one.
 
 ## Its manual
 
-SHAGGER has its own manual,
-[`docs/manual`](https://github.com/Higher-Standard-Games/shagger/tree/main/docs/manual)
-in its repository. It does not repeat this one: each of its guides links to
+SHAGGER has its own manual, at [shagger.shag.dev](https://shagger.shag.dev/).
+It does not repeat this one: each of its guides links to
 the SHAG page for the behaviour it ports, and covers only what is particular to
 Rust: the crates and their API, building and testing, the native backends
 (wgpu, winit, cpal, egui, gilrs, rapier), JavaScript number semantics, golden
