@@ -618,9 +618,6 @@ export class SweepCollisionBackend implements CollisionBackend {
     mesh.facetIndex = new CollisionSpatialIndex(items);
   }
 
-  /**
-   * Main trace function - performs swept box collision
-   */
   /** The world part of every trace in WebAssembly (CompiledWorldTrace), once set. */
   private compiledWorld: CompiledWorldTrace | null = null;
 
@@ -628,24 +625,35 @@ export class SweepCollisionBackend implements CollisionBackend {
    * Trace the world part (the BSP tree, clip brushes and patches) of this map
    * with the compiled kernel in `instance` (a fresh instance of
    * WorldTrace.wasm); the movers stay in TypeScript. Call after init; the
-   * next init goes back to TypeScript until this is called again.
+   * next init goes back to TypeScript until this is called again. False,
+   * tracing on in TypeScript, when the kernel cannot take the map (its
+   * memory cannot grow to the map's tables, say).
    */
   useCompiledWorldTrace(instance: WebAssembly.Instance): boolean {
     if (!this.bsp) return false;
     const bsp = this.bsp;
-    this.compiledWorld = CompiledWorldTrace.create(instance, {
-      bsp,
-      textures: this.collisionTextures,
-      brushTexture: (i) => this.getBrushTexture(bsp.brushes[i]),
-      brushBounds: this.brushBounds,
-      brushParents: this.brushParents,
-      excludedBrush: (i) => this.liftBrushes.has(i) || this.brushModelBrushes.has(i),
-      clipBrushIndices: this.clipBrushIndices,
-      faceMeshes: this.faceCollisionMeshes,
-    });
-    return this.compiledWorld !== null;
+    try {
+      this.compiledWorld = CompiledWorldTrace.create(instance, {
+        bsp,
+        textures: this.collisionTextures,
+        brushTexture: (i) => this.getBrushTexture(bsp.brushes[i]),
+        brushBounds: this.brushBounds,
+        brushParents: this.brushParents,
+        excludedBrush: (i) => this.liftBrushes.has(i) || this.brushModelBrushes.has(i),
+        clipBrushIndices: this.clipBrushIndices,
+        faceMeshes: this.faceCollisionMeshes,
+      });
+      return true;
+    } catch (error) {
+      this.compiledWorld = null;
+      console.warn(`[SweepCollisionBackend] World trace stays in TypeScript: ${String(error)}`);
+      return false;
+    }
   }
 
+  /**
+   * Main trace function - performs swept box collision
+   */
   trace(start: Vector3, end: Vector3, options?: TraceOptions, excludeModel = -1, onlyModel = -1): TraceResult {
     if (!this.bsp) {
       return createDefaultTraceResult(start, end);

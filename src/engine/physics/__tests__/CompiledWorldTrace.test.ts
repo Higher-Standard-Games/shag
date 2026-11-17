@@ -21,6 +21,32 @@ describe("the compiled world trace", () => {
     expect(worldTraceInstance()).not.toBeNull();
   });
 
+  it.skipIf(!fs.existsSync(mapPackage))("traces on in TypeScript when the kernel cannot take the map", async () => {
+    const buffer = await resolveMapBspViaIndex([path.join(root, "public/data")], MAP, PK3Loader.createTransient());
+    const backend = new SweepCollisionBackend();
+    await backend.init(BspLoader.loadCollision(buffer!));
+    // A kernel whose memory will not grow, as a map too big for it
+    const instance = worldTraceInstance()!;
+    const exports = instance.exports as Record<string, unknown>;
+    const broken = {
+      exports: {
+        ...exports,
+        alloc: () => {
+          throw new RangeError("WebAssembly.Memory.grow(): Maximum memory size exceeded");
+        },
+      },
+    } as unknown as WebAssembly.Instance;
+    const warn = console.warn;
+    console.warn = () => {};
+    try {
+      expect(backend.useCompiledWorldTrace(broken)).toBe(false);
+    } finally {
+      console.warn = warn;
+    }
+    const hit = backend.trace(new Vector3(0, 10000, 0), new Vector3(0, -10000, 0));
+    expect(hit.fraction).toBeLessThan(1);
+  });
+
   it.skipIf(!fs.existsSync(mapPackage))(
     "answers every trace on a map as the TypeScript world walk does",
     async () => {
