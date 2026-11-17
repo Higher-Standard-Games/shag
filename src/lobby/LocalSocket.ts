@@ -46,13 +46,17 @@ export class LocalSocket extends EventEmitter {
     });
   }
 
+  /**
+   * Close both ends. Frames already sent still arrive first, as over a
+   * socket: the peer closes on a later turn, after the frames queued before it.
+   */
   close(_code?: number, _reason?: string): void {
     if (this.readyState === CLOSED) return;
     this.readyState = CLOSED;
     const peer = this.peer;
     this.peer = null;
     setImmediate(() => this.emit("close"));
-    if (peer) peer.close();
+    if (peer) setImmediate(() => peer.close());
   }
 
   /** As `ws`, for the lobby's shutdown path. */
