@@ -429,7 +429,7 @@ export class LobbyServer {
       let open = 0;
       for (const other of this.players.values()) if (other.address === address) open++;
       if (open >= MAX_CONNECTIONS_PER_ADDRESS) {
-        log.warnRateLimited("LobbyServer", `Refused a connection: ${open} already open from one address`);
+        log.warnRateLimited("LobbyServer:connections", `Refused a connection: ${open} already open from one address`);
         ws.close(TRY_AGAIN_LATER_CODE, "Too many connections");
         return;
       }
@@ -458,7 +458,7 @@ export class LobbyServer {
     ws.on("message", (data) => {
       if (!player.isBot && !this.messageBudget.tryRecord(player.id)) {
         log.warnRateLimited(
-          "LobbyServer",
+          "LobbyServer:flood",
           `Closed ${playerId}: more than ${MESSAGE_LIMIT.limit} messages in ${MESSAGE_LIMIT.windowMs / 1000} s`,
         );
         ws.close(FLOOD_CLOSE_CODE, "Too many messages");
@@ -468,11 +468,11 @@ export class LobbyServer {
       try {
         msg = JSON.parse(data.toString()) as LobbyMessage;
       } catch {
-        log.warnRateLimited("LobbyServer", `Unreadable message from ${playerId}`);
+        log.warnRateLimited("LobbyServer:frames", `Unreadable message from ${playerId}`);
         return;
       }
       if (typeof msg !== "object" || msg === null) {
-        log.warnRateLimited("LobbyServer", `Message that is not an object from ${playerId}`);
+        log.warnRateLimited("LobbyServer:frames", `Message that is not an object from ${playerId}`);
         return;
       }
       try {
@@ -626,7 +626,7 @@ export class LobbyServer {
       }
       default:
         // The type is whatever the client sent; a client sending junk gets one line per 5 s.
-        log.warnRateLimited("LobbyServer", `Unknown message type: ${String(msg.type).slice(0, 64)}`);
+        log.warnRateLimited("LobbyServer:frames", `Unknown message type: ${String(msg.type).slice(0, 64)}`);
     }
   }
 
@@ -2312,7 +2312,7 @@ export class LobbyServer {
   private deliver(player: ConnectedPlayer, data: string): void {
     const queued = (player.ws as { bufferedAmount?: number }).bufferedAmount ?? 0;
     if (queued + data.length > MAX_QUEUED_BYTES) {
-      log.warnRateLimited("LobbyServer", `Closed ${player.id}: not reading (${queued} bytes queued)`);
+      log.warnRateLimited("LobbyServer:backpressure", `Closed ${player.id}: not reading (${queued} bytes queued)`);
       player.ws.terminate?.();
       return;
     }
