@@ -32,19 +32,22 @@ describe("one file out of a pk3 on disk", () => {
     expect(read!.byteLength).toBe(bsp.length);
   });
 
-  it("copies a small stored entry out of Node's shared Buffer pool, leaving the pool whole", async () => {
-    const small = Uint8Array.from({ length: 300 }, (_, i) => i % 256);
-    const file = await pk3({ "scripts/small.shader": small }, "STORE");
-    // A pooled Buffer from before the read, which a detached pool would empty
-    const before = Buffer.from("still here");
-    for (let i = 0; i < 40; i++) {
-      const read = readZipEntry(file, "scripts/small.shader");
-      expect(new Uint8Array(read!)).toEqual(small);
-      expect(read!.byteLength).toBe(small.length);
-    }
-    expect(before.toString()).toBe("still here");
-    expect(Buffer.allocUnsafe(16).byteLength).toBe(16);
-  });
+  it.each(["STORE", "DEFLATE"] as const)(
+    "copies a small %s entry out of Node's shared Buffer pool, leaving the pool whole",
+    async (compression) => {
+      const small = Uint8Array.from({ length: 300 }, (_, i) => i % 256);
+      const file = await pk3({ "scripts/small.shader": small }, compression);
+      // A pooled Buffer from before the read, which a detached pool would empty
+      const before = Buffer.from("still here");
+      for (let i = 0; i < 200; i++) {
+        const read = readZipEntry(file, "scripts/small.shader");
+        expect(new Uint8Array(read!)).toEqual(small);
+        expect(read!.byteLength).toBe(small.length);
+      }
+      expect(before.toString()).toBe("still here");
+      expect(Buffer.allocUnsafe(16).byteLength).toBe(16);
+    },
+  );
 
   it("answers null for an entry that is not there, or a file that is no zip", async () => {
     const file = await pk3({ "maps/other.bsp": bsp }, "DEFLATE");
