@@ -751,8 +751,11 @@ export class AudioManager {
     this.currentMusic.loop = this.currentPlaylist.tracks.length === 1 && this.currentPlaylist.loop !== false;
     this.currentMusic.volume = fadeIn ? 0 : this.musicVolume;
 
-    this.currentMusic.addEventListener("ended", () => {
-      this.nextTrack();
+    // Only the track that is playing moves the playlist on: one put aside or
+    // fading out may still reach its end, and must not skip the new music
+    const playing = this.currentMusic;
+    playing.addEventListener("ended", () => {
+      if (this.currentMusic === playing) this.nextTrack();
     });
 
     this.currentMusic.play().catch((e) => {
