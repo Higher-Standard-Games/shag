@@ -27,8 +27,6 @@ const CAMPAIGN_MODELS = ["police", "female", "cartel", "riotkitty", "robot"] as 
  * plays (a team deathmatch, and survival), which no Play page offers.
  */
 const CAMPAIGN_GAMETYPES = ["duel", "amphi", "ffa", "snd", "tdm", "survival"] as const;
-/** The campaign-only gametypes: no rating pool, so their matches clear progress without being rated. */
-export const UNRATED_CAMPAIGN_GAMETYPES: readonly string[] = ["tdm", "survival"];
 const MAX_BOT_SCALE = 3;
 /** The most health or armor a campaign bot may spawn with. */
 const MAX_BOT_STAT = 500;

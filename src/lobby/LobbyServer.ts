@@ -32,7 +32,6 @@ import {
   lobbyCampaignInfo,
   parseCampaign,
   roomUnlockedThrough,
-  UNRATED_CAMPAIGN_GAMETYPES,
   unlockedThrough,
 } from "./Campaign";
 import { CampaignStore } from "./CampaignStore";
@@ -616,6 +615,8 @@ export class LobbyServer {
   private campaignBots = new Set<string>();
   /** Running campaign matches: the mission each plays. */
   private readonly campaignMatches = new Map<string, CampaignMissionInfo>();
+  /** Campaign rooms whose bots are being invited, and whether another pass was asked for meanwhile. */
+  private readonly campaignFills = new Map<string, boolean>();
   private readonly PK3_DIR = path.join(process.cwd(), "public", "data");
 
   private readonly botSecret: string | undefined;
@@ -1469,6 +1470,12 @@ export class LobbyServer {
     // persist or start a match once every human has left.
     if (lobby.state !== "playing") this.evictBotsIfNoHumans(lobby);
 
+    // A campaign room starts only with all its mission's bots: one that left
+    // while it waits is invited again, or the room would wait for ever
+    if (player.isBot && lobby.campaign && lobby.state === "waiting" && !lobby.isStarting && lobby.players.size > 0) {
+      background(this.fillCampaignBots(lobby), "LobbyServer");
+    }
+
     // Destroy empty lobbies — EXCEPT mid-match or during the return window.
     // With per-match servers every player's lobby socket drops at once when
     // they reload back from the game; they rejoin via the ?lobby= deep link
@@ -1923,23 +1930,38 @@ export class LobbyServer {
     background(this.fillCampaignBots(lobby), "LobbyServer");
   }
 
-  /** Invite the mission's bots one at a time, until each is seated or the room closes or starts. */
+  /**
+   * Invite the mission's bots one at a time, until each is seated or the room
+   * closes or starts. One pass runs per room: asked again meanwhile, it makes
+   * another when done, so no bot is invited twice at once.
+   */
   private async fillCampaignBots(lobby: MatchLobby): Promise<void> {
+    if (this.campaignFills.has(lobby.id)) {
+      this.campaignFills.set(lobby.id, true);
+      return;
+    }
     const isBot = (id: string) => this.players.get(id)?.isBot === true;
-    for (const bot of lobby.missingCampaignBots(isBot)) {
-      if (this.lobbies.get(lobby.id) !== lobby || lobby.state !== "waiting" || lobby.isStarting) return;
-      if (!lobby.missingCampaignBots(isBot).includes(bot)) continue;
-      try {
-        await this.requestBotForLobby(lobby, bot.difficulty as BotPreset, bot.name);
-      } catch (err) {
-        if (this.lobbies.get(lobby.id) !== lobby) return;
-        console.warn(`[LobbyServer] Campaign bot ${bot.name} for ${lobby.id}: ${(err as Error).message}`);
-        this.broadcastToLobby(lobby.id, {
-          type: "lobby:error",
-          error: "The mission's opponents could not be brought in. Leave and try again.",
-        });
-        return;
-      }
+    try {
+      do {
+        this.campaignFills.set(lobby.id, false);
+        for (const bot of lobby.missingCampaignBots(isBot)) {
+          if (this.lobbies.get(lobby.id) !== lobby || lobby.state !== "waiting" || lobby.isStarting) return;
+          if (!lobby.missingCampaignBots(isBot).includes(bot)) continue;
+          try {
+            await this.requestBotForLobby(lobby, bot.difficulty as BotPreset, bot.name);
+          } catch (err) {
+            if (this.lobbies.get(lobby.id) !== lobby) return;
+            console.warn(`[LobbyServer] Campaign bot ${bot.name} for ${lobby.id}: ${(err as Error).message}`);
+            this.broadcastToLobby(lobby.id, {
+              type: "lobby:error",
+              error: "The mission's opponents could not be brought in. Leave and try again.",
+            });
+            return;
+          }
+        }
+      } while (this.campaignFills.get(lobby.id));
+    } finally {
+      this.campaignFills.delete(lobby.id);
     }
   }
 
@@ -2231,7 +2253,7 @@ export class LobbyServer {
       });
       // The campaign-only gametypes have no rating pool: their results clear
       // campaign progress and are otherwise not recorded
-      const rated = !(lobby.campaign && UNRATED_CAMPAIGN_GAMETYPES.includes(lobby.campaign.gametype));
+      const rated = !lobby.campaign || isRatingMode(lobby.campaign.gametype);
       const campaignRules = lobby.campaign ? campaignMatchRules(lobby.campaign) : null;
       const resultContext: ResultContext = {
         ranked: isRankedRoster(lobby.gametype, admissionSeats),
@@ -2684,7 +2706,6 @@ export class LobbyServer {
 
   // ── Demo Scanning ────────────────────────────────────────────
 
-  /** The demos anyone may browse, their own included: long enough to be a match (MIN_LISTED_DEMO_MS). */
   /**
    * The demos anyone may browse: long enough to be a match
    * (MIN_LISTED_DEMO_MS), and not a campaign mission, which only its own

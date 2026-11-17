@@ -240,6 +240,21 @@ describe("campaign rooms", () => {
     expect(starts).toHaveLength(1);
   });
 
+  it("invites a mission bot again when it leaves the waiting room", async () => {
+    const { internal, invited, starts } = makeServer();
+    const host = connect(internal, "Host");
+    const room = openMission(internal, host, "cartel-contract")!;
+    await vi.waitFor(() => expect(invited).toHaveLength(1));
+    const king = seatBot(internal, room, "Cartel_King");
+    // Its connection drops before the player readies
+    internal.handleMessage(king.player, { type: "lobby:leave", lobbyId: room.id });
+    await vi.waitFor(() => expect(invited).toHaveLength(2));
+    expect(invited[1]).toEqual({ difficulty: "easy", name: "Cartel_King" });
+    seatBot(internal, room, "Cartel_King");
+    internal.handleMessage(host.player, { type: "lobby:ready", lobbyId: room.id, ready: true });
+    expect(starts).toHaveLength(1);
+  });
+
   it("puts enemy bots on the other side, and keeps strangers and extra bots out", () => {
     const { internal } = makeServer();
     const host = connect(internal, "Host");
