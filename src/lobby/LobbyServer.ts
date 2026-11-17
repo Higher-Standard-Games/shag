@@ -112,6 +112,12 @@ const CHAT_LIMIT = { limit: 5, windowMs: 5_000 };
  * connection past this is flooding and is closed.
  */
 const MESSAGE_LIMIT = { limit: 200, windowMs: 10_000 };
+/** Open connections from one address (not loopback) at once; enough for a household or a LAN party. */
+const MAX_CONNECTIONS_PER_ADDRESS = 32;
+/** How long a connection has to log in. */
+const LOGIN_DEADLINE_MS = 30_000;
+/** Close code for "try again later" (RFC 6455). */
+const TRY_AGAIN_LATER_CODE = 1013;
 /** Bytes queued for a connection past which it is taken to have stopped reading. */
 const MAX_QUEUED_BYTES = 4 * 1024 * 1024;
 /** Close code for a connection closed for flooding (RFC 6455 policy violation). */
@@ -411,6 +417,16 @@ export class LobbyServer {
   // ── Connection Handling ──────────────────────────────────────
 
   private handleConnection(ws: WebSocket, address: string = "unknown"): void {
+    // One address holding many sockets open is a flood, not a household
+    if (!isLoopbackAddress(address)) {
+      let open = 0;
+      for (const other of this.players.values()) if (other.address === address) open++;
+      if (open >= MAX_CONNECTIONS_PER_ADDRESS) {
+        log.warnRateLimited("LobbyServer", `Refused a connection: ${open} already open from one address`);
+        ws.close(TRY_AGAIN_LATER_CODE, "Too many connections");
+        return;
+      }
+    }
     const playerId = `p_${this.nextPlayerId++}`;
     console.log(`[LobbyServer] New connection → ${playerId}`);
 
@@ -426,6 +442,11 @@ export class LobbyServer {
       accountId: null,
     };
     this.players.set(playerId, player);
+    // A connection that never logs in is closed rather than held
+    const loginDeadline = setTimeout(() => {
+      if (!player.authenticated) ws.close(FLOOD_CLOSE_CODE, "Not logged in");
+    }, LOGIN_DEADLINE_MS);
+    loginDeadline.unref?.();
 
     ws.on("message", (data) => {
       if (!player.isBot && !this.messageBudget.tryRecord(player.id)) {
@@ -455,6 +476,7 @@ export class LobbyServer {
     });
 
     ws.on("close", () => {
+      clearTimeout(loginDeadline);
       this.handleDisconnect(player);
     });
 
