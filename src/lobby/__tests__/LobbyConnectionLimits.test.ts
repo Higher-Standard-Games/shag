@@ -4,7 +4,7 @@ import { WebSocket } from "ws";
 import { LobbyServer } from "../LobbyServer";
 
 class FakeSocket extends EventEmitter {
-  readyState = WebSocket.OPEN;
+  readyState: number = WebSocket.OPEN;
   closed: number | null = null;
   send = vi.fn();
   close(code: number) {
