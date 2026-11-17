@@ -559,6 +559,36 @@ describe("MatchLobbyView bots", () => {
     view.destroy();
   });
 
+  it("keeps filling when an answered bot request's safety timer runs out during a later one", () => {
+    vi.useFakeTimers();
+    const client = new FakeLobbyClient();
+    const room: MatchLobbyInfo = {
+      ...lobby,
+      gametype: "snd",
+      visibility: "private",
+      players: [lobby.players[0]],
+      config: { maxPlayers: 10, minPlayers: 2, hasTeams: true },
+    };
+    const view = new MatchLobbyView("snd", client as never, room, "host", { fillWithBots: 4 });
+    view.root.querySelector<HTMLButtonElement>(".raised-key--ready")?.click();
+    // Each bot takes three seconds to seat; the first request's timer runs out while the third waits
+    for (let n = 1; n <= 3; n += 1) {
+      vi.advanceTimersByTime(3000);
+      client.emit("lobby:player_joined", {
+        player: { id: `bot${n}`, name: `Bot ${n}`, team: n % 2 ? "bravo" : "alpha", ready: true, botLevel: "hard" },
+      });
+    }
+    vi.advanceTimersByTime(1000);
+    expect(client.setReady).not.toHaveBeenCalled();
+    expect(client.inviteBot).toHaveBeenCalledTimes(4);
+    client.emit("lobby:player_joined", {
+      player: { id: "bot4", name: "Bot 4", team: "alpha", ready: true, botLevel: "hard" },
+    });
+    expect(client.setReady).toHaveBeenCalledWith(room.id, true);
+    view.destroy();
+    vi.useRealTimers();
+  });
+
   it("sends a held Ready when quick play stops early, and an unready at once", () => {
     const client = new FakeLobbyClient();
     const room: MatchLobbyInfo = {

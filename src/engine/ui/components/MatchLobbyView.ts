@@ -99,6 +99,8 @@ export class MatchLobbyView {
    * as soon as it had its minimum, short of the bots quick play asked for.
    */
   private heldReady = false;
+  /** Which bot request is waiting: a request's safety timer gives up only on its own. */
+  private botRequest = 0;
   private phase: "waiting" | "starting" = "waiting";
   /** True when the room's match was already running as this player walked in. */
   private matchInProgress = false;
@@ -1149,6 +1151,7 @@ export class MatchLobbyView {
     if (this.players.length >= this.config.maxPlayers) return;
 
     this.inviteBotPending = true;
+    const request = ++this.botRequest;
     if (difficulty) this.lobbyClient.inviteBot(this.lobbyId, difficulty);
     else this.lobbyClient.inviteBot(this.lobbyId);
 
@@ -1158,9 +1161,10 @@ export class MatchLobbyView {
     }
     this.syncBotLevelKey();
 
-    // Safety: clear the pending state if the server never answers.
+    // Safety: clear the pending state if the server never answers this request
+    // (an answered one's timer must not end a later request's wait)
     this.schedule(() => {
-      if (this.inviteBotPending) {
+      if (this.inviteBotPending && request === this.botRequest) {
         this.inviteBotPending = false;
         this.endAutoFill();
         this.updateInviteBotState();
