@@ -35,7 +35,8 @@ export default defineConfig({
           text: 'Introduction',
           items: [
             { text: 'What is SHAG Engine?', link: '/introduction/' },
-            { text: 'Features', link: '/introduction/features' }
+            { text: 'Features', link: '/introduction/features' },
+            { text: 'SHAGGER (Rust)', link: '/introduction/shagger' }
           ]
         },
         {

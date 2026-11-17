@@ -32,6 +32,32 @@ rather than reading it as off.
 
 `bsp collision point` reports the contents flags at the active camera. Use `help bsp` and `help freefly_collision` for the complete diagnostics in the build being tested.
 
+### The world trace in WebAssembly
+
+The world part of `SweepCollisionBackend.trace` (the BSP node walk, leaf
+brushes, the clip-brush fallback and patch facets) also exists in Rust,
+compiled to WebAssembly: `native/collision-wasm`, built into
+`src/engine/physics/WorldTrace.wasm`. It gives the same answers bit for bit,
+at about twice the speed; movers (lifts, doors, buttons) stay in TypeScript.
+It reads the backend's own prepared tables, so it needs nothing of its own at
+load.
+
+- **Game servers and bots** (Node) use it through
+  `createHeadlessCollisionWorld(bsp, { compiled: true })`, with an instance from
+  `WorldTraceWasm.ts`. `build:server` copies the module beside the bundles.
+- **The browser** fetches it once a map's collision is up
+  (`WorldTraceWasmBrowser.ts`), and `CollisionManager.useCompiledWorldTrace`
+  switches to it.
+
+Wherever it cannot load or be built for a map, the TypeScript walk carries on
+with the same answers: the server logs which one it uses
+(`World trace: compiled (WebAssembly)` or `TypeScript`). The built module is
+committed, so nothing else needs Rust; after changing the Rust, run
+`npm run build:collision-wasm` (Rust with the `wasm32-unknown-unknown`
+target). A test fails when the Rust source has changed without a rebuild. See
+the [module's README](https://github.com/Higher-Standard-Games/shag/blob/main/native/collision-wasm/README.md) for recording and
+comparing traces.
+
 ## Havok
 
 Havok is initialized through `PhysicsSystem` and is primarily for physics bodies in a Babylon scene:

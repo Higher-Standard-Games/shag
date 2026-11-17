@@ -37,6 +37,14 @@ npm run dev
 
 The map check requires compatible external PK3 data. The development server runs at [http://localhost:3000](http://localhost:3000).
 
+## Related projects
+
+| Project | What it is |
+| --- | --- |
+| [Washiki Washoi](https://github.com/Higher-Standard-Games/wash-fps) | The arena FPS built on SHAG, at `src/games/fps`, with its own manual |
+| [SHAGGER](./introduction/shagger.md) | The Rust counterpart of SHAG ([repository](https://github.com/Higher-Standard-Games/shagger)) |
+| [wash-fps-rust](https://github.com/Higher-Standard-Games/wash-fps-rust) | The native Washiki Washoi client, built on SHAGGER |
+
 ## For repository agents
 
 Read the root `AGENTS.md` before changing code. Verify APIs in source, keep FPS extensions under `src/games/fps/` by default, test headlessly first, and run the required renderer/networking regressions for critical-system edits.

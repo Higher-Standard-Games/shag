@@ -11,7 +11,7 @@ npm install
 npm run dev
 ```
 
-The FPS game in `src/games/fps` is a Git submodule with its own history. A change that spans both carries the same branch name in both repositories, for example `v0.9.29-my-feature`, created from `main` in each.
+The FPS game in `src/games/fps` is a Git submodule with its own history. A change that spans both carries the same branch name in both repositories, for example `fix/demo-seek`, created from `staging` in each. Work is merged into `staging` first; `main` is the production branch and deploys automatically.
 
 Read the repository `AGENTS.md` before changing code: it records the architecture rules, the validation commands and the release process the project follows.
 
@@ -37,8 +37,9 @@ src/
 ├── shared/     # Deterministic client-server contracts, no Babylon or DOM
 ├── games/      # Game modules; fps is a git submodule
 ├── lobby/      # Matchmaking, accounts, results, server spawning
-├── bot/        # Bot service
-└── cli/        # Headless tools
+├── cli/        # Headless tools
+├── tools/      # Map and heightmap generators
+└── electron/   # Desktop wrapper
 ```
 
 **Rule:** engine code does not import game code. Where the engine needs
@@ -56,6 +57,9 @@ something a game owns, it goes through a registry; see
 6. Renderer and networking changes also pass the regression set in `AGENTS.md`:
    `test:simulation`, `test:physics`, `server:tick`, `server:fuzz -- --ticks 1000`
    and the headless `bsp load washoi_dm2` check.
+7. A change to deterministic code in `src/shared` or to the wire format also
+   changes what [SHAGGER](../introduction/shagger.md), the Rust counterpart,
+   must match: say so in the pull request.
 
 ### Commit messages
 

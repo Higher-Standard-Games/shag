@@ -10,7 +10,7 @@ the server build recipe at `src/games/fps/scripts/build-servers.mjs` in the
 assembled checkout. Reusable lobby, account, result and process-management
 services remain in SHAG. The examples below start at the assembled SHAG root;
 the game package owns the commands. Install dependencies once at that root.
-Inside `src/games/fps`, use `npm run lobby:server` or `npm run bot:server`.
+Inside `src/games/fps`, use `npm run lobby:server`.
 Both forms launch with the SHAG root as their working directory, so relative
 `--data-dir` paths and `public/data/` keep the same location. The outer package
 does not provide a `lobby:server` shortcut.
@@ -44,7 +44,8 @@ the server artifacts under `dist-server/`, then runs the lobby with Node.
 version recorded in `.bun-version`. Node and npm remain required for building
 and development; Bun is optional.
 `npm --prefix src/games/fps run lobby:server:dev` retains the Vite-based development launch.
-The bot server follows the same pattern: `npm --prefix src/games/fps run bot:server` builds and runs
+The lobby runs bots itself (see [Bots without a bot server](#bots-without-a-bot-server)).
+The optional bot server follows the same pattern: `npm --prefix src/games/fps run bot:server` builds and runs
 `dist-server/bot-server.mjs`, `npm --prefix src/games/fps run bot:server:dev` the Vite launch.
 
 A bundled server starts in about a quarter of a second and uses about half the
@@ -650,8 +651,7 @@ loads the map once for them and exits with the match. Match reports go to
 runner with ten bots on `washoi_snd1`, about 175 MB while its match lasts.
 
 With `--bot-server` the lobby asks a running `bot:server` for bots instead, over
-its control port, as before match runners. It is there while production still
-runs the bot server as a service.
+its control port (9100 on `127.0.0.1`, or `BOT_SERVER_URL`).
 
 ## Bot behaviour
 

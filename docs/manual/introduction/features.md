@@ -64,7 +64,7 @@ Input is action-based. The FPS module registers the active default action map, i
 | `test:simulation` / `test:physics` | Deterministic movement/collision checks |
 | `server:tick` / `server:fuzz` | Server regression and fuzz runs |
 | `demo:record` / `demo:verify` | Demo capture and deterministic reconciliation |
-| `lobby:server` / `bot:server` | Lobby with accounts and rooms; the bot fleet it asks for players |
+| `lobby:server` / `bot:server` | Lobby with accounts, rooms and the bots it seats; an optional separate bot server |
 | `docs:api` / `docs:build` | TypeDoc and manual builds |
 
 ## Platform status

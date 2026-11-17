@@ -26,9 +26,8 @@ Washoi from this assembled checkout, use its package commands:
 
 ```bash
 npm --prefix src/games/fps run dev
-# Separate terminals for the lobby and bot service:
+# In a separate terminal, the lobby (it also runs the bots):
 npm --prefix src/games/fps run lobby:server
-npm --prefix src/games/fps run bot:server
 ```
 
 The game package selects Washoi automatically. Its commands also work as

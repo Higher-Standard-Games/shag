@@ -48,3 +48,10 @@ Maps can be built in SHAGGED, the brush editor built into the engine, which comp
 Loading, collision, simulation, server behavior, and protocol work can be checked headlessly. WebGL material output, input feel, and native wrappers still require their target runtime.
 
 Start with [Getting started](../getting-started/) and use [Feature status](./features.md) to distinguish implemented paths from partial or planned ones.
+
+## The Rust counterpart
+
+[SHAGGER](./shagger.md) ports SHAG to Rust, and the native Washiki Washoi
+client is built on it. Its simulation and wire format match SHAG's bit for bit,
+so changes to SHAG's deterministic code and protocol carry over to it; see
+[SHAGGER](./shagger.md) for what that means for a change here.
