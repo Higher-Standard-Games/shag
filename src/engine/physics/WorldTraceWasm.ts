@@ -12,7 +12,10 @@ import { fileURLToPath } from "node:url";
 const FILE = "WorldTrace.wasm";
 let compiled: WebAssembly.Module | null | undefined;
 
-/** A fresh instance of the module, for one map, or null without the module. */
+/**
+ * A fresh instance of the module, for one map, or null without the module or
+ * when an instance cannot be made (its memory refused on a host short of it).
+ */
 export function worldTraceInstance(): WebAssembly.Instance | null {
   if (compiled === undefined) {
     try {
@@ -22,5 +25,11 @@ export function worldTraceInstance(): WebAssembly.Instance | null {
       compiled = null;
     }
   }
-  return compiled ? new WebAssembly.Instance(compiled, {}) : null;
+  if (!compiled) return null;
+  try {
+    return new WebAssembly.Instance(compiled, {});
+  } catch (error) {
+    console.warn(`[WorldTraceWasm] No instance, tracing in TypeScript: ${String(error)}`);
+    return null;
+  }
 }
