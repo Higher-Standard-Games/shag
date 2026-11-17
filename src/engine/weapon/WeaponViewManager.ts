@@ -95,6 +95,8 @@ export interface FollowedWeaponBobInput {
   bobCycle: number;
   /** Whether they are aiming down sights (holding alt fire). */
   aiming?: boolean;
+  /** Who is watched: a new one's aim is their own, never one held through a switch. */
+  entityId?: string;
 }
 
 // Note: MD3 models are in Quake units (~1 unit = 1 inch)
@@ -255,6 +257,10 @@ export class WeaponViewManager {
   public updateFollowedBob(input: FollowedWeaponBobInput): void {
     this.followedBobActive = true;
     this.followedAiming = input.aiming ?? false;
+    if (input.entityId !== this.followedEntity) {
+      this.followedEntity = input.entityId;
+      this.followedChanged = true;
+    }
     this.weaponBob.update(
       input.deltaTime,
       input.grounded,
@@ -272,6 +278,8 @@ export class WeaponViewManager {
   public clearFollowedBob(): void {
     this.followedBobActive = false;
     this.followedAiming = false;
+    this.followedEntity = undefined;
+    this.followedChanged = true;
     this.weaponBob.reset();
   }
 
@@ -502,6 +510,9 @@ export class WeaponViewManager {
   private chargeWeaponDef: unknown = null;
   /** Aim held through a weapon switch: it charges nothing until let go, as on the server. */
   private aimHeldOver = false;
+  /** The watched player, and whether they changed since the last frame drawn. */
+  private followedEntity: string | undefined;
+  private followedChanged = false;
   /** Each view mesh's world scale over its weapon root's, fixed once the model is loaded. */
   private readonly meshScaleUnderRoot = new WeakMap<AbstractMesh, number>();
 
@@ -1864,6 +1875,25 @@ export class WeaponViewManager {
   /**
    * Update weapon bob animation synced with view bob
    */
+  /**
+   * Whether the blade in hand is charging, from the aim held this frame. Aim
+   * held through a switch charges nothing until it is let go and pressed
+   * again; switching whom you watch is not a switch, so their charge shows
+   * at once.
+   */
+  private bladeCharging(aiming: boolean): boolean {
+    if (this.followedChanged) {
+      this.followedChanged = false;
+      this.chargeWeaponDef = this.currentWeaponDef;
+      this.aimHeldOver = false;
+    } else if (this.currentWeaponDef !== this.chargeWeaponDef) {
+      this.chargeWeaponDef = this.currentWeaponDef;
+      this.aimHeldOver = aiming;
+    }
+    if (!aiming) this.aimHeldOver = false;
+    return !!(aiming && !this.aimHeldOver && this.currentWeaponDef?.meleeRadius);
+  }
+
   private updateWeaponBob(deltaTime: number): void {
     if (!this.currentWeapon || !this.weaponRoot) return;
 
@@ -1932,13 +1962,7 @@ export class WeaponViewManager {
     this.applyGunSize(mv.get("cl_gunsize"));
 
     // === Blade charge effects (delegated) ===
-    // Aim held through a switch charges nothing until it is let go and pressed again
-    if (this.currentWeaponDef !== this.chargeWeaponDef) {
-      this.chargeWeaponDef = this.currentWeaponDef;
-      this.aimHeldOver = aiming === true;
-    }
-    if (!aiming) this.aimHeldOver = false;
-    const isBladeCharging = !!(aiming && !this.aimHeldOver && this.currentWeaponDef?.meleeRadius);
+    const isBladeCharging = this.bladeCharging(aiming === true);
     const chargeResult = this.weaponCharge.update(
       isBladeCharging,
       this.currentWeaponDef?.chargeTime || 1.0,
