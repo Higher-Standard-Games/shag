@@ -434,6 +434,17 @@ describe("DemoAnalyzer", () => {
       expect(chain([0, 4, 8, 12, 16])[0]?.killCount).toBe(5);
     });
 
+    it("splits a spree that keeps up for minutes into chains of at most thirty seconds", () => {
+      const offsets = Array.from({ length: 40 }, (_, i) => i * 4);
+      const chains = chain(offsets);
+      // Neighbouring chains overlap at their edges, so the analyzer keeps some of them
+      expect(chains.length).toBeGreaterThan(1);
+      for (const h of chains) {
+        const ticksOf = h.kills!.map((k) => k.tick);
+        expect(ticksOf.at(-1)! - ticksOf[0]).toBeLessThanOrEqual(s(30));
+      }
+    });
+
     it("calls frags landing within three seconds a multi-kill", () => {
       const [h] = chain([0, 2.5]);
       expect(h.type).toBe("multi_kill");

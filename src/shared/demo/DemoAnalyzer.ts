@@ -179,6 +179,12 @@ interface PlayerTracker {
  */
 const SEQUENCE_PAIR_SECONDS = 5;
 const SEQUENCE_TRIPLE_SECONDS = 10;
+/**
+ * The longest a chain runs, first frag to last: a spree that keeps up longer
+ * goes on as a new chain. Unbounded, a strong player's run against weak bots
+ * became one scene of several minutes, the whole reel or over its length.
+ */
+const SEQUENCE_MAX_SECONDS = 30;
 /** A chain whose frags all land within this is one multi-kill; a longer one is a frag sequence. */
 const MULTI_KILL_SPAN_SECONDS = 3;
 /** How often a player's route is sampled for a camera following a frag sequence. */
@@ -670,6 +676,7 @@ export class DemoAnalyzer {
     const pair = SEQUENCE_PAIR_SECONDS * tickRate;
     const triple = SEQUENCE_TRIPLE_SECONDS * tickRate;
     const span = MULTI_KILL_SPAN_SECONDS * tickRate;
+    const longest = SEQUENCE_MAX_SECONDS * tickRate;
     const diedBetween = (player: string, from: number, to: number) =>
       (deaths.get(player) ?? []).some((tick) => tick > from && tick < to);
 
@@ -705,6 +712,7 @@ export class DemoAnalyzer {
           const makesThree = after !== undefined && after - previous <= triple && !diedBetween(killer, tick, after);
           if (tick - previous > pair && tick - beforeThat > triple && !makesThree) break;
           if (diedBetween(killer, previous, tick)) break;
+          if (tick - group[0].peakTick > longest) break;
           group.push(playerFrags[j]);
           j++;
         }
