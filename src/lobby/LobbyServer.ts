@@ -112,6 +112,8 @@ const CHAT_LIMIT = { limit: 5, windowMs: 5_000 };
  * connection past this is flooding and is closed.
  */
 const MESSAGE_LIMIT = { limit: 200, windowMs: 10_000 };
+/** Bytes queued for a connection past which it is taken to have stopped reading. */
+const MAX_QUEUED_BYTES = 4 * 1024 * 1024;
 /** Close code for a connection closed for flooding (RFC 6455 policy violation). */
 const FLOOD_CLOSE_CODE = 1008;
 /** Players online at once when the operator sets no cap. Bots don't count. */
@@ -2270,9 +2272,22 @@ export class LobbyServer {
   // ── Helpers ──────────────────────────────────────────────────
 
   private send(player: ConnectedPlayer, msg: LobbyMessage): void {
-    if (player.ws.readyState === WebSocket.OPEN) {
-      player.ws.send(JSON.stringify(msg));
+    if (player.ws.readyState === WebSocket.OPEN) this.deliver(player, JSON.stringify(msg));
+  }
+
+  /**
+   * Queue a frame for a connection, unless it has stopped reading: a client
+   * that never reads would otherwise hold every broadcast in the lobby's
+   * memory. It is cut off, as the game server cuts off a stalled reader.
+   */
+  private deliver(player: ConnectedPlayer, data: string): void {
+    const queued = (player.ws as { bufferedAmount?: number }).bufferedAmount ?? 0;
+    if (queued + data.length > MAX_QUEUED_BYTES) {
+      log.warnRateLimited("LobbyServer", `Closed ${player.id}: not reading (${queued} bytes queued)`);
+      player.ws.terminate?.();
+      return;
     }
+    player.ws.send(data);
   }
 
   private broadcast(msg: LobbyMessage, excludeId?: string): void {
@@ -2280,9 +2295,7 @@ export class LobbyServer {
     for (const player of this.players.values()) {
       if (player.id === excludeId) continue;
       if (!player.authenticated) continue;
-      if (player.ws.readyState === WebSocket.OPEN) {
-        player.ws.send(data);
-      }
+      if (player.ws.readyState === WebSocket.OPEN) this.deliver(player, data);
     }
   }
 
@@ -2294,9 +2307,7 @@ export class LobbyServer {
     for (const lp of lobby.players.values()) {
       if (lp.id === excludeId) continue;
       const player = this.players.get(lp.id);
-      if (player && player.ws.readyState === WebSocket.OPEN) {
-        player.ws.send(data);
-      }
+      if (player && player.ws.readyState === WebSocket.OPEN) this.deliver(player, data);
     }
   }
 

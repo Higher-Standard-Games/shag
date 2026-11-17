@@ -219,4 +219,17 @@ describe("room chat", () => {
     send(server, cara.player, { type: "lobby:create", gametype: "y".repeat(500) });
     expect(messages(cara.sent, "lobby:error").at(-1)?.error).toBe(`Unknown gametype: ${"y".repeat(32)}`);
   });
+
+  it("cuts off a connection that has stopped reading instead of queueing for it", () => {
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    const server = makeServer();
+    const alice = connect(server, "Alice");
+    const stalled = connect(server, "Bob");
+    const terminate = vi.fn();
+    Object.assign(stalled.player.ws, { bufferedAmount: 4 * 1024 * 1024, terminate });
+    send(server, alice.player, { type: "chat:send", text: "hello" });
+    expect(terminate).toHaveBeenCalledOnce();
+    expect(messages(stalled.sent, "chat:message")).toEqual([]);
+    expect(messages(alice.sent, "chat:message")).toHaveLength(1);
+  });
 });
