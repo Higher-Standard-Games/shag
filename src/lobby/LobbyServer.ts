@@ -238,6 +238,8 @@ export class LobbyServer {
   /** The demo scan running now, if one is. */
   private _demoScan: Promise<void> | null = null;
   private _demoCountLogged = 0;
+  /** Set by stop(): a scan in progress ends at its next file. */
+  private demoScanStopped = false;
   /** What each demo file holds, by name, read once per file version (see _scanDemos). */
   private readonly _demoFiles = new Map<
     string,
@@ -331,6 +333,7 @@ export class LobbyServer {
   // ── Lifecycle ──────────────────────────────────────────────────
 
   async start(): Promise<void> {
+    this.demoScanStopped = false;
     this._loadMapsConfig();
     this.loadCampaign();
     this.results?.deliveries.loseBotControl();
@@ -383,7 +386,8 @@ export class LobbyServer {
       clearInterval(this.resultRetryTimer);
       this.resultRetryTimer = null;
     }
-    // A scan still reading uses the stores closed below
+    // A scan still reading uses the stores closed below: it ends at its next file
+    this.demoScanStopped = true;
     await this._demoScan;
 
     // Shutdown all game servers
@@ -2546,6 +2550,8 @@ export class LobbyServer {
       for (const filename of this._demoFiles.keys()) if (!present.has(filename)) this._demoFiles.delete(filename);
 
       for (const filename of files) {
+        // A stopping lobby does not wait for the rest of a long scan
+        if (this.demoScanStopped) return;
         try {
           const filepath = path.join(this.DEMO_DIR, filename);
           const stat = await fs.promises.stat(filepath);
