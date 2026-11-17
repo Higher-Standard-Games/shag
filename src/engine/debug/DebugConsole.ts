@@ -853,7 +853,7 @@ export class DebugConsole {
 
     const line = document.createElement("div");
     line.className = `console-line ${type}`;
-    line.innerHTML = this.formatMessage(message);
+    line.innerHTML = this.formatMessage(message, type === "result" || type === "system");
 
     this.outputEl.appendChild(line);
 
@@ -901,10 +901,11 @@ export class DebugConsole {
    * - label: value becomes label highlighted
    * - Numbers are highlighted
    */
-  private formatMessage(message: string): string {
-    // Check if message already contains HTML (from help command etc.)
-    // If so, skip escaping to preserve the formatting
-    const containsHtml = /<span\s+class=/.test(message);
+  private formatMessage(message: string, trusted: boolean): string {
+    // A command's own result may carry markup (help); a captured console line
+    // never does, because it can quote what other players sent (chat, names,
+    // demo text) and would run as HTML here.
+    const containsHtml = trusted && /<span\s+class=/.test(message);
 
     // Escape HTML entities first (unless message already has HTML)
     const escaped = containsHtml ? message : escapeHtml(message);

@@ -170,3 +170,22 @@ describe("DebugConsole input focus", () => {
     else Reflect.deleteProperty(document, "exitPointerLock");
   });
 });
+
+describe("DebugConsole output", () => {
+  it("escapes markup in captured console lines, which can quote other players' text", () => {
+    const debugConsole = DebugConsole.getInstance();
+    debugConsole.enable();
+    debugConsole.log("log", `[Chat] Mallory: "<span class=x></span><img src=x onerror=alert(1)>"`);
+    const output = document.querySelector<HTMLElement>(".debug-console-output")!;
+    expect(output.querySelector("img")).toBeNull();
+    expect(output.textContent).toContain("<img src=x onerror=alert(1)>");
+  });
+
+  it("keeps the markup of a command's own result", () => {
+    const debugConsole = DebugConsole.getInstance();
+    debugConsole.enable();
+    debugConsole.log("result", `<span class="hl-command">help</span> - Show help`);
+    const output = document.querySelector<HTMLElement>(".debug-console-output")!;
+    expect(output.querySelector(".hl-command")?.textContent).toBe("help");
+  });
+});
