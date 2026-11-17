@@ -21,6 +21,19 @@ import type {
 } from "./types";
 
 /** The side players take in a campaign room with teams; enemy bots take the other. */
+/**
+ * Shuffle in place, every order equally likely (Fisher-Yates). Sorting by a
+ * random comparison favours some orders: a map early in the pool came up more
+ * often, and some team splits more often than others.
+ */
+export function shuffle<T>(items: T[], random: () => number = Math.random): T[] {
+  for (let i = items.length - 1; i > 0; i--) {
+    const j = Math.floor(random() * (i + 1));
+    [items[i], items[j]] = [items[j], items[i]];
+  }
+  return items;
+}
+
 export const CAMPAIGN_PLAYER_TEAM: LobbyTeam = "alpha";
 export const CAMPAIGN_ENEMY_TEAM: LobbyTeam = "bravo";
 
@@ -96,7 +109,7 @@ export class MatchLobby {
     }
 
     // Pick 3 random maps from pool (or all if pool ≤ 3)
-    const shuffled = [...gametype.mapPool].sort(() => Math.random() - 0.5);
+    const shuffled = shuffle([...gametype.mapPool]);
     this.maps = shuffled.slice(0, 3).map((name) => ({
       name,
       displayName: mapNames[name] || name,
@@ -250,7 +263,7 @@ export class MatchLobby {
   private shuffleTeams(): void {
     if (!this.gametype.hasTeams) return;
     const players = [...this.players.values()];
-    const shuffled = players.sort(() => Math.random() - 0.5);
+    const shuffled = shuffle(players);
     const half = Math.ceil(shuffled.length / 2);
     shuffled.forEach((p, i) => {
       p.team = i < half ? "alpha" : "bravo";
