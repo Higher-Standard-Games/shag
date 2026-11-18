@@ -81,6 +81,54 @@ function sameText(a: string, b: string): boolean {
   return x.length === y.length && timingSafeEqual(Uint8Array.from(x), Uint8Array.from(y));
 }
 
+/** The panel's look: the game's colours, with system fonts (the page loads nothing). */
+const STYLE = `
+:root{color-scheme:dark;--bg:hsl(240,20%,5%);--panel:hsl(240,16%,9%);--raise:hsl(240,16%,13%);--line:hsl(240,20%,18%);
+--fg:hsl(42,95%,92%);--muted:hsla(42,60%,85%,.6);--gold:hsl(45,100%,55%);--magenta:hsl(320,100%,62%);--cyan:hsl(180,90%,60%)}
+*{box-sizing:border-box}
+body{margin:0;background:radial-gradient(1200px 600px at 10% -10%,hsla(260,60%,20%,.35),transparent 60%),var(--bg);
+color:var(--fg);font:14px/1.5 system-ui,"Segoe UI",sans-serif;min-height:100vh}
+header{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 24px;
+background:var(--panel);border-bottom:2px solid var(--gold);position:sticky;top:0;z-index:1}
+h1{margin:0;font-size:15px;font-weight:800;letter-spacing:.18em;text-transform:uppercase}
+h1 b{color:var(--gold)}
+.who{display:flex;align-items:center;gap:10px;color:var(--muted)}
+main{max-width:1240px;margin:0 auto;padding:24px;display:grid;gap:16px;grid-template-columns:repeat(2,minmax(0,1fr));align-items:start}
+main>*{grid-column:1/-1}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:16px 18px;overflow-x:auto}
+main>.card.half{grid-column:auto}
+@media (max-width:820px){main>.card.half{grid-column:1/-1}}
+h2,h3{margin:0 0 12px;font-size:12px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--gold)}
+h2 small,h3 small{color:var(--muted);letter-spacing:.04em;text-transform:none;font-weight:500;margin-left:6px}
+h2.title{font-size:20px;letter-spacing:.04em;text-transform:none;color:var(--fg)}
+p{margin:0 0 8px}.empty{color:var(--muted);font-style:italic}.note{color:var(--muted);font-size:13px;margin:10px 0 0}
+a{color:var(--cyan);text-decoration:none}a:hover{text-decoration:underline}
+.flash{background:hsla(45,100%,55%,.1);border:1px solid hsla(45,100%,55%,.4);border-left:4px solid var(--gold);
+padding:10px 14px;border-radius:4px;margin:0}
+table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums}
+th,td{text-align:left;padding:7px 10px;border-bottom:1px solid var(--line);vertical-align:middle;white-space:nowrap}
+td.wrap{white-space:normal;min-width:180px}
+th{color:var(--muted);font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;border-bottom-color:var(--gold)}
+tr:hover td{background:var(--raise)}
+label{display:grid;gap:4px;color:var(--muted);font-size:12px;letter-spacing:.06em;text-transform:uppercase}
+input,select{font:inherit;color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:4px;padding:8px 10px;
+text-transform:none;letter-spacing:normal}
+input:focus,select:focus{outline:none;border-color:var(--gold);box-shadow:0 0 0 3px hsla(45,100%,55%,.2)}
+button{font:inherit;font-weight:700;letter-spacing:.08em;text-transform:uppercase;font-size:12px;cursor:pointer;
+color:hsl(250,40%,6%);background:var(--gold);border:1px solid var(--gold);border-radius:4px;padding:8px 14px}
+button:hover{filter:brightness(1.1)}
+button.danger{background:var(--magenta);border-color:var(--magenta);color:#fff}
+button.quiet,td button,.who button{background:transparent;color:var(--fg);border-color:var(--line);padding:4px 10px}
+button.quiet:hover,td button:hover,.who button:hover{border-color:var(--gold);color:var(--gold);filter:none}
+form.inline{display:inline}form.row{display:flex;gap:8px}form.row input{flex:1;min-width:0}
+form.row+form.row{margin-top:14px}
+form.stack{display:grid;gap:10px;max-width:460px}form.stack button{justify-self:start}
+form.stack+form.row{margin-top:14px}
+details summary{cursor:pointer;color:var(--cyan)}code{display:block;white-space:normal;word-break:break-all;color:var(--muted);margin-top:6px}
+main.login{grid-template-columns:1fr;max-width:380px;margin-top:12vh}
+main.login .card{padding:24px}main.login form.stack{max-width:none}main.login form.stack button{justify-self:stretch}
+`;
+
 export class AdminPanel {
   private readonly sessions = new Map<string, Session>();
   private readonly failures = new Map<string, { count: number; resetAt: number }>();
@@ -330,10 +378,10 @@ export class AdminPanel {
 
   private loginForm(message: string): string {
     return `${message ? `<p class="flash">${escapeHtml(message)}</p>` : ""}
-<form method="post" action="${ADMIN_PATH}/login" class="stack">
+<section class="card"><h2>Sign in</h2><form method="post" action="${ADMIN_PATH}/login" class="stack">
 <label>Name <input name="name" autocomplete="username" required maxlength="32"></label>
 <label>Password <input name="password" type="password" autocomplete="current-password" required></label>
-<button>Sign in</button></form>`;
+<button>Sign in</button></form></section>`;
   }
 
   private reportRows(
@@ -342,13 +390,13 @@ export class AdminPanel {
     back: "dashboard" | "account",
     accountId?: number,
   ): string {
-    if (reports.length === 0) return "<p>None.</p>";
+    if (reports.length === 0) return '<p class="empty">None.</p>';
     const rows = reports
       .map(
         (
           r,
         ) => `<tr><td>${r.id}</td><td>${when(r.createdAt)}</td><td>${this.name(r.reporterId)}</td><td>${this.name(r.reportedId)}</td>
-<td>${escapeHtml(r.matchId ?? "")}</td><td>${escapeHtml(r.reason)}</td><td>${
+<td>${escapeHtml(r.matchId ?? "")}</td><td class="wrap">${escapeHtml(r.reason)}</td><td>${
           r.closed
             ? "closed"
             : this.button(session, "/close-report", "Close", {
@@ -367,11 +415,11 @@ export class AdminPanel {
   }
 
   private sanctionRows(session: Session, sanctions: Sanction[], showAccount: boolean): string {
-    if (sanctions.length === 0) return "<p>None.</p>";
+    if (sanctions.length === 0) return '<p class="empty">None.</p>';
     const rows = sanctions
       .map(
         (s) => `<tr><td>${s.id}</td>${showAccount ? `<td>${this.name(s.accountId)}</td>` : ""}<td>${s.kind}</td>
-<td>${escapeHtml(s.reason)}</td><td>${when(s.createdAt)}</td><td>${s.liftedAt ? `lifted ${when(s.liftedAt)}` : when(s.expiresAt)}</td>
+<td class="wrap">${escapeHtml(s.reason)}</td><td>${when(s.createdAt)}</td><td>${s.liftedAt ? `lifted ${when(s.liftedAt)}` : when(s.expiresAt)}</td>
 <td>${escapeHtml(s.by)}</td><td>${this.active(s) ? this.button(session, "/lift", "Lift", { id: s.id, accountId: s.accountId }) : ""}</td></tr>`,
       )
       .join("");
@@ -381,19 +429,21 @@ export class AdminPanel {
   private dashboard(session: Session): string {
     const { fairPlay } = this.options;
     const active = fairPlay.sanctions().filter((s) => this.active(s));
-    return `<h2>Open reports</h2>${this.reportRows(session, fairPlay.openReports(), "dashboard")}
-<h2>Sanctions in force</h2>${this.sanctionRows(session, active, true)}
-<h2>Find an account</h2>
-<form method="get" action="${ADMIN_PATH}/account" class="inline"><input name="q" placeholder="Name or account id" required maxlength="32"><button>Open</button></form>
-<h2>Address bans</h2>
+    const reports = fairPlay.openReports();
+    return `<section class="card"><h2>Open reports <small>${reports.length}</small></h2>${this.reportRows(session, reports, "dashboard")}</section>
+<section class="card"><h2>Sanctions in force <small>${active.length}</small></h2>${this.sanctionRows(session, active, true)}</section>
+<section class="card half"><h2>Find an account</h2>
+<form method="get" action="${ADMIN_PATH}/account" class="row"><input name="q" placeholder="Name or account id" required maxlength="32"><button>Open</button></form>
+<p class="note">Names match in any capitals. A key cannot be looked up: only its hash is stored.</p></section>
+<section class="card half"><h2>Address bans</h2>
 <form method="post" action="${ADMIN_PATH}/ban-address" class="stack">${this.csrfField(session)}
 <label>Address <input name="address" required maxlength="64"></label>
 <label>Reason (shown to the player) <input name="reason" required maxlength="${MAX_REASON}"></label>
 <label>Days (at most ${MAX_ADDRESS_BAN_MS / DAY_MS}) <input name="days" type="number" min="1" max="${MAX_ADDRESS_BAN_MS / DAY_MS}" required></label>
-<button>Ban address</button></form>
-<form method="post" action="${ADMIN_PATH}/lift-address" class="inline">${this.csrfField(session)}
-<input name="address" placeholder="Address" required maxlength="64"><button>Lift address ban</button></form>
-<p class="note">Addresses are kept only as keyed hashes, so bans cannot be listed; lift one by its address.</p>`;
+<button class="danger">Ban address</button></form>
+<form method="post" action="${ADMIN_PATH}/lift-address" class="row">${this.csrfField(session)}
+<input name="address" placeholder="Address to lift" required maxlength="64"><button class="quiet">Lift</button></form>
+<p class="note">Addresses are kept only as keyed hashes, so bans cannot be listed; lift one by its address.</p></section>`;
   }
 
   private accountPage(session: Session, params: URLSearchParams): string {
@@ -401,24 +451,27 @@ export class AdminPanel {
     const query = (params.get("id") ?? params.get("q") ?? "").trim();
     const byId = /^\d+$/.test(query) ? Number(query) : null;
     const id = byId !== null && accounts.exists(byId) ? byId : (accounts.findByName(query)?.id ?? null);
-    if (id === null) return `<p>No account matches “${escapeHtml(query)}”.</p><p><a href="${ADMIN_PATH}">Back</a></p>`;
+    if (id === null) {
+      return `<section class="card"><p>No account matches “${escapeHtml(query)}”.</p><p><a href="${ADMIN_PATH}">← Back</a></p></section>`;
+    }
     const sanctions = fairPlay.sanctions().filter((s) => s.accountId === id);
     return `<p><a href="${ADMIN_PATH}">← Reports</a></p>
-<h2>${escapeHtml(accounts.nameOf(id) ?? "?")} <small>account #${id}</small></h2>
-<h3>Sanctions</h3>${this.sanctionRows(session, sanctions, false)}
+<section class="card"><h2 class="title">${escapeHtml(accounts.nameOf(id) ?? "?")} <small>account #${id}</small></h2>
+<h3>Sanctions</h3>${this.sanctionRows(session, sanctions, false)}</section>
+<section class="card"><h3>Add a sanction</h3>
 <form method="post" action="${ADMIN_PATH}/sanction" class="stack">${this.csrfField(session)}
 <input type="hidden" name="accountId" value="${id}">
 <label>Kind <select name="kind"><option value="ban">Ban from the servers</option><option value="ranked">Keep out of public rooms and the queue</option></select></label>
 <label>Reason (shown to the player) <input name="reason" required maxlength="${MAX_REASON}"></label>
 <label>Days (empty: until lifted) <input name="days" type="number" min="1"></label>
-<button>Add sanction</button></form>
-<p class="note">Decide only after reviewing the evidence: the counters are signals, not verdicts.</p>
-<h3>Reports about this player</h3>${this.reportRows(session, fairPlay.reportsAbout(id), "account", id)}
-<h3>Match counters (last 90 days)</h3>${this.matchRows(fairPlay.signalsFor(id))}`;
+<button class="danger">Add sanction</button></form>
+<p class="note">Decide only after reviewing the evidence: the counters are signals, not verdicts.</p></section>
+<section class="card"><h3>Reports about this player</h3>${this.reportRows(session, fairPlay.reportsAbout(id), "account", id)}</section>
+<section class="card"><h3>Match counters <small>last 90 days</small></h3>${this.matchRows(fairPlay.signalsFor(id))}</section>`;
   }
 
   private matchRows(matches: StoredFairPlay[]): string {
-    if (matches.length === 0) return "<p>None.</p>";
+    if (matches.length === 0) return '<p class="empty">None.</p>';
     const pct = (part: number, whole: number) => (whole > 0 ? `${Math.round((100 * part) / whole)}%` : "–");
     const rows = matches
       .map((m) => {
@@ -446,17 +499,9 @@ export class AdminPanel {
       ? `<span>${escapeHtml(session.name)}</span> <form method="post" action="${ADMIN_PATH}/logout" class="inline">${this.csrfField(session)}<button>Sign out</button></form>`
       : "";
     const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="robots" content="noindex"><title>Washoi admin · ${escapeHtml(title)}</title><style>
-:root{color-scheme:light dark;--bg:#f6f6f4;--fg:#1b1b1b;--muted:#666;--line:#d8d8d4;--accent:#b3261e}
-@media (prefers-color-scheme:dark){:root{--bg:#141414;--fg:#e8e8e6;--muted:#9a9a96;--line:#333;--accent:#ff8a80}}
-body{margin:0;padding:16px;background:var(--bg);color:var(--fg);font:14px/1.45 system-ui,sans-serif;max-width:1200px}
-header{display:flex;justify-content:space-between;align-items:center;gap:12px;border-bottom:1px solid var(--line);padding-bottom:8px}
-h1{font-size:18px;margin:0}h2{font-size:16px;margin:24px 0 8px}h3{font-size:15px;margin:20px 0 8px}small{color:var(--muted);font-weight:normal}
-table{border-collapse:collapse;width:100%;display:block;overflow-x:auto}th,td{text-align:left;padding:4px 8px;border-bottom:1px solid var(--line);vertical-align:top}
-th{color:var(--muted);font-weight:600}a{color:inherit}.flash{border-left:3px solid var(--accent);padding:6px 10px}.note{color:var(--muted)}
-form.inline{display:inline}form.stack{display:grid;gap:8px;max-width:420px}input,select,button{font:inherit;padding:4px 8px}
-code{word-break:break-all}</style></head><body><header><h1>Washoi admin</h1><div>${signedIn}</div></header>
-${flash ? `<p class="flash">${escapeHtml(flash)}</p>` : ""}${body}</body></html>`;
+<meta name="robots" content="noindex"><title>Washoi admin · ${escapeHtml(title)}</title><style>${STYLE}</style></head>
+<body><header><h1><b>Washoi</b> admin</h1><div class="who">${signedIn}</div></header>
+<main${session ? "" : ' class="login"'}>${flash ? `<p class="flash">${escapeHtml(flash)}</p>` : ""}${body}</main></body></html>`;
     res.writeHead(status, { ...SECURITY_HEADERS, "Content-Type": "text/html; charset=utf-8" });
     res.end(html);
   }
