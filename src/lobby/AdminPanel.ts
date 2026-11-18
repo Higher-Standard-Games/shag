@@ -60,7 +60,9 @@ const SECURITY_HEADERS = {
     "default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'",
   "X-Content-Type-Options": "nosniff",
   "X-Frame-Options": "DENY",
-  "Referrer-Policy": "no-referrer",
+  // Not no-referrer: under it browsers send `Origin: null` on the panel's own
+  // form posts, and sameOrigin could not tell them from another site's
+  "Referrer-Policy": "same-origin",
   "Cache-Control": "no-store",
 };
 
@@ -206,10 +208,16 @@ export class AdminPanel {
     this.redirect(res, ADMIN_PATH);
   }
 
-  /** A POST from another site is refused even before its token is checked. */
+  /**
+   * A POST from another site is refused even before its token is checked. An
+   * `Origin` of "null" (a privacy-restricted request) falls back on the
+   * browser's Sec-Fetch-Site, which every current browser sends.
+   */
   private sameOrigin(req: IncomingMessage): boolean {
     const origin = req.headers.origin;
-    if (!origin) return req.headers["sec-fetch-site"] === undefined || req.headers["sec-fetch-site"] === "same-origin";
+    const site = req.headers["sec-fetch-site"];
+    if (!origin) return site === undefined || site === "same-origin";
+    if (origin === "null") return site === "same-origin";
     try {
       return new URL(origin).host === req.headers.host;
     } catch {

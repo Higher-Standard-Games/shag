@@ -50,11 +50,16 @@ afterEach(async () => {
 });
 
 const form = (fields: Record<string, string>) => new URLSearchParams(fields).toString();
-const post = (route: string, fields: Record<string, string>, cookie = "", origin = base) =>
+const post = (route: string, fields: Record<string, string>, cookie = "", origin = base, site?: string) =>
   fetch(`${base}/admin${route}`, {
     method: "POST",
     redirect: "manual",
-    headers: { "Content-Type": "application/x-www-form-urlencoded", Cookie: cookie, Origin: origin },
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+      Cookie: cookie,
+      Origin: origin,
+      ...(site ? { "Sec-Fetch-Site": site } : {}),
+    },
     body: form(fields),
   });
 
@@ -112,6 +117,16 @@ describe("admin panel", () => {
     await post("/sanction", { ...fields, csrf: "forged" }, cookie);
     expect((await post("/sanction", { ...fields, csrf }, cookie, "https://evil.example")).status).toBe(403);
     expect(fairPlay.activeBan(account.id)).toBeNull();
+  });
+
+  it("signs in from its own form when the browser sends Origin: null, but not from another site", async () => {
+    setAdmin(file, "tarmo", "correct horse battery");
+    const fields = { name: "tarmo", password: "correct horse battery" };
+    expect((await post("/login", fields, "", "null", "same-origin")).status).toBe(303);
+    expect((await post("/login", fields, "", "null", "cross-site")).status).toBe(403);
+    expect((await post("/login", fields, "", "null")).status).toBe(403);
+    const page = await fetch(`${base}/admin`);
+    expect(page.headers.get("referrer-policy")).toBe("same-origin");
   });
 
   it("asks for the page to sign in again without a session", async () => {
