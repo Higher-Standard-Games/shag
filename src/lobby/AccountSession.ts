@@ -58,6 +58,8 @@ export class LoginError extends Error {
     readonly code: AuthErrorCode,
     /** `lobby_full`: seconds the lobby asks the client to wait before trying again. */
     readonly retryAfterSec?: number,
+    /** `banned`: the reason, end and appeal route the lobby gave. */
+    readonly ban?: { reason?: string; until?: number; appeal?: string },
   ) {
     super(`Lobby refused the login: ${code}`);
   }
@@ -70,13 +72,27 @@ export function loginFailureText(code: AuthErrorCode): string {
     rate_limited: "Too many tries. Wait a minute, then try again.",
     lobby_full: "Servers are full. Your current player key is unchanged. Try again shortly.",
     already_authenticated: "This connection is already logged in. Try again.",
+    banned: "This player is banned from Washoi's servers.",
   };
   return messages[code];
 }
 
+/** The whole notice for a ban: what happened, why, until when, and how to appeal. */
+export function banNoticeText(ban: { reason?: string; until?: number; appeal?: string } | undefined): string {
+  const parts = [loginFailureText("banned")];
+  if (ban?.reason) parts.push(`Reason: ${ban.reason}`);
+  parts.push(ban?.until ? `Until: ${new Date(ban.until).toLocaleString()}` : "Until it is lifted.");
+  if (ban?.appeal) parts.push(`To appeal: ${ban.appeal}`);
+  return parts.join("\n");
+}
+
 /** The lobby's answer as a LoginError. */
 function refused(answer: AuthErrorMessage): LoginError {
-  return new LoginError(answer.code, answer.retryAfterSec);
+  return new LoginError(
+    answer.code,
+    answer.retryAfterSec,
+    answer.code === "banned" ? { reason: answer.reason, until: answer.until, appeal: answer.appeal } : undefined,
+  );
 }
 
 let identity: PlayerIdentityInfo | null = null;

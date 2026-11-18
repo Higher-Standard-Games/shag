@@ -14,6 +14,12 @@ import { type ChildProcess, spawn } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import { createServer } from "node:net";
 import {
+  FAIR_PLAY_MAX_LINE,
+  FAIR_PLAY_PREFIX,
+  type FairPlayReport,
+  verifyFairPlayReport,
+} from "../engine/server/network/FairPlayReport";
+import {
   ADMIT_ACK_PREFIX,
   ADMIT_COMMAND,
   type AdmissionManifest,
@@ -236,6 +242,16 @@ export class GameServerSpawner {
     try {
       await this.waitForReady(child, matchId, port, (line) => {
         if (!admission || !resultSecret || !this.activeServers.has(matchId)) return;
+        if (line.startsWith(FAIR_PLAY_PREFIX)) {
+          const fairPlay = verifyFairPlayReport(line, resultSecret, {
+            matchId,
+            gametype: config.gametype,
+            admission: admission.manifest,
+          });
+          if (fairPlay) this.onFairPlayReport?.(fairPlay);
+          else console.warn(`[Spawner] Rejected fair-play report for match ${matchId}: verification_failed`);
+          return;
+        }
         const report = verifyMatchResult(line, resultSecret, {
           matchId,
           map: config.map,
@@ -392,6 +408,8 @@ export class GameServerSpawner {
   onServerResult: ((result: MatchResultReport) => void) | null = null;
   /** A rejection contains only the known spawned match ID, never the raw result line. */
   onServerResultRejected: ((matchId: string) => void) | null = null;
+  /** A verified fair-play report from a lobby match (FairPlayReport). */
+  onFairPlayReport: ((report: FairPlayReport) => void) | null = null;
 
   // ── Internal ─────────────────────────────────────────────────
 
@@ -432,12 +450,12 @@ export class GameServerSpawner {
       const onData = (data: Buffer) => {
         pending += data.toString();
         // Child writes can split a result across chunks; cap an unfinished line.
-        if (pending.length > 16_384) pending = "";
+        if (pending.length > FAIR_PLAY_MAX_LINE) pending = "";
         let end = pending.indexOf("\n");
         while (end >= 0) {
           const line = pending.slice(0, end).trim();
           pending = pending.slice(end + 1);
-          if (line.startsWith(RESULT_PREFIX)) onResult?.(line);
+          if (line.startsWith(RESULT_PREFIX) || line.startsWith(FAIR_PLAY_PREFIX)) onResult?.(line);
           else if (line.startsWith(ADMIT_ACK_PREFIX)) this.pendingAdmits.get(line.slice(ADMIT_ACK_PREFIX.length))?.();
           else if (line) console.log(`  [Server:${port}] ${line}`);
           if (line.includes("Ready for connections") || line.includes("Server ready on")) {

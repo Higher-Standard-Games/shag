@@ -457,6 +457,29 @@ export interface PlayerStatsResponse extends LobbyMessage {
 }
 
 /** Read-only rankings; request IDs correlate concurrent scope/mode/period changes. */
+/**
+ * Report a player for cheating or abuse: an online player by their lobby id,
+ * or any account by id (from a scoreboard, a result or the leaderboard).
+ * Stored for review; nothing happens to the reported player automatically.
+ */
+export interface PlayerReportRequest extends LobbyMessage {
+  type: "report:player";
+  requestId: string;
+  playerId?: string;
+  accountId?: number;
+  /** The match it is about, when there is one. */
+  matchId?: string;
+  /** Free text, cut to 200 characters. */
+  reason?: string;
+}
+
+export interface PlayerReportResult extends LobbyMessage {
+  type: "report:result";
+  requestId: string;
+  ok: boolean;
+  code?: "invalid" | "unknown_player" | "rate_limited" | "duplicate" | "unavailable";
+}
+
 export interface LeaderboardRequest extends LobbyMessage {
   type: "leaderboard:get";
   requestId: string;
@@ -566,7 +589,7 @@ export interface WelcomeMessage extends LobbyMessage {
   recentDemos: DemoInfo[];
 }
 
-export type AuthErrorCode = "unknown_key" | "rate_limited" | "already_authenticated" | "lobby_full";
+export type AuthErrorCode = "unknown_key" | "rate_limited" | "already_authenticated" | "lobby_full" | "banned";
 
 /**
  * Login failed; the connection stays open and may send `auth` again, except
@@ -580,6 +603,12 @@ export interface AuthErrorMessage extends LobbyMessage {
   maxPlayers?: number;
   /** `lobby_full`: seconds to wait before trying again. */
   retryAfterSec?: number;
+  /** `banned`: why, as the person who decided it wrote it. The lobby closes the connection. */
+  reason?: string;
+  /** `banned`: when it ends (ms since the epoch); absent until it is lifted. */
+  until?: number;
+  /** `banned`: how to appeal. */
+  appeal?: string;
 }
 
 export interface IdentityRenamedMessage extends LobbyMessage {
@@ -878,6 +907,7 @@ export interface LobbyServerMessages {
   "featured:error": FeaturedDemosError;
   "leaderboard:page": LeaderboardResponse;
   "leaderboard:error": LeaderboardError;
+  "report:result": PlayerReportResult;
   "stats:summary": PlayerStatsResponse;
   "stats:history_page": PlayerStatsResponse;
   "campaign:state": CampaignStateMessage;

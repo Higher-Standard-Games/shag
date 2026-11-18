@@ -57,6 +57,7 @@ export class PlayerStore {
   private readonly updateName: StatementSync;
   private readonly eraseAccount: StatementSync;
   private readonly deletedIds: StatementSync;
+  private readonly accountByNameKey: StatementSync;
 
   /** The store in `<dataDir>/players.db`, created on first use. */
   static open(dataDir: string, isReserved?: PlayerNameReservation): PlayerStore {
@@ -77,6 +78,7 @@ export class PlayerStore {
     this.updateName = this.db.prepare("UPDATE players SET name = ?, name_key = ? WHERE id = ?");
     this.eraseAccount = this.db.prepare("UPDATE players SET key_hash = ?, name = ?, name_key = ? WHERE id = ?");
     this.deletedIds = this.db.prepare("SELECT id FROM players WHERE name_key LIKE '#deleted:%'");
+    this.accountByNameKey = this.db.prepare("SELECT id, name FROM players WHERE name_key = ?");
   }
 
   /** Brings an older file up to the current layout; `user_version` records which one a file has. */
@@ -157,6 +159,24 @@ export class PlayerStore {
     if (!owner || owner.id !== id) return false;
     this.eraseAccount.run(new Uint8Array(randomBytes(32)), DELETED_ACCOUNT_NAME, DELETED_NAME_KEY(id), id);
     return true;
+  }
+
+  /** Whether an account with this id exists (deleted ones included). */
+  exists(id: number): boolean {
+    return Number.isSafeInteger(id) && this.accountById.get(id) !== undefined;
+  }
+
+  /** An account's current name, or null when there is no such account. */
+  nameOf(id: number): string | null {
+    if (!Number.isSafeInteger(id)) return null;
+    const row = this.accountById.get(id);
+    return row ? String(row.name) : null;
+  }
+
+  /** The account with this name, regardless of capitals. */
+  findByName(name: string): PlayerAccount | null {
+    const row = this.accountByNameKey.get(name.toLowerCase());
+    return row ? { id: Number(row.id), name: String(row.name) } : null;
   }
 
   /** Every deleted account's id. */
