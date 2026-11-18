@@ -14,7 +14,13 @@ import { filterPlayerName } from "../engine/server/ChatFilter";
 import type { MatchResultReport } from "../engine/server/network/MatchResultReport";
 import type { BotPreset } from "../shared/ranking/BotMatchRatingGroups";
 import { chooseBotPreset } from "../shared/ranking/BotPresetChoice";
-import { displayRating, isProvisional, isRatingMode, RATING_POLICY } from "../shared/ranking/RatingPolicy";
+import {
+  displayRating,
+  isProvisional,
+  isRatingMode,
+  RATING_MODES,
+  RATING_POLICY,
+} from "../shared/ranking/RatingPolicy";
 import { PlayerStatsStore, POOL_MATCHES, RATING_POOLS } from "./PlayerStatsStore";
 import { RatingStore } from "./RatingStore";
 import { ResultDeliveryStore } from "./ResultDeliveryStore";
@@ -82,6 +88,8 @@ export interface RankingRow {
   ratedMatches?: number;
   /** A bot preset's account. Boards leave bots out. */
   bot?: boolean;
+  /** On the All board: the mode whose rating this is, the player's best. */
+  gametype?: string;
 }
 
 export interface RankingPage {
@@ -148,6 +156,39 @@ const SKILL_RANKED = `${RECORDS}, active AS (
     SELECT *, RANK() OVER (ORDER BY skill_score DESC) AS rank FROM active WHERE bot = 0 AND ${NOT_HIDDEN}
   )`;
 
+/**
+ * The All board: each player's best rating among the rated modes, with that
+ * mode's record. Parameters: the period start and end, the pool twice (as
+ * RECORDS), the conservative multiplier, the pool, the policy version, the
+ * modes as a JSON array, the period, and the hidden accounts.
+ */
+const BEST_SKILL_RANKED = `
+  WITH records AS (
+    SELECT mp.account_id, m.gametype,
+      SUM(CASE WHEN mp.outcome = 'win' THEN 1 ELSE 0 END) AS wins,
+      SUM(CASE WHEN mp.outcome = 'loss' THEN 1 ELSE 0 END) AS losses,
+      SUM(CASE WHEN mp.outcome = 'draw' THEN 1 ELSE 0 END) AS draws
+    FROM match_participants mp
+    JOIN matches m ON m.id = mp.match_id
+    WHERE m.ended_at >= ? AND m.ended_at <= ? AND (? = 'overall' OR m.private = ?)
+    GROUP BY mp.account_id, m.gametype
+  ), active AS (
+    SELECT r.account_id, p.name, r.gametype, r.mu, r.sigma, r.matches AS rated_matches,
+      EXISTS (SELECT 1 FROM bot_accounts b WHERE b.account_id = r.account_id) AS bot,
+      COALESCE(records.wins, 0) AS wins, COALESCE(records.losses, 0) AS losses,
+      COALESCE(records.draws, 0) AS draws, r.mu - ? * r.sigma AS skill_score
+    FROM ratings r JOIN players p ON p.id = r.account_id
+    LEFT JOIN records ON records.account_id = r.account_id AND records.gametype = r.gametype
+    WHERE r.scope = ? AND r.policy_version = ? AND r.gametype IN (SELECT value FROM json_each(?))
+      AND (? = 'all' OR records.account_id IS NOT NULL)
+  ), best AS (
+    SELECT *, ROW_NUMBER() OVER (PARTITION BY account_id ORDER BY skill_score DESC, gametype ASC) AS pick
+    FROM active
+  ), ranked AS (
+    SELECT *, RANK() OVER (ORDER BY skill_score DESC) AS rank
+    FROM best WHERE pick = 1 AND bot = 0 AND ${NOT_HIDDEN}
+  )`;
+
 function skillRowOf(row: Record<string, unknown>): RankingRow {
   const state = {
     policyVersion: RATING_POLICY.version,
@@ -161,6 +202,7 @@ function skillRowOf(row: Record<string, unknown>): RankingRow {
     conservativeScore: Number(row.skill_score),
     provisional: isProvisional(state),
     ratedMatches: state.ratedMatches,
+    ...(typeof row.gametype === "string" ? { gametype: row.gametype } : {}),
   };
 }
 
@@ -376,6 +418,7 @@ export class MatchResultStore {
   }
 
   skillLeaderboard(query: RankingQuery): RankingPage {
+    if (query.gametype === "all") return this.bestSkillLeaderboard(query);
     const now = this.validateLeaderboard(query);
     const scope = query.scope ?? "overall";
     const start = query.period === "month" ? now - THIRTY_DAYS_MS : 0;
@@ -418,6 +461,49 @@ export class MatchResultStore {
         total,
         ...(local ? { localPlayerRank: Number(local.rank), localPlayerEntry: skillRowOf(local) } : {}),
         ...(processing ? { localProcessing: { excluded: Number(processing.excluded) } } : {}),
+      };
+    } finally {
+      this.db.exec("ROLLBACK");
+    }
+  }
+
+  /** The All board: every player at their best mode's rating (BEST_SKILL_RANKED). */
+  private bestSkillLeaderboard(query: RankingQuery): RankingPage {
+    const now = this.validateLeaderboard(query);
+    const scope = query.scope ?? "overall";
+    const start = query.period === "month" ? now - THIRTY_DAYS_MS : 0;
+    const args = [
+      start,
+      now,
+      scope,
+      scope === "private" ? 1 : 0,
+      RATING_POLICY.conservativeMultiplier,
+      scope,
+      RATING_POLICY.version,
+      JSON.stringify(RATING_MODES),
+      query.period,
+      JSON.stringify(query.hidden ?? []),
+    ] as const;
+    this.db.exec("BEGIN");
+    try {
+      const entries = this.db
+        .prepare(`${BEST_SKILL_RANKED} SELECT * FROM ranked ORDER BY skill_score DESC, account_id ASC LIMIT ? OFFSET ?`)
+        .all(...args, query.limit, query.offset)
+        .map(skillRowOf);
+      const total = Number(
+        this.db.prepare(`${BEST_SKILL_RANKED} SELECT COUNT(*) AS n FROM ranked`).get(...args)?.n ?? 0,
+      );
+      const local = query.accountId
+        ? this.db
+            .prepare(`${BEST_SKILL_RANKED} SELECT * FROM ranked WHERE account_id = ?`)
+            .get(...args, query.accountId)
+        : undefined;
+      return {
+        system: "trueskill",
+        policyVersion: RATING_POLICY.version,
+        entries,
+        total,
+        ...(local ? { localPlayerRank: Number(local.rank), localPlayerEntry: skillRowOf(local) } : {}),
       };
     } finally {
       this.db.exec("ROLLBACK");

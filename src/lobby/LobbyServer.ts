@@ -2427,7 +2427,8 @@ export class LobbyServer {
       typeof msg.requestId === "string" && /^[A-Za-z0-9_-]{1,64}$/.test(msg.requestId) ? msg.requestId : "";
     if (
       !requestId ||
-      !isRatingMode(msg.gametype) ||
+      // "all": each player's best mode, a skill board only
+      !(isRatingMode(msg.gametype) || (msg.gametype === "all" && msg.system === "trueskill")) ||
       (msg.period !== "month" && msg.period !== "all") ||
       !Number.isSafeInteger(msg.offset) ||
       msg.offset < 0 ||

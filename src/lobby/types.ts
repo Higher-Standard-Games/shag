@@ -512,6 +512,8 @@ export interface LeaderboardEntry {
   ratedMatches?: number;
   /** A bot preset's account. Boards leave bots out. */
   bot?: boolean;
+  /** On the "all" board: the mode whose rating this is, the player's best. */
+  gametype?: string;
 }
 
 export interface LeaderboardResponse extends LobbyMessage {
