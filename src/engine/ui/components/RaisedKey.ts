@@ -3,7 +3,9 @@
  * Styles and states are described in styles/RaisedKey.css.
  *
  *   const find = createRaisedKey({ label: "Find duel", variants: ["cta"] });
- *   raiseKey(tabButton, { label: "Play", hint: "4 modes", variants: ["nav"] });
+ *   raiseKey(tabButton, { label: "Play", variants: ["nav"] });
+ *
+ * A key says what it does in its label alone, with no smaller line under it.
  */
 
 import { UIStyles } from "../UIStyles";
@@ -13,9 +15,8 @@ export type RaisedKeyVariant = "nav" | "sm" | "cream" | "ink" | "cta" | "util" |
 
 export interface RaisedKeyOptions {
   label?: string;
-  hint?: string;
   variants?: RaisedKeyVariant[];
-  /** Face content in place of the label and hint. */
+  /** Face content in place of the label. */
   content?: Node[];
 }
 
@@ -43,12 +44,9 @@ export function raiseKey<T extends HTMLElement>(element: T, options: RaisedKeyOp
     const label = document.createElement("span");
     label.className = "raised-key__label";
     face.appendChild(label);
-    const hint = document.createElement("span");
-    hint.className = "raised-key__hint";
-    face.appendChild(hint);
   }
   element.replaceChildren(side, face);
-  if (!options.content) setRaisedKeyText(element, options.label ?? "", options.hint);
+  if (!options.content) setRaisedKeyText(element, options.label ?? "");
   return element;
 }
 
@@ -59,13 +57,8 @@ export function createRaisedKey(options: RaisedKeyOptions): HTMLButtonElement {
   return raiseKey(button, options);
 }
 
-/** Change a key's label and hint; an empty hint hides it. */
-export function setRaisedKeyText(key: HTMLElement, label: string, hint?: string): void {
+/** Change a key's label. */
+export function setRaisedKeyText(key: HTMLElement, label: string): void {
   const labelEl = key.querySelector<HTMLElement>(".raised-key__label");
   if (labelEl) labelEl.textContent = label;
-  const hintEl = key.querySelector<HTMLElement>(".raised-key__hint");
-  if (hintEl) {
-    hintEl.textContent = hint ?? "";
-    hintEl.hidden = !hint;
-  }
 }

@@ -15,26 +15,36 @@ export interface FeaturedDemosQuery {
   limit: number;
 }
 
-/** Newest eligible multiplayer recordings from the last seven days. */
+/**
+ * Newest eligible multiplayer recordings, from the last seven days unless
+ * `maxAgeMs` says otherwise. Private rooms count: they are listed as every
+ * other recording is. Campaign missions do not.
+ */
 export function selectFeaturedDemos(
   archive: readonly DemoInfo[],
   query: FeaturedDemosQuery,
   now = Date.now(),
+  maxAgeMs = WEEK_MS,
 ): FeaturedDemoInfo[] {
   const seen = new Set<string>();
+  const recent = maxAgeMs <= WEEK_MS;
   return archive
     .filter((demo) => {
-      if (demo.private === true || demo.campaign) return false;
+      if (demo.campaign) return false;
       if (seen.has(demo.filename)) return false;
       seen.add(demo.filename);
       const mode = demo.gametype === "deathmatch" ? "ffa" : demo.gametype;
       if (query.gametype && query.gametype !== "all" && mode !== query.gametype) return false;
       if (query.map && query.map !== "all" && demo.map !== query.map) return false;
-      if (!Number.isSafeInteger(demo.date) || demo.date < now - WEEK_MS || demo.date > now) return false;
+      if (!Number.isSafeInteger(demo.date) || demo.date < now - maxAgeMs || demo.date > now) return false;
       if (!Number.isSafeInteger(demo.durationMs) || demo.durationMs < MIN_LISTED_DEMO_MS) return false;
       return new Set(demo.players.map((name) => name.trim().toLocaleLowerCase()).filter(Boolean)).size >= 2;
     })
     .sort((a, b) => b.date - a.date || a.filename.localeCompare(b.filename))
     .slice(0, query.limit)
-    .map((demo, index) => ({ demo, rank: index + 1, reason: "Recent multiplayer recording" }));
+    .map((demo, index) => ({
+      demo,
+      rank: index + 1,
+      reason: recent ? "Recent multiplayer recording" : "Latest multiplayer recording",
+    }));
 }

@@ -81,17 +81,19 @@
   clip-path: polygon(6% 0, 100% 0, 94% 100%, 0 100%);
 }
 
+/* "Lobby" and the room's id, both in the mode chip's type beside them */
 .match-lobby__meta {
-  font: 700 14px / 1.3 var(--w-font-body, "Rajdhani", sans-serif);
-  letter-spacing: 0.16em;
+  display: flex;
+  align-items: baseline;
+  gap: 0.5em;
+  font: 900 clamp(18px, 1.6vw, 26px) / 1 var(--w-font-display, "Orbitron", monospace);
+  letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: hsla(45, 100%, 95%, 0.6);
+  color: hsla(45, 100%, 95%, 0.5);
 }
 
 .match-lobby__meta b {
-  font-family: var(--w-font-display, "Orbitron", monospace);
-  font-weight: 800;
-  letter-spacing: 0.08em;
+  font-weight: inherit;
   color: var(--cream);
 }
 
@@ -104,8 +106,8 @@
 }
 
 .match-lobby__invite-label {
-  font: 700 12px / 1 var(--w-font-body, "Rajdhani", sans-serif);
-  letter-spacing: 0.26em;
+  font: 900 clamp(18px, 1.6vw, 26px) / 1 var(--w-font-display, "Orbitron", monospace);
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   color: hsla(45, 100%, 95%, 0.5);
 }
@@ -298,15 +300,8 @@
   inset: 30px;
 }
 
-.match-lobby__status-kicker {
-  font: 700 12px / 1 var(--w-font-body, "Rajdhani", sans-serif);
-  letter-spacing: 0.32em;
-  text-transform: uppercase;
-  color: var(--accent);
-}
-
 .match-lobby__status-head {
-  margin: 8px 0 0;
+  margin: 0;
   font: 900 clamp(26px, 2.6vw, 46px) / 1 var(--w-font-display, "Orbitron", monospace);
   letter-spacing: 0.02em;
   text-transform: uppercase;
@@ -354,6 +349,20 @@
   text-transform: uppercase;
   color: hsla(45, 100%, 95%, 0.5);
   font-variant-numeric: tabular-nums;
+}
+
+/* The half minute before the room invites an AI player, under the clock */
+.match-lobby__ai-invite {
+  font: 700 11px / 1 var(--w-font-body, "Rajdhani", sans-serif);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--cream);
+  opacity: 0.75;
+  font-variant-numeric: tabular-nums;
+}
+
+.match-lobby__ai-invite[hidden] {
+  display: none;
 }
 
 /* The fill is how full the room is. Its stripes crawl only while the room is
@@ -517,22 +526,27 @@
   flex: 1;
   min-width: 0;
   overflow: hidden;
-  font: 800 16px / 1.1 var(--w-font-display, "Orbitron", monospace);
+  font: 800 20px / 1.1 var(--w-font-display, "Orbitron", monospace);
   letter-spacing: 0.04em;
   text-overflow: ellipsis;
   white-space: nowrap;
   color: var(--cream);
 }
 
+/* Who the seat is (You, a bot's level): a tab flush in the card's top corner,
+   cut on its inner edge, as the frame-rate counter sits in the screen's */
 .match-lobby__seat-tag {
-  flex: 0 0 auto;
-  padding: 3px 8px;
-  font: 900 10px / 1 var(--w-font-display, "Orbitron", monospace);
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 1;
+  padding: 5px 14px 6px 18px;
+  font: 900 11px / 1 var(--w-font-display, "Orbitron", monospace);
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--ink);
   background: var(--gold-text, hsl(46 100% 60%));
-  clip-path: polygon(10% 0, 100% 0, 90% 100%, 0 100%);
+  clip-path: polygon(10px 0, 100% 0, 100% 100%, 0 100%);
 }
 
 /* A bot's level: the leaderboard's bot cyan */
@@ -540,26 +554,30 @@
   background: hsl(186, 90%, 46%);
 }
 
+/* Ready or not, drawn rather than said: an empty slanted pip, filled green with a check once ready */
 .match-lobby__seat-state {
+  display: grid;
   flex: 0 0 auto;
-  padding: 5px 11px;
-  font: 900 11px / 1 var(--w-font-display, "Orbitron", monospace);
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: hsla(45, 100%, 95%, 0.42);
-  box-shadow: inset 0 0 0 1.5px hsla(45, 100%, 95%, 0.2);
-  clip-path: polygon(8% 0, 100% 0, 92% 100%, 0 100%);
+  place-items: center;
+  width: 34px;
+  height: 24px;
+  box-shadow: inset 0 0 0 2px hsla(45, 100%, 95%, 0.28);
+  clip-path: polygon(12% 0, 100% 0, 88% 100%, 0 100%);
 }
 
-/* An open seat has no state to show */
-.match-lobby__seat-state:empty {
+.match-lobby__seat-state[hidden] {
   display: none;
 }
 
 .match-lobby__seat--ready .match-lobby__seat-state {
-  color: var(--ink);
   background: var(--go);
-  box-shadow: none;
+  box-shadow: 0 0 12px var(--go);
+}
+
+.match-lobby__seat--ready .match-lobby__seat-state::before {
+  content: "\2713";
+  font: 900 16px / 1 var(--w-font-display, "Orbitron", monospace);
+  color: var(--ink);
 }
 
 /* An empty seat: hatched, with a shimmer running through it while the room waits */
@@ -627,18 +645,15 @@
 
 .match-lobby__roster--vs .match-lobby__seat-name {
   grid-column: 2;
-  grid-row: 1;
-}
-
-.match-lobby__roster--vs .match-lobby__seat-tag {
-  grid-column: 3;
-  grid-row: 1;
+  grid-row: 1 / 3;
+  align-self: center;
 }
 
 .match-lobby__roster--vs .match-lobby__seat-state {
-  grid-column: 2 / 4;
-  grid-row: 2;
-  justify-self: start;
+  grid-column: 3;
+  grid-row: 1 / 3;
+  align-self: center;
+  justify-self: end;
 }
 
 .match-lobby__roster--vs .match-lobby__seat-avatar {
@@ -649,13 +664,13 @@
 }
 
 .match-lobby__roster--vs .match-lobby__seat-name {
-  font-size: clamp(20px, 1.7vw, 30px);
+  font-size: clamp(24px, 2vw, 36px);
   font-weight: 900;
 }
 
 .match-lobby__roster--vs .match-lobby__seat-state {
-  padding: 8px 14px;
-  font-size: 13px;
+  width: 42px;
+  height: 30px;
 }
 
 /* Free for all: four across, so the name gets the row and the state goes under it */
@@ -676,7 +691,8 @@
 
 .match-lobby__roster--ffa .match-lobby__seat-name {
   grid-column: 2;
-  grid-row: 1;
+  grid-row: 1 / 3;
+  align-self: center;
 }
 
 /* An open seat's name: smaller in one on one, across both rows in free for all */
@@ -689,24 +705,11 @@
   align-self: center;
 }
 
-.match-lobby__roster--ffa .match-lobby__seat-tag {
-  grid-column: 3;
-  grid-row: 1;
-}
-
 .match-lobby__roster--ffa .match-lobby__seat-state {
-  grid-column: 2 / 4;
-  grid-row: 2;
-  justify-self: start;
-  padding: 0;
-  font-size: 10px;
-  box-shadow: none;
-  clip-path: none;
-}
-
-.match-lobby__roster--ffa .match-lobby__seat--ready .match-lobby__seat-state {
-  color: var(--go);
-  background: none;
+  grid-column: 3;
+  grid-row: 1 / 3;
+  align-self: center;
+  justify-self: end;
 }
 
 /* Teams: a narrow column takes the same two rows, so the name is never the
@@ -730,7 +733,8 @@
 
   .match-lobby__team .match-lobby__seat-name {
     grid-column: 2;
-    grid-row: 1;
+    grid-row: 1 / 3;
+    align-self: center;
   }
 
   .match-lobby__team .match-lobby__seat--open .match-lobby__seat-name {
@@ -738,24 +742,11 @@
     align-self: center;
   }
 
-  .match-lobby__team .match-lobby__seat-tag {
-    grid-column: 3;
-    grid-row: 1;
-  }
-
   .match-lobby__team .match-lobby__seat-state {
-    grid-column: 2 / 4;
-    grid-row: 2;
-    justify-self: start;
-    padding: 0;
-    font-size: 10px;
-    box-shadow: none;
-    clip-path: none;
-  }
-
-  .match-lobby__team .match-lobby__seat--ready .match-lobby__seat-state {
-    color: var(--go);
-    background: none;
+    grid-column: 3;
+    grid-row: 1 / 3;
+    align-self: center;
+    justify-self: end;
   }
 }
 
@@ -783,13 +774,6 @@
   color: var(--cream);
 }
 
-.match-lobby__vote-hint {
-  font: 700 13px / 1 var(--w-font-body, "Rajdhani", sans-serif);
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: hsla(45, 100%, 95%, 0.48);
-}
-
 .match-lobby__maps {
   display: grid;
   flex: 1;
@@ -797,6 +781,13 @@
   grid-auto-flow: column;
   gap: 26px;
   min-height: 150px;
+}
+
+.match-lobby__maps--six {
+  grid-auto-flow: row;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-auto-rows: minmax(0, 1fr);
+  gap: 18px 26px;
 }
 
 .match-lobby__maps-empty {
@@ -849,28 +840,37 @@
   transform: scale(1.06);
 }
 
+/* Tabs flush in the shot's top corner, as the frame-rate counter sits in the
+   screen's, starting where the card's slanted edge does */
 .match-lobby__map-flags {
   position: absolute;
   z-index: 1;
-  top: 12px;
-  left: 22px;
+  top: 0;
+  left: var(--key-cut, 0);
   display: flex;
-  gap: 8px;
 }
 
 .match-lobby__flag {
-  padding: 6px 12px;
-  font: 900 11px / 1 var(--w-font-display, "Orbitron", monospace);
+  padding: 9px 22px 10px 14px;
+  font: 900 13px / 1 var(--w-font-display, "Orbitron", monospace);
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--gold-text, hsl(46 100% 60%));
   background: var(--ink);
-  clip-path: polygon(8% 0, 100% 0, 92% 100%, 0 100%);
+  clip-path: polygon(0 0, 100% 0, calc(100% - 10px) 100%, 0 100%);
 }
 
+/* A tab after another tucks under its slant */
+.match-lobby__flag + .match-lobby__flag {
+  margin-left: -6px;
+  padding-left: 20px;
+  clip-path: polygon(10px 0, 100% 0, calc(100% - 10px) 100%, 0 100%);
+}
+
+/* Your vote in gold, so the green of the leading map stands out */
 .match-lobby__flag--yours {
   color: var(--ink);
-  background: var(--accent);
+  background: var(--gold-text, hsl(46 100% 60%));
 }
 
 .match-lobby__flag--leading {
@@ -912,13 +912,6 @@
   text-overflow: ellipsis;
   text-transform: uppercase;
   white-space: nowrap;
-}
-
-.match-lobby__map-id {
-  font: 700 13px / 1 var(--w-font-body, "Rajdhani", sans-serif);
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--key-sub);
 }
 
 .raised-key--map-empty {
@@ -1049,8 +1042,56 @@
   letter-spacing: 0.12em;
 }
 
-.raised-key--ready .raised-key__hint {
-  font-size: 13px;
+/* Beside Ready: how many are ready, and a pip per player lit when they are */
+.match-lobby__ready-tally {
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  align-items: flex-end;
+  align-self: center;
+  gap: 10px;
+  margin: 0 clamp(16px, 1.6vw, 30px) 10px auto;
+}
+
+.match-lobby__ready-tally[hidden] {
+  display: none;
+}
+
+.match-lobby__ready-tally:not([hidden]) + .raised-key--ready,
+.match-lobby__recover:not([hidden]) ~ .match-lobby__ready-tally {
+  margin-left: 0;
+}
+
+.match-lobby__ready-count {
+  font: 900 clamp(40px, 3.2vw, 60px) / 0.9 var(--w-font-display, "Orbitron", monospace);
+  color: var(--accent-hi);
+  font-variant-numeric: tabular-nums;
+  text-shadow: 3px 4px 0 hsl(250 50% 3%);
+}
+
+.match-lobby__ready-count .match-lobby__count-of {
+  font-size: 0.5em;
+  text-shadow: none;
+}
+
+.match-lobby__ready-pips {
+  display: flex;
+  gap: 5px;
+}
+
+.match-lobby__ready-pip {
+  width: 20px;
+  height: 8px;
+  background: hsla(45, 100%, 95%, 0.16);
+  transform: skewX(-20deg);
+  transition:
+    background 0.2s,
+    box-shadow 0.2s;
+}
+
+.match-lobby__ready-pip[data-ready="true"] {
+  background: var(--accent);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--accent) 60%, transparent);
 }
 
 /* Latched: pressed in and inked, lit in the mode's colour */
@@ -1103,7 +1144,7 @@
   }
 
   .match-lobby__roster--vs .match-lobby__seat-name {
-    font-size: clamp(16px, 1.5vw, 26px);
+    font-size: clamp(20px, 1.7vw, 30px);
   }
 
   .match-lobby__roster--vs .match-lobby__seat {
@@ -1112,16 +1153,12 @@
   }
 
   .match-lobby__roster--vs .match-lobby__seat-state {
-    padding: 5px 10px;
-    font-size: 11px;
+    width: 34px;
+    height: 24px;
   }
 
   .match-lobby__map-name {
     font-size: 14px;
-  }
-
-  .match-lobby__map-id {
-    font-size: 11px;
   }
 
   .match-lobby__map-info {
@@ -1297,7 +1334,7 @@
   }
 }
 
-/* ── A short notice beside the Add bot key, such as the lobby turning private ── */
+/* ── A short notice beside the Add AI player key, such as no AI player being available ── */
 
 .match-lobby__flash {
   position: absolute;
@@ -1331,7 +1368,7 @@
   }
 }
 
-/* ── Add bot's skill arrow and menu ── */
+/* ── Add AI player's skill arrow and menu ── */
 
 /* The arrow is the end of the Add bot key, split off by a thin seam: both
    keys lean by the same fixed amount (the usual 3% would leave the narrow
@@ -1370,6 +1407,7 @@
   z-index: 30;
   display: flex;
   flex-direction: column;
+  box-sizing: border-box;
   min-width: 180px;
   padding: 8px;
   background: var(--cream);

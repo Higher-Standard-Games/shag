@@ -41,8 +41,6 @@ const STEP_HINTS: Record<TwinStepState, string> = {
 export interface TwinRail {
   rail: HTMLElement;
   steps: HTMLElement[];
-  /** The panel's heading: what this screen is (a match handoff, a local map). */
-  context: HTMLElement;
   /** Set each step's state at once, in order. */
   setSteps(states: readonly TwinStepState[]): void;
   /** A fact at the head of the panel (the map, the server), added or updated by key. */
@@ -74,7 +72,7 @@ export function buildTwinLight(): HTMLElement {
  * with the screen's facts and log where the lobby lists rooms, the engine in the
  * player card's place, and the utility keys (only Console works).
  */
-export function buildTwinRail(options: { label: string; steps: readonly string[]; context: string }): TwinRail {
+export function buildTwinRail(options: { label: string; steps: readonly string[] }): TwinRail {
   const version = EngineVersion.getInstance();
   const rail = element("aside", "twin__rail");
   rail.setAttribute("aria-label", options.label);
@@ -88,15 +86,12 @@ export function buildTwinRail(options: { label: string; steps: readonly string[]
   });
 
   const panel = element("section", "twin__log");
-  const heading = element("div", "twin__label");
-  const context = element("span", "twin__context", options.context);
-  heading.append(context, element("span", "", version.getVersionString()));
   const box = element("div", "twin__log-box");
   const facts = element("dl", "twin__facts");
   const lines = element("ol", "twin__log-lines");
   lines.setAttribute("aria-live", "polite");
   box.append(facts, lines);
-  panel.append(heading, box);
+  panel.append(box);
 
   const card = element("div", "twin__card");
   const avatar = element("span", "twin__avatar");
@@ -123,7 +118,6 @@ export function buildTwinRail(options: { label: string; steps: readonly string[]
   return {
     rail,
     steps,
-    context,
     setSteps(states) {
       for (const [index, item] of steps.entries()) setTwinStepState(item, states[index] ?? "pending");
     },
@@ -149,7 +143,10 @@ export function buildTwinRail(options: { label: string; steps: readonly string[]
   };
 }
 
-/** A step's state: done (lit), active (latched in ink), pending (unlit) or error. */
+/**
+ * A step's state: done (lit), active (latched in ink), pending (unlit) or error.
+ * Its word stays for screen readers; the key draws a check, a spinner or a cross.
+ */
 export function setTwinStepState(item: HTMLElement, state: TwinStepState): void {
   item.classList.remove("is-done", "is-active", "is-pending", "is-error");
   item.classList.add(`is-${state}`);

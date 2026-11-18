@@ -14,6 +14,7 @@
 import { devLog } from "../engine/core/DevLog";
 import type { HistoryPage, StatsQuery, StatsSummary } from "./PlayerStatsStore";
 import type {
+  CampaignBoardResponse,
   FeaturedDemosResponse,
   LeaderboardResponse,
   LobbyMessage,
@@ -378,6 +379,36 @@ export class LobbyClient {
       );
       cleanup.push(this.on("_disconnected", () => finish(() => reject(new Error("Lobby disconnected")))));
       this.send({ type: "leaderboard:get", requestId, ...query });
+    });
+  }
+
+  /** The campaign boards; listeners are released on every outcome. */
+  requestCampaignBoard(timeoutMs = 10_000): Promise<CampaignBoardResponse> {
+    if (!this.connected) return Promise.reject(new Error("Lobby is offline"));
+    const requestId = `cb_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
+    return new Promise((resolve, reject) => {
+      const cleanup: Array<() => void> = [];
+      let settled = false;
+      const finish = (fn: () => void) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        for (const unsub of cleanup) unsub();
+        fn();
+      };
+      const timer = setTimeout(() => finish(() => reject(new Error("Campaign board request timed out"))), timeoutMs);
+      cleanup.push(
+        this.on("campaign:board", (msg) => {
+          if (msg.requestId === requestId) finish(() => resolve(msg));
+        }),
+      );
+      cleanup.push(
+        this.on("campaign:board:error", (msg) => {
+          if (msg.requestId === requestId) finish(() => reject(new Error(`Campaign board: ${msg.reason}`)));
+        }),
+      );
+      cleanup.push(this.on("_disconnected", () => finish(() => reject(new Error("Lobby disconnected")))));
+      this.send({ type: "campaign:board:get", requestId });
     });
   }
 

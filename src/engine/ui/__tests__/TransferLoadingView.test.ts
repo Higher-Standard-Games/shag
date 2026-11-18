@@ -111,7 +111,6 @@ describe("TransferLoadingView on the loading overlay", () => {
 
   it("walks a local load through its own steps and fills the bar forward only", () => {
     start();
-    expect(text(".twin__context")).toBe("Local map");
     expect(steps().map((step) => step.label)).toEqual(["Map data", "World", "Game"]);
     expect(steps().map((step) => step.state)).toEqual(["is-active", "is-pending", "is-pending"]);
 
@@ -133,7 +132,6 @@ describe("TransferLoadingView on the loading overlay", () => {
   it("shows a networked load as the handoff's last step", () => {
     registerNetworkConnector({ isConnected: () => true, connect: vi.fn() });
     start();
-    expect(text(".twin__context")).toBe("Match handoff");
     expect(steps()).toEqual([
       { label: "Server", state: "is-done" },
       { label: "Handshake", state: "is-done" },
@@ -175,7 +173,7 @@ describe("TransferLoadingView on the loading overlay", () => {
 
     MapLoadingOverlay.release("fps:postload");
     expect(screen()?.dataset.state).toBe("ready");
-    expect(text(".connecting-overlay__kicker")).toBe("ARENA READY");
+    expect(text(".connecting-overlay__lead")).toBe("The arena is loaded. Dropping you in.");
     expect(share()).toBe(1);
     expect(screen()?.getAttribute("aria-busy")).toBe("false");
     expect(steps().every((step) => step.state === "is-done")).toBe(true);
@@ -196,7 +194,7 @@ describe("TransferLoadingView on the loading overlay", () => {
 
     vi.advanceTimersByTime(2000);
     expect(hidden).not.toHaveBeenCalled();
-    expect(text(".connecting-overlay__kicker")).toBe("MAP ERROR");
+    expect(text(".connecting-overlay__lead")).toBe("The arena could not be loaded.");
 
     vi.advanceTimersByTime(1000);
     expect(hidden).toHaveBeenCalledTimes(1);

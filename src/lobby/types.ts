@@ -252,6 +252,12 @@ export interface MatchLobbyInfo {
   /** Recent messages in this room, sent only to a member receiving room state. */
   chatHistory?: ChatMessage[];
   shareUrl: string;
+  /**
+   * Milliseconds from this message until the room invites an AI player by
+   * itself. Absent when it will not: a private, campaign or running room, or
+   * an older server.
+   */
+  aiInviteInMs?: number;
   config: {
     maxPlayers: number;
     /** Players needed to start. Absent on older servers, where it is `maxPlayers`. */
@@ -584,6 +590,8 @@ export interface WelcomeMessage extends LobbyMessage {
   key?: string;
   gametypes: GametypeInfo[];
   onlinePlayers: PlayerInfo[];
+  /** The most players the lobby takes online at once; 0 when it has no cap. Absent on older servers. */
+  maxPlayers?: number;
   chatHistory: ChatMessage[];
   liveMatches: LiveMatchInfo[];
   recentDemos: DemoInfo[];
@@ -781,11 +789,15 @@ export interface LobbyBotInviteFailedMessage extends LobbyMessage {
   error: string;
 }
 
-/** The room left the queue and the public lists; `shareUrl` now carries its invite. */
-export interface LobbyMadePrivateMessage extends LobbyMessage {
-  type: "lobby:made_private";
+/**
+ * When the room invites its next AI player by itself: milliseconds from this
+ * message, or null when it has stopped waiting (the match started, or no one
+ * is left to wait).
+ */
+export interface LobbyAiInviteMessage extends LobbyMessage {
+  type: "lobby:ai_invite";
   lobbyId: string;
-  shareUrl: string;
+  inMs: number | null;
 }
 
 /** This connection was taken out of a room it was in. */
@@ -841,6 +853,50 @@ export interface DemosListResponse extends LobbyMessage {
   scope?: "latest" | "yours";
 }
 
+/** A place on a campaign board: who, and what it is ranked by. */
+export interface CampaignBoardRow {
+  rank: number;
+  playerId: string;
+  name: string;
+  /** Frags: summed over the cleared missions on the scorers' board, one mission's best run on a mission's. */
+  frags?: number;
+  /** Missions cleared, on the scorers' board. */
+  cleared?: number;
+  /** When: the campaign finished, or the mission first cleared (ms since the epoch). */
+  at?: number;
+}
+
+/** One mission's boards: its top fraggers and its first clears. */
+export interface CampaignBoardMission {
+  id: string;
+  number: number;
+  scorers: CampaignBoardRow[];
+  firstClears: CampaignBoardRow[];
+}
+
+/** Ask for the campaign boards. */
+export interface CampaignBoardRequest extends LobbyMessage {
+  type: "campaign:board:get";
+  requestId: string;
+}
+
+/** The campaign boards: the top scorers, the first to finish, and each mission's. */
+export interface CampaignBoardResponse extends LobbyMessage {
+  type: "campaign:board";
+  requestId: string;
+  /** Missions the campaign has, for "cleared 6 of 8". */
+  missionCount: number;
+  scorers: CampaignBoardRow[];
+  finishers: CampaignBoardRow[];
+  missions: CampaignBoardMission[];
+}
+
+export interface CampaignBoardError extends LobbyMessage {
+  type: "campaign:board:error";
+  requestId: string;
+  reason: "invalid_query" | "rate_limited" | "unavailable";
+}
+
 export interface FeaturedDemosRequest extends LobbyMessage {
   type: "featured:get";
   requestId: string;
@@ -853,7 +909,8 @@ export interface FeaturedDemosResponse extends LobbyMessage {
   type: "featured:page";
   requestId: string;
   entries: FeaturedDemoInfo[];
-  selection: "ranked_month_week" | "recent_multiplayer_week";
+  /** Top-ten players this week, this week's matches, or (when the week has none) the newest of any age. */
+  selection: "ranked_month_week" | "recent_multiplayer_week" | "latest_multiplayer";
 }
 
 export interface FeaturedDemosError extends LobbyMessage {
@@ -895,7 +952,7 @@ export interface LobbyServerMessages {
   "lobby:teams_shuffled": LobbyTeamsShuffledMessage;
   "lobby:bot_invited": LobbyBotInvitedMessage;
   "lobby:bot_invite_failed": LobbyBotInviteFailedMessage;
-  "lobby:made_private": LobbyMadePrivateMessage;
+  "lobby:ai_invite": LobbyAiInviteMessage;
   "matches:update": MatchesUpdateMessage;
   "match:ended": MatchEndedMessage;
   "match:seat_reissued": SeatReissueResponse;
@@ -905,6 +962,8 @@ export interface LobbyServerMessages {
   "demos:list_response": DemosListResponse;
   "featured:page": FeaturedDemosResponse;
   "featured:error": FeaturedDemosError;
+  "campaign:board": CampaignBoardResponse;
+  "campaign:board:error": CampaignBoardError;
   "leaderboard:page": LeaderboardResponse;
   "leaderboard:error": LeaderboardError;
   "report:result": PlayerReportResult;

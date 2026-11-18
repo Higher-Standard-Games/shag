@@ -184,19 +184,29 @@ A room is one gametype, one map vote and up to that gametype's player count.
 
 - **Public or private.** A private room is absent from the live match list, the
   queue and the player list; the only way in is a link carrying its invite
-  token, which is 24 random bytes, separate from the room id. Adding a bot to
-  a waiting public room makes it private: the room gets an invite token, leaves
-  the public lists and the queue, and its members receive `lobby:made_private`
-  with the new `shareUrl`.
+  token, which is 24 random bytes, separate from the room id. A room keeps the
+  visibility it was created with: bots join public and private rooms alike.
+- **AI players for a waiting public room.** A public room with a person in it
+  looks for people for 90 seconds (`AI_INVITE_AFTER_MS` in
+  `src/lobby/MatchLobby.ts`), then invites a bot, and another every 5 seconds
+  (`AI_INVITE_SPACING_MS`) while seats are open, so a person can still take
+  one. In Duel and Amphi the first bot fills the room. The bot is the same
+  preset **+ Add AI player** fields for the room's first person. The clock
+  starts again each time the room returns to waiting, and stops while it
+  plays, has no person in it, or is private or a campaign room. The room's
+  members get `lobby:ai_invite` with the milliseconds to the next invite, or
+  `null` once it stops; a joining member finds it in `aiInviteInMs`. A failed
+  invite is tried again after 30 seconds (`AI_INVITE_RETRY_MS`). The ready room
+  counts down the last 30 seconds under its clock.
 - **Teams** are `alpha` and `bravo` on the wire, with display names the
   gametype supplies. A joining player is auto-assigned to the smaller side and
   may switch without a vote; a shuffle needs `ceil(players / 2)` votes.
 - **Maps.** Three are drawn from the gametype's pool, and only maps that are
   actually installed are offered. Most votes wins, ties are random.
-- **Bots** play in private rooms only, seated by the lobby itself (see
+- **Bots** are seated by the lobby itself (see
   [Bots without a bot server](#bots-without-a-bot-server)), at `easy`,
   `medium`, `hard` or `insane`. An invite that names no level (the room's
-  **+ Add bot**) fields the preset whose fixed strength is nearest the
+  **+ Add AI player**) fields the preset whose fixed strength is nearest the
   inviter's Overall rating in the room's mode, with a minimum of Hard. A player with no rating meets
   Hard; a rating match to Insane selects Insane. Explicit preset requests can
   still select any level. The room shows each bot's level on its seat.
@@ -342,7 +352,9 @@ people farming bots. The rule lives in `isRankedRoster()` in
 `src/lobby/LobbyServer.ts`.
 
 Private matches keep their own record beside the public one, and both count
-toward Overall (see "Skill ratings"). Against bots, one
+toward Overall (see "Skill ratings"). A match that starts with a bot is a
+private result wherever it was played, so the public pool stays people against
+people. Against bots, one
 verified account is enough, and a loss to a bot counts too. A private
 human-only match still needs two verified accounts and consistent outcomes. The
 visibility and the bot-seat count are fixed from the room's starting roster,

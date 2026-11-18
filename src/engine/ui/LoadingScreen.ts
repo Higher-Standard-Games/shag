@@ -8,12 +8,13 @@
  * It is built as the lobby's twin (LobbyTwin), because the lobby takes
  * over from it: the gold rail at the lobby's width with the game's logo where
  * the lobby has it, the boot's steps as the rail's keys (the current one
- * latched in ink, as the lobby marks the page you are on), a log where the
- * lobby lists rooms, the engine in the player card's place and the utility
- * keys below; the stage is the lobby's blue, with a ring holding the engine's
+ * latched in ink, as the lobby marks the page you are on), the room the lobby's
+ * room list takes left empty, the engine in the player card's place and the
+ * utility keys below; the stage is the lobby's blue, with a ring holding the engine's
  * logo that spins while the engine boots and settles once everything is
- * loaded, when a start button under it pulses to be clicked. When the lobby
- * comes up, the rail stays where it is.
+ * loaded, when a start button under it pulses to be clicked. Beside the
+ * step's name over the progress bar, one line says what it is doing now. When
+ * the lobby comes up, the rail stays where it is.
  *
  * This is an engine component - game-agnostic. The game names its brand with
  * `configureLobbyTwin`.
@@ -51,8 +52,8 @@ export class LoadingScreen {
   private static instance: LoadingScreen | null = null;
 
   private container: HTMLDivElement;
-  private kickerEl: HTMLElement;
   private statusEl: HTMLElement;
+  private lineEl: HTMLElement;
   private rail: TwinRail;
   private barEl: HTMLElement;
   private downloads: PackageDownloadStatus;
@@ -99,14 +100,12 @@ export class LoadingScreen {
     this.rail = buildTwinRail({
       label: "Start-up",
       steps: BOOT_STEPS.map((step) => STEP_LABELS[step]),
-      context: "Boot log",
     });
 
     // ── Stage: the ring with the engine's logo, which starts the game ──
     const stage = element("main", "twin__stage boot__stage");
 
     const hero = element("div", "boot__hero");
-    this.kickerEl = element("div", "boot__kicker", "Starting up");
 
     this.ringEl = document.createElement("button");
     this.ringEl.type = "button";
@@ -123,31 +122,24 @@ export class LoadingScreen {
     logo.className = "boot__logo ui-loading-logo";
     this.ringEl.append(sweep, ...pulses, logo);
 
-    // A touch screen is tapped, and has no Enter to press
-    const touch = primaryDevice() === "touch";
     this.captionEl = element("div", "boot__caption");
     this.startEl = document.createElement("button");
     this.startEl.type = "button";
     this.startEl.className = "boot__start";
-    this.startEl.textContent = touch ? "Tap to start" : "Click to start";
+    this.startEl.textContent = "Start";
     this.captionEl.append(this.startEl);
-    this.captionEl.append(
-      element(
-        "small",
-        "",
-        touch ? "or press a controller button" : "or press Enter · controller button for controller mode",
-      ),
-    );
     this.captionEl.hidden = true;
 
     const lead = element("p", "boot__lead", version.getEngineTagline());
-    hero.append(this.kickerEl, this.ringEl, this.captionEl, lead);
+    hero.append(this.ringEl, this.captionEl, lead);
 
     const progress = element("section", "boot__progress");
     progress.setAttribute("aria-label", "Start-up progress");
     const progressHead = element("div", "boot__progress-head");
     this.statusEl = element("div", "boot__status", "RENDERER");
-    progressHead.append(element("span", "boot__progress-label", "Boot status"), this.statusEl);
+    this.lineEl = element("div", "boot__line");
+    this.lineEl.setAttribute("aria-live", "polite");
+    progressHead.append(this.statusEl, this.lineEl);
     this.barEl = element("div", "boot__bar");
     this.barEl.setAttribute("role", "progressbar");
     this.barEl.setAttribute("aria-label", "Starting up");
@@ -203,12 +195,14 @@ export class LoadingScreen {
   }
 
   /**
-   * Add a line to the boot log: what the engine is doing now.
+   * Say what the engine is doing now, on the line beside the step's name.
    * @param status - Status message to display (e.g., "Indexing packages...", "Loading textures...")
    */
   public setStatus(status: string, phase?: BootStep | "initialization"): void {
     if (phase) this.failureStep = phase;
-    this.rail.log(status);
+    if (!status) return;
+    this.lineEl.textContent = status;
+    this.lineEl.title = status;
   }
 
   /**
@@ -238,7 +232,6 @@ export class LoadingScreen {
     this.container.classList.add("ui-loading-screen--failed");
     this.container.setAttribute("aria-busy", "false");
     this.container.setAttribute("aria-label", "Game could not start");
-    this.kickerEl.textContent = "Could not start";
     this.statusEl.textContent = "FAILED";
     this.ringEl.disabled = true;
     this.captionEl.hidden = false;
@@ -316,10 +309,10 @@ export class LoadingScreen {
     this.rail.setSteps(BOOT_STEPS.map(() => "done"));
     this.statusEl.textContent = "READY";
     this.setBar(1);
-    this.rail.log("Ready.");
+    this.lineEl.textContent = "";
+    this.lineEl.title = "";
     this.container.classList.add("ui-loading-screen--ready");
     if (this.started) return;
-    this.kickerEl.textContent = "Ready";
     this.captionEl.hidden = false;
 
     // Smoke effect - colored puffs rising and fading (using shared component)
@@ -346,7 +339,6 @@ export class LoadingScreen {
     if (primaryDevice() === "touch") background(enterTouchFullscreen(), "LoadingScreen");
     background(AudioManager.getInstance().loadPlaylist(MENU_PLAYLIST), "LoadingScreen");
 
-    this.kickerEl.textContent = "Starting";
     this.container.classList.add("ui-loading-screen--started");
     this.ringEl.disabled = true;
     // The button stays where it is, saying what happens now, so nothing moves

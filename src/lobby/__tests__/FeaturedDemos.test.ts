@@ -26,7 +26,7 @@ function demo(filename: string, overrides: Partial<DemoInfo> = {}): DemoInfo {
 afterEach(() => vi.restoreAllMocks());
 
 describe("featured demo selection", () => {
-  it("selects only recent substantial multiplayer recordings, newest first", () => {
+  it("selects only recent substantial multiplayer recordings, private rooms included, newest first", () => {
     const picks = selectFeaturedDemos(
       [
         demo("old", { date: NOW - 7 * DAY - 1 }),
@@ -34,7 +34,8 @@ describe("featured demo selection", () => {
         demo("solo", { players: ["One"] }),
         demo("duplicate-name", { players: ["One", "one"] }),
         demo("future", { date: NOW + 1 }),
-        demo("private", { private: true, date: NOW }),
+        demo("private", { private: true, date: NOW - DAY / 2 }),
+        demo("campaign", { campaign: "cartel_contract", date: NOW }),
         demo("earlier", { date: NOW - 2 * DAY }),
         demo("latest", { date: NOW - DAY }),
         demo("latest", { date: NOW - DAY }),
@@ -42,9 +43,30 @@ describe("featured demo selection", () => {
       { limit: 10 },
       NOW,
     );
-    expect(picks.map((pick) => pick.demo.filename)).toEqual(["latest", "earlier"]);
-    expect(picks.map((pick) => pick.rank)).toEqual([1, 2]);
+    expect(picks.map((pick) => pick.demo.filename)).toEqual(["private", "latest", "earlier"]);
+    expect(picks.map((pick) => pick.rank)).toEqual([1, 2, 3]);
     expect(picks[0].reason).toBe("Recent multiplayer recording");
+  });
+
+  it("falls back to the newest matches of any age when the week has none", () => {
+    const lobby = new LobbyServer();
+    const sent: Array<Record<string, unknown>> = [];
+    const player = {
+      id: "p_1",
+      authenticated: true,
+      ws: { readyState: WebSocket.OPEN, send: (raw: string) => sent.push(JSON.parse(raw)) },
+    };
+    const internal = lobby as unknown as {
+      _demoCache: DemoInfo[];
+      handleMessage: (connected: typeof player, message: object) => void;
+    };
+    internal._demoCache = [demo("last-month", { date: Date.now() - 30 * DAY })];
+    internal.handleMessage(player, { type: "featured:get", requestId: "old", limit: 5 });
+    expect(sent.at(-1)).toMatchObject({
+      type: "featured:page",
+      selection: "latest_multiplayer",
+      entries: [{ demo: { filename: "last-month" }, rank: 1, reason: "Latest multiplayer recording" }],
+    });
   });
 
   it("normalizes deathmatch to FFA and bounds a mode/map selection", () => {

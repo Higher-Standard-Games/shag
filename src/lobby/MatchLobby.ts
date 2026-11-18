@@ -34,6 +34,13 @@ export function shuffle<T>(items: T[], random: () => number = Math.random): T[] 
   return items;
 }
 
+/** How long a public room looks for people before it invites its first AI player. */
+export const AI_INVITE_AFTER_MS = 90_000;
+/** Between AI players after the first, while seats stay open: room for a person to take one. */
+export const AI_INVITE_SPACING_MS = 5_000;
+/** After an AI invite fails, before the room tries again. */
+export const AI_INVITE_RETRY_MS = 30_000;
+
 export const CAMPAIGN_PLAYER_TEAM: LobbyTeam = "alpha";
 export const CAMPAIGN_ENEMY_TEAM: LobbyTeam = "bravo";
 
@@ -86,6 +93,11 @@ export class MatchLobby {
    *  server exits, so players returning via the ?lobby= deep link (a page
    *  reload that drops every lobby socket at once) still find their lobby. */
   keepAliveUntil: number = 0;
+  /**
+   * When the room next invites an AI player by itself; null while it is not
+   * looking for people (private, campaign, playing, or no person in it).
+   */
+  aiInviteAt: number | null = null;
 
   get playerCount(): number {
     return this.players.size;
@@ -108,19 +120,14 @@ export class MatchLobby {
       return;
     }
 
-    // Pick 3 random maps from pool (or all if pool ≤ 3)
+    // Six random maps to vote on from a pool of six or more, else three (or all of a smaller pool)
     const shuffled = shuffle([...gametype.mapPool]);
-    this.maps = shuffled.slice(0, 3).map((name) => ({
+    const offered = shuffled.length >= 6 ? 6 : 3;
+    this.maps = shuffled.slice(0, offered).map((name) => ({
       name,
       displayName: mapNames[name] || name,
       votes: 0,
     }));
-  }
-
-  /** Close the room to the queue and the public lists; from now on its invite link is the way in. */
-  makePrivate(): void {
-    this.visibility = "private";
-    this.inviteToken = randomBytes(24).toString("base64url");
   }
 
   addPlayer(player: ConnectedPlayer): LobbyPlayerInfo {
@@ -245,6 +252,7 @@ export class MatchLobby {
       players: [...this.players.values()],
       chatHistory: [...this.chatHistory],
       shareUrl: `/?lobby=${encodeURIComponent(this.id)}${this.inviteToken ? `&invite=${this.inviteToken}` : ""}`,
+      ...(this.aiInviteAt === null ? {} : { aiInviteInMs: Math.max(0, this.aiInviteAt - Date.now()) }),
       config: {
         maxPlayers: this.gametype.maxPlayers,
         minPlayers: this.gametype.minPlayers ?? this.gametype.maxPlayers,

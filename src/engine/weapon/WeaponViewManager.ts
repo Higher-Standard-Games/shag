@@ -109,8 +109,8 @@ export const HAND_OFFSETS = {
   left: -12, // Left side of screen
 };
 
-/** The gun's scale for each cl_gunsize: normal, small and smallest. */
-const GUN_SIZES = [1, 0.9, 0.8];
+/** The gun's scale for each cl_gunsize: normal, then small and smallest at 15% and 25% under it. */
+const GUN_SIZES = [0.8, 0.68, 0.6];
 
 export const DEFAULT_POSITIONS: Record<string, WeaponPosition> = {
   hip: {

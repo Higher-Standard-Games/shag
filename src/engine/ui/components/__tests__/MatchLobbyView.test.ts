@@ -180,7 +180,7 @@ describe("MatchLobbyView roster identity", () => {
     expect(view.root.querySelector<HTMLButtonElement>(".raised-key--ready")?.disabled).toBe(false);
     expect(view.root.querySelector<HTMLButtonElement>("[data-map='wbomb1']")?.disabled).toBe(false);
     const switchSide = [...view.root.querySelectorAll<HTMLButtonElement>(".match-lobby__actions button")].find(
-      (button) => button.textContent?.includes("Switch"),
+      (button) => button.textContent?.includes("⇄"),
     );
     expect(switchSide?.disabled).toBe(false);
 
@@ -202,18 +202,22 @@ describe("MatchLobbyView roster identity", () => {
     document.body.appendChild(view.root);
     const text = (selector: string) => view.root.querySelector(selector)?.textContent;
 
-    expect(text(".match-lobby__meta")).toContain("Up to 5 vs 5 · starts at 2");
-    expect(text(".match-lobby__status-kicker")).toBe("Enough to start");
+    expect(text(".match-lobby__meta")).toBe("Lobby snd-room");
+    expect(view.root.querySelector(".match-lobby__status-kicker")).toBeNull();
+    expect(view.root.querySelector(".match-lobby__vote-hint")).toBeNull();
     expect(text(".match-lobby__status-head")).toBe("Ready when you are");
     expect(text(".match-lobby__status-sub")).toBe("0 / 2 ready · 8 seats stay open until it starts");
-    expect(text(".raised-key--ready .raised-key__hint")).toBe("0 / 2 ready");
-    expect(text(".match-lobby__actions")).toContain("8 seats open");
+    expect(view.root.querySelector(".raised-key--ready .raised-key__hint")).toBeNull();
+    expect(text(".match-lobby__ready-count")).toBe("0/2");
+    expect(view.root.querySelectorAll(".match-lobby__ready-pip[data-ready='false']")).toHaveLength(2);
+    expect(text(".match-lobby__actions")).toContain("+ Add AI player");
+    expect(text(".match-lobby__actions")).not.toContain("seats open");
 
     // With one side empty the server will not start it, whatever the count
     client.emit("lobby:player_left", { playerId: "joiner" });
     client.emit("lobby:player_joined", { player: { id: "other", name: "Other", team: "alpha", ready: true } });
     expect(text(".match-lobby__status-head")).toBe("Waiting for players");
-    expect(text(".match-lobby__status-sub")).toBe("Each side needs a player. Switch sides, or add a bot.");
+    expect(text(".match-lobby__status-sub")).toBe("Each side needs a player. Switch sides, or add an AI player.");
     view.destroy();
   });
 
@@ -224,7 +228,7 @@ describe("MatchLobbyView roster identity", () => {
 
     const keys = [...view.root.querySelectorAll(".match-lobby__actions button")].map((key) => key.textContent ?? "");
     expect(keys.some((text) => text.includes("Switch") || text.includes("Shuffle"))).toBe(false);
-    expect(keys.some((text) => text.includes("Add bot"))).toBe(true);
+    expect(keys.some((text) => text.includes("Add AI player"))).toBe(true);
     view.destroy();
   });
 
@@ -255,9 +259,7 @@ describe("MatchLobbyView roster identity", () => {
     expect(heads.some((text) => text.includes("Blue Crew"))).toBe(true);
     expect(heads.some((text) => text.includes("Pink Crew"))).toBe(true);
     // The host is on alpha, so switching offers the other side by name
-    const switchKey = [...view.root.querySelectorAll(".raised-key--act")].find((key) =>
-      key.textContent?.includes("Switch"),
-    );
+    const switchKey = [...view.root.querySelectorAll(".raised-key--act")].find((key) => key.textContent?.includes("⇄"));
     expect(switchKey?.textContent).toContain("Pink Crew");
     view.destroy();
   });
@@ -329,9 +331,9 @@ describe("MatchLobbyView roster identity", () => {
     expect(view.root.querySelector(".match-lobby__status-head")?.textContent).toBe("Match in progress");
     expect(view.root.querySelector(".match-lobby__status-sub")?.textContent).toContain("Rejoin your seat");
     // A ready flag from the match being played says nothing about the next one
-    expect([...view.root.querySelectorAll(".match-lobby__seat-state")].map((s) => s.textContent)).toEqual([
-      "In match",
-      "In match",
+    expect([...view.root.querySelectorAll<HTMLElement>(".match-lobby__seat-state")].map((s) => s.hidden)).toEqual([
+      true,
+      true,
     ]);
     view.destroy();
   });
@@ -342,9 +344,14 @@ describe("MatchLobbyView roster identity", () => {
     client.emit("match:ended", { type: "match:ended", matchId: "m_running", exitCode: 0 });
 
     expect(view.root.querySelector(".match-lobby__status-head")?.textContent).toBe("Ready up");
-    expect([...view.root.querySelectorAll(".match-lobby__seat-state")].map((s) => s.textContent)).toEqual([
-      "Not ready",
-      "Not ready",
+    expect(
+      [...view.root.querySelectorAll<HTMLElement>(".match-lobby__seat-state")].map((s) => [
+        s.hidden,
+        s.getAttribute("aria-label"),
+      ]),
+    ).toEqual([
+      [false, "Not ready"],
+      [false, "Not ready"],
     ]);
     view.destroy();
   });
@@ -402,12 +409,14 @@ describe("MatchLobbyView layout", () => {
     view.destroy();
   });
 
-  it("ends the action row with Rejoin and Ready, the pair the row pushes to the right", () => {
+  it("ends the action row with Rejoin, the ready count and Ready, which the row pushes to the right", () => {
     const view = new MatchLobbyView("snd", new FakeLobbyClient() as never, { ...lobby, activeMatchId: "m_1" }, "host");
-    const keys = [...(view.root.querySelector(".match-lobby__actions")?.children ?? [])];
-    const [rejoin, ready] = keys.slice(-2);
+    const row = [...(view.root.querySelector(".match-lobby__actions")?.children ?? [])];
+    const [rejoin, tally, ready] = row.slice(-3);
     expect(rejoin.classList.contains("match-lobby__recover")).toBe(true);
+    expect(tally.classList.contains("match-lobby__ready-tally")).toBe(true);
     expect(ready.classList.contains("raised-key--ready")).toBe(true);
+    const keys = row.filter((key) => key !== tally);
     // Every key is a button; in a public room the bot key sits in the span
     // that explains why it is off
     expect(keys.every((key) => key.tagName === "BUTTON" || key.querySelector(":scope > button"))).toBe(true);
@@ -427,13 +436,13 @@ describe("MatchLobbyView bots", () => {
     };
     const view = new MatchLobbyView("duel", client as never, room, "host");
     const bot = [...view.root.querySelectorAll<HTMLButtonElement>(".match-lobby__actions button")].find((b) =>
-      b.textContent?.includes("Add bot"),
+      b.textContent?.includes("Add AI player"),
     );
     expect(bot?.disabled).toBe(false);
     view.destroy();
   });
 
-  it("adds a bot of a chosen skill from the arrow beside Add bot", () => {
+  it("adds a bot of a chosen skill from the arrow beside Add AI player", () => {
     const client = new FakeLobbyClient();
     const room = { ...lobby, players: [lobby.players[0]], visibility: "private" as const, shareUrl: "/?lobby=r" };
     const view = new MatchLobbyView("duel", client as never, room, "host");
@@ -450,7 +459,7 @@ describe("MatchLobbyView bots", () => {
     expect(arrow?.getAttribute("aria-expanded")).toBe("true");
     items[3].click();
     expect(client.inviteBot).toHaveBeenCalledWith("snd-room", "insane");
-    // The menu closes, and the arrow waits with Add bot for the bot to arrive
+    // The menu closes, and the arrow waits with Add AI player for the bot to arrive
     expect(view.root.querySelector(".match-lobby__bot-menu")).toBeNull();
     expect(arrow?.disabled).toBe(true);
     view.destroy();
@@ -470,31 +479,57 @@ describe("MatchLobbyView bots", () => {
     view.root.remove();
   });
 
-  it("offers bots in a public lobby, and turns private when the server says so", () => {
-    vi.useFakeTimers();
+  it("offers AI players in a public lobby, which stays public", () => {
     const client = new FakeLobbyClient();
     const room = { ...lobby, players: [lobby.players[0]], visibility: "public" as const };
     const view = new MatchLobbyView("duel", client as never, room, "host");
     const bot = [...view.root.querySelectorAll<HTMLButtonElement>(".match-lobby__actions button")].find((b) =>
-      b.textContent?.includes("Add bot"),
+      b.textContent?.includes("Add AI player"),
     );
     expect(bot?.disabled).toBe(false);
-    expect(bot?.title).toBe("Adding a bot makes this lobby private");
+    expect(bot?.title).toBe("");
+    expect(bot?.querySelector(".raised-key__hint")).toBeNull();
     expect(view.root.querySelector(".match-lobby__invite-url")?.textContent).not.toContain("invite=");
 
     bot?.click();
     expect(client.inviteBot).toHaveBeenCalledWith("snd-room");
+    expect(view.root.querySelector(".match-lobby__invite-url")?.textContent).not.toContain("invite=");
+    view.destroy();
+  });
 
-    // Another room turning private is not this one's business
-    client.emit("lobby:made_private", { lobbyId: "elsewhere", shareUrl: "/?lobby=elsewhere&invite=x" });
-    expect(view.root.querySelector(".match-lobby__flash")).toBeNull();
+  it("counts down the last half minute before the room invites an AI player", () => {
+    vi.useFakeTimers();
+    const client = new FakeLobbyClient();
+    const room = { ...lobby, players: [lobby.players[0]], visibility: "public" as const, aiInviteInMs: 90_000 };
+    const view = new MatchLobbyView("duel", client as never, room, "host");
+    const notice = () => view.root.querySelector<HTMLElement>(".match-lobby__ai-invite");
+    expect(notice()?.hidden).toBe(true);
 
-    client.emit("lobby:made_private", { lobbyId: "snd-room", shareUrl: "/?lobby=snd-room&invite=tok" });
-    expect(view.root.querySelector(".match-lobby__flash")?.textContent).toBe("Lobby changed to private");
-    expect(view.root.querySelector(".match-lobby__invite-url")?.textContent).toContain("invite=tok");
-    expect(bot?.title).toBe("");
-    vi.advanceTimersByTime(2000);
-    expect(view.root.querySelector(".match-lobby__flash")).toBeNull();
+    vi.advanceTimersByTime(60_000);
+    expect(notice()?.hidden).toBe(false);
+    expect(notice()?.textContent).toBe("Inviting AI opponent in 0:30");
+    vi.advanceTimersByTime(3_000);
+    expect(notice()?.textContent).toBe("Inviting AI opponent in 0:27");
+    vi.advanceTimersByTime(27_000);
+    expect(notice()?.textContent).toBe("Inviting AI opponent");
+
+    // Another room's schedule is not this one's
+    client.emit("lobby:ai_invite", { lobbyId: "elsewhere", inMs: null });
+    vi.advanceTimersByTime(1_000);
+    expect(notice()?.hidden).toBe(false);
+
+    // The room stops looking (here, it started): the notice goes
+    client.emit("lobby:ai_invite", { lobbyId: "snd-room", inMs: null });
+    expect(notice()?.hidden).toBe(true);
+
+    // A full room invites no one, whatever the schedule says
+    client.emit("lobby:ai_invite", { lobbyId: "snd-room", inMs: 10_000 });
+    expect(notice()?.textContent).toBe("Inviting AI opponent in 0:10");
+    client.emit("lobby:player_joined", {
+      player: { id: "bot", name: "Bot", team: "ffa", ready: true, botLevel: "hard" },
+    });
+    vi.advanceTimersByTime(1_000);
+    expect(notice()?.hidden).toBe(true);
     view.destroy();
     vi.useRealTimers();
   });
@@ -548,7 +583,7 @@ describe("MatchLobbyView bots", () => {
     });
     view.root.querySelector<HTMLButtonElement>(".raised-key--ready")?.click();
     expect(client.setReady).not.toHaveBeenCalled();
-    expect(view.root.querySelector(".raised-key--ready .raised-key__hint")?.textContent).toBe("Adding bots");
+    expect(view.root.querySelector(".match-lobby__ready-pip[data-ready='true']")).not.toBeNull();
     for (let n = 2; n <= 4; n += 1) {
       client.emit("lobby:player_joined", {
         player: { id: `bot${n}`, name: `Bot ${n}`, team: n % 2 ? "bravo" : "alpha", ready: true, botLevel: "hard" },

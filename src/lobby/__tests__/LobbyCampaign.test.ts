@@ -3,7 +3,7 @@ import { WebSocket } from "ws";
 import type { MatchResultReport } from "../../engine/server/network/MatchResultReport";
 import { parseCampaign } from "../Campaign";
 import { LobbyServer } from "../LobbyServer";
-import type { CampaignStateMessage, GametypeInfo, MatchLobbyInfo } from "../types";
+import type { CampaignBoardResponse, CampaignStateMessage, GametypeInfo, MatchLobbyInfo } from "../types";
 
 const amphi: GametypeInfo = {
   id: "amphi",
@@ -68,7 +68,10 @@ interface Internals {
   recordCampaignResult(report: MatchResultReport): void;
   lobbies: Map<string, { campaign: unknown; maps: Array<{ name: string }> }>;
   accounts: { close(): void };
-  campaign: { close(): void; recordClear(account: number, mission: string, ms: number, frags: number): void };
+  campaign: {
+    close(): void;
+    recordClear(account: number, mission: string, ms: number, frags: number, now?: number): void;
+  };
 }
 
 let nextId = 1;
@@ -301,6 +304,35 @@ describe("campaign rooms", () => {
     expect(state.clears).toEqual([
       { missionId: "cartel-contract", clearedAt: expect.any(Number), bestTimeMs: 100_000, bestFrags: 9 },
     ]);
+  });
+
+  it("serves the campaign boards with the accounts' names, best scorer first", () => {
+    const { internal } = makeServer();
+    const accounts = internal.accounts as unknown as { create(): { account: { id: number; name: string } } };
+    const ace = accounts.create().account;
+    const rookie = accounts.create().account;
+    const viewer = connect(internal, "Viewer");
+    internal.campaign.recordClear(rookie.id, "cartel-contract", 100_000, 5, 1000);
+    internal.campaign.recordClear(ace.id, "cartel-contract", 100_000, 12, 2000);
+    internal.handleMessage(viewer.player, { type: "campaign:board:get", requestId: "b1" });
+    const board = last(viewer.sent, "campaign:board") as unknown as CampaignBoardResponse;
+    expect(board.requestId).toBe("b1");
+    expect(board.scorers.map((row) => [row.rank, row.name, row.frags, row.cleared])).toEqual([
+      [1, ace.name, 12, 1],
+      [2, rookie.name, 5, 1],
+    ]);
+    const first = board.missions.find((mission) => mission.id === "cartel-contract")!;
+    expect(first.scorers.map((row) => row.name)).toEqual([ace.name, rookie.name]);
+    expect(first.firstClears[0]?.name).toBe(rookie.name);
+    expect(board.finishers).toEqual([]);
+  });
+
+  it("says a lobby without a campaign has no campaign boards", () => {
+    const { internal } = makeServer();
+    internal.campaignCatalog = { length: 0, missions: [] } as unknown as Internals["campaignCatalog"];
+    const viewer = connect(internal, "Viewer");
+    internal.handleMessage(viewer.player, { type: "campaign:board:get", requestId: "b2" });
+    expect(last(viewer.sent, "campaign:board:error")).toMatchObject({ requestId: "b2", reason: "unavailable" });
   });
 
   it("clears nothing on a loss, a draw, or a match that was not a campaign match", () => {

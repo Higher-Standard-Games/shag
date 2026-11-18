@@ -86,7 +86,6 @@ export class TransferLoadingView implements MapLoadingView {
   private detailEl: HTMLElement | null = null;
   private noticeEl: HTMLElement | null = null;
   private titleEl: HTMLElement | null = null;
-  private kickerEl: HTMLElement | null = null;
   private leadEl: HTMLElement | null = null;
   private shotEl: HTMLElement | null = null;
   private dotTimer: ReturnType<typeof setInterval> | null = null;
@@ -114,7 +113,6 @@ export class TransferLoadingView implements MapLoadingView {
     this.rail = buildTwinRail({
       label: "Map load",
       steps: this.networked ? ["Server", "Handshake", "Map load"] : LOCAL_STEPS.map(([label]) => label),
-      context: this.networked ? "Match handoff" : "Local map",
     });
     root.append(buildTwinLight(), this.rail.rail, this.buildStage());
     container.appendChild(root);
@@ -136,7 +134,6 @@ export class TransferLoadingView implements MapLoadingView {
     this.rail?.setFact("map", "Map", map.id);
     // A map with no levelshot installed keeps the stage's own gradient
     this.shotEl?.style.setProperty("--co-shot", `url("/data/levelshots/${encodeURIComponent(map.id)}.jpg")`);
-    if (this.kickerEl) this.kickerEl.textContent = "NOW LOADING";
     if (this.leadEl) {
       this.leadEl.textContent = this.networked
         ? "Connected to the match server. Loading the arena it is running."
@@ -167,7 +164,6 @@ export class TransferLoadingView implements MapLoadingView {
   complete(event: LoadingCompleteEvent, waitingFor: string[]): void {
     if (!event.success) {
       this.failed = true;
-      if (this.kickerEl) this.kickerEl.textContent = "MAP ERROR";
       if (this.leadEl) this.leadEl.textContent = "The arena could not be loaded.";
       this.setStatus("load-failed", "LOAD FAILED");
       this.setDetail("");
@@ -194,7 +190,6 @@ export class TransferLoadingView implements MapLoadingView {
 
   ready(): void {
     if (this.failed) return;
-    if (this.kickerEl) this.kickerEl.textContent = "ARENA READY";
     if (this.leadEl) this.leadEl.textContent = "The arena is loaded. Dropping you in.";
     this.setBar(1);
     this.setStatus("ready", "READY");
@@ -219,10 +214,9 @@ export class TransferLoadingView implements MapLoadingView {
     this.shotEl.setAttribute("aria-hidden", "true");
 
     const hero = element("div", "connecting-overlay__hero");
-    this.kickerEl = element("div", "connecting-overlay__kicker");
     this.titleEl = element("h1", "connecting-overlay__title");
     this.leadEl = element("p", "connecting-overlay__lead");
-    hero.append(this.kickerEl, this.titleEl, this.leadEl);
+    hero.append(this.titleEl, this.leadEl);
 
     const transfer = element("section", "connecting-overlay__transfer");
     transfer.setAttribute("aria-label", "Loading progress");

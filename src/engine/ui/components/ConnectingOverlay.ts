@@ -167,7 +167,6 @@ export class ConnectingOverlay {
     const rail = buildTwinRail({
       label: asSpectator ? "Joining live match" : "Match handoff",
       steps: ["Server", "Handshake", "Map load"],
-      context: asSpectator ? "Live channel" : "Match handoff",
     });
     rail.setFact("server", "Server", serverUrl);
     rail.setSteps(["done", "active", "pending"]);
@@ -178,10 +177,6 @@ export class ConnectingOverlay {
 
     const hero = document.createElement("div");
     hero.className = "connecting-overlay__hero";
-
-    const kicker = document.createElement("div");
-    kicker.className = "connecting-overlay__kicker";
-    kicker.textContent = asSpectator ? "LIVE MATCH AVAILABLE" : "MATCH SERVER ONLINE";
 
     const title = document.createElement("h1");
     title.className = "connecting-overlay__title";
@@ -196,7 +191,7 @@ export class ConnectingOverlay {
       ? "Opening a read-only seat on the live match server."
       : "Your match seat is reserved. Establishing the game connection now.";
 
-    hero.append(kicker, title, lead);
+    hero.append(title, lead);
 
     const transfer = document.createElement("section");
     transfer.className = "connecting-overlay__transfer";

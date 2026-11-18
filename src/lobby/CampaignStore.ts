@@ -16,6 +16,14 @@ import { DatabaseSync, type StatementSync } from "node:sqlite";
 import { betterClear } from "./Campaign";
 import type { CampaignClear } from "./types";
 
+/** The campaign boards as stored: account ids, not yet names. */
+export interface CampaignBoardData {
+  scorers: Array<{ accountId: number; frags: number; cleared: number }>;
+  finishers: Array<{ accountId: number; at: number }>;
+  missionScorers: Array<{ missionId: string; accountId: number; frags: number; at: number }>;
+  firstClears: Array<{ missionId: string; accountId: number; frags: number; at: number }>;
+}
+
 export class CampaignStore {
   private readonly db: DatabaseSync;
   private readonly selectClears: StatementSync;
@@ -88,6 +96,53 @@ export class CampaignStore {
     const clearedAt = previous?.clearedAt ?? now;
     this.upsertClear.run(accountId, missionId, clearedAt, best.bestTimeMs, best.bestFrags);
     return { missionId, clearedAt, ...best };
+  }
+
+  /**
+   * The campaign's boards, `limit` rows each, leaving out `hidden` accounts:
+   * the most frags over every cleared mission (each mission's best run), the
+   * first to finish the whole campaign, and each mission's top fraggers and
+   * first clears.
+   */
+  board(limit: number, hidden: readonly number[]): CampaignBoardData {
+    const skip = JSON.stringify(hidden);
+    const NOT_HIDDEN = "account_id NOT IN (SELECT value FROM json_each(?))";
+    const scorers = this.db
+      .prepare(
+        `SELECT account_id, SUM(best_frags) AS frags, COUNT(*) AS cleared, MAX(cleared_at) AS last
+         FROM campaign_clears WHERE ${NOT_HIDDEN}
+         GROUP BY account_id ORDER BY frags DESC, cleared DESC, last ASC, account_id ASC LIMIT ?`,
+      )
+      .all(skip, limit)
+      .map((row) => ({ accountId: Number(row.account_id), frags: Number(row.frags), cleared: Number(row.cleared) }));
+    const finishers = this.db
+      .prepare(
+        `SELECT account_id, completed_at FROM campaign_completions WHERE ${NOT_HIDDEN}
+         ORDER BY completed_at ASC, account_id ASC LIMIT ?`,
+      )
+      .all(skip, limit)
+      .map((row) => ({ accountId: Number(row.account_id), at: Number(row.completed_at) }));
+    const perMission = (order: string) =>
+      this.db
+        .prepare(
+          `SELECT mission_id, account_id, best_frags, cleared_at FROM (
+             SELECT *, ROW_NUMBER() OVER (PARTITION BY mission_id ORDER BY ${order}, account_id ASC) AS place
+             FROM campaign_clears WHERE ${NOT_HIDDEN}
+           ) WHERE place <= ? ORDER BY mission_id, place`,
+        )
+        .all(skip, limit)
+        .map((row) => ({
+          missionId: String(row.mission_id),
+          accountId: Number(row.account_id),
+          frags: Number(row.best_frags),
+          at: Number(row.cleared_at),
+        }));
+    return {
+      scorers,
+      finishers,
+      missionScorers: perMission("best_frags DESC, cleared_at ASC"),
+      firstClears: perMission("cleared_at ASC"),
+    };
   }
 
   /** When the account first finished the whole campaign, or null if it has not. */

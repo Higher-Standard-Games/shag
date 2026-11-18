@@ -49,7 +49,13 @@ import {
   normalizeGametype,
 } from "./LobbyRules";
 import { LocalSocket } from "./LocalSocket";
-import { type ConnectedPlayer, MatchLobby } from "./MatchLobby";
+import {
+  AI_INVITE_AFTER_MS,
+  AI_INVITE_RETRY_MS,
+  AI_INVITE_SPACING_MS,
+  type ConnectedPlayer,
+  MatchLobby,
+} from "./MatchLobby";
 import type { MatchResultStore } from "./MatchResultStore";
 import { DELETED_ACCOUNT_NAME, type PlayerNameReservation } from "./PlayerIdentity";
 import { RATING_POOLS } from "./PlayerStatsStore";
@@ -61,6 +67,8 @@ import { BOT_SECRET_HEADER, secretMatches } from "./ServerData";
 import { SettingsStore } from "./SettingsStore";
 import type {
   AuthMessage,
+  CampaignBoardRequest,
+  CampaignBoardRow,
   CampaignMissionInfo,
   CampaignStateMessage,
   ChatMessage as ChatMsg,
@@ -276,6 +284,7 @@ export class LobbyServer {
   private _demoCacheTimer: ReturnType<typeof setInterval> | null = null;
   private resultRetryTimer: ReturnType<typeof setInterval> | null = null;
   private pendingBotInvites = new Map<string, Set<() => void>>();
+  private aiInviteTimer: ReturnType<typeof setInterval> | null = null;
   private readonly DEMO_DIR = path.join(process.cwd(), "public", "data", "demos");
   private readonly DEMO_CACHE_INTERVAL = 60_000; // 60s refresh
 
@@ -426,6 +435,8 @@ export class LobbyServer {
         this.fairPlayPruneTimer.unref?.();
         this.sanctionCheckTimer = setInterval(() => this.enforceBans(), SANCTION_CHECK_INTERVAL_MS);
         this.sanctionCheckTimer.unref?.();
+        this.aiInviteTimer = setInterval(() => this.tickAiInvites(), 1_000);
+        this.aiInviteTimer.unref?.();
 
         resolve();
       });
@@ -453,6 +464,10 @@ export class LobbyServer {
     if (this.sanctionCheckTimer) {
       clearInterval(this.sanctionCheckTimer);
       this.sanctionCheckTimer = null;
+    }
+    if (this.aiInviteTimer) {
+      clearInterval(this.aiInviteTimer);
+      this.aiInviteTimer = null;
     }
     // A scan still reading uses the stores closed below: it ends at its next file
     this.demoScanStopped = true;
@@ -677,6 +692,9 @@ export class LobbyServer {
       }
       case "featured:get":
         this.handleFeaturedGet(player, msg as FeaturedDemosRequest);
+        break;
+      case "campaign:board:get":
+        this.handleCampaignBoardGet(player, msg as CampaignBoardRequest);
         break;
       case "report:player":
         this.handlePlayerReport(player, msg as PlayerReportRequest);
@@ -954,6 +972,7 @@ export class LobbyServer {
       key: extra.key,
       gametypes: this.gametypes,
       onlinePlayers: this.getOnlinePlayers(),
+      maxPlayers: this.maxPlayers,
       chatHistory: this.chatHistory,
       liveMatches: this.getLiveMatches(),
       recentDemos: this.listedDemos().slice(0, 10),
@@ -1563,25 +1582,9 @@ export class LobbyServer {
       return;
     }
 
-    // Bots play in private rooms only: in a public one they would fill seats
-    // other players are queueing for, and change who a ranked result is
-    // against. Adding one to a public room makes it private, and the bot joins
-    // with the new invite token.
-    if (lobby.visibility !== "private") {
-      lobby.makePrivate();
-      const { shareUrl } = lobby.toInfo();
-      console.log(`[LobbyServer] Lobby ${lobbyId} made private by ${player.name} adding a bot`);
-      this.broadcastToLobby(lobbyId, { type: "lobby:made_private", lobbyId, shareUrl });
-      this.broadcastMatchesUpdate();
-    }
-
-    // Automatic opponents have a Hard floor; ratings can promote them to Insane.
-    const matched = this.results?.botPresetFor(player.accountId, lobby.gametype.id) ?? "hard";
     const preset = BOT_PRESETS.includes(difficulty as BotPreset)
       ? (difficulty as BotPreset)
-      : matched === "insane"
-        ? "insane"
-        : "hard";
+      : this.matchedBotPreset(player.accountId, lobby);
     try {
       const name = await this.requestBotForLobby(lobby, preset);
       console.log(`[LobbyServer] Bot "${name}" (${preset}) invited into lobby ${lobbyId} by ${player.name}`);
@@ -1591,6 +1594,66 @@ export class LobbyServer {
       const error = (err as Error).message;
       console.warn(`[LobbyServer] Bot invite failed for lobby ${lobbyId}: ${error}`);
       this.send(player, { type: "lobby:bot_invite_failed", lobbyId, error });
+    }
+  }
+
+  /** Automatic opponents have a Hard floor; the player's rating can promote them to Insane. */
+  private matchedBotPreset(accountId: number | null, lobby: MatchLobby): BotPreset {
+    return this.results?.botPresetFor(accountId, lobby.gametype.id) === "insane" ? "insane" : "hard";
+  }
+
+  // ── Lobby: AI players for a public room no one else joins ────
+
+  /**
+   * Runs every second. A public room with a person in it looks for people for
+   * AI_INVITE_AFTER_MS, then invites an AI player, and another every
+   * AI_INVITE_SPACING_MS while seats are open, so a person can still take one.
+   * The room tells its members when the next invite is due.
+   */
+  private tickAiInvites(now = Date.now()): void {
+    for (const lobby of this.lobbies.values()) {
+      const looking =
+        lobby.visibility === "public" &&
+        !lobby.campaign &&
+        lobby.state === "waiting" &&
+        !lobby.isStarting &&
+        [...lobby.players.keys()].some((id) => this.players.get(id)?.isBot === false);
+      if (!looking) {
+        if (lobby.aiInviteAt !== null) this.setAiInviteAt(lobby, null);
+        continue;
+      }
+      if (lobby.aiInviteAt === null) {
+        this.setAiInviteAt(lobby, now + AI_INVITE_AFTER_MS);
+        continue;
+      }
+      if (now < lobby.aiInviteAt || lobby.playerCount >= lobby.gametype.maxPlayers) continue;
+      // An invite on its way, by hand or by the room, may take the last seat
+      if (this.pendingBotInvites.has(lobby.id)) continue;
+      this.setAiInviteAt(lobby, now + AI_INVITE_SPACING_MS);
+      background(this.inviteAiPlayer(lobby), "LobbyServer");
+    }
+  }
+
+  private setAiInviteAt(lobby: MatchLobby, at: number | null): void {
+    lobby.aiInviteAt = at;
+    this.broadcastToLobby(lobby.id, {
+      type: "lobby:ai_invite",
+      lobbyId: lobby.id,
+      inMs: at === null ? null : Math.max(0, at - Date.now()),
+    });
+  }
+
+  /** One AI player for a room that waited, matched to the first person in it. */
+  private async inviteAiPlayer(lobby: MatchLobby): Promise<void> {
+    const person = [...lobby.players.keys()].map((id) => this.players.get(id)).find((p) => p && !p.isBot);
+    const preset = this.matchedBotPreset(person?.accountId ?? null, lobby);
+    try {
+      const name = await this.requestBotForLobby(lobby, preset);
+      console.log(`[LobbyServer] AI player "${name}" (${preset}) joined waiting lobby ${lobby.id}`);
+    } catch (err) {
+      console.warn(`[LobbyServer] AI invite failed for lobby ${lobby.id}: ${(err as Error).message}`);
+      if (lobby.aiInviteAt !== null && this.lobbies.get(lobby.id) === lobby)
+        this.setAiInviteAt(lobby, Date.now() + AI_INVITE_RETRY_MS);
     }
   }
 
@@ -2166,7 +2229,9 @@ export class LobbyServer {
       const campaignRules = lobby.campaign ? campaignMatchRules(lobby.campaign) : null;
       const resultContext: ResultContext = {
         ranked: isRankedRoster(lobby.gametype, admissionSeats),
-        private: lobby.visibility === "private",
+        // A match with AI players is rated as a private one, wherever it was
+        // played: the public pool stays people against people
+        private: lobby.visibility === "private" || admissionSeats.some((seat) => seat.isBot),
         bots: admissionSeats.filter((seat) => seat.isBot).length,
         startingRoster: admissionSeats.map(({ accountId, isBot, team, botReference }) => ({
           accountId,
@@ -2655,6 +2720,61 @@ export class LobbyServer {
     });
   }
 
+  /**
+   * The campaign boards, ten places each. Names come from the accounts as they
+   * are now; banned accounts and deleted ones are left out.
+   */
+  private handleCampaignBoardGet(player: ConnectedPlayer, msg: CampaignBoardRequest): void {
+    const requestId =
+      typeof msg.requestId === "string" && /^[A-Za-z0-9_-]{1,64}$/.test(msg.requestId) ? msg.requestId : "";
+    if (!requestId) {
+      this.send(player, { type: "campaign:board:error", requestId, reason: "invalid_query" });
+      return;
+    }
+    if (this.campaignCatalog.missions.length === 0) {
+      this.send(player, { type: "campaign:board:error", requestId, reason: "unavailable" });
+      return;
+    }
+    if (!this.leaderboardReads.tryRecord(player.id)) {
+      this.send(player, { type: "campaign:board:error", requestId, reason: "rate_limited" });
+      return;
+    }
+    const limit = 10;
+    const hidden = [...this.fairPlay.bannedAccountIds(), ...this.accounts.deletedAccountIds()];
+    const data = this.campaign.board(limit, hidden);
+    const rows = <T extends { accountId: number }>(
+      list: readonly T[],
+      extra: (row: T) => Partial<CampaignBoardRow>,
+    ): CampaignBoardRow[] => {
+      const named: CampaignBoardRow[] = [];
+      for (const row of list) {
+        const name = this.accounts.nameOf(row.accountId);
+        if (name === null) continue;
+        named.push({ rank: named.length + 1, playerId: String(row.accountId), name, ...extra(row) });
+      }
+      return named;
+    };
+    this.send(player, {
+      type: "campaign:board",
+      requestId,
+      missionCount: this.campaignCatalog.length,
+      scorers: rows(data.scorers, (row) => ({ frags: row.frags, cleared: row.cleared })),
+      finishers: rows(data.finishers, (row) => ({ at: row.at })),
+      missions: this.campaignCatalog.missions.map((mission) => ({
+        id: mission.id,
+        number: mission.number,
+        scorers: rows(
+          data.missionScorers.filter((row) => row.missionId === mission.id),
+          (row) => ({ frags: row.frags }),
+        ),
+        firstClears: rows(
+          data.firstClears.filter((row) => row.missionId === mission.id),
+          (row) => ({ at: row.at }),
+        ),
+      })),
+    });
+  }
+
   private handleFeaturedGet(player: ConnectedPlayer, query: FeaturedDemosRequest): void {
     const { requestId, gametype = "all", map = "all", limit } = query;
     if (typeof requestId !== "string" || !/^[A-Za-z0-9_-]{1,64}$/.test(requestId)) return;
@@ -2674,12 +2794,21 @@ export class LobbyServer {
       this.send(player, { type: "featured:error", requestId, reason: "rate_limited" });
       return;
     }
+    // Top-ten players this week, else this week's matches, else the newest matches of any age,
+    // so the page is empty only when nothing has been recorded
+    const picks = { gametype, map, limit };
     const ranked = this.selectRankedFeatured(gametype, map, limit);
+    const week = ranked.length > 0 ? [] : selectFeaturedDemos(this._demoCache, picks);
+    const latest =
+      ranked.length > 0 || week.length > 0
+        ? []
+        : selectFeaturedDemos(this._demoCache, picks, Date.now(), Number.POSITIVE_INFINITY);
     this.send(player, {
       type: "featured:page",
       requestId,
-      entries: ranked.length > 0 ? ranked : selectFeaturedDemos(this._demoCache, { gametype, map, limit }),
-      selection: ranked.length > 0 ? "ranked_month_week" : "recent_multiplayer_week",
+      entries: ranked.length > 0 ? ranked : week.length > 0 ? week : latest,
+      selection:
+        ranked.length > 0 ? "ranked_month_week" : week.length > 0 ? "recent_multiplayer_week" : "latest_multiplayer",
     });
   }
 

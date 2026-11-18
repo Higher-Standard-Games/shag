@@ -47,19 +47,6 @@
   min-width: 0;
 }
 
-/* The lobby's kicker plate */
-.connecting-overlay__kicker {
-  display: inline-block;
-  margin-bottom: 18px;
-  padding: 6px 28px 6px 12px;
-  font: 900 clamp(0.62rem, 0.85vw, 0.86rem) / 1.2 var(--w-font-display, "Orbitron", monospace);
-  letter-spacing: 0.24em;
-  text-transform: uppercase;
-  color: hsl(250 45% 7%);
-  background: var(--co-gold);
-  clip-path: polygon(0 0, 100% 0, 92% 100%, 3% 100%);
-}
-
 .connecting-overlay__title {
   margin: 0;
   font-family: var(--w-font-display, "Orbitron", monospace);

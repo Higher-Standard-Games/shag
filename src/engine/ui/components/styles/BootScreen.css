@@ -20,22 +20,6 @@
   text-align: center;
 }
 
-.boot__kicker {
-  display: inline-block;
-  margin-bottom: clamp(18px, 3vh, 30px);
-  padding: 6px 28px 6px 12px;
-  font: 900 clamp(0.62rem, 0.85vw, 0.86rem) / 1.2 var(--w-font-display, "Orbitron", monospace);
-  letter-spacing: 0.24em;
-  text-transform: uppercase;
-  color: var(--ink);
-  background: var(--cyan);
-  clip-path: polygon(0 0, 100% 0, 92% 100%, 3% 100%);
-}
-
-.ui-loading-screen--ready .boot__kicker {
-  background: var(--gold);
-}
-
 .boot__ring {
   position: relative;
   display: grid;
@@ -159,18 +143,6 @@
   animation: none;
 }
 
-.boot__caption small {
-  font-size: 0.5em;
-  letter-spacing: 0.2em;
-  color: hsla(45, 100%, 95%, 0.55);
-  text-shadow: none;
-}
-
-/* Clicked: the hint goes, keeping its room */
-.ui-loading-screen--started .boot__caption small {
-  visibility: hidden;
-}
-
 /* Hidden, but keeping its room, so nothing shifts when the button appears */
 .boot__caption[hidden] {
   display: flex;
@@ -217,15 +189,7 @@
 .boot__progress-head {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 18px;
-}
-
-.boot__progress-label {
-  font: 700 11px / 1 var(--w-font-body, "Rajdhani", sans-serif);
-  letter-spacing: 0.26em;
-  text-transform: uppercase;
-  color: hsla(45, 100%, 95%, 0.55);
 }
 
 .boot__status {
@@ -235,6 +199,22 @@
   color: var(--ink);
   background: var(--gold);
   clip-path: polygon(5% 0, 100% 0, 94% 100%, 0 100%);
+}
+
+/* What it is doing now: the newest status line, one at a time */
+.boot__line {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  font: 600 clamp(0.85rem, 1.05vw, 1.05rem) / 1.2 var(--w-font-body, "Rajdhani", sans-serif);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: hsla(45, 100%, 95%, 0.6);
+}
+
+/* The rail's log panel stays empty here, keeping the room the lobby's room list takes */
+.boot .twin__log-box {
+  visibility: hidden;
 }
 
 .boot__bar {

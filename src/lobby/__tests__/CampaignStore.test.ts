@@ -39,3 +39,28 @@ it("keeps the first time the whole campaign was finished", () => {
   store.delete(1);
   expect(store.completedAt(1)).toBeNull();
 });
+
+it("ranks the campaign boards and leaves hidden accounts out", () => {
+  const store = open();
+  // Account 1: two missions, 30 frags; account 2: one mission, 30 frags; account 3: the most, but hidden
+  store.recordClear(1, "one", 1, 10, 1000);
+  store.recordClear(1, "two", 1, 20, 1100);
+  store.recordClear(2, "one", 1, 30, 1050);
+  store.recordClear(3, "one", 1, 99, 900);
+  store.markCompleted(2, 5000);
+  store.markCompleted(1, 4000);
+  const board = store.board(10, [3]);
+  // Equal frags: more missions cleared ranks first
+  expect(board.scorers).toEqual([
+    { accountId: 1, frags: 30, cleared: 2 },
+    { accountId: 2, frags: 30, cleared: 1 },
+  ]);
+  expect(board.finishers).toEqual([
+    { accountId: 1, at: 4000 },
+    { accountId: 2, at: 5000 },
+  ]);
+  // A mission's top fraggers by their best run; its first clears by date
+  expect(board.missionScorers.filter((row) => row.missionId === "one").map((row) => row.accountId)).toEqual([2, 1]);
+  expect(board.firstClears.filter((row) => row.missionId === "one").map((row) => row.accountId)).toEqual([1, 2]);
+  expect(store.board(1, []).missionScorers.filter((row) => row.missionId === "one")).toHaveLength(1);
+});

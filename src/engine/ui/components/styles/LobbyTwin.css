@@ -269,15 +269,64 @@
   white-space: nowrap;
 }
 
+/* A step's state as an icon in the key's ink: a check when done, a spinner
+   while loading, a cross when it failed. The word stays for screen readers. */
 .twin-key__hint {
-  min-width: 0;
-  overflow: hidden;
-  font: 700 13px / 1 var(--w-font-body, "Rajdhani", sans-serif);
-  letter-spacing: 0.12em;
-  text-overflow: ellipsis;
-  text-transform: uppercase;
-  white-space: nowrap;
-  color: var(--key-sub);
+  position: relative;
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  font-size: 0;
+  color: var(--key-text);
+}
+
+.twin-key__hint::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  box-sizing: border-box;
+}
+
+.twin-key.is-done .twin-key__hint::before {
+  inset: 1px 5px 4px;
+  border: solid currentColor;
+  border-width: 0 3px 3px 0;
+  transform: rotate(45deg);
+}
+
+.twin-key.is-active .twin-key__hint::before {
+  border: 3px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: twin-step-spin 0.8s linear infinite;
+}
+
+.twin-key.is-error .twin-key__hint::before,
+.twin-key.is-error .twin-key__hint::after {
+  content: "";
+  position: absolute;
+  top: 7px;
+  left: 0;
+  width: 18px;
+  height: 3px;
+  background: currentColor;
+  transform: rotate(45deg);
+}
+
+.twin-key.is-error .twin-key__hint::after {
+  transform: rotate(-45deg);
+}
+
+@keyframes twin-step-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .twin-key.is-active .twin-key__hint::before {
+    animation-duration: 2.4s;
+  }
 }
 
 /* The step in progress: latched in ink, as the lobby marks the page you are on */
@@ -305,7 +354,7 @@
 }
 
 .twin-key--util .twin-key__label {
-  font: 800 11px / 1 var(--w-font-display, "Orbitron", monospace);
+  font: 800 12px / 1 var(--w-font-display, "Orbitron", monospace);
   letter-spacing: 0.12em;
 }
 
@@ -337,16 +386,12 @@ button.twin-key:disabled {
 }
 
 @media (max-width: 1500px) {
-  .twin__steps .twin-key__hint {
-    display: none;
-  }
-
   .twin-key--util .twin-key__face {
     padding: 8px 4px;
   }
 
   .twin-key--util .twin-key__label {
-    font-size: 10px;
+    font-size: 11px;
     letter-spacing: 0.06em;
   }
 }
@@ -359,18 +404,6 @@ button.twin-key:disabled {
   flex-direction: column;
   min-height: 0;
   padding: 0 calc(var(--rail-skew) + 18px) 18px 22px;
-}
-
-.twin__label {
-  display: flex;
-  justify-content: space-between;
-  gap: 8px;
-  margin: 6px 0 12px;
-  padding: 0 8px 0 2px;
-  font: 700 11px / 1 var(--w-font-body, "Rajdhani", sans-serif);
-  letter-spacing: 0.26em;
-  text-transform: uppercase;
-  color: hsla(250, 45%, 8%, 0.62);
 }
 
 /* The panel: the screen's facts at the head, its log below */

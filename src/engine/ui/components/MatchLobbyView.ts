@@ -61,6 +61,15 @@ export interface MatchLobbyConfig {
   hasTeams: boolean;
 }
 
+const ADD_AI_LABEL = "+ Add AI player";
+/** The notice under the clock shows this many seconds before the room invites an AI player. */
+const AI_INVITE_NOTICE_SECONDS = 30;
+
+/** "1:27" */
+function clockText(seconds: number): string {
+  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
+}
+
 // ═══════════════════════════════════════════════════════════════════
 // MATCH LOBBY VIEW
 // ═══════════════════════════════════════════════════════════════════
@@ -70,8 +79,10 @@ export class MatchLobbyView {
 
   private config: MatchLobbyConfig;
   private lobbyId: string;
-  /** Invite-only. Adding a bot to a public lobby makes it private (the lobby server decides). */
+  /** Invite-only: no one finds the room but through its invite link. */
   private privateLobby: boolean;
+  /** When the room invites its next AI player by itself, by this page's clock; null when it will not. */
+  private aiInviteAt: number | null;
   private shareUrl: string;
   private maps: MatchLobbyMapOption[];
   private players: MatchLobbyPlayer[];
@@ -80,7 +91,7 @@ export class MatchLobbyView {
   private lobbyClient: LobbyClient;
   private unsubscribers: (() => void)[] = [];
   private inviteBotBtn: HTMLButtonElement | null = null;
-  /** The arrow beside Add bot that opens the skill menu, and the menu. */
+  /** The arrow beside Add AI player that opens the skill menu, and the menu. */
   private botLevelBtn: HTMLButtonElement | null = null;
   private botLevelMenu: HTMLElement | null = null;
   /** Ends the menu's page listeners (outside click, Esc). */
@@ -136,6 +147,7 @@ export class MatchLobbyView {
     };
     this.lobbyId = lobbyInfo.id;
     this.privateLobby = lobbyInfo.visibility === "private";
+    this.aiInviteAt = lobbyInfo.aiInviteInMs === undefined ? null : Date.now() + lobbyInfo.aiInviteInMs;
     this.activeMatchId = lobbyInfo.activeMatchId ?? null;
     if (this.activeMatchId) {
       this.phase = "starting";
@@ -238,17 +250,12 @@ export class MatchLobbyView {
       }),
     );
 
-    // Someone added a bot to this public room, so it is invite-only now: the
-    // link to share carries the new invite, and everyone here is told.
+    // When the room, left waiting, invites an AI player by itself
     this.unsubscribers.push(
-      this.lobbyClient.on("lobby:made_private", (msg) => {
+      this.lobbyClient.on("lobby:ai_invite", (msg) => {
         if (msg.lobbyId !== this.lobbyId) return;
-        this.privateLobby = true;
-        this.shareUrl = msg.shareUrl;
-        this.root.querySelector(".match-lobby__invite")?.replaceWith(this.buildInvite());
-        this.refreshStatus();
-        this.updateInviteBotState();
-        this.flash("Lobby changed to private");
+        this.aiInviteAt = msg.inMs === null ? null : Date.now() + msg.inMs;
+        this.refreshAiInvite();
       }),
     );
 
@@ -267,9 +274,10 @@ export class MatchLobbyView {
         this.endAutoFill();
         this.updateInviteBotState();
         if (this.inviteBotBtn) {
-          setRaisedKeyText(this.inviteBotBtn, "+ Add bot", "No bots available");
+          setRaisedKeyText(this.inviteBotBtn, ADD_AI_LABEL);
           this.inviteBotBtn.disabled = true;
           this.syncBotLevelKey();
+          this.flash("No AI players available");
           this.schedule(() => this.updateInviteBotState(), 2500);
         }
       }),
@@ -378,7 +386,7 @@ export class MatchLobbyView {
         this.refreshSwitchKey();
         if (this.shuffleBtn) {
           this.shuffleBtn.disabled = false;
-          setRaisedKeyText(this.shuffleBtn, "⤨ Shuffle", "Mix the teams");
+          setRaisedKeyText(this.shuffleBtn, "⤨ Shuffle");
         }
       }),
     );
@@ -409,7 +417,7 @@ export class MatchLobbyView {
     this.timers.add(timer);
   }
 
-  /** A short notice to the right of the Add bot keys that fades away by itself. */
+  /** A short notice to the right of the Add AI player keys that fades away by itself. */
   private flash(text: string): void {
     this.root.querySelector(".match-lobby__flash")?.remove();
     const actions = this.root.querySelector<HTMLElement>(".match-lobby__actions");
@@ -455,7 +463,6 @@ export class MatchLobbyView {
     chip.textContent = this.config.gametypeLabel;
     const meta = document.createElement("span");
     meta.className = "match-lobby__meta";
-    meta.append(this.shape(), document.createElement("br"));
     const room = document.createElement("b");
     room.textContent = this.lobbyId;
     meta.append("Lobby ", room);
@@ -463,18 +470,6 @@ export class MatchLobbyView {
 
     top.append(who, this.buildInvite());
     return top;
-  }
-
-  /** "1 vs 1", "Up to 5 vs 5 · starts at 2", "Free for all · 8 players". */
-  private shape(): string {
-    const { maxPlayers, minPlayers, hasTeams } = this.config;
-    if (maxPlayers === 2) return "1 vs 1";
-    const starts = minPlayers < maxPlayers ? ` · starts at ${minPlayers}` : "";
-    if (hasTeams) {
-      const side = Math.ceil(maxPlayers / 2);
-      return `${minPlayers < maxPlayers ? "Up to " : ""}${side} vs ${side}${starts}`;
-    }
-    return `Free for all · ${minPlayers < maxPlayers ? "up to " : ""}${maxPlayers} players${starts}`;
   }
 
   /**
@@ -546,14 +541,11 @@ export class MatchLobbyView {
     radar.appendChild(core);
 
     const copy = document.createElement("div");
-    const kicker = document.createElement("span");
-    kicker.className = "match-lobby__status-kicker";
-    kicker.textContent = "Match lobby";
     const head = document.createElement("h2");
     head.className = "match-lobby__status-head";
     const sub = document.createElement("p");
     sub.className = "match-lobby__status-sub";
-    copy.append(kicker, head, sub);
+    copy.append(head, sub);
 
     const tally = document.createElement("div");
     tally.className = "match-lobby__status-count";
@@ -561,7 +553,10 @@ export class MatchLobbyView {
     count.className = "match-lobby__count";
     const clock = document.createElement("div");
     clock.className = "match-lobby__clock";
-    tally.append(count, clock);
+    const aiInvite = document.createElement("div");
+    aiInvite.className = "match-lobby__ai-invite";
+    aiInvite.hidden = true;
+    tally.append(count, clock, aiInvite);
 
     const bar = document.createElement("div");
     bar.className = "match-lobby__status-bar";
@@ -585,11 +580,36 @@ export class MatchLobbyView {
           ? "In match"
           : this.phase === "starting"
             ? "Starting"
-            : `Waiting ${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
+            : `Waiting ${clockText(seconds)}`;
       }
+      this.refreshAiInvite();
       this.clockTimer = window.setTimeout(tick, 1000);
     };
     tick();
+  }
+
+  /**
+   * Under the clock, the last half minute before the room invites an AI
+   * player, and then that it is inviting them while seats stay open.
+   */
+  private refreshAiInvite(): void {
+    const notice = this.root?.querySelector<HTMLElement>(".match-lobby__ai-invite");
+    if (!notice) return;
+    const left = this.aiInviteAt === null ? null : Math.ceil((this.aiInviteAt - Date.now()) / 1000);
+    const shown =
+      left !== null &&
+      left <= AI_INVITE_NOTICE_SECONDS &&
+      !this.matchInProgress &&
+      this.phase === "waiting" &&
+      this.players.length < this.config.maxPlayers;
+    notice.hidden = !shown;
+    if (!shown) return;
+    notice.textContent =
+      left > 0
+        ? `Inviting AI opponent in ${clockText(left)}`
+        : this.config.maxPlayers > 2
+          ? "Inviting AI opponents"
+          : "Inviting AI opponent";
   }
 
   private refreshStatus(status = this.root?.querySelector<HTMLElement>(".match-lobby__status")): void {
@@ -608,21 +628,12 @@ export class MatchLobbyView {
     const readyCount = this.players.filter((p) => p.ready).length;
     const waiting = this.players.length - readyCount;
     const open = this.config.maxPlayers - this.players.length;
-    const kicker = status.querySelector<HTMLElement>(".match-lobby__status-kicker");
     const head = status.querySelector<HTMLElement>(".match-lobby__status-head");
     const sub = status.querySelector<HTMLElement>(".match-lobby__status-sub");
     const count = status.querySelector<HTMLElement>(".match-lobby__count");
     const fill = status.querySelector<HTMLElement>(".match-lobby__status-fill");
     const core = status.querySelector<HTMLElement>(".match-lobby__radar-core");
 
-    if (kicker) {
-      kicker.textContent =
-        this.roomError || this.matchInProgress || this.phase === "starting" || !enough
-          ? "Match lobby"
-          : full
-            ? "Lobby full"
-            : "Enough to start";
-    }
     if (head) {
       head.textContent = this.roomError
         ? "Room action failed"
@@ -649,12 +660,10 @@ export class MatchLobbyView {
             ? "Everyone is ready. Connecting when the game server is available."
             : !enough
               ? this.config.hasTeams && this.players.length >= this.config.minPlayers
-                ? this.privateLobby
-                  ? "Each side needs a player. Switch sides, or add a bot."
-                  : "Each side needs a player. Switch sides, or wait for someone to join."
+                ? "Each side needs a player. Switch sides, or add an AI player."
                 : this.privateLobby
-                  ? "Share the invite, or add a bot to play right now."
-                  : "Share the room's link; it starts as soon as someone joins."
+                  ? "Share the invite, or add an AI player to play right now."
+                  : "Share the room's link, or add an AI player to play right now."
               : this.localReady
                 ? `${waiting} player${waiting === 1 ? "" : "s"} still to ready up.`
                 : full
@@ -775,8 +784,10 @@ export class MatchLobbyView {
       if (player.ready && !this.matchInProgress) seat.classList.add("match-lobby__seat--ready");
       avatar.textContent = player.name.slice(0, 1).toUpperCase();
       name.textContent = player.name;
-      // Ready flags belong to the next match; the one being played says so
-      state.textContent = this.matchInProgress ? "In match" : player.ready ? "✓ Ready" : "Not ready";
+      // Ready flags belong to the next match: while one is played the pip goes
+      state.hidden = this.matchInProgress;
+      state.setAttribute("role", "img");
+      state.setAttribute("aria-label", player.ready ? "Ready" : "Not ready");
       seat.append(avatar, name);
       if (player.isLocal) {
         const you = document.createElement("span");
@@ -798,7 +809,7 @@ export class MatchLobbyView {
     avatar.textContent = "?";
     name.textContent =
       this.phase === "starting" ? "Empty seat" : this.config.maxPlayers === 2 ? "Waiting for a player" : "Open";
-    seat.append(avatar, name, state);
+    seat.append(avatar, name);
     return seat;
   }
 
@@ -813,10 +824,7 @@ export class MatchLobbyView {
     const title = document.createElement("h2");
     title.className = "match-lobby__vote-title";
     title.textContent = "Vote map";
-    const hint = document.createElement("span");
-    hint.className = "match-lobby__vote-hint";
-    hint.textContent = "Most votes wins · ties are random";
-    head.append(title, hint);
+    head.append(title);
 
     const maps = document.createElement("div");
     maps.className = "match-lobby__maps";
@@ -827,6 +835,8 @@ export class MatchLobbyView {
 
   private fillMaps(maps = this.root?.querySelector<HTMLElement>(".match-lobby__maps")): void {
     if (!maps) return;
+    // Six to choose from sit three across, two down
+    maps.classList.toggle("match-lobby__maps--six", this.maps.length > 3);
     const most = Math.max(0, ...this.maps.map((m) => m.votes));
     maps.replaceChildren(
       ...this.maps.map((map) => {
@@ -865,10 +875,7 @@ export class MatchLobbyView {
         const name = document.createElement("span");
         name.className = "match-lobby__map-name";
         name.textContent = map.displayName;
-        const id = document.createElement("span");
-        id.className = "match-lobby__map-id";
-        id.textContent = map.name;
-        info.append(name, id);
+        info.append(name);
 
         const card = createRaisedKey({ variants: ["map"], content: [shot, info] });
         card.dataset.map = map.name;
@@ -927,27 +934,26 @@ export class MatchLobbyView {
     const actions = document.createElement("div");
     actions.className = "match-lobby__actions";
 
-    const leave = createRaisedKey({ label: "← Leave", hint: "Back to play", variants: ["act", "cream", "leave"] });
+    const leave = createRaisedKey({ label: "← Leave", variants: ["act", "cream", "leave"] });
     leave.addEventListener("click", () => {
       this.destroy();
       this.onLeaveCallback?.();
     });
     actions.appendChild(leave);
 
-    // Add a bot (server feature — needs a live lobby connection). Pressable
-    // repeatedly: it re-enables as each bot joins, which is what a 5v5 mode
-    // needs when you are testing alone. The lobby balances teams on join, so
-    // each bot lands on whichever side is short. In a public room the first
-    // bot makes the room private.
-    this.inviteBotBtn = createRaisedKey({ label: "+ Add bot", hint: "Fill a seat", variants: ["act", "cream"] });
+    // Add an AI player (server feature — needs a live lobby connection).
+    // Pressable repeatedly: it re-enables as each one joins, which is what a
+    // 5v5 mode needs when you are testing alone. The lobby balances teams on
+    // join, so each lands on whichever side is short.
+    this.inviteBotBtn = createRaisedKey({ label: ADD_AI_LABEL, variants: ["act", "cream"] });
     this.inviteBotBtn.classList.add("match-lobby__add-bot");
     this.inviteBotBtn.addEventListener("click", () => this.requestBot());
     actions.appendChild(this.inviteBotBtn);
-    // The arrow beside it picks the skill; Add bot itself leaves it to the
-    // server (Hard, or Insane for a strong rating)
-    this.botLevelBtn = createRaisedKey({ label: "▾", variants: ["act", "cream"] });
+    // The arrow beside it picks the skill; Add AI player itself leaves it to
+    // the server (Hard, or Insane for a strong rating)
+    this.botLevelBtn = createRaisedKey({ label: "▴", variants: ["act", "cream"] });
     this.botLevelBtn.classList.add("match-lobby__bot-level");
-    this.botLevelBtn.setAttribute("aria-label", "Choose the bot's skill");
+    this.botLevelBtn.setAttribute("aria-label", "Choose the AI player's skill");
     this.botLevelBtn.setAttribute("aria-haspopup", "menu");
     this.botLevelBtn.setAttribute("aria-expanded", "false");
     this.botLevelBtn.addEventListener("click", (event) => {
@@ -969,22 +975,29 @@ export class MatchLobbyView {
       actions.appendChild(this.switchBtn);
       this.refreshSwitchKey();
 
-      this.shuffleBtn = createRaisedKey({ label: "⤨ Shuffle", hint: "Mix the teams", variants: ["act", "cream"] });
+      this.shuffleBtn = createRaisedKey({ label: "⤨ Shuffle", variants: ["act", "cream"] });
       this.shuffleBtn.addEventListener("click", () => {
         this.lobbyClient.voteShuffle(this.lobbyId);
         if (!this.shuffleBtn) return;
-        setRaisedKeyText(this.shuffleBtn, "⤨ Shuffle", "Vote sent");
+        setRaisedKeyText(this.shuffleBtn, "Vote sent");
         this.shuffleBtn.disabled = true;
       });
       actions.appendChild(this.shuffleBtn);
       this.shuffleBtn.disabled = this.phase === "starting";
     }
 
-    this.recoverBtn = createRaisedKey({ label: "Rejoin match", hint: "Unplayed seat", variants: ["act", "cream"] });
+    this.recoverBtn = createRaisedKey({ label: "Rejoin match", variants: ["act", "cream"] });
     this.recoverBtn.classList.add("match-lobby__recover");
     this.recoverBtn.hidden = !this.activeMatchId;
     this.recoverBtn.addEventListener("click", () => void this.recoverSeat());
     actions.appendChild(this.recoverBtn);
+
+    // How many are ready, beside the key that adds you to them: the count, and
+    // one pip per player, lit when they are
+    const tally = document.createElement("div");
+    tally.className = "match-lobby__ready-tally";
+    tally.setAttribute("role", "status");
+    actions.appendChild(tally);
 
     this.readyBtn = createRaisedKey({ label: "Ready", variants: ["ready"] });
     this.readyBtn.addEventListener("click", () => this.setReady(!this.localReady));
@@ -997,13 +1010,14 @@ export class MatchLobbyView {
   private async recoverSeat(): Promise<void> {
     if (!this.activeMatchId || !this.recoverBtn?.isConnected || !this.lobbyClient.connected) return;
     this.recoverBtn.disabled = true;
-    setRaisedKeyText(this.recoverBtn, "Rejoin match", "Checking seat…");
+    setRaisedKeyText(this.recoverBtn, "Checking seat…");
     try {
       const { serverUrl, admissionTicket } = await this.lobbyClient.requestSeatReissue(this.activeMatchId);
       if (this.disposed) return;
+      setRaisedKeyText(this.recoverBtn, "Rejoin match");
       await new ConnectingOverlay().show(serverUrl, false, admissionTicket);
     } catch {
-      if (!this.disposed) setRaisedKeyText(this.recoverBtn, "Rejoin match", "No seat to return to");
+      if (!this.disposed) setRaisedKeyText(this.recoverBtn, "No seat to return to");
     } finally {
       if (!this.disposed && this.recoverBtn) this.recoverBtn.disabled = false;
     }
@@ -1039,28 +1053,39 @@ export class MatchLobbyView {
     key.disabled = this.phase === "starting";
     // Only breathe once the room could start and is waiting on you
     key.classList.toggle("match-lobby__ready--calling", enough && !this.localReady && this.phase !== "starting");
-    setRaisedKeyText(
-      key,
-      this.localReady ? "Ready!" : "Ready",
-      this.matchInProgress
-        ? "Match running"
-        : this.phase === "starting"
-          ? "Starting"
-          : this.heldReady
-            ? "Adding bots"
-            : enough
-              ? `${readyCount} / ${this.players.length} ready`
-              : this.localReady
-                ? "Waiting for the rest"
-                : "Click when set",
-    );
+    setRaisedKeyText(key, this.localReady ? "Ready!" : "Ready");
+    this.refreshReadyTally(readyCount);
+  }
+
+  private refreshReadyTally(readyCount: number): void {
+    // Through the key: the first call comes while the actions are built, before the root is set
+    const tally = this.readyBtn?.parentElement?.querySelector<HTMLElement>(".match-lobby__ready-tally");
+    if (!tally) return;
+    tally.hidden = this.matchInProgress || this.players.length === 0;
+    tally.setAttribute("aria-label", `${readyCount} of ${this.players.length} ready`);
+    const count = document.createElement("div");
+    count.className = "match-lobby__ready-count";
+    const of = document.createElement("span");
+    of.className = "match-lobby__count-of";
+    of.textContent = `/${this.players.length}`;
+    count.append(String(readyCount), of);
+    const pips = document.createElement("div");
+    pips.className = "match-lobby__ready-pips";
+    pips.setAttribute("aria-hidden", "true");
+    for (const player of this.players) {
+      const pip = document.createElement("span");
+      pip.className = "match-lobby__ready-pip";
+      pip.dataset.ready = String(player.ready);
+      pips.appendChild(pip);
+    }
+    tally.replaceChildren(count, pips);
   }
 
   private refreshSwitchKey(): void {
     if (!this.switchBtn) return;
     this.switchBtn.disabled = this.phase === "starting";
     const localTeam = this.players.find((p) => p.isLocal)?.team;
-    setRaisedKeyText(this.switchBtn, "⇄ Switch", `To ${this.teamName(localTeam === "alpha" ? "bravo" : "alpha")}`);
+    setRaisedKeyText(this.switchBtn, `⇄ To ${this.teamName(localTeam === "alpha" ? "bravo" : "alpha")}`);
   }
 
   /**
@@ -1072,7 +1097,7 @@ export class MatchLobbyView {
     return named ?? (team === "alpha" ? "Team Soba" : "Team Udon");
   }
 
-  /** The skill menu above the Add bot keys: one entry per preset. */
+  /** The skill menu above the Add AI player keys: one entry per preset. */
   private openBotLevelMenu(actions: HTMLElement): void {
     const anchor = this.inviteBotBtn;
     const caret = this.botLevelBtn;
@@ -1080,7 +1105,7 @@ export class MatchLobbyView {
     const menu = document.createElement("div");
     menu.className = "match-lobby__bot-menu";
     menu.setAttribute("role", "menu");
-    menu.setAttribute("aria-label", "Bot skill");
+    menu.setAttribute("aria-label", "AI player skill");
     for (const level of BOT_LEVELS) {
       const item = document.createElement("button");
       item.type = "button";
@@ -1096,8 +1121,9 @@ export class MatchLobbyView {
       });
       menu.appendChild(item);
     }
-    // Opens upwards from the Add bot key, over the room
+    // Opens upwards from the Add AI player key, over the room, as wide as the key and its arrow
     menu.style.left = `${anchor.offsetLeft}px`;
+    menu.style.width = `${caret.offsetLeft + caret.offsetWidth - anchor.offsetLeft}px`;
     menu.style.bottom = `${actions.offsetHeight - anchor.offsetTop + 10}px`;
     actions.appendChild(menu);
     this.botLevelMenu = menu;
@@ -1156,7 +1182,7 @@ export class MatchLobbyView {
     else this.lobbyClient.inviteBot(this.lobbyId);
 
     if (this.inviteBotBtn) {
-      setRaisedKeyText(this.inviteBotBtn, "+ Add bot", "Summoning…");
+      setRaisedKeyText(this.inviteBotBtn, "Inviting…");
       this.inviteBotBtn.disabled = true;
     }
     this.syncBotLevelKey();
@@ -1191,8 +1217,6 @@ export class MatchLobbyView {
   private updateInviteBotState(): void {
     const btn = this.inviteBotBtn;
     if (!btn) return;
-    btn.title = this.privateLobby ? "" : "Adding a bot makes this lobby private";
-
     if (this.inviteBotPending || this.phase === "starting") {
       btn.disabled = true;
       this.syncBotLevelKey();
@@ -1201,16 +1225,16 @@ export class MatchLobbyView {
 
     const open = this.config.maxPlayers - this.players.length;
     btn.disabled = open <= 0;
-    setRaisedKeyText(btn, "+ Add bot", open <= 0 ? "Room is full" : `${open} seat${open === 1 ? "" : "s"} open`);
+    setRaisedKeyText(btn, ADD_AI_LABEL);
     this.syncBotLevelKey();
   }
 
-  /** The skill arrow follows Add bot: usable when it is, its menu closed when not. */
+  /** The skill arrow follows Add AI player: usable when it is, its menu closed when not. */
   private syncBotLevelKey(): void {
     const caret = this.botLevelBtn;
     if (!caret) return;
     caret.disabled = this.inviteBotBtn?.disabled ?? true;
-    caret.title = caret.disabled ? "" : "Choose the bot's skill";
+    caret.title = caret.disabled ? "" : "Choose the AI player's skill";
     if (caret.disabled) this.closeBotLevelMenu();
   }
 }

@@ -2,7 +2,7 @@
 
 /**
  * The start-up screen, built as the lobby's twin: the boot's steps as the
- * rail's keys, a log where the lobby lists rooms, and the ring with the
+ * rail's keys, the newest status line over the progress bar, and the ring with the
  * engine's logo that spins while loading; once everything has loaded, a start
  * button starts the game and turns the sound on.
  */
@@ -94,14 +94,14 @@ describe("start-up screen", () => {
     expect(keys.map((key) => key.querySelector(".twin-key__hint")?.textContent)).toEqual(["Done", "Loading", "", ""]);
   });
 
-  it("logs what it is doing on the rail, newest last, once per line", () => {
-    screen.setStatus("Indexing packages 3/12");
+  it("shows only the newest status line, beside the step, and clears it once ready", () => {
     screen.setStatus("Indexing packages 3/12");
     screen.setStatus("Compiling shaders");
-    expect(logLines()).toEqual(["Indexing packages 3/12", "Compiling shaders"]);
-    for (let i = 0; i < 60; i++) screen.setStatus(`line ${i}`);
-    expect(logLines()).toHaveLength(40);
-    expect(logLines().at(-1)).toBe("line 59");
+    const line = () => root()?.querySelector(".boot__line")?.textContent;
+    expect(line()).toBe("Compiling shaders");
+    expect(logLines()).toEqual([]);
+    screen.markReady();
+    expect(line()).toBe("");
   });
 
   it("says it is loading until everything is, and only then offers the start button", () => {
@@ -116,9 +116,10 @@ describe("start-up screen", () => {
 
     screen.markReady();
     expect(caption()?.hidden).toBe(false);
-    expect(start()?.textContent).toBe("Click to start");
+    expect(start()?.textContent).toBe("Start");
+    expect(caption()?.textContent).toBe("Start");
     expect(root()?.classList.contains("ui-loading-screen--ready")).toBe(true);
-    expect(root()?.querySelector(".boot__kicker")?.textContent).toBe("Ready");
+    expect(root()?.querySelector(".boot__kicker")).toBeNull();
     expect(steps()).toEqual(["is-done", "is-done", "is-done", "is-done"]);
     expect(share()).toBe(1);
   });

@@ -183,7 +183,7 @@
 }
 
 .raised-key--util .raised-key__label {
-  font: 800 11px / 1 var(--w-font-display, "Orbitron", monospace);
+  font: 800 12px / 1 var(--w-font-display, "Orbitron", monospace);
   letter-spacing: 0.12em;
 }
 

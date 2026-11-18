@@ -489,7 +489,7 @@ const DEFAULT_VARS: Record<string, Omit<MovementVar, "name">> = {
     defaultValue: 0,
     min: 0,
     max: 2,
-    description: "Your first-person gun's size: 0 normal, 1 small (10% smaller), 2 smallest (20% smaller)",
+    description: "Your first-person gun's size: 0 normal, 1 small (15% smaller), 2 smallest (25% smaller)",
     category: "camera",
     developerOnly: false,
     type: "int",
