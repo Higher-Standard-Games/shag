@@ -39,6 +39,7 @@ import {
   type LoadingProgressEvent,
   type LoadingStartEvent,
 } from "../core/LoadingEvents";
+import { escapeHtml } from "./EscapeHtml";
 import { LoadingAnimation } from "./LoadingAnimation";
 import { type PaletteColor, SHAG_PALETTE } from "./LoadingPalettes";
 import { UIStyles } from "./UIStyles";
@@ -706,7 +707,7 @@ class EngineLoadingView implements MapLoadingView {
     // Update UI
     if (this.messageArea) {
       this.messageArea.innerHTML = this.messages
-        .map((m) => `<div class="ui-map-loading-overlay__message">${m}</div>`)
+        .map((m) => `<div class="ui-map-loading-overlay__message">${escapeHtml(m)}</div>`)
         .join("");
     }
   }

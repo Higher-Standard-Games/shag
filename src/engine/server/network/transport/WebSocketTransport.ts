@@ -189,7 +189,7 @@ export class WebSocketServerTransport implements Transport {
   private handleConnection(ws: WebSocket, req: import("http").IncomingMessage): void {
     // Check max clients
     if (this.clients.size >= this.config.maxClients) {
-      console.log(`[WebSocket] Server full, rejecting ${req.socket.remoteAddress ?? "unknown"}`);
+      console.log("[WebSocket] Server full, rejecting a connection");
       ws.close(1013, "Server full");
       return;
     }
@@ -199,7 +199,7 @@ export class WebSocketServerTransport implements Transport {
     const client = new WebSocketClientConnection(clientId, ws, address, this.events);
 
     this.clients.set(clientId, client);
-    console.log(`[WebSocket] Client ${clientId} registered from ${address}`);
+    console.log(`[WebSocket] Client ${clientId} registered`);
 
     // Set up message handler - use onDatagram for all game messages
     ws.on("message", (data: Buffer) => {

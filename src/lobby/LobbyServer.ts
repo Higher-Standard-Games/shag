@@ -768,7 +768,7 @@ export class LobbyServer {
     this.completeAuth(player, { key });
   }
 
-  /** Logged in: send the welcome, and tell everyone else. */
+  /** A bot service connection says which bot preset it plays; a change mid-match marks the result. */
   private handleBotReference(player: ConnectedPlayer, value: unknown): void {
     if (!player.isBot) {
       this.send(player, { type: "lobby:error", error: "Bot service only." });
