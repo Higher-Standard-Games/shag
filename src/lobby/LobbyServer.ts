@@ -145,8 +145,8 @@ const RETURN_GRACE_MS = 60_000;
 export const LOBBY_FULL_CLOSE_CODE = 4008;
 /** WebSocket close code after a `banned` answer, or when a ban reaches a connected account. */
 export const BANNED_CLOSE_CODE = 4009;
-/** Where a banned player is told to appeal, unless the operator sets `appealContact`. */
-export const DEFAULT_APPEAL_CONTACT = "open an issue at https://github.com/Higher-Standard-Games/wash-fps/issues";
+/** Where a banned player is told to appeal, unless the operator sets `appealContact`: the private contact the privacy notice names. */
+export const DEFAULT_APPEAL_CONTACT = "write to washoi@higherstandardgames.com";
 /** How often bans are checked against connected accounts. */
 const SANCTION_CHECK_INTERVAL_MS = 60_000;
 
@@ -1059,7 +1059,7 @@ export class LobbyServer {
       this.send(player, { type: "identity:error", code: "wrong_key" });
       return;
     }
-    console.log(`[LobbyServer] Account ${accountId} deleted (was ${player.name})`);
+    console.log(`[LobbyServer] Account ${accountId} deleted`);
     this.settings.delete(accountId);
     this.campaign.delete(accountId);
     this.fairPlay.deleteAccount(accountId);
@@ -2392,6 +2392,7 @@ export class LobbyServer {
       limit: msg.limit,
       accountId: player.accountId ?? undefined,
       scope: msg.scope ?? ("overall" as const),
+      hidden: [...this.fairPlay.bannedAccountIds()],
     };
     const page = msg.system === "trueskill" ? this.results.skillLeaderboard(query) : this.results.leaderboard(query);
     this.send(player, {
@@ -2694,7 +2695,14 @@ export class LobbyServer {
       if (!top) {
         top = new Set(
           this.results
-            ?.skillLeaderboard({ gametype: mode, period: "month", offset: 0, limit: 10, now })
+            ?.skillLeaderboard({
+              gametype: mode,
+              period: "month",
+              offset: 0,
+              limit: 10,
+              now,
+              hidden: [...this.fairPlay.bannedAccountIds()],
+            })
             .entries.map((entry) => entry.accountId) ?? [],
         );
         topByMode.set(mode, top);

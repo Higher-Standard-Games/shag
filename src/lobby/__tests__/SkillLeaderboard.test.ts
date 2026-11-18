@@ -45,6 +45,24 @@ describe("career skill ladder reads", () => {
     });
   });
 
+  it("leaves hidden (banned) accounts off the ladder", () => {
+    results.ratings.ingest(humanSnapshot("hidden", [ids[0], ids[1]], now));
+    const page = results.skillLeaderboard({
+      gametype: "duel",
+      period: "all",
+      offset: 0,
+      limit: 10,
+      now,
+      hidden: [ids[0]],
+    });
+    expect(page.entries.map((entry) => entry.accountId)).toEqual([ids[1]]);
+    expect(
+      board("all")
+        .entries.map((entry) => entry.accountId)
+        .sort(),
+    ).toEqual([ids[0], ids[1]].sort());
+  });
+
   it("filters monthly activity and records while preserving career skill and rated count", () => {
     results.ratings.ingest(humanSnapshot("old", ids.slice(0, 2), now - 31 * day));
     expect(board("all").total).toBe(2);

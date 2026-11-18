@@ -12,6 +12,7 @@ import path from "node:path";
 import { createInterface } from "node:readline";
 import { adminFilePath, adminNames, MIN_ADMIN_PASSWORD, removeAdmin, setAdmin } from "../lobby/AdminCredentials";
 import { FairPlayStore, MAX_ADDRESS_BAN_MS, type SanctionKind } from "../lobby/FairPlayStore";
+import { PlayerStore } from "../lobby/PlayerStore";
 
 const DAY_MS = 24 * 60 * 60_000;
 const args = process.argv.slice(2).filter((arg) => arg !== "--");
@@ -22,10 +23,11 @@ const value = (flag: string) => {
 const usage = `Usage: npm run fair-play -- <command> --data-dir <dir> [options]
 
   reports                               open player reports, oldest first
-  account <id>                          an account's sanctions, reports and per-match counters
+  account <id|name>                     an account's sanctions, reports and per-match counters
   sanctions                             every sanction kept
-  ban <id> --reason "<text>" [--days N] ban an account (no --days: until lifted)
-  restrict <id> --reason "<text>" [--days N]
+  ban <id|name> --reason "<text>" [--days N]
+                                        ban an account (no --days: until lifted)
+  restrict <id|name> --reason "<text>" [--days N]
                                         keep an account out of public rooms and the queue
   lift <sanction id>                    end a sanction now
   close-report <report id>              mark a report reviewed
@@ -41,7 +43,8 @@ const usage = `Usage: npm run fair-play -- <command> --data-dir <dir> [options]
   --by <name>   who decided (kept with the sanction; default $USER)
 
 The reason is shown to the player. Decide only after reviewing the evidence:
-the counters are signals, not verdicts.`;
+the counters are signals, not verdicts. A key cannot be looked up (only its
+hash is kept): find the account by its name, in any capitals.`;
 
 function fail(message: string): never {
   console.error(message);
@@ -99,10 +102,16 @@ const by = value("--by") ?? process.env.USER ?? "operator";
 const days = value("--days");
 const durationMs = days === undefined ? null : Number(days) * DAY_MS;
 if (durationMs !== null && !(durationMs > 0)) fail("--days must be a positive number");
+/** The account a command names, by id or by its name in any capitals. */
 const accountId = () => {
-  const id = Number(target);
-  if (!Number.isSafeInteger(id) || id <= 0) fail("Give an account id");
-  return id;
+  if (!target) fail("Give an account id or name");
+  if (/^\d+$/.test(target)) return Number(target);
+  const players = PlayerStore.open(dir);
+  try {
+    return players.findByName(target)?.id ?? fail(`No account named "${target}"`);
+  } finally {
+    players.close();
+  }
 };
 const reason = () => value("--reason") ?? fail('Give --reason "<text>": the player is shown it');
 const print = (data: unknown) => console.log(JSON.stringify(data, null, 2));

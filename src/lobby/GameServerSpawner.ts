@@ -13,6 +13,7 @@
 import { type ChildProcess, spawn } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import { createServer } from "node:net";
+import { childProcessEnv } from "../engine/server/ChildEnv";
 import {
   FAIR_PLAY_MAX_LINE,
   FAIR_PLAY_PREFIX,
@@ -211,10 +212,7 @@ export class GameServerSpawner {
     if (config.campaign) args.push("--campaign", config.campaign);
     if (config.campaign && config.campaignRules) args.push("--campaign-rules", JSON.stringify(config.campaignRules));
 
-    const childEnv = { ...process.env };
-    delete childEnv.SHAG_MATCH_ADMISSION;
-    delete childEnv.SHAG_MATCH_RESULT_SECRET;
-    delete childEnv.SHAG_MATCH_RESULT_OUTBOX;
+    const childEnv = childProcessEnv(process.env);
     if (admission) childEnv.SHAG_MATCH_ADMISSION = JSON.stringify(admission.manifest);
     if (resultSecret) childEnv.SHAG_MATCH_RESULT_SECRET = resultSecret;
     if (outboxFile) childEnv.SHAG_MATCH_RESULT_OUTBOX = outboxFile;

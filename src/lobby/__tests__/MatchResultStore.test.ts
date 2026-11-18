@@ -69,6 +69,21 @@ describe("MatchResultStore", () => {
   const board = (scope: "public" | "private" | "overall" = "public") =>
     results.leaderboard({ gametype: "amphi", period: "all", offset: 0, limit: 10, now: NOW, scope });
 
+  it("leaves hidden (banned) accounts off the board and out of its ranks, keeping their results", () => {
+    results.record(match("m1", NOW, "win", "loss"));
+    const hidden = results.leaderboard({
+      gametype: "amphi",
+      period: "all",
+      offset: 0,
+      limit: 10,
+      now: NOW,
+      hidden: [ids[0]],
+    });
+    expect(hidden.entries.map((entry) => [entry.accountId, entry.rank])).toEqual([[ids[1], 1]]);
+    expect(hidden.total).toBe(1);
+    expect(board().entries.map((entry) => entry.accountId)).toEqual([ids[0], ids[1]]);
+  });
+
   it("counts tied FFA leaders as draws and lower placements as losses", () => {
     results.record({
       matchId: "ffa-tie",

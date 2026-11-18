@@ -103,6 +103,8 @@ export interface RankingQuery {
   now?: number;
   /** Omitted means Overall. */
   scope?: RatingPool;
+  /** Accounts the boards leave out (banned players); their results stay stored. */
+  hidden?: readonly number[];
 }
 
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
@@ -122,10 +124,12 @@ const RECORDS = `
   )`;
 
 // Bot preset accounts keep their ratings (humans are rated against them) but
-// the boards list people only, so ranks count humans alone.
+// the boards list people only, so ranks count humans alone. The last
+// parameter is a JSON array of hidden accounts (RankingQuery.hidden).
+const NOT_HIDDEN = "account_id NOT IN (SELECT value FROM json_each(?))";
 const RANKED = `${RECORDS}, ranked AS (
     SELECT *, RANK() OVER (ORDER BY wins DESC, losses ASC, draws DESC) AS rank
-    FROM records WHERE bot = 0
+    FROM records WHERE bot = 0 AND ${NOT_HIDDEN}
   )
 `;
 
@@ -141,7 +145,7 @@ const SKILL_RANKED = `${RECORDS}, active AS (
     WHERE r.gametype = ? AND r.scope = ? AND r.policy_version = ?
       AND (? = 'all' OR records.account_id IS NOT NULL)
   ), ranked AS (
-    SELECT *, RANK() OVER (ORDER BY skill_score DESC) AS rank FROM active WHERE bot = 0
+    SELECT *, RANK() OVER (ORDER BY skill_score DESC) AS rank FROM active WHERE bot = 0 AND ${NOT_HIDDEN}
   )`;
 
 function skillRowOf(row: Record<string, unknown>): RankingRow {
@@ -352,6 +356,7 @@ export class MatchResultStore {
       now,
       scope,
       scope === "private" ? 1 : 0,
+      JSON.stringify(query.hidden ?? []),
     ] as const;
     const entries = this.db
       .prepare(
@@ -385,6 +390,7 @@ export class MatchResultStore {
       scope,
       RATING_POLICY.version,
       query.period,
+      JSON.stringify(query.hidden ?? []),
     ] as const;
     this.db.exec("BEGIN");
     try {
