@@ -98,7 +98,8 @@ describe("TransferLoadingView on the loading overlay", () => {
     const lines = [...(screen()?.querySelectorAll(".connecting-overlay__title span") ?? [])].map((s) => s.textContent);
     expect(lines).toEqual(["PROVING", "GROUNDS"]);
     expect(screen()?.getAttribute("aria-label")).toBe("Loading Proving Grounds");
-    expect(text('[data-fact="map"]')).toBe("wdm2");
+    // The rail lists no facts: the title names the map
+    expect(document.querySelector("[data-fact]")).toBeNull();
     const shot = screen()?.querySelector<HTMLElement>(".connecting-overlay__shot");
     expect(shot?.style.getPropertyValue("--co-shot")).toBe('url("/data/levelshots/wdm2.jpg")');
   });
@@ -116,7 +117,7 @@ describe("TransferLoadingView on the loading overlay", () => {
 
     progress("Textures", "Loading and applying");
     expect(text(".connecting-overlay__status")).toContain("TEXTURES");
-    expect(text(".connecting-overlay__detail")).toBe("Loading and applying");
+    expect(text(".connecting-overlay__line")).toBe("Loading and applying");
     expect(steps().map((step) => step.state)).toEqual(["is-done", "is-active", "is-pending"]);
     const afterTextures = share();
     expect(afterTextures).toBeGreaterThan(0);
@@ -168,7 +169,7 @@ describe("TransferLoadingView on the loading overlay", () => {
 
     expect(screen()?.dataset.state).toBe("setting-up");
     expect(text(".connecting-overlay__status")).toContain("SETTING UP");
-    expect(text(".connecting-overlay__detail")).toBe("Map loaded in 2.3 s");
+    expect(text(".connecting-overlay__line")).toBe("Map loaded in 2.3 s");
     expect(screen()?.getAttribute("aria-busy")).toBe("true");
 
     MapLoadingOverlay.release("fps:postload");

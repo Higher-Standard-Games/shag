@@ -86,14 +86,6 @@
     transform: translateX(230%);
   }
 }
-@media (prefers-reduced-motion: reduce) {
-  .package-downloads__fill {
-    transition: none;
-  }
-  .package-downloads__bar--unknown .package-downloads__fill {
-    animation: none;
-  }
-}
 @media (max-width: 600px) {
   .package-downloads {
     padding: 12px;

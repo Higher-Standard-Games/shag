@@ -52,7 +52,7 @@ export class ConnectingOverlay {
     // rather than dropping it and loading the map again behind this screen.
     if (!asSpectator && admissionTicket && getNetworkConnector()?.claimSeat?.(serverUrl, admissionTicket)) return;
 
-    this.el = this.build(serverUrl, asSpectator);
+    this.el = this.build(asSpectator);
 
     // Wait for fonts (Orbitron) to load before showing overlay
     // to prevent flash of unstyled text (FOUT)
@@ -154,7 +154,7 @@ export class ConnectingOverlay {
   /**
    * Build the overlay DOM.
    */
-  private build(serverUrl: string, asSpectator: boolean = false): HTMLElement {
+  private build(asSpectator: boolean = false): HTMLElement {
     const overlay = document.createElement("div");
     overlay.className = `connecting-overlay connecting-overlay--handoff ${TWIN_ROOT_CLASS}`;
     overlay.dataset.state = "preparing";
@@ -168,7 +168,6 @@ export class ConnectingOverlay {
       label: asSpectator ? "Joining live match" : "Match handoff",
       steps: ["Server", "Handshake", "Map load"],
     });
-    rail.setFact("server", "Server", serverUrl);
     rail.setSteps(["done", "active", "pending"]);
     this.rail = rail;
 
@@ -200,10 +199,6 @@ export class ConnectingOverlay {
     const statusHeader = document.createElement("div");
     statusHeader.className = "connecting-overlay__status-header";
 
-    const statusLabel = document.createElement("span");
-    statusLabel.className = "connecting-overlay__status-label";
-    statusLabel.textContent = "TRANSFER STATUS";
-
     const status = document.createElement("div");
     status.className = "connecting-overlay__status";
     status.setAttribute("aria-live", "polite");
@@ -217,7 +212,7 @@ export class ConnectingOverlay {
     this.dotsEl = dots;
     status.appendChild(dots);
 
-    statusHeader.append(statusLabel, status);
+    statusHeader.append(status);
 
     const bar = document.createElement("div");
     bar.className = "connecting-overlay__bar";
@@ -227,22 +222,15 @@ export class ConnectingOverlay {
     barFill.className = "connecting-overlay__bar-fill";
     bar.appendChild(barFill);
 
-    const transferFooter = document.createElement("div");
-    transferFooter.className = "connecting-overlay__transfer-footer";
-    const wait = document.createElement("span");
-    wait.textContent = "KEEP THIS WINDOW OPEN";
-    transferFooter.appendChild(wait);
-
     const notices = document.createElement("div");
     notices.className = "connecting-overlay__notices";
     notices.setAttribute("aria-live", "assertive");
     this.noticeEl = notices;
 
-    transfer.append(statusHeader, bar, transferFooter, notices);
+    transfer.append(statusHeader, bar, notices);
     stage.append(hero, transfer);
 
     overlay.append(buildTwinLight(), rail.rail, stage);
-    rail.log("Preparing");
     return overlay;
   }
 
@@ -251,7 +239,6 @@ export class ConnectingOverlay {
 
     this.statusEl.textContent = text;
     if (this.dotsEl) this.statusEl.appendChild(this.dotsEl);
-    this.rail?.log(text.charAt(0) + text.slice(1).toLowerCase());
 
     const state = text.toLowerCase().replace(/ /g, "-");
     if (this.el) {
@@ -270,7 +257,6 @@ export class ConnectingOverlay {
     errorEl.setAttribute("role", "alert");
     errorEl.textContent = message;
     this.noticeEl.appendChild(errorEl);
-    this.rail?.log(message);
   }
 
   private startDots(): void {

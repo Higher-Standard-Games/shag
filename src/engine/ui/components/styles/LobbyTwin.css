@@ -323,12 +323,6 @@
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .twin-key.is-active .twin-key__hint::before {
-    animation-duration: 2.4s;
-  }
-}
-
 /* The step in progress: latched in ink, as the lobby marks the page you are on */
 .twin-key.is-active {
   --key-press: 0.62;

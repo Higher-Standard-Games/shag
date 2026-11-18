@@ -131,7 +131,6 @@ export class TransferLoadingView implements MapLoadingView {
     this.root?.setAttribute("aria-label", `Loading ${name}`);
     this.titleEl?.replaceChildren(...lines.map((line) => element("span", "", line)));
     this.titleEl?.style.setProperty("--co-title-chars", String(Math.max(6, ...lines.map((line) => line.length))));
-    this.rail?.setFact("map", "Map", map.id);
     // A map with no levelshot installed keeps the stage's own gradient
     this.shotEl?.style.setProperty("--co-shot", `url("/data/levelshots/${encodeURIComponent(map.id)}.jpg")`);
     if (this.leadEl) {
@@ -155,7 +154,6 @@ export class TransferLoadingView implements MapLoadingView {
     const label = index >= 0 ? PHASES[index][1] : event.phase;
     this.setStatus("loading", label.toUpperCase());
     this.setDetail(event.detail ?? "");
-    this.rail?.log(event.detail ? `${label}: ${event.detail}` : label);
     const share = phaseProgress(event);
     if (share !== null) this.setBar(share);
     this.refreshSteps("active");
@@ -177,7 +175,6 @@ export class TransferLoadingView implements MapLoadingView {
     this.phaseIndex = PHASES.length - 1;
     this.setBar(MAP_SHARE);
     this.setDetail(`Map loaded in ${(event.duration / 1000).toFixed(1)} s`);
-    this.rail?.log(`Map loaded in ${(event.duration / 1000).toFixed(1)} s`);
     if (waitingFor.length > 0) this.setStatus("setting-up", "SETTING UP");
     this.refreshSteps("active");
   }
@@ -227,7 +224,9 @@ export class TransferLoadingView implements MapLoadingView {
     this.statusEl.setAttribute("aria-atomic", "true");
     this.dotsEl = element("span", "connecting-overlay__dots");
     this.dotsEl.setAttribute("aria-hidden", "true");
-    statusHeader.append(element("span", "connecting-overlay__status-label", "LOAD STATUS"), this.statusEl);
+    // The step's name, and beside it one line of what it is doing now, as the start-up screen has
+    this.detailEl = element("span", "connecting-overlay__line");
+    statusHeader.append(this.statusEl, this.detailEl);
 
     const bar = element("div", "connecting-overlay__bar");
     bar.setAttribute("role", "progressbar");
@@ -236,15 +235,11 @@ export class TransferLoadingView implements MapLoadingView {
     bar.setAttribute("aria-valuemax", "100");
     bar.appendChild(element("div", "connecting-overlay__bar-fill"));
 
-    const footer = element("div", "connecting-overlay__transfer-footer");
-    this.detailEl = element("span", "connecting-overlay__detail");
-    footer.append(this.detailEl);
-
     this.noticeEl = element("div", "connecting-overlay__notices");
     this.noticeEl.setAttribute("aria-live", "assertive");
 
     this.downloads = new PackageDownloadStatus();
-    transfer.append(this.downloads.root, statusHeader, bar, footer, this.noticeEl);
+    transfer.append(this.downloads.root, statusHeader, bar, this.noticeEl);
     stage.append(this.shotEl, hero, transfer);
     return stage;
   }

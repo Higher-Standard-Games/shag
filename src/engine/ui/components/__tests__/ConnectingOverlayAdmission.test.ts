@@ -34,10 +34,9 @@ describe("lobby match connection", () => {
     expect(root?.querySelector(".connecting-overlay__stage")).not.toBeNull();
     expect(root?.querySelector(".connecting-overlay__content")).toBeNull();
     expect(root?.querySelectorAll(".twin__steps .twin-key")).toHaveLength(3);
-    // The server's address is shown as text, never parsed as markup
-    const server = root?.querySelector('[data-fact="server"]');
-    expect(server?.textContent).toBe(serverUrl);
-    expect(server?.querySelector("img")).toBeNull();
+    // The server's address is not put on the page, so nothing in it can be parsed as markup
+    expect(root?.querySelector("[data-fact]")).toBeNull();
+    expect(root?.querySelector("img")).toBeNull();
     expect(root?.querySelector("[role='progressbar']")?.getAttribute("aria-label")).toBe("Connecting to match server");
 
     await vi.advanceTimersByTimeAsync(4000);
