@@ -162,6 +162,17 @@ Cataloged so we build *on* it, not beside it. (Detail in `v0.9.16-server-authori
 - **Per-client telemetry substrate** (`Telemetry.ts`, WO-12) — uplink jitter/loss + the
   **view-angular-speed (flick)** signal. This doc's §2 mostly extends this.
 - **Demo pipeline** (`.shagdemo`) — records full snapshots of a match. The evidence store for §3.
+- **Spectator delay** (`SnapshotBroadcaster.setSpectatorDelay`, `SPECTATOR_DELAY_SECONDS` = 10 in
+  `GameServer.ts`) — lobby-match spectators, shoutcasters included, receive frames 10 s old, so
+  ghosting through a spectator gains nothing. Off for servers started outside the lobby.
+- **Positional event filtering** (`perceivable` in `SnapshotBroadcaster.ts`) — gunfire, damage and
+  pickup events carry a position only to clients within `HEARING_RADIUS` (3000) of a viewpoint or
+  with it in PVS view; the rest are dropped, so ESP cannot draw unheard shots.
+- **Bounded lag-compensation rewind** (`GameServer.boundViewTick`) — a command's view tick is held
+  to `lastAckedTick − VIEW_TICK_SLACK` (8); older claims are clamped and counted as `backtrack`.
+- **Developer cvar lock in the native client** (shagger `CvarFlags::developer`) — the same
+  developer-only cvars as the browser (fog overrides, ammo counter, colour simulation) refuse
+  changes without `developer 1`, and release builds ignore stored values.
 
 ---
 
@@ -358,6 +369,15 @@ gates which pool (trusted / normal / low-trust) a player lands in. That reframes
 LobbyServer audit, `v0.9.16-server-authority.md`) — it isn't just a security pass, it's *building
 the place where Layer 4 lives*. Game servers *produce* signals; the lobby *consumes* them into
 matchmaking.
+
+**Built (beta.13):** the substrate for this layer. Each lobby match ends with a signed
+`SHAG_FAIR_PLAY_V1` line (`src/engine/server/network/FairPlayReport.ts`) carrying every human
+account's per-match counters (`FairPlayLedger`), which the lobby keeps in `fairplay.db`
+(`src/lobby/FairPlayStore.ts`) with 90-day retention for anything that led to no sanction. The
+lobby enforces two reviewed sanctions, `ban` (refused at login with reason, end and appeal route)
+and `ranked` (no public rooms or queue), plus address bans stored as keyed hashes, and accepts
+`report:player`. Sanctions are only ever entered by a person (`npm run fair-play`); nothing here
+scores or acts automatically. The trust score and segregation below are still to build on it.
 
 This is Phase-D-and-beyond, but it's the point of the whole substrate: §2 feeds a score, §3 backs
 appeals and calibration, §4 keeps the honest majority insulated — and the trusted-pool path is what

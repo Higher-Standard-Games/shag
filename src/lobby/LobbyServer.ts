@@ -35,6 +35,7 @@ import {
   unlockedThrough,
 } from "./Campaign";
 import { CampaignStore } from "./CampaignStore";
+import { FairPlayStore } from "./FairPlayStore";
 import { MIN_LISTED_DEMO_MS, selectFeaturedDemos } from "./FeaturedDemos";
 import { GameServerSpawner } from "./GameServerSpawner";
 import {
@@ -81,6 +82,7 @@ import type {
   LobbyVoteMapMessage,
   LobbyVoteShuffleMessage,
   PlayerInfo,
+  PlayerReportRequest,
   PlayerStatsRequest,
   QueueJoinMessage,
   RoomChatSendMessage,
@@ -101,6 +103,8 @@ const DEMO_SCAN_BATCH = 25;
 const gunzipAsync = promisify(gunzip) as (data: Uint8Array) => Promise<Uint8Array>;
 
 /** Per player address: new accounts, wrong keys, renames. */
+/** How often fair-play counters past their retention are deleted. */
+const FAIR_PLAY_PRUNE_INTERVAL_MS = 24 * 60 * 60_000;
 const ACCOUNT_CREATION_LIMIT = { limit: 30, windowMs: 60 * 60_000 };
 const KEY_FAILURE_LIMIT = { limit: 20, windowMs: 60_000 };
 const RENAME_LIMIT = { limit: 10, windowMs: 60_000 };
@@ -137,6 +141,12 @@ const LOBBY_FULL_RETRY_SEC = 60;
 const RETURN_GRACE_MS = 60_000;
 /** WebSocket close code after a `lobby_full` answer. */
 export const LOBBY_FULL_CLOSE_CODE = 4008;
+/** WebSocket close code after a `banned` answer, or when a ban reaches a connected account. */
+export const BANNED_CLOSE_CODE = 4009;
+/** Where a banned player is told to appeal, unless the operator sets `appealContact`. */
+export const DEFAULT_APPEAL_CONTACT = "open an issue at https://github.com/Higher-Standard-Games/wash-fps/issues";
+/** How often bans are checked against connected accounts. */
+const SANCTION_CHECK_INTERVAL_MS = 60_000;
 
 /**
  * Bot Intelligence Server (BIS) control API URL. The lobby relays
@@ -201,6 +211,10 @@ export interface LobbyServerOptions {
   settings?: SettingsStore;
   /** Campaign progress. Without one the lobby keeps it in memory until it stops. */
   campaign?: CampaignStore;
+  /** Fair-play counters and sanctions. Without one the lobby keeps them in memory until it stops. */
+  fairPlay?: FairPlayStore;
+  /** How a banned player can appeal, shown with the ban. Default DEFAULT_APPEAL_CONTACT. */
+  appealContact?: string;
 }
 
 /** Shape of config/maps.json */
@@ -289,6 +303,11 @@ export class LobbyServer {
   private readonly ownsSettings: boolean;
   private readonly campaign: CampaignStore;
   private readonly ownsCampaign: boolean;
+  private readonly fairPlay: FairPlayStore;
+  private readonly ownsFairPlay: boolean;
+  private fairPlayPruneTimer: NodeJS.Timeout | null = null;
+  private sanctionCheckTimer: NodeJS.Timeout | null = null;
+  private readonly appealContact: string;
   private readonly accountCreations = new RateLimiter(ACCOUNT_CREATION_LIMIT.limit, ACCOUNT_CREATION_LIMIT.windowMs);
   private readonly keyFailures = new RateLimiter(KEY_FAILURE_LIMIT.limit, KEY_FAILURE_LIMIT.windowMs);
   private readonly renames = new RateLimiter(RENAME_LIMIT.limit, RENAME_LIMIT.windowMs);
@@ -320,6 +339,9 @@ export class LobbyServer {
     this.settings = options.settings ?? new SettingsStore(":memory:");
     this.ownsCampaign = !options.campaign;
     this.campaign = options.campaign ?? new CampaignStore(":memory:");
+    this.ownsFairPlay = !options.fairPlay;
+    this.fairPlay = options.fairPlay ?? new FairPlayStore(":memory:");
+    this.appealContact = options.appealContact ?? DEFAULT_APPEAL_CONTACT;
     this.results = options.results;
     this.maxPlayers = options.maxPlayers ?? DEFAULT_MAX_PLAYERS;
     if (this.results) this.spawner.setResultDelivery(this.results.deliveries);
@@ -329,6 +351,13 @@ export class LobbyServer {
       this.handleServerExit(matchId, code);
     };
     this.spawner.onServerResult = (result) => this.handleServerResult(result);
+    this.spawner.onFairPlayReport = (report) => {
+      try {
+        this.fairPlay.recordMatch(report);
+      } catch (error) {
+        console.error(`[LobbyServer] Could not keep the fair-play report of ${report.matchId}:`, error);
+      }
+    };
     this.spawner.onServerResultRejected = (matchId) =>
       this.noteResult({ matchId, status: "rejected", reason: "verification_failed" });
   }
@@ -370,6 +399,10 @@ export class LobbyServer {
           this.DEMO_CACHE_INTERVAL,
         );
         if (this.results) this.resultRetryTimer = setInterval(() => this.retryResults(), 5_000);
+        this.fairPlayPruneTimer = setInterval(() => this.fairPlay.prune(), FAIR_PLAY_PRUNE_INTERVAL_MS);
+        this.fairPlayPruneTimer.unref?.();
+        this.sanctionCheckTimer = setInterval(() => this.enforceBans(), SANCTION_CHECK_INTERVAL_MS);
+        this.sanctionCheckTimer.unref?.();
 
         resolve();
       });
@@ -388,6 +421,14 @@ export class LobbyServer {
     if (this.resultRetryTimer) {
       clearInterval(this.resultRetryTimer);
       this.resultRetryTimer = null;
+    }
+    if (this.fairPlayPruneTimer) {
+      clearInterval(this.fairPlayPruneTimer);
+      this.fairPlayPruneTimer = null;
+    }
+    if (this.sanctionCheckTimer) {
+      clearInterval(this.sanctionCheckTimer);
+      this.sanctionCheckTimer = null;
     }
     // A scan still reading uses the stores closed below: it ends at its next file
     this.demoScanStopped = true;
@@ -411,6 +452,7 @@ export class LobbyServer {
     if (this.ownsAccounts) this.accounts.close();
     if (this.ownsSettings) this.settings.close();
     if (this.ownsCampaign) this.campaign.close();
+    if (this.ownsFairPlay) this.fairPlay.close();
 
     return new Promise((resolve) => {
       this.wss!.close(() => {
@@ -605,6 +647,9 @@ export class LobbyServer {
       case "featured:get":
         this.handleFeaturedGet(player, msg as FeaturedDemosRequest);
         break;
+      case "report:player":
+        this.handlePlayerReport(player, msg as PlayerReportRequest);
+        break;
       case "leaderboard:get":
         this.handleLeaderboardGet(player, msg as LeaderboardRequest);
         break;
@@ -671,6 +716,7 @@ export class LobbyServer {
         this.send(player, { type: "auth:error", code: "unknown_key" });
         return;
       }
+      if (this.refuseWhenBanned(player, account.id)) return;
       if (this.refuseWhenFull(player, account.id)) return;
       player.accountId = account.id;
       player.name = account.name;
@@ -678,6 +724,7 @@ export class LobbyServer {
       return;
     }
 
+    if (this.refuseWhenBanned(player, null)) return;
     if (this.refuseWhenFull(player, null)) return;
     if (!this.accountCreations.tryRecord(player.address)) {
       this.send(player, { type: "auth:error", code: "rate_limited" });
@@ -749,6 +796,108 @@ export class LobbyServer {
     });
     player.ws.close(LOBBY_FULL_CLOSE_CODE, "Lobby full");
     return true;
+  }
+
+  /**
+   * A banned account, or any login from a banned address: answer `banned` with
+   * the reason, the end and how to appeal, and close the connection.
+   */
+  private refuseWhenBanned(player: ConnectedPlayer, accountId: number | null): boolean {
+    let ban: { reason: string; expiresAt: number | null } | null = null;
+    try {
+      ban =
+        (accountId === null ? null : this.fairPlay.activeBan(accountId)) ?? this.fairPlay.addressBan(player.address);
+    } catch (error) {
+      // A fair-play store that cannot be read must not keep everyone out
+      log.warnRateLimited("LobbyServer:fairplay", "Could not read bans:", error);
+    }
+    if (!ban) return false;
+    console.log(`[LobbyServer] Refused a banned login${accountId === null ? "" : ` (account ${accountId})`}`);
+    this.send(player, {
+      type: "auth:error",
+      code: "banned",
+      reason: ban.reason,
+      ...(ban.expiresAt === null ? {} : { until: ban.expiresAt }),
+      appeal: this.appealContact,
+    });
+    player.ws.close(BANNED_CLOSE_CODE, "Banned");
+    return true;
+  }
+
+  /** Close the connections of accounts banned since they logged in (the fair-play CLI writes bans). */
+  private enforceBans(): void {
+    let banned: Set<number>;
+    try {
+      banned = this.fairPlay.bannedAccountIds();
+    } catch (error) {
+      log.warnRateLimited("LobbyServer:fairplay", "Could not read bans:", error);
+      return;
+    }
+    if (!banned.size) return;
+    for (const player of [...this.players.values()]) {
+      if (player.isBot || player.accountId === null || !banned.has(player.accountId)) continue;
+      const ban = this.fairPlay.activeBan(player.accountId);
+      console.log(`[LobbyServer] Closing banned account ${player.accountId}`);
+      this.send(player, {
+        type: "auth:error",
+        code: "banned",
+        reason: ban?.reason,
+        ...(ban?.expiresAt ? { until: ban.expiresAt } : {}),
+        appeal: this.appealContact,
+      });
+      player.ws.close(BANNED_CLOSE_CODE, "Banned");
+    }
+  }
+
+  /**
+   * Why this player may not play public (rated) rooms or the queue, or null.
+   * Private rooms and practice stay open to a ranked restriction.
+   */
+  private publicPlayRefusal(player: ConnectedPlayer): string | null {
+    if (player.isBot || player.accountId === null) return null;
+    let sanction: { reason: string; expiresAt: number | null } | null = null;
+    try {
+      sanction = this.fairPlay.rankedRestriction(player.accountId);
+    } catch (error) {
+      log.warnRateLimited("LobbyServer:fairplay", "Could not read sanctions:", error);
+    }
+    if (!sanction) return null;
+    const until =
+      sanction.expiresAt === null
+        ? "until it is lifted"
+        : `until ${new Date(sanction.expiresAt).toISOString().slice(0, 10)}`;
+    return `You can't play public rooms ${until}. Reason: ${sanction.reason}. Private rooms still work. To appeal, ${this.appealContact}.`;
+  }
+
+  /** Keep a player's report about another for review. */
+  private handlePlayerReport(player: ConnectedPlayer, msg: PlayerReportRequest): void {
+    const requestId = typeof msg.requestId === "string" ? msg.requestId.slice(0, 64) : "";
+    const answer = (ok: boolean, code?: "invalid" | "unknown_player" | "rate_limited" | "duplicate" | "unavailable") =>
+      this.send(player, { type: "report:result", requestId, ok, ...(code ? { code } : {}) });
+    if (player.isBot || player.accountId === null) {
+      answer(false, "invalid");
+      return;
+    }
+    let reported: number | null = null;
+    if (typeof msg.playerId === "string") reported = this.players.get(msg.playerId)?.accountId ?? null;
+    else if (typeof msg.accountId === "number" && this.accounts.exists(msg.accountId)) reported = msg.accountId;
+    if (reported === null) {
+      answer(false, "unknown_player");
+      return;
+    }
+    const matchId = typeof msg.matchId === "string" && msg.matchId ? msg.matchId : null;
+    try {
+      const result = this.fairPlay.addReport(player.accountId, reported, matchId, msg.reason);
+      if (!result.ok) {
+        answer(false, result.code);
+        return;
+      }
+      console.log(`[LobbyServer] Report ${result.id}: account ${player.accountId} reported account ${reported}`);
+      answer(true);
+    } catch (error) {
+      log.warnRateLimited("LobbyServer:fairplay", "Could not keep a report:", error);
+      answer(false, "unavailable");
+    }
   }
 
   /** Logged in: send the welcome, and tell everyone else. */
@@ -882,6 +1031,7 @@ export class LobbyServer {
     console.log(`[LobbyServer] Account ${accountId} deleted (was ${player.name})`);
     this.settings.delete(accountId);
     this.campaign.delete(accountId);
+    this.fairPlay.deleteAccount(accountId);
     this.renameDeletedInDemos(new Set([accountId]));
 
     for (const other of [...this.players.values()]) {
@@ -967,6 +1117,11 @@ export class LobbyServer {
       this.send(player, { type: "lobby:error", error: "Invalid room visibility." });
       return;
     }
+    const restricted = visibility === "public" ? this.publicPlayRefusal(player) : null;
+    if (restricted) {
+      this.send(player, { type: "lobby:error", error: restricted });
+      return;
+    }
 
     const lobby = new MatchLobby(gametype, this.mapNames, visibility);
     this.lobbies.set(lobby.id, lobby);
@@ -1009,6 +1164,11 @@ export class LobbyServer {
     const lobby = this.lobbies.get(lobbyId);
     if (!lobby || (lobby.visibility === "private" && inviteToken !== lobby.inviteToken)) {
       this.send(player, { type: "lobby:error", error: "That room is gone, or the invite link is wrong." });
+      return;
+    }
+    const restricted = lobby.visibility === "public" ? this.publicPlayRefusal(player) : null;
+    if (restricted) {
+      this.send(player, { type: "lobby:error", error: restricted });
       return;
     }
 
@@ -1718,6 +1878,11 @@ export class LobbyServer {
     const gametype = this.gametypes.find((g) => g.id === gametypeId);
     if (!gametype) {
       this.send(player, { type: "lobby:error", error: `Unknown gametype: ${String(gametypeId).slice(0, 32)}` });
+      return;
+    }
+    const restricted = this.publicPlayRefusal(player);
+    if (restricted) {
+      this.send(player, { type: "lobby:error", error: restricted });
       return;
     }
 
