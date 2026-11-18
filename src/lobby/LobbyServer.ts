@@ -8,6 +8,7 @@
  */
 
 import * as fs from "node:fs";
+import { createServer, type Server as HttpServer } from "node:http";
 import * as path from "node:path";
 import { promisify } from "node:util";
 import { gunzip } from "node:zlib";
@@ -22,6 +23,7 @@ import { BOT_ACCOUNT_PRESETS as BOT_PRESETS, type BotPreset } from "../shared/ra
 import { BOT_INVITE_PREPARATION_TIMEOUT_MS } from "../shared/ranking/BotPreparation";
 import { type BotReference, canonicalBotReference, sameBotReference } from "../shared/ranking/BotReference";
 import { isRatingMode } from "../shared/ranking/RatingPolicy";
+import { AdminPanel } from "./AdminPanel";
 import {
   type CampaignCatalog,
   campaignBotNames,
@@ -215,6 +217,8 @@ export interface LobbyServerOptions {
   fairPlay?: FairPlayStore;
   /** How a banned player can appeal, shown with the ban. Default DEFAULT_APPEAL_CONTACT. */
   appealContact?: string;
+  /** `admin.json` (AdminCredentials.ts): serve the admin panel at `/admin` while it lists an admin. */
+  adminFile?: string;
 }
 
 /** Shape of config/maps.json */
@@ -230,6 +234,9 @@ type MapManifest = Record<string, MapManifestEntry>;
 
 export class LobbyServer {
   private wss: WebSocketServer | null = null;
+  /** Carries the WebSocket upgrades and the admin panel's pages. */
+  private http: HttpServer | null = null;
+  private readonly admin: AdminPanel | null;
   private players: Map<string, ConnectedPlayer> = new Map();
   private lobbies: Map<string, MatchLobby> = new Map();
   private chatHistory: ChatMsg[] = [];
@@ -342,6 +349,14 @@ export class LobbyServer {
     this.ownsFairPlay = !options.fairPlay;
     this.fairPlay = options.fairPlay ?? new FairPlayStore(":memory:");
     this.appealContact = options.appealContact ?? DEFAULT_APPEAL_CONTACT;
+    this.admin = options.adminFile
+      ? new AdminPanel({
+          file: options.adminFile,
+          fairPlay: this.fairPlay,
+          accounts: this.accounts,
+          onSanction: () => this.enforceBans(),
+        })
+      : null;
     this.results = options.results;
     this.maxPlayers = options.maxPlayers ?? DEFAULT_MAX_PLAYERS;
     if (this.results) this.spawner.setResultDelivery(this.results.deliveries);
@@ -373,7 +388,14 @@ export class LobbyServer {
     return new Promise((resolve, reject) => {
       // Lobby commands are small JSON messages, including bot control. Bound
       // incoming frames before ws allocates its default 100 MiB payload.
-      this.wss = new WebSocketServer({ port: this.port, host: "0.0.0.0", maxPayload: 64 * 1024 });
+      // Plain HTTP is the admin panel (when configured) and otherwise refused
+      // as the bare WebSocket server refused it.
+      this.http = createServer((req, res) => {
+        if (this.admin?.handle(req, res)) return;
+        res.writeHead(426, { "Content-Type": "text/plain" });
+        res.end("Upgrade Required");
+      });
+      this.wss = new WebSocketServer({ server: this.http, maxPayload: 64 * 1024 });
 
       this.wss.on("connection", (ws, req) => this.handleConnection(ws, clientAddress(req)));
       this.wss.on("error", (err) => {
@@ -398,6 +420,7 @@ export class LobbyServer {
           () => background(this._scanDemos(), "LobbyServer"),
           this.DEMO_CACHE_INTERVAL,
         );
+        if (this.admin?.enabled) console.log(`[LobbyServer] Admin panel: http://localhost:${this.port}/admin`);
         if (this.results) this.resultRetryTimer = setInterval(() => this.retryResults(), 5_000);
         this.fairPlayPruneTimer = setInterval(() => this.fairPlay.prune(), FAIR_PLAY_PRUNE_INTERVAL_MS);
         this.fairPlayPruneTimer.unref?.();
@@ -406,6 +429,7 @@ export class LobbyServer {
 
         resolve();
       });
+      this.http.listen(this.port, "0.0.0.0");
     });
   }
 
@@ -457,8 +481,15 @@ export class LobbyServer {
     return new Promise((resolve) => {
       this.wss!.close(() => {
         this.wss = null;
-        console.log("[LobbyServer] Stopped");
-        resolve();
+        const http = this.http;
+        this.http = null;
+        const stopped = () => {
+          console.log("[LobbyServer] Stopped");
+          resolve();
+        };
+        if (!http) return stopped();
+        http.closeAllConnections();
+        http.close(stopped);
       });
     });
   }

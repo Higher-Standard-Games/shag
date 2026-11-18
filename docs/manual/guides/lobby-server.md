@@ -616,10 +616,64 @@ else `server-data/` beside the repo:
 | `settings.db` | Each account's synced settings (bindings and game preferences, never graphics), in `node:sqlite`; kept apart from `players.db` so frequent writes and backups don't touch results. Losing it loses nothing for good: every browser keeps its own copy and uploads it at its next login |
 | `result-outbox/` | Signed completed reports awaiting a committed receipt; separate from public demos |
 | `bot-secret` | The secret shared with the bot server, written by whichever starts first |
+| `fairplay.db` | Fair play: each human account's counters per lobby match, player reports, sanctions and address bans (as keyed hashes), in `node:sqlite`. See [Fair play](#fair-play) for what is kept how long |
+| `admin.json` | Admin panel logins (name and scrypt hash), written by `npm run fair-play -- add-admin`, mode 0600. Never commit it |
 | `bot-intel.db` | The bot server's own: each bot's report at the end of a match (map, gametype, preset, score, its fights by map cell and its strategy episodes), with no names or keys, in `node:sqlite`. Kept 90 days; separate from `players.db` and safe to delete. `bot:intel` distils it into the checked-in `config/bot-intel/<map>.json` |
 
 Demo recordings are not kept here: the lobby scans the game servers'
 `public/data/demos/` and serves the list.
+
+## Fair play
+
+At the end of every lobby match the game server sends the lobby a signed line
+with each human account's counters for that match: hitscan shots, hits and
+headshots, rejected, clamped and backtrack commands, warp strikes, tripwire
+hits, assisted input and the view-speed histogram. They are totals for the
+match, never raw input, and nothing acts on them automatically: a person
+reviews them and decides.
+
+| Sanction | Effect |
+| --- | --- |
+| `ban` | Login refused with the reason, when it ends and how to appeal (`auth:error` code `banned`, close code 4009). A connected player is disconnected within a minute, or at once when banned from the admin panel |
+| `ranked` | Public rooms and the queue refused with the reason; private rooms still work |
+| address ban | New accounts from the address refused like a ban. Kept as a keyed hash, at most 90 days |
+
+Players report each other with `report:player` (10 a day per account, one per
+reported player per match).
+
+Retention: counters and reports that led to no sanction are deleted after 90
+days. A sanction and the evidence it rests on are kept until 30 days after it
+ends, for an appeal. Deleting an account deletes its records unless a sanction
+is in force. The lobby prunes once a day.
+
+### Reviewing and deciding
+
+From the command line, beside a running lobby:
+
+```bash
+npm run fair-play -- reports --data-dir ./server-data
+npm run fair-play -- account 42 --data-dir ./server-data
+npm run fair-play -- ban 42 --reason "Aimbot (reviewed demo)" --days 30 --data-dir ./server-data
+npm run fair-play -- --help
+```
+
+Or in a browser, at `/admin` on the lobby's own port (behind the proxy,
+`https://<zone>.washoi.net/admin` once the proxy forwards that path to the
+lobby). The panel is off, and `/admin` answers 404, until `admin.json` lists
+an admin:
+
+```bash
+npm run fair-play -- add-admin tarmo --data-dir ./server-data   # asks for a password, 12 characters at least
+npm run fair-play -- admins --data-dir ./server-data
+npm run fair-play -- remove-admin tarmo --data-dir ./server-data
+```
+
+The panel lists open reports and sanctions in force, shows an account's
+sanctions, reports and per-match counters, and adds or lifts sanctions and
+address bans. Sessions last two hours and are kept in memory, so a lobby
+restart signs everyone out; removing an admin ends their session at their next
+request. Five wrong passwords from one address make it wait 15 minutes. Every
+action is logged with the admin's name, and a sanction records who decided.
 
 ## The protocol
 
