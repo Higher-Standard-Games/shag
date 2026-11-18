@@ -64,6 +64,26 @@ describe("drawListSignature", () => {
     expect(changes[0]).toBe(changes[1]);
     expect(new Set(changes).size).toBe(3);
   });
+
+  it("asks the tracker about every mesh, and counts a hidden one it keeps", () => {
+    const box = MeshBuilder.CreateBox("box", {}, scene);
+    const pooled = MeshBuilder.CreateBox("pooled", {}, scene);
+    pooled.isVisible = false;
+    const seen: [string, boolean][] = [];
+    const dropped = drawListSignature(scene.meshes, (mesh, shown) => {
+      seen.push([mesh.name, shown]);
+      return false;
+    });
+    expect(seen).toEqual([
+      ["box", true],
+      ["pooled", false],
+    ]);
+    const kept = drawListSignature(scene.meshes, (mesh) => mesh === pooled);
+    pooled.isVisible = true;
+    expect(kept).not.toBe(dropped);
+    expect(drawListSignature(scene.meshes, (mesh) => mesh === pooled)).toBe(kept);
+    box.dispose();
+  });
 });
 
 describe("whole-frame snapshots", () => {
@@ -257,6 +277,43 @@ describe("whole-frame snapshots", () => {
       internals.endOfFrame();
       expect(internals.recordNext).toBe(true);
       expect(internals.recorded).toContain(water);
+    } finally {
+      handle?.dispose();
+      delete (engine as unknown as { isWebGPU?: boolean }).isWebGPU;
+      delete (engine as unknown as { compatibilityMode?: boolean }).compatibilityMode;
+    }
+  });
+
+  it("learn a mesh shown and hidden twice as hidden in place, but never a map surface", () => {
+    vi.stubGlobal("location", { search: "" });
+    Object.defineProperty(engine, "isWebGPU", { value: true, configurable: true });
+    Object.defineProperty(engine, "compatibilityMode", { value: false, configurable: true });
+    Object.assign(engine, { _snapshotRendering: { endRenderPass() {}, _allBundleLists: [] } });
+    const world = MeshBuilder.CreateBox("world", {}, scene);
+    const surface = MeshBuilder.CreateBox("surface", {}, scene);
+    surface.parent = world;
+    const rocket = MeshBuilder.CreateBox("rocket", {}, scene);
+    const handle = installSnapshotFrames(
+      scene,
+      world,
+      () => null,
+      () => {},
+    );
+    try {
+      const internals = handle as unknown as {
+        learnToggle(mesh: unknown, shown: boolean): boolean;
+        isInPlace(mesh: unknown): boolean;
+      };
+      expect(internals.isInPlace(surface)).toBe(true);
+      expect(internals.learnToggle(surface, false)).toBe(true);
+      // Seen shown, hidden, shown: the second change keeps it in the recording
+      expect(internals.learnToggle(rocket, true)).toBe(false);
+      expect(internals.learnToggle(rocket, true)).toBe(false);
+      expect(internals.learnToggle(rocket, false)).toBe(false);
+      expect(internals.isInPlace(rocket)).toBe(false);
+      expect(internals.learnToggle(rocket, true)).toBe(true);
+      expect(internals.isInPlace(rocket)).toBe(true);
+      expect(internals.learnToggle(rocket, false)).toBe(true);
     } finally {
       handle?.dispose();
       delete (engine as unknown as { isWebGPU?: boolean }).isWebGPU;

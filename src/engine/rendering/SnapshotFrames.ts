@@ -80,6 +80,20 @@ const MAX_STABLE_WAIT = 8;
 const LEARNED_DRAWS_PER_FRAME = 256;
 /** The world matrix of a mesh hidden in place: every vertex at the origin, nothing drawn. */
 const COLLAPSED = Matrix.Zero();
+/** A map surface: always in the recording, hidden by PVS only while culling runs. */
+const WORLD = 1;
+/** Shown and hidden often enough to stay in the recording, hidden with a collapsed matrix. */
+const IN_PLACE = 2;
+/** Forced into a recording and still not drawn: never forced again. */
+const UNRECORDABLE = 4;
+
+interface MeshTrack {
+  flags: number;
+  /** Shown when last seen by the signature; null before it was. */
+  shown: boolean | null;
+  /** How often it changed between shown and hidden. */
+  count: number;
+}
 
 const declaredDynamicMaterials = new WeakSet<Material>();
 
@@ -263,13 +277,13 @@ export function instanceStorage(mesh: AbstractMesh): ThinInstanceStorage | null 
  * material was marked for rebinding (`Material.markDirty` clears a draw
  * wrapper's readiness, which is how frozen materials take light changes).
  * An instanced batch counts whatever its count and enabled state: replayed
- * frames draw it indirectly with the count of the moment. So does a mesh
- * `inPlace` accepts, which replayed frames hide with a collapsed matrix.
+ * frames draw it indirectly with the count of the moment. `track` sees
+ * every other mesh with whether it is shown, and a hidden mesh counts when it
+ * returns true: replayed frames hide such a mesh with a collapsed matrix.
  */
 export function drawListSignature(
   meshes: readonly AbstractMesh[],
-  inPlace: (mesh: AbstractMesh) => boolean = () => false,
-  visit?: (mesh: AbstractMesh, shown: boolean) => void,
+  track: (mesh: AbstractMesh, shown: boolean) => boolean = () => false,
 ): number {
   let hash = 0;
   let count = 0;
@@ -278,8 +292,7 @@ export function drawListSignature(
     const batch = instanceStorage(mesh);
     if (!batch) {
       const shown = mesh.isEnabled() && mesh.isVisible && mesh.visibility > 0;
-      visit?.(mesh, shown);
-      if (!shown && !inPlace(mesh)) continue;
+      if (!track(mesh, shown) && !shown) continue;
     }
     const material = mesh.material;
     const wrappers = (
@@ -377,15 +390,13 @@ class SnapshotFrames implements SnapshotFramesHandle {
    * stops when it does.
    */
   private undrawn: AbstractMesh[] = [];
-  /** How often each mesh was shown or hidden; two changes make it hidden in place. */
-  private readonly flips = new WeakMap<AbstractMesh, { shown: boolean; count: number }>();
-  private readonly inPlace = new WeakSet<AbstractMesh>();
+  /**
+   * What the controller knows of each mesh, one lookup a frame: the signature
+   * visits every scene mesh. Flags are `WORLD`, `IN_PLACE`, `UNRECORDABLE`.
+   */
+  private readonly tracks = new WeakMap<AbstractMesh, MeshTrack>();
   private readonly hiddenInPlace = new WeakSet<AbstractMesh>();
-  /** Map surfaces: always in the recording, hidden by PVS only while culling runs. */
-  private readonly worldMeshes: Set<AbstractMesh>;
-  private readonly isInPlace = (mesh: AbstractMesh) => this.inPlace.has(mesh) || this.worldMeshes.has(mesh);
-  /** Meshes that were forced into a recording and still did not draw: never forced again. */
-  private readonly unrecordable = new WeakSet<AbstractMesh>();
+  private readonly isInPlace = (mesh: AbstractMesh) => this.hasFlag(mesh, WORLD | IN_PLACE);
   private readonly counters: SnapshotFrameStats = {
     normal: 0,
     recording: 0,
@@ -434,7 +445,8 @@ class SnapshotFrames implements SnapshotFramesHandle {
     this.originalEndRenderPass = recorder.endRenderPass;
     recorder.endRenderPass = (pass: unknown) => this.guardPass(recorder, pass);
     this.savedSkipFrustum = scene.skipFrustumClipping;
-    this.worldMeshes = new Set([world, ...world.getChildMeshes()]);
+    for (const mesh of [world, ...world.getChildMeshes()])
+      this.tracks.set(mesh, { flags: WORLD, shown: null, count: 0 });
     this.frameEnd = scene.onAfterRenderObservable.add(() => this.endOfFrame());
     // The frame's last pass ends after onAfterRender: a recording starts with the next frame.
     this.frameStart = scene.onBeforeRenderObservable.add(() => this.startOfFrame());
@@ -564,14 +576,15 @@ class SnapshotFrames implements SnapshotFramesHandle {
         // A mesh Babylon would not draw even forced (another camera's layer, a
         // pool root): normal tracking from now on, or every recording fails
         for (const mesh of missing) {
-          this.unrecordable.add(mesh);
-          this.inPlace.delete(mesh);
+          const track = this.tracks.get(mesh);
+          if (track) track.flags = (track.flags & ~IN_PLACE) | UNRECORDABLE;
+          else this.tracks.set(mesh, { flags: UNRECORDABLE, shown: null, count: 0 });
         }
         this.stop("forced mesh not recorded");
       } else if (this.kind === "recording") {
         this.kind = "replay";
         this.undrawn = this.recorded.filter(
-          (mesh) => this.inPlace.has(mesh) && !instanceStorage(mesh) && !this.drawnForced.has(mesh),
+          (mesh) => this.hasFlag(mesh, IN_PLACE) && !instanceStorage(mesh) && !this.drawnForced.has(mesh),
         );
       }
       this.cullingAfterRecording();
@@ -579,7 +592,7 @@ class SnapshotFrames implements SnapshotFramesHandle {
       return;
     }
     // A normal frame: record the next one once the draw list held still long enough.
-    const signature = drawListSignature(this.scene.meshes, this.isInPlace, this.learnToggle);
+    const signature = drawListSignature(this.scene.meshes, this.learnToggle);
     this.stableFrames = signature === this.lastSignature ? this.stableFrames + 1 : 0;
     if (this.stableFrames >= this.stableNeeded) {
       // A recording costs about two normal frames; one that replayed only a
@@ -629,18 +642,35 @@ class SnapshotFrames implements SnapshotFramesHandle {
   }
 
   /** Meshes that keep being shown and hidden stay in the recording from now on. */
-  private readonly learnToggle = (mesh: AbstractMesh, shown: boolean): void => {
-    // Map surfaces are in every recording already; PVS showing and hiding
-    // them as the camera moves is not a change to collapse them for
-    if (this.inPlace.has(mesh) || this.unrecordable.has(mesh) || this.worldMeshes.has(mesh)) return;
-    const flips = this.flips.get(mesh);
-    if (!flips) {
-      this.flips.set(mesh, { shown, count: 0 });
-    } else if (flips.shown !== shown) {
-      flips.shown = shown;
-      if (++flips.count >= 2) this.inPlace.add(mesh);
+  /**
+   * Learns which meshes keep being shown and hidden (two changes make one
+   * hidden in place) and answers whether a mesh stays in the recording hidden.
+   * Map surfaces are in every recording already; PVS showing and hiding them
+   * as the camera moves is not a change to collapse them for.
+   */
+  private readonly learnToggle = (mesh: AbstractMesh, shown: boolean): boolean => {
+    const track = this.tracks.get(mesh);
+    if (!track) {
+      this.tracks.set(mesh, { flags: 0, shown, count: 0 });
+      return false;
     }
+    if (track.flags & (WORLD | IN_PLACE)) return true;
+    if (track.flags & UNRECORDABLE) return false;
+    if (track.shown === null) {
+      track.shown = shown;
+    } else if (track.shown !== shown) {
+      track.shown = shown;
+      if (++track.count >= 2) {
+        track.flags |= IN_PLACE;
+        return true;
+      }
+    }
+    return false;
   };
+
+  private hasFlag(mesh: AbstractMesh, flags: number): boolean {
+    return ((this.tracks.get(mesh)?.flags ?? 0) & flags) !== 0;
+  }
 
   /**
    * Babylon draws neither a hidden or disabled mesh nor a batch with no
@@ -662,7 +692,7 @@ class SnapshotFrames implements SnapshotFramesHandle {
         this.fullDetail.push(mesh);
       }
       const storage = instanceStorage(mesh);
-      if ((!storage && !this.inPlace.has(mesh)) || this.unrecordable.has(mesh)) continue;
+      if ((!storage && !this.hasFlag(mesh, IN_PLACE)) || this.hasFlag(mesh, UNRECORDABLE)) continue;
       if (!this.watched.has(mesh)) {
         this.watched.add(mesh);
         (mesh as Mesh).onBeforeDrawObservable.add(() => {
@@ -918,7 +948,7 @@ class SnapshotFrames implements SnapshotFramesHandle {
   /** Hidden-in-place meshes: a collapsed world matrix while hidden, the real one when shown. */
   private writeHidden(force: boolean): void {
     for (const mesh of this.recorded) {
-      if (!this.inPlace.has(mesh) || mesh.isDisposed()) continue;
+      if (!this.hasFlag(mesh, IN_PLACE) || mesh.isDisposed()) continue;
       const hidden = !mesh.isEnabled() || !mesh.isVisible || mesh.visibility <= 0;
       if (!force && hidden === this.hiddenInPlace.has(mesh)) continue;
       if (hidden) {
@@ -996,7 +1026,7 @@ class SnapshotFrames implements SnapshotFramesHandle {
     // Every update of the frame has run and nothing has drawn: a frame whose
     // draws differ from the recording's draws normally instead of showing what
     // just left (or missing what just came)
-    if (drawListSignature(this.scene.meshes, this.isInPlace, this.learnToggle) !== this.recordedSignature) {
+    if (drawListSignature(this.scene.meshes, this.learnToggle) !== this.recordedSignature) {
       this.stop("draw list");
       return;
     }
