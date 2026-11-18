@@ -229,7 +229,7 @@ function bezierBasis(t: number): [number, number, number] {
 }
 
 /**
- * PatchGenerator handles Quake 3 / Warsow bezier patch surfaces.
+ * PatchGenerator handles Quake 3-format bezier patch surfaces.
  *
  * Patches are defined as a grid of control points that form bezier curves.
  * The grid dimensions are always (2n+1) x (2m+1) where n,m >= 1.
