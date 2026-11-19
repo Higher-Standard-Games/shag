@@ -6,7 +6,8 @@ All notable changes to this project are documented in version-specific files.
 
 | Version | Date | Summary |
 |---------|------|---------|
-| [v1.0.0-rc.1](./v1.0.0-rc.1.md) | unreleased | Living changelog for the first release candidate of 1.0.0 |
+| [v1.0.0](./v1.0.0.md) | unreleased | Living changelog for the 1.0.0 release |
+| [v1.0.0-rc.1](./v1.0.0-rc.1.md) | Nov 19, 2026 | First release candidate: the campaign (eight operations and Survival), bots seated by the lobby and playing Search & Destroy as a team, anticheat with spectator delay, bans and reports, the privacy notice, dm5 visibility, and a fresh demo archive for 1.0 |
 | [v1.0.0-beta.12.2](./v1.0.0-beta.12.2.md) | Nov 14, 2026 | Point release: bots turn round when blocked, in a fight too; they time their own armor takes and check the major item spots in passing |
 | [v1.0.0-beta.12.1](./v1.0.0-beta.12.1.md) | Nov 14, 2026 | Point release: background music for full-match videos, the chosen song followed by the game's shuffled playlist |
 | [v1.0.0-beta.12](./v1.0.0-beta.12.md) | Nov 14, 2026 | Four new maps (DM16, DM17, DM18, Amphi3) with fog volumes, shootable buttons and map particles; full-match video export with the game HUD; victory dances and kill taunts; a skill menu on Add bot; bots that hear, hunt, learn the map and the opponent, strafe-jump, and play Search & Destroy as a team with holds and cover peeking; demo playback with the followed player's frags and the Tab scoreboard |
