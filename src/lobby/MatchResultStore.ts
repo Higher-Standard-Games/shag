@@ -71,7 +71,7 @@ export interface RecordedMatch {
   participants: Array<{ accountId: number; outcome: MatchOutcome; score: number }>;
   /** Played in a private lobby: friends, bots. Counted in the Private and Overall boards. */
   private?: boolean;
-  /** Bots that held seats. Only private lobbies have them. */
+  /** Bots that held seats. A match with any is stored as private, wherever it was played. */
   bots?: number;
 }
 

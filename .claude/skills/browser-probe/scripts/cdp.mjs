@@ -194,10 +194,37 @@ export async function bootGame(b, url = "http://127.0.0.1:3100/") {
   await sleep(3000);
   await b.ev("document.querySelector('.welcome button[type=submit]')?.click()");
   for (let i = 0; i < 60; i++) {
-    if (await b.ev("!!window.scene")) return;
+    if (await b.ev("!!window.scene")) {
+      await acceptWelcomeGuide(b);
+      return;
+    }
     await sleep(500);
   }
   throw new Error("the game did not boot (no window.scene)");
+}
+
+/**
+ * A new profile meets the welcome guide once the lobby answers: agree to the
+ * terms and step through to Close, as a player does. Returns whether it was shown.
+ */
+export async function acceptWelcomeGuide(b, seconds = 15) {
+  return b.ev(`(async () => {
+    for (let i = 0; i < ${seconds * 4}; i++) {
+      const guide = document.querySelector('[role=dialog][aria-label^="Welcome to Washiki Washoi"]');
+      if (guide) {
+        const agree = [...guide.querySelectorAll('label')].find((l) => /I agree/.test(l.textContent ?? ''))?.querySelector('input');
+        if (agree && !agree.checked) agree.click();
+        for (let step = 0; step < 3 && guide.isConnected; step++) {
+          const next = [...guide.querySelectorAll('button')].find((k) => /Next|Close/.test(k.textContent ?? '') && !k.disabled);
+          next?.click();
+          await new Promise((r) => setTimeout(r, 200));
+        }
+        return !guide.isConnected;
+      }
+      await new Promise((r) => setTimeout(r, 250));
+    }
+    return false;
+  })()`);
 }
 
 /** Wait until a map's BSP geometry is in the scene and the loading overlay is gone. */

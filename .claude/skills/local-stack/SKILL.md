@@ -49,7 +49,9 @@ the bots' match reports in `<data-dir>/bot-intel.db`.
    environment of the dev or probe server before starting it; it is read at
    build time.
 
-Bots join only **private** rooms. Public matchmaking is people only.
+Bots join private rooms on invite, and a public room with a person in it
+invites AI players by itself after 90 seconds (`AI_INVITE_AFTER_MS` in
+`src/lobby/MatchLobby.ts`). A match with a bot in it is rated in the private pool.
 
 ## While it runs
 
