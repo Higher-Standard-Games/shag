@@ -603,7 +603,7 @@ export type AuthErrorCode = "unknown_key" | "rate_limited" | "already_authentica
 
 /**
  * Login failed; the connection stays open and may send `auth` again, except
- * after `lobby_full`, when the lobby closes it.
+ * after `lobby_full` and `banned`, when the lobby closes it.
  */
 export interface AuthErrorMessage extends LobbyMessage {
   type: "auth:error";
