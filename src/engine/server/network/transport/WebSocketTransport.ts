@@ -43,7 +43,10 @@ class WebSocketClientConnection implements ClientConnection {
   }
 
   sendDatagram(data: Uint8Array): void {
-    if (!this.canSend(data)) throw new Error("WebSocket unavailable or output queue full");
+    // A socket already closing (a bot released at the end of a match, a player
+    // leaving) has nothing left to deliver: its disconnect follows
+    if (this.ws.readyState !== WebSocket.OPEN) return;
+    if (!this.canSend(data)) throw new Error("WebSocket output queue full");
     this.ws.send(data);
   }
 

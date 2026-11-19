@@ -34,7 +34,9 @@ describe("WebSocketServerTransport", () => {
       expect([...(await received)]).toEqual([1, 2, 3]);
       expect(await closed).toBe(1006);
       expect(errors).toHaveLength(1);
-      expect(() => slow.sendDatagram(new Uint8Array([4]))).toThrow("unavailable");
+      // Once it is gone, a send to it is dropped quietly: the disconnect is under way
+      expect(() => slow.sendDatagram(new Uint8Array([4]))).not.toThrow();
+      expect(errors).toHaveLength(1);
     } finally {
       for (const socket of sockets) socket.terminate();
       await transport.stop();
