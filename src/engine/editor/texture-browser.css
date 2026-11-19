@@ -47,7 +47,7 @@
   background: #21304c;
   color: #e8fbff;
   border: 1px solid #47768b;
-  cursor: pointer;
+  cursor: var(--ui-cursor-hover, pointer);
 }
 .shagged-tex__groups {
   overflow-y: auto;
@@ -73,7 +73,7 @@
   border: 0;
   text-align: left;
   white-space: nowrap;
-  cursor: pointer;
+  cursor: var(--ui-cursor-hover, pointer);
   font: inherit;
 }
 .shagged-tex__groups button span {
@@ -109,7 +109,7 @@
   padding: 4px;
   background: #18223a;
   border: 1px solid #2c3a57;
-  cursor: pointer;
+  cursor: var(--ui-cursor-hover, pointer);
 }
 .shagged-tex__tile:hover,
 .shagged-tex__tile:focus {

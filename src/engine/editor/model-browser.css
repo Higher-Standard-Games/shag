@@ -47,7 +47,7 @@
   background: #21304c;
   color: #e8fbff;
   border: 1px solid #47768b;
-  cursor: pointer;
+  cursor: var(--ui-cursor-hover, pointer);
 }
 .shagged-models__groups {
   grid-row: 2 / 4;
@@ -74,7 +74,7 @@
   border: 0;
   text-align: left;
   white-space: nowrap;
-  cursor: pointer;
+  cursor: var(--ui-cursor-hover, pointer);
   font: inherit;
 }
 .shagged-models__groups button span {
@@ -127,12 +127,12 @@
   border: 0;
   font: inherit;
   font-weight: 700;
-  cursor: pointer;
+  cursor: var(--ui-cursor-hover, pointer);
 }
 .shagged-models__use:disabled {
   background: #2c3a57;
   color: #6f8798;
-  cursor: default;
+  cursor: var(--ui-cursor, default);
 }
 .shagged-models__list {
   overflow-y: auto;
@@ -148,7 +148,7 @@
   gap: 8px;
   padding: 4px 8px;
   border: 1px solid transparent;
-  cursor: pointer;
+  cursor: var(--ui-cursor-hover, pointer);
 }
 .shagged-models__name {
   overflow: hidden;

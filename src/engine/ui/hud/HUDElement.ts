@@ -51,7 +51,7 @@ export abstract class HUDElement {
    */
   public setClickHandler(handler: () => void): void {
     this.clickHandler = handler;
-    this.element.style.cursor = "pointer";
+    this.element.style.cursor = "var(--ui-cursor-hover, pointer)";
     this.element.onclick = (e) => {
       e.stopPropagation();
       handler();

@@ -292,7 +292,7 @@ function injectStyles(): void {
       border: none;
       color: #666666;
       font-size: 18px;
-      cursor: pointer;
+      cursor: var(--ui-cursor-hover, pointer);
       padding: 0;
       width: 32px;
       height: 32px;
@@ -330,7 +330,7 @@ function injectStyles(): void {
       border-radius: 10px;
       font-size: 15px;
       font-weight: 600;
-      cursor: pointer;
+      cursor: var(--ui-cursor-hover, pointer);
       transition: all 0.1s ease;
       border: none;
       font-family: var(--w-font-body, 'Rajdhani', sans-serif);
@@ -340,7 +340,7 @@ function injectStyles(): void {
 
     .popup-btn:disabled {
       opacity: 0.5;
-      cursor: not-allowed;
+      cursor: var(--ui-cursor-disabled, not-allowed);
     }
 
     .popup-btn-primary {

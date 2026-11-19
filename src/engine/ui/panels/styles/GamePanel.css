@@ -348,7 +348,7 @@
   box-shadow:
     var(--gp-shadow-sm),
     inset 5px 0 0 hsla(180, 100%, 50%, 0.34);
-  cursor: pointer;
+  cursor: var(--ui-cursor-hover, pointer);
   outline: none;
   transition:
     transform 0.16s ease,
@@ -534,7 +534,7 @@
   box-shadow:
     var(--gp-shadow-sm),
     inset 5px 0 0 hsla(180, 100%, 50%, 0.42);
-  cursor: pointer;
+  cursor: var(--ui-cursor-hover, pointer);
   transition:
     transform 0.16s ease,
     color 0.16s ease,

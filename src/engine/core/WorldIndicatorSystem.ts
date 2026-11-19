@@ -392,7 +392,7 @@ export class WorldIndicatorSystem {
         align-items: center;
         transform: translate(-50%, -50%);
         pointer-events: auto;
-        cursor: pointer;
+        cursor: var(--ui-cursor-hover, pointer);
         transition: all 0.1s ease;
         background: #FAFAFA;
         padding: 12px 16px 10px 16px;

@@ -364,7 +364,7 @@
 }
 
 button.twin-key:enabled {
-  cursor: pointer;
+  cursor: var(--ui-cursor-hover, pointer);
 }
 
 button.twin-key:enabled:is(:hover, :focus-visible) {
@@ -376,7 +376,7 @@ button.twin-key:enabled:active {
 }
 
 button.twin-key:disabled {
-  cursor: not-allowed;
+  cursor: var(--ui-cursor-disabled, not-allowed);
 }
 
 @media (max-width: 1500px) {

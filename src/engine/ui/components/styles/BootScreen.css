@@ -29,7 +29,7 @@
   padding: 0;
   color: inherit;
   font: inherit;
-  cursor: default;
+  cursor: var(--ui-cursor, default);
   background: radial-gradient(circle, hsla(238, 45%, 11%, 0.92) 56%, hsla(238, 45%, 8%, 0.5) 70%, transparent 71%);
   border: 1px solid hsla(180, 100%, 50%, 0.22);
   border-radius: 50%;
@@ -39,7 +39,7 @@
 }
 
 .boot__ring:enabled {
-  cursor: pointer;
+  cursor: var(--ui-cursor-hover, pointer);
 }
 
 .boot__ring:enabled:hover,
@@ -122,7 +122,7 @@
   letter-spacing: inherit;
   text-transform: inherit;
   color: var(--ink);
-  cursor: pointer;
+  cursor: var(--ui-cursor-hover, pointer);
   background: var(--gold);
   border: 0;
   clip-path: polygon(4% 0, 100% 0, 96% 100%, 0 100%);
@@ -139,7 +139,7 @@
 
 /* Clicked: it says "Starting" and holds still */
 .boot__start:disabled {
-  cursor: default;
+  cursor: var(--ui-cursor, default);
   animation: none;
 }
 
@@ -171,7 +171,7 @@
   color: var(--ink);
   background: var(--gold);
   border: 0;
-  cursor: pointer;
+  cursor: var(--ui-cursor-hover, pointer);
 }
 
 .boot__lead {

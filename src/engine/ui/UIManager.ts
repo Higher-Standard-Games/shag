@@ -185,7 +185,7 @@ export class UIManager {
         font-family: var(--w-font-body, 'Rajdhani', sans-serif);
         border: none;
         border-radius: 8px;
-        cursor: pointer;
+        cursor: var(--ui-cursor-hover, pointer);
         transition: all 0.2s ease;
         display: inline-flex;
         align-items: center;
@@ -195,7 +195,7 @@ export class UIManager {
       
       .ui-button:disabled {
         opacity: 0.5;
-        cursor: not-allowed;
+        cursor: var(--ui-cursor-disabled, not-allowed);
       }
       
       .ui-button:hover:not(:disabled) {

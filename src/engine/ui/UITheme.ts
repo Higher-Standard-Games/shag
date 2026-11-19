@@ -492,7 +492,7 @@ export class UITheme {
         border-radius: 8px;
         color: ${this.theme.textOnPrimary};
         font-family: ${this.theme.fontFamily};
-        cursor: pointer;
+        cursor: var(--ui-cursor-hover, pointer);
         transition: all 0.1s ease;
         position: relative;
         top: 0;
@@ -506,7 +506,7 @@ export class UITheme {
       border-radius: 8px;
       color: ${this.theme.buttonText};
       font-family: ${this.theme.fontFamily};
-      cursor: pointer;
+      cursor: var(--ui-cursor-hover, pointer);
       transition: all 0.1s ease;
       position: relative;
       top: 0;

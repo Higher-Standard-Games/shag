@@ -49,7 +49,7 @@
   color: #e8fbff;
   border: 1px solid #47768b;
   font: inherit;
-  cursor: pointer;
+  cursor: var(--ui-cursor-hover, pointer);
 }
 .shagged-health__refresh:hover,
 .shagged-health__close:hover {
@@ -78,7 +78,7 @@
   text-align: left;
 }
 button.shagged-health__row {
-  cursor: pointer;
+  cursor: var(--ui-cursor-hover, pointer);
 }
 button.shagged-health__row:hover {
   background: #1a2744;

@@ -4,7 +4,7 @@
 
 .ui-button {
   border: none;
-  cursor: pointer;
+  cursor: var(--ui-cursor-hover, pointer);
   transition: all 0.1s ease;
   font-family: var(--w-font-body, "Rajdhani", sans-serif);
   display: inline-flex;
@@ -20,7 +20,7 @@
 
 .ui-button:disabled {
   opacity: 0.5;
-  cursor: not-allowed;
+  cursor: var(--ui-cursor-disabled, not-allowed);
 }
 
 /* Sizes */

@@ -1433,7 +1433,7 @@
   color: var(--ink);
   text-align: left;
   background: transparent;
-  cursor: pointer;
+  cursor: var(--ui-cursor-hover, pointer);
 }
 
 .match-lobby__bot-menu-item:is(:hover, :focus-visible) {

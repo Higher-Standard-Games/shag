@@ -34,7 +34,7 @@
   font: inherit;
   text-align: left;
   text-decoration: none;
-  cursor: pointer;
+  cursor: var(--ui-cursor-hover, pointer);
   outline: none;
   -webkit-tap-highlight-color: transparent;
   filter: drop-shadow(
@@ -198,7 +198,7 @@
 
 /* Unlit: the key stays where it is and its lettering goes dark */
 .raised-key:disabled {
-  cursor: not-allowed;
+  cursor: var(--ui-cursor-disabled, not-allowed);
 }
 
 .raised-key:disabled .raised-key__face {

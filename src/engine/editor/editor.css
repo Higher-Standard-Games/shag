@@ -82,7 +82,7 @@
   box-shadow:
     3px 4px 0 #89501b,
     5px 6px 7px #0008;
-  cursor: pointer;
+  cursor: var(--ui-cursor-hover, pointer);
   font:
     800 11px / 1 "Rajdhani",
     sans-serif;
@@ -140,7 +140,7 @@
 }
 .shagged__toolbar button:disabled {
   opacity: 0.42;
-  cursor: not-allowed;
+  cursor: var(--ui-cursor-disabled, not-allowed);
   filter: grayscale(0.65);
 }
 .shagged__toolbar select,
@@ -215,7 +215,7 @@
   padding-top: max(calc(8px * var(--ui-scale, 1)), env(safe-area-inset-top));
   padding-left: max(calc(14px * var(--ui-scale, 1)), env(safe-area-inset-left));
   border: 0;
-  cursor: pointer;
+  cursor: var(--ui-cursor-hover, pointer);
   pointer-events: auto;
   color: #171326;
   background: linear-gradient(240deg, #ffc52c, #efa600);
@@ -349,7 +349,7 @@
   color: #e8fbff;
   background: #21304c;
   border: 1px solid #47768b;
-  cursor: pointer;
+  cursor: var(--ui-cursor-hover, pointer);
   font: inherit;
 }
 .shagged__drafts-head button {
@@ -409,7 +409,7 @@
   font-size: 12px;
   text-overflow: ellipsis;
   white-space: nowrap;
-  cursor: help;
+  cursor: var(--ui-cursor, help);
 }
 .shagged__key--new {
   margin: 8px 0 14px;
@@ -446,7 +446,7 @@
   color: #101022;
   border: 0;
   font: inherit;
-  cursor: pointer;
+  cursor: var(--ui-cursor-hover, pointer);
 }
 .shagged__inspector p {
   color: #9fb5c5;
@@ -497,7 +497,7 @@
     monospace;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  cursor: pointer;
+  cursor: var(--ui-cursor-hover, pointer);
 }
 .shagged__view-modes button + button {
   border-left: 0;

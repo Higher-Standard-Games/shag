@@ -134,7 +134,7 @@ export class SidePanel {
       if (item.onClick || this.callbacks.onItemClick) {
         const el = this.contentEl.querySelector(`[data-item-id="${item.id}"]`);
         if (el) {
-          (el as HTMLElement).style.cursor = "pointer";
+          (el as HTMLElement).style.cursor = "var(--ui-cursor-hover, pointer)";
           el.addEventListener("click", () => {
             item.onClick?.();
             this.callbacks.onItemClick?.(item.id);

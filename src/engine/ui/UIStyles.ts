@@ -345,7 +345,7 @@ font-size: 1rem;
 padding: 12px 24px;
 border: none;
 border-radius: 10px;
-cursor: pointer;
+cursor: var(--ui-cursor-hover, pointer);
 display: inline-flex;
 align-items: center;
 justify-content: center;
@@ -361,7 +361,7 @@ transform: translateY(2px);
 
 .ui-btn:disabled {
 opacity: 0.5;
-cursor: not-allowed;
+cursor: var(--ui-cursor-disabled, not-allowed);
 transform: none;
 }
 
@@ -522,7 +522,7 @@ background: #E8E8E8;
 border-radius: 6px;
 color: #666666;
 font-size: 1.25rem;
-cursor: pointer;
+cursor: var(--ui-cursor-hover, pointer);
 display: flex;
 align-items: center;
 justify-content: center;
@@ -624,7 +624,7 @@ transition: all 0.15s ease;
 }
 
 .ui-card--interactive {
-cursor: pointer;
+cursor: var(--ui-cursor-hover, pointer);
 }
 
 .ui-card--interactive:hover {
@@ -662,7 +662,7 @@ background: #FFFFFF;
 border: 2px solid #E0E0E0;
 border-radius: 8px;
 margin-bottom: 8px;
-cursor: pointer;
+cursor: var(--ui-cursor-hover, pointer);
 transition: all 0.2s;
 }
 
@@ -745,7 +745,7 @@ width: 20px;
 height: 20px;
 border-radius: 50%;
 background: #4CAF50;
-cursor: pointer;
+cursor: var(--ui-cursor-hover, pointer);
 box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
 transition: all 0.15s ease;
 }
@@ -761,7 +761,7 @@ width: 52px;
 height: 28px;
 background: #E0E0E0;
 border-radius: 14px;
-cursor: pointer;
+cursor: var(--ui-cursor-hover, pointer);
 transition: all 0.2s ease;
 }
 
@@ -855,7 +855,7 @@ transition: opacity 0.5s ease;
 
 /* Ready state: anywhere on the screen starts */
 .ui-loading-screen--ready {
-cursor: pointer;
+cursor: var(--ui-cursor-hover, pointer);
 }
 
 /* Smoke effect container */
