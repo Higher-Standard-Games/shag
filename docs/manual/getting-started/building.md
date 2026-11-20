@@ -16,6 +16,35 @@ Preview it locally:
 npm run preview
 ```
 
+## Hosted build (itch.io)
+
+```bash
+npm run build:itch           # writes dist-itch/
+npm run build:itch-staging   # writes dist-itch-staging/, with a "Local" region
+```
+
+A hosted build runs on a site we don't own, so it differs from the web build
+in three ways, all set by `VITE_HOSTED` in `.env.itch`:
+
+- **Region.** It opens on a region picker, before anything loads. The list is
+  `https://washoi.net/regions.json`, with a built-in copy when that can't be
+  fetched. The picked region's `lobbyUrl` is the lobby, and its `dataUrl`
+  serves `/data/`. A reload in the same tab keeps the region.
+- **Files.** It loads relative to its `index.html` (`base: './'`) and carries
+  every public folder except `data/`, and no source maps or bundle report.
+  At runtime `/data/...` and `data/...` go to the region's host and other root
+  paths stay in the build (`src/engine/core/PublicUrls.ts`).
+- **Account key.** The key stays in memory: every itch.io game runs on the same
+  origin and could read it from storage. The welcome and Profile screens say
+  to copy it before reloading.
+
+The staging build (`VITE_LOCAL_REGION=1` in `.env.itch-staging`) also offers
+"Local": the lobby on `ws://localhost:9000` and data from the dev server on
+`http://localhost:3000`, which allows `https://html-classic.itch.zone`. Run the
+lobby and `npm run dev` to play it from an itch.io draft page. A region's host
+must send CORS headers for `https://html-classic.itch.zone` on `/data/` before
+the build can play there.
+
 ## Texture conversion
 
 ```bash

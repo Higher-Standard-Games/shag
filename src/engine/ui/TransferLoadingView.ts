@@ -18,6 +18,7 @@ import { mapTitle } from "./MapTitles";
 import { PackageDownloadStatus } from "./PackageDownloadStatus";
 
 import "./components/styles/ConnectingOverlay.css";
+import { resolvePublicUrl } from "../core/PublicUrls";
 
 /** The map loader's phases in the order it runs them, with what the status says. */
 const PHASES: ReadonlyArray<readonly [phase: string, label: string]> = [
@@ -132,7 +133,10 @@ export class TransferLoadingView implements MapLoadingView {
     this.titleEl?.replaceChildren(...lines.map((line) => element("span", "", line)));
     this.titleEl?.style.setProperty("--co-title-chars", String(Math.max(6, ...lines.map((line) => line.length))));
     // A map with no levelshot installed keeps the stage's own gradient
-    this.shotEl?.style.setProperty("--co-shot", `url("/data/levelshots/${encodeURIComponent(map.id)}.jpg")`);
+    this.shotEl?.style.setProperty(
+      "--co-shot",
+      `url("${resolvePublicUrl(`/data/levelshots/${encodeURIComponent(map.id)}.jpg`)}")`,
+    );
     if (this.leadEl) {
       this.leadEl.textContent = this.networked
         ? "Connected to the match server. Loading the arena it is running."

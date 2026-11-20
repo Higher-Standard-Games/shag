@@ -12,6 +12,8 @@
     "build:collision-wasm": "node scripts/build-collision-wasm.mjs",
     "postbuild": "node scripts/relocate-sourcemaps.mjs",
     "build:prod": "npm run tools:textures && npm run build",
+    "build:itch": "tsc && vite build --mode itch",
+    "build:itch-staging": "tsc && vite build --mode itch-staging",
     "preview": "vite preview",
     "lint": "biome lint ./src",
     "format": "biome format --write ./src",

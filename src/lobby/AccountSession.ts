@@ -101,9 +101,11 @@ let newAccount = false;
 const watchedClients = new WeakSet<LobbyClient>();
 const sessionValues = new Map<string, string | null>();
 const sessionOnly = new Set<string>();
+/** Entries kept in memory by choice, not because storage failed (`keepPlayerKeyInMemory`). */
+const memoryOnly = new Set<string>();
 
 function readStorage(name: string): string | null {
-  if (sessionOnly.has(name)) return sessionValues.get(name) ?? null;
+  if (sessionOnly.has(name) || memoryOnly.has(name)) return sessionValues.get(name) ?? null;
   try {
     const value = localStorage.getItem(name);
     sessionValues.set(name, value);
@@ -116,6 +118,7 @@ function readStorage(name: string): string | null {
 
 function writeStorage(name: string, value: string | null): void {
   sessionValues.set(name, value);
+  if (memoryOnly.has(name)) return;
   try {
     if (value === null) localStorage.removeItem(name);
     else localStorage.setItem(name, value);
@@ -132,7 +135,17 @@ export function storedPlayerKey(): string | null {
 
 /** Whether the accepted key is available here but could not be kept for a reload. */
 export function playerKeyIsSessionOnly(): boolean {
-  return storedPlayerKey() !== null && sessionOnly.has(KEY_STORAGE);
+  return storedPlayerKey() !== null && (sessionOnly.has(KEY_STORAGE) || memoryOnly.has(KEY_STORAGE));
+}
+
+/**
+ * Never write the key to browser storage, for the rest of this page's life. A
+ * hosted build calls this: every itch.io game runs on the same origin and
+ * could read it there.
+ */
+export function keepPlayerKeyInMemory(): void {
+  memoryOnly.add(KEY_STORAGE);
+  memoryOnly.add(UNKNOWN_KEY_STORAGE);
 }
 
 /** The key the lobby last refused as unknown, if any. */
@@ -328,4 +341,5 @@ export function resetAccountSessionForTests(): void {
   newAccount = false;
   sessionValues.clear();
   sessionOnly.clear();
+  memoryOnly.clear();
 }

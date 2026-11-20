@@ -1,4 +1,5 @@
 import { devLog } from "../../core/DevLog";
+import { hostedDataBase } from "../../core/PublicUrls";
 import { fetchAsset, readAssetBuffer, readAssetJson, readAssetText } from "./AssetRequest";
 /**
  * PK3Index - Index PK3 contents for fast lookup without loading
@@ -66,7 +67,7 @@ export class PK3Index {
   private static instance: PK3Index;
 
   private index: PK3IndexData | null = null;
-  private searchPaths: string[] = ["data/"];
+  private searchPaths: string[] = [hostedDataBase() ?? "data/"];
   private packageScope: PK3PackageScope | null = null;
   private ensuring: Promise<boolean> | null = null;
   private publishedAdvertised = false;

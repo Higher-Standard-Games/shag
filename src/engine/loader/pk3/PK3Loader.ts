@@ -1,5 +1,6 @@
 import JSZip from "jszip";
 import { devLog } from "../../core/DevLog";
+import { hostedDataBase } from "../../core/PublicUrls";
 import { PackageStore } from "./PackageStore";
 import type { PK3PackageScope } from "./PK3PackageScope";
 
@@ -23,7 +24,7 @@ export interface PK3File {
  */
 export class PK3Loader {
   private static instance: PK3Loader;
-  private config: PK3LoaderConfig = { basePath: "data/", additionalPaths: [] };
+  private config: PK3LoaderConfig = { basePath: hostedDataBase() ?? "data/", additionalPaths: [] };
   private packages: Map<string, PK3File> = new Map();
   private fileIndex: Map<string, string> = new Map(); // normalized path -> pk3 filename
 
@@ -89,8 +90,8 @@ export class PK3Loader {
    * Initialize service (called by ServiceLocator)
    */
   public async init(): Promise<void> {
-    // PK3 data files live in public/data/ (served as /data/)
-    const basePath = "data/";
+    // PK3 data files live in public/data/ (served as /data/), or on the region's host in a hosted build
+    const basePath = hostedDataBase() ?? "data/";
     this.configure({ basePath });
     devLog(`[PK3Loader] Auto-configured with basePath: ${basePath}`);
   }

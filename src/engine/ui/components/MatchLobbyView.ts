@@ -11,6 +11,7 @@
 import type { LobbyClient } from "../../../lobby/LobbyClient";
 import type { MatchLobbyInfo, TeamNames } from "../../../lobby/types";
 import { logRejection } from "../../core/AsyncErrors";
+import { resolvePublicUrl } from "../../core/PublicUrls";
 import { rememberMapTitle } from "../MapTitles";
 import { ConnectingOverlay } from "./ConnectingOverlay";
 import { createRaisedKey, setRaisedKeyText } from "./RaisedKey";
@@ -845,7 +846,7 @@ export class MatchLobbyView {
         const image = document.createElement("span");
         image.className = "match-lobby__map-img";
         // A map with no levelshot installed keeps the gradient underneath
-        image.style.setProperty("--map-shot", `url("/data/levelshots/${map.name}.jpg")`);
+        image.style.setProperty("--map-shot", `url("${resolvePublicUrl(`/data/levelshots/${map.name}.jpg`)}")`);
         const flags = document.createElement("span");
         flags.className = "match-lobby__map-flags";
         if (map.votedByLocal) {

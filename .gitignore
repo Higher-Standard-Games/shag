@@ -55,6 +55,9 @@ docs/api/
 # VitePress cache
 docs/manual/.vitepress/cache/
 dist-docs/
+# hosted builds (npm run build:itch, build:itch-staging)
+dist-itch/
+dist-itch-staging/
 
 # Capacitor / Android
 android/.gradle/

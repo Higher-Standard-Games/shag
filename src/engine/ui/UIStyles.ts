@@ -17,6 +17,7 @@
  */
 
 import { devLog } from "../core/DevLog";
+import { resolveCssUrls } from "../core/PublicUrls";
 
 const injectedIds = new Set<string>();
 let mobileStyleElement: HTMLStyleElement | null = null;
@@ -27,7 +28,9 @@ let mobileCSS: string = "";
  * which also lets hot-reloaded raw styles reach an already open UI.
  * Mobile overrides are automatically re-appended to maintain priority.
  */
-function injectCSS(id: string, css: string): void {
+function injectCSS(id: string, text: string): void {
+  // A hosted build resolves the root url()s that Vite leaves alone in raw CSS
+  const css = resolveCssUrls(text);
   const existing = document.getElementById(`ui-styles-${id}`);
   if (existing) {
     if (existing.textContent !== css) {
