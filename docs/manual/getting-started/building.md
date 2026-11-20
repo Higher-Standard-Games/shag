@@ -42,8 +42,8 @@ in three ways, all set by `VITE_HOSTED` in `.env.itch`:
   trusted: the account's synced settings win on login, and the package index
   is kept in memory.
 - **Rooms.** The room shows a code (`eu:3fa9c2d1`, with a private room's
-  invite after a second `:`) and Copy code, not a link. Join lobby on the Play
-  page takes a code or any region's room link, and chat messages that name a
+  invite after a second `:`) and Copy code, not a link. Join lobby via invite, at the foot of the Play
+  page, takes a code or any region's room link, and chat messages that name a
   room get a Join key; a room in another region switches region first. Links
   to other sites open in a new tab.
 
