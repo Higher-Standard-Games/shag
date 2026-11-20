@@ -86,6 +86,17 @@ The key and name rules live in `src/lobby/PlayerIdentity.ts`, which has no Node 
 - **The player's address behind a proxy.** Production is expected to put Caddy in front of the lobby for `wss://`, on the same machine. Every proxied connection then comes from loopback, so the lobby takes the address from the last `X-Forwarded-For` entry. It believes that header only from a loopback connection; from anywhere else a client could write anything in it. Without this, all players would share one rate limit and every player would look like a same-machine connection.
 - **Game servers never see keys.** The lobby knows each connection's account id and can hand those ids to a match, so S4 can report results by account id.
 
+## Hosted builds (2026-11-20)
+
+The itch.io build runs on an origin every itch.io game shares, so another
+game could read anything it stores. It keeps the key in memory and stores a
+login token per region instead. A token logs in and plays, is replaced at each
+login, and never brings back the key; the identity is still the key. The
+token protocol, its grace period and revocation are in the lobby server guide
+(`docs/manual/guides/lobby-server.md`, "Hosted builds: login tokens"). The
+investigation behind it found that itch.io is not on the public suffix list,
+so browsers treat every creator's page as one site.
+
 ## Deleting an account
 
 A player can delete their account from the Profile, after ticking that they understand and pasting the whole key again; the lobby checks the key itself, not just the browser.

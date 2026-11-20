@@ -36,6 +36,7 @@ import { UIStyles } from "./UIStyles";
 
 import "./components/styles/BootScreen.css";
 import { background } from "../core/AsyncErrors";
+import { copyText } from "./CopyText";
 
 /** The boot's steps in the order main runs them */
 export const BOOT_STEPS = ["renderer", "packages", "engine", "lobby"] as const;
@@ -259,12 +260,7 @@ export class LoadingScreen {
     copy.className = "boot__copy";
     copy.textContent = "Copy diagnostic";
     copy.addEventListener("click", async () => {
-      try {
-        await navigator.clipboard.writeText(diagnostic);
-        copy.textContent = "Copied";
-      } catch {
-        copy.textContent = "Select and copy the diagnostic above";
-      }
+      copy.textContent = (await copyText(diagnostic)) ? "Copied" : "Select and copy the diagnostic above";
     });
     this.barEl.parentElement?.append(message, details, copy);
     this.startEl.focus();

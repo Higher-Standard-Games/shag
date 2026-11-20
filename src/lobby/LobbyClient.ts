@@ -149,11 +149,12 @@ export class LobbyClient {
   // ── Auth ─────────────────────────────────────────────────────
 
   /**
-   * Log in with the player's key, or without one to get a new account.
+   * Log in with the player's key, or without one to get a new account. A
+   * hosted build names its host, and may log in with its token instead.
    * AccountSession.logIn wraps this and handles the answer.
    */
-  auth(key?: string): void {
-    this.send({ type: "auth", key });
+  auth(key?: string, hosted?: { host: string; token?: string }): void {
+    this.send({ type: "auth", key, ...(hosted ? { hosted: hosted.host, token: hosted.token } : {}) });
   }
 
   /** Ask for a new name for this account; the answer is identity:renamed or identity:error. */

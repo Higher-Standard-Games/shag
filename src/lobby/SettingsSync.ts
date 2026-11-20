@@ -12,6 +12,10 @@
  * Settings still live in localStorage as before; the lobby holds a copy. The
  * first time an account's settings replace a browser's own, the browser's are
  * kept under BACKUP_STORAGE_KEY.
+ *
+ * A hosted build (an itch.io page) shares its storage with every game on its
+ * host, so what it finds there may not be the player's: there the account's
+ * copy always wins on login (`accountCopyWins`).
  */
 
 import { Cvar } from "../engine/core/Cvar";
@@ -61,13 +65,14 @@ export function decideSync(
   state: SyncState | null,
   accountId: string,
   remote: { settings: string | null; updatedAt: number | null },
+  accountCopyWins = false,
 ): SyncDecision {
   if (remote.settings === null) return "upload";
   const parsed = parseSyncedSettings(remote.settings);
   if (!parsed) return "keep";
   const remoteText = serializeSyncedSettings(parsed);
   if (remoteText === local) return "none";
-  if (state?.accountId !== accountId) return "apply";
+  if (accountCopyWins || state?.accountId !== accountId) return "apply";
   const editedHere = local !== state.synced;
   if (!editedHere) return "apply";
   const changedElsewhere = remote.updatedAt !== state.syncedAt;
@@ -177,7 +182,11 @@ export function stopSettingsSync(): void {
  * Follow the account `welcome` logged `client` in to. Does nothing for bots and
  * on a lobby that keeps no settings. Resolves once the login sync is done.
  */
-export async function startSettingsSync(client: LobbyClient, welcome: WelcomeMessage): Promise<void> {
+export async function startSettingsSync(
+  client: LobbyClient,
+  welcome: WelcomeMessage,
+  options: { accountCopyWins?: boolean } = {},
+): Promise<void> {
   stopSettingsSync();
   const accountId = welcome.identity?.id;
   if (!accountId || !welcome.features?.syncedSettings || typeof window === "undefined") return;
@@ -247,7 +256,7 @@ export async function startSettingsSync(client: LobbyClient, welcome: WelcomeMes
     const remote = await client.requestSettings();
     if (stopped) return;
     last = serializeSyncedSettings(collectSettings());
-    const decision = decideSync(last, state, accountId, remote);
+    const decision = decideSync(last, state, accountId, remote, options.accountCopyWins);
     if (decision === "keep") {
       session.stop();
       return;

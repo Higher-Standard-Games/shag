@@ -134,6 +134,34 @@ browser opens the same account.
 The design, including what a lost key means, is in
 `docs/research/PLAYER_IDENTITY.md`.
 
+### Hosted builds: login tokens
+
+A hosted build (the itch.io page) runs on its host's origin, which every game
+on that host shares, so it never stores the key. It names its host in `auth`
+(`hosted: "itch"`, lowercase letters, digits and `-`), and every `welcome` it
+gets carries a login `token` to store instead:
+
+- **New account:** `welcome` has the key, sent once and kept only in the
+  page's memory, and the first token.
+- **Token login** (`auth` with `hosted` and `token`): the lobby replaces the
+  token and sends the next one. A token never brings back the key.
+- **Key login** with `hosted`: a new token chain, which also ends that
+  account's other chains on the host. Pasting the key is how a player throws
+  out a copied token.
+- **A replaced token** still logs in for 60 seconds (`TOKEN_GRACE_MS`), for
+  two tabs opening at once. Later it means someone has a copy: the answer is
+  `auth:error` `token_reused` and the chain ends, so both copies need the key.
+  An unknown token is `unknown_token`, rate-limited like a wrong key.
+
+`players.db` (schema version 2) keeps each token's SHA-256, account, host,
+chain and times in `hosted_tokens`. Replaced tokens are forgotten after 90
+days; deleting an account deletes its tokens. To drop every token for a host,
+should it ever be compromised:
+
+```bash
+npm --prefix src/games/fps run lobby:server -- --revoke-tokens itch --data-dir ./server-data
+```
+
 ## Player cap
 
 The lobby takes at most 64 players online at once. A player over the cap is

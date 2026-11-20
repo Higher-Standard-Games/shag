@@ -122,10 +122,18 @@ export class PK3Index {
   }
 
   /**
+   * A hosted build keeps the index in memory only: every game on its host can
+   * write its storage, and a stored index names the packages and their hashes.
+   */
+  private keepsIndexInStorage(): boolean {
+    return this.hasLocalStorage() && hostedDataBase() === null;
+  }
+
+  /**
    * Load index from localStorage
    */
   private loadFromStorage(): void {
-    if (!this.hasLocalStorage()) return;
+    if (!this.keepsIndexInStorage()) return;
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
       if (stored) {
@@ -148,7 +156,7 @@ export class PK3Index {
    * Save index to localStorage
    */
   private saveToStorage(): void {
-    if (!this.index || !this.hasLocalStorage()) return;
+    if (!this.index || !this.keepsIndexInStorage()) return;
     try {
       const json = JSON.stringify(this.index);
       localStorage.setItem(STORAGE_KEY, json);

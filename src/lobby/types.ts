@@ -325,6 +325,14 @@ export interface AuthMessage extends LobbyMessage {
   type: "auth";
   /** The player's key, in any form they might paste it (see PlayerIdentity.normalizeKey). */
   key?: string;
+  /**
+   * The host a hosted build runs on ("itch"). Such a client never stores the
+   * key: with `hosted` set, `welcome` brings back a login token to store
+   * instead, whether the login used the key, a token or neither.
+   */
+  hosted?: string;
+  /** A hosted build's login token from an earlier `welcome`; needs `hosted`. Used up by this login. */
+  token?: string;
   /** A bot's name. Ignored for players. */
   name?: string;
   /** Set by the bot server's lobby bots. Believed only with `botSecret`, from the lobby's own machine. */
@@ -590,6 +598,8 @@ export interface WelcomeMessage extends LobbyMessage {
   identity?: PlayerIdentityInfo;
   /** Only when this login created the account: its key, sent this once. Store it. */
   key?: string;
+  /** A hosted build's next login token (auth `hosted`), replacing the one it logged in with. */
+  token?: string;
   gametypes: GametypeInfo[];
   onlinePlayers: PlayerInfo[];
   /** The most players the lobby takes online at once; 0 when it has no cap. Absent on older servers. */
@@ -599,7 +609,16 @@ export interface WelcomeMessage extends LobbyMessage {
   recentDemos: DemoInfo[];
 }
 
-export type AuthErrorCode = "unknown_key" | "rate_limited" | "already_authenticated" | "lobby_full" | "banned";
+export type AuthErrorCode =
+  | "unknown_key"
+  | "rate_limited"
+  | "already_authenticated"
+  | "lobby_full"
+  | "banned"
+  /** A hosted build's token the lobby doesn't know: log in with the key, or as a new player. */
+  | "unknown_token"
+  /** A token already replaced by a later login: someone else has a copy, and its chain has ended. */
+  | "token_reused";
 
 /**
  * Login failed; the connection stays open and may send `auth` again, except

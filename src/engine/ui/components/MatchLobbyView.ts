@@ -12,6 +12,7 @@ import type { LobbyClient } from "../../../lobby/LobbyClient";
 import type { MatchLobbyInfo, TeamNames } from "../../../lobby/types";
 import { logRejection } from "../../core/AsyncErrors";
 import { resolvePublicUrl } from "../../core/PublicUrls";
+import { copyText } from "../CopyText";
 import { rememberMapTitle } from "../MapTitles";
 import { ConnectingOverlay } from "./ConnectingOverlay";
 import { createRaisedKey, setRaisedKeyText } from "./RaisedKey";
@@ -123,19 +124,31 @@ export class MatchLobbyView {
   private disposed = false;
   private readonly onMapSelection?: (map: string) => void;
   private readonly localPlayerId: string | null;
+  private readonly roomCode?: string;
+  private readonly showLink: boolean;
 
   /**
    * `fillWithBots` sets the room up by itself: it votes a random map, adds bots
    * one at a time until that many are seated. The player readies up themselves.
+   * `roomCode` is the room as a code to paste into another client's Join lobby;
+   * `showLink: false` hides the room link where this page's address is not one
+   * anyone could open (a hosted build).
    */
   constructor(
     gametype: string,
     lobbyClient: LobbyClient,
     lobbyInfo: MatchLobbyInfo,
     localPlayerId?: string,
-    options: { fillWithBots?: number; onMapSelection?: (map: string) => void } = {},
+    options: {
+      fillWithBots?: number;
+      onMapSelection?: (map: string) => void;
+      roomCode?: string;
+      showLink?: boolean;
+    } = {},
   ) {
     this.onMapSelection = options.onMapSelection;
+    this.roomCode = options.roomCode;
+    this.showLink = options.showLink ?? true;
     this.lobbyClient = lobbyClient;
     this.localPlayerId = localPlayerId ?? null;
     this.config = {
@@ -494,25 +507,28 @@ export class MatchLobbyView {
     // Real, working invite link — the ?lobby= deep link LobbyPanel auto-joins
     // on boot (works on any host, no SPA path-fallback required).
     const inviteUrl = new URL(this.shareUrl || `/?lobby=${encodeURIComponent(this.lobbyId)}`, window.location.origin);
-    const url = document.createElement("span");
-    url.className = "match-lobby__invite-url";
-    url.textContent = `${inviteUrl.host}${inviteUrl.pathname}${inviteUrl.search}`;
+    const shown = document.createElement("span");
+    shown.className = "match-lobby__invite-url";
+    shown.textContent = this.showLink
+      ? `${inviteUrl.host}${inviteUrl.pathname}${inviteUrl.search}`
+      : (this.roomCode ?? this.lobbyId);
+    invite.append(label, shown);
 
-    const copy = createRaisedKey({ label: "Copy", variants: ["sm", "cream", "inline"] });
+    if (this.showLink) invite.append(this.copyKey("Copy link", inviteUrl.href));
+    if (this.roomCode) invite.append(this.copyKey("Copy code", this.roomCode));
+    return invite;
+  }
+
+  /** A key that copies `text`, saying whether it worked. */
+  private copyKey(caption: string, text: string): HTMLButtonElement {
+    const copy = createRaisedKey({ label: caption, variants: ["sm", "cream", "inline"] });
     copy.addEventListener("click", async () => {
-      let said = "Copied ✓";
-      try {
-        await navigator.clipboard.writeText(inviteUrl.href);
-      } catch {
-        said = "Copy blocked";
-      }
+      const said = (await copyText(text)) ? "Copied ✓" : "Copy blocked";
       if (this.disposed) return;
       setRaisedKeyText(copy, said);
-      this.schedule(() => setRaisedKeyText(copy, "Copy"), 2000);
+      this.schedule(() => setRaisedKeyText(copy, caption), 2000);
     });
-
-    invite.append(label, url, copy);
-    return invite;
+    return copy;
   }
 
   // ── Status ──

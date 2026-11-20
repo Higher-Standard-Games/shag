@@ -59,7 +59,7 @@ import {
 import type { MatchResultStore } from "./MatchResultStore";
 import { DELETED_ACCOUNT_NAME, type PlayerNameReservation } from "./PlayerIdentity";
 import { RATING_POOLS } from "./PlayerStatsStore";
-import { PlayerStore } from "./PlayerStore";
+import { HOST_LABEL, PlayerStore } from "./PlayerStore";
 import { RateLimiter } from "./RateLimiter";
 import { type ResultDiagnostic, ResultDiagnostics } from "./ResultDiagnostics";
 import type { ResultContext } from "./ResultSnapshot";
@@ -752,6 +752,13 @@ export class LobbyServer {
       return;
     }
 
+    // A hosted build stores a token in place of the key; never log either
+    const hosted = typeof msg.hosted === "string" && HOST_LABEL.test(msg.hosted) ? msg.hosted : null;
+    if (typeof msg.token === "string") {
+      this.authWithToken(player, msg.token, hosted);
+      return;
+    }
+
     // Every player has an account: the one their key opens, or a new one.
     // Never log a key.
     if (typeof msg.key === "string") {
@@ -769,7 +776,7 @@ export class LobbyServer {
       if (this.refuseWhenFull(player, account.id)) return;
       player.accountId = account.id;
       player.name = account.name;
-      this.completeAuth(player, {});
+      this.completeAuth(player, hosted ? { token: this.accounts.startTokens(account.id, hosted) } : {});
       return;
     }
 
@@ -783,7 +790,36 @@ export class LobbyServer {
     console.log(`[LobbyServer] New account ${account.id}: ${account.name}`);
     player.accountId = account.id;
     player.name = account.name;
-    this.completeAuth(player, { key });
+    this.completeAuth(player, { key, ...(hosted ? { token: this.accounts.startTokens(account.id, hosted) } : {}) });
+  }
+
+  /**
+   * Log in with a hosted build's token, and hand back the next one. A token
+   * replaced longer ago than the grace period was copied: its chain ends, and
+   * both copies need the key again.
+   */
+  private authWithToken(player: ConnectedPlayer, token: string, hosted: string | null): void {
+    if (this.keyFailures.isBlocked(player.address)) {
+      this.send(player, { type: "auth:error", code: "rate_limited" });
+      return;
+    }
+    const found = hosted ? this.accounts.findToken(token, hosted) : null;
+    if (!found) {
+      this.keyFailures.record(player.address);
+      this.send(player, { type: "auth:error", code: "unknown_token" });
+      return;
+    }
+    if (found.state === "reused") {
+      console.log(`[LobbyServer] A replaced login token came back for account ${found.account.id}: chain ended`);
+      this.accounts.endTokenChain(token);
+      this.send(player, { type: "auth:error", code: "token_reused" });
+      return;
+    }
+    if (this.refuseWhenBanned(player, found.account.id)) return;
+    if (this.refuseWhenFull(player, found.account.id)) return;
+    player.accountId = found.account.id;
+    player.name = found.account.name;
+    this.completeAuth(player, { token: this.accounts.rotateToken(token) });
   }
 
   /** A bot service connection says which bot preset it plays; a change mid-match marks the result. */
@@ -950,7 +986,7 @@ export class LobbyServer {
   }
 
   /** Logged in: send the welcome, and tell everyone else. */
-  private completeAuth(player: ConnectedPlayer, extra: { key?: string }): void {
+  private completeAuth(player: ConnectedPlayer, extra: { key?: string; token?: string }): void {
     player.authenticated = true;
     const who = player.isBot ? "bot" : `account ${player.accountId}`;
     console.log(`[LobbyServer] Authenticated: ${player.name} (${player.id}, ${who})`);
@@ -970,6 +1006,7 @@ export class LobbyServer {
       playerId: player.id,
       identity: player.accountId === null ? undefined : { id: String(player.accountId), name: player.name },
       key: extra.key,
+      token: extra.token,
       gametypes: this.gametypes,
       onlinePlayers: this.getOnlinePlayers(),
       maxPlayers: this.maxPlayers,

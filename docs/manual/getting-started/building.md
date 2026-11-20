@@ -34,9 +34,18 @@ in three ways, all set by `VITE_HOSTED` in `.env.itch`:
   every public folder except `data/`, and no source maps or bundle report.
   At runtime `/data/...` and `data/...` go to the region's host and other root
   paths stay in the build (`src/engine/core/PublicUrls.ts`).
-- **Account key.** The key stays in memory: every itch.io game runs on the same
-  origin and could read it from storage. The welcome and Profile screens say
-  to copy it before reloading.
+- **Account.** Every itch.io game runs on the same origin and could read its
+  storage, so the key stays in memory and a login token is stored per region
+  instead (see [Lobby server](../guides/lobby-server.md#hosted-builds-login-tokens)).
+  The key is shown once, in the welcome guide's last step and in Profile,
+  during the session that made or pasted it. Other stored data is not
+  trusted: the account's synced settings win on login, and the package index
+  is kept in memory.
+- **Rooms.** The room shows a code (`eu:3fa9c2d1`, with a private room's
+  invite after a second `:`) and Copy code, not a link. Join lobby on the Play
+  page takes a code or any region's room link, and chat messages that name a
+  room get a Join key; a room in another region switches region first. Links
+  to other sites open in a new tab.
 
 The staging build (`VITE_LOCAL_REGION=1` in `.env.itch-staging`) also offers
 "Local": the lobby on `ws://localhost:9000` and data from the dev server on

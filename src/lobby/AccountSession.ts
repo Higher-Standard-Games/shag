@@ -6,6 +6,11 @@
  * whose JSON is meant to sync to a server one day. The account's name is copied
  * into PlayerProfile.name, which is what the game shows and sends to game
  * servers. See docs/research/PLAYER_IDENTITY.md.
+ *
+ * A hosted build (setUpHostedLogin) keeps the key in memory only and stores a
+ * login token per region instead: every itch.io game runs on the same origin
+ * and could read storage. The key is shown in the session that made or pasted
+ * it; later sessions log in with the token, which never brings the key back.
  */
 
 import { PlayerProfile } from "../engine/player/PlayerProfile";
@@ -73,6 +78,9 @@ export function loginFailureText(code: AuthErrorCode): string {
     lobby_full: "Servers are full. Your current player key is unchanged. Try again shortly.",
     already_authenticated: "This connection is already logged in. Try again.",
     banned: "This player is banned from Washoi's servers.",
+    unknown_token: "This browser's saved login has ended. Paste your key to get your player back.",
+    token_reused:
+      "This browser's saved login was used somewhere else, so it has ended. Paste your key to get your player back.",
   };
   return messages[code];
 }
@@ -103,6 +111,10 @@ const sessionValues = new Map<string, string | null>();
 const sessionOnly = new Set<string>();
 /** Entries kept in memory by choice, not because storage failed (`keepPlayerKeyInMemory`). */
 const memoryOnly = new Set<string>();
+/** A hosted build's login: the host label the lobby knows, and where this region's token is stored. */
+let hostedLogin: { host: string; tokenStorage: string } | null = null;
+/** Why this session's stored token was refused, for the welcome screen to say. */
+let endedLogin: "unknown_token" | "token_reused" | null = null;
 
 function readStorage(name: string): string | null {
   if (sessionOnly.has(name) || memoryOnly.has(name)) return sessionValues.get(name) ?? null;
@@ -135,7 +147,7 @@ export function storedPlayerKey(): string | null {
 
 /** Whether the accepted key is available here but could not be kept for a reload. */
 export function playerKeyIsSessionOnly(): boolean {
-  return storedPlayerKey() !== null && (sessionOnly.has(KEY_STORAGE) || memoryOnly.has(KEY_STORAGE));
+  return storedPlayerKey() !== null && sessionOnly.has(KEY_STORAGE);
 }
 
 /**
@@ -146,6 +158,31 @@ export function playerKeyIsSessionOnly(): boolean {
 export function keepPlayerKeyInMemory(): void {
   memoryOnly.add(KEY_STORAGE);
   memoryOnly.add(UNKNOWN_KEY_STORAGE);
+}
+
+/**
+ * Log in as a hosted build on `host` ("itch"), in `region`: the key stays in
+ * memory and a login token is stored per region (regions have separate
+ * accounts, and share one origin here).
+ */
+export function setUpHostedLogin(host: string, region: string): void {
+  keepPlayerKeyInMemory();
+  hostedLogin = { host, tokenStorage: `shag_login_token:${region}` };
+}
+
+/** A hosted build whose key is not in this session: it was shown when the player was made or pasted. */
+export function keyKeptElsewhere(): boolean {
+  return hostedLogin !== null && storedPlayerKey() === null;
+}
+
+/** A hosted build with the key in this session, which is the one chance to save it. */
+export function keyToSaveNow(): string | null {
+  return hostedLogin ? storedPlayerKey() : null;
+}
+
+/** Why this browser's saved login was refused, when it was; the welcome screen says so. */
+export function endedLoginReason(): "unknown_token" | "token_reused" | null {
+  return endedLogin;
 }
 
 /** The key the lobby last refused as unknown, if any. */
@@ -188,7 +225,11 @@ function attach(client: LobbyClient): void {
 }
 
 /** Send `auth` and wait for the lobby's answer. */
-function sendAuth(client: LobbyClient, key: string | undefined): Promise<WelcomeMessage | AuthErrorMessage> {
+function sendAuth(
+  client: LobbyClient,
+  key: string | undefined,
+  token?: string,
+): Promise<WelcomeMessage | AuthErrorMessage> {
   return new Promise((resolve, reject) => {
     const finish = (fn: () => void) => {
       clearTimeout(timer);
@@ -204,8 +245,38 @@ function sendAuth(client: LobbyClient, key: string | undefined): Promise<Welcome
       () => finish(() => reject(new Error("Lobby did not answer the login"))),
       ANSWER_TIMEOUT_MS,
     );
-    client.auth(key);
+    client.auth(key, hostedLogin ? { host: hostedLogin.host, token } : undefined);
   });
+}
+
+/** Follow the account's settings; in a hosted build the account's copy wins over this browser's. */
+function syncSettings(client: LobbyClient, answer: WelcomeMessage): Promise<void> {
+  return startSettingsSync(client, answer, { accountCopyWins: hostedLogin !== null });
+}
+
+/** Keep the token a hosted build's login brought back. */
+function keepToken(answer: WelcomeMessage): void {
+  if (hostedLogin && answer.token) writeStorage(hostedLogin.tokenStorage, answer.token);
+}
+
+/**
+ * A hosted build logs in with its stored token first: logging in with a key
+ * would end the account's tokens in other browsers. Null when there is no
+ * token, or the lobby refused it (then the token is dropped).
+ */
+async function logInWithToken(client: LobbyClient): Promise<WelcomeMessage | null> {
+  if (!hostedLogin) return null;
+  const token = readStorage(hostedLogin.tokenStorage);
+  if (!token) return null;
+  const answer = await sendAuth(client, undefined, token);
+  if (answer.type === "welcome") {
+    keepToken(answer);
+    return answer;
+  }
+  if (answer.code !== "unknown_token" && answer.code !== "token_reused") throw refused(answer);
+  writeStorage(hostedLogin.tokenStorage, null);
+  endedLogin = answer.code;
+  return null;
 }
 
 /**
@@ -221,14 +292,22 @@ export async function logIn(client: LobbyClient, isReserved?: PlayerNameReservat
   attach(client);
   newAccount = false;
 
+  const byToken = await logInWithToken(client);
+  if (byToken) {
+    if (byToken.identity) adopt(byToken.identity);
+    void syncSettings(client, byToken);
+    return byToken;
+  }
+
   const key = storedPlayerKey();
   if (key) {
     const answer = await sendAuth(client, key);
     if (answer.type === "welcome") {
       // Retry saving a session key when storage becomes available again.
       writeStorage(KEY_STORAGE, key);
+      keepToken(answer);
       if (answer.identity) adopt(answer.identity);
-      void startSettingsSync(client, answer);
+      void syncSettings(client, answer);
       return answer;
     }
     if (answer.code !== "unknown_key") throw refused(answer);
@@ -239,6 +318,7 @@ export async function logIn(client: LobbyClient, isReserved?: PlayerNameReservat
   const answer = await sendAuth(client, undefined);
   if (answer.type !== "welcome") throw refused(answer);
   if (answer.key) writeStorage(KEY_STORAGE, answer.key);
+  keepToken(answer);
 
   const earlierName = PlayerProfile.load().name;
   if (answer.identity) adopt(answer.identity);
@@ -247,7 +327,7 @@ export async function logIn(client: LobbyClient, isReserved?: PlayerNameReservat
   } else {
     newAccount = true;
   }
-  void startSettingsSync(client, answer);
+  void syncSettings(client, answer);
   return answer;
 }
 
@@ -265,9 +345,11 @@ export async function restoreAccount(client: LobbyClient, pastedKey: string): Pr
   if (answer.type !== "welcome") throw refused(answer);
   attach(client);
   newAccount = false;
+  endedLogin = null;
   writeStorage(KEY_STORAGE, key);
+  keepToken(answer);
   if (answer.identity) adopt(answer.identity);
-  void startSettingsSync(client, answer);
+  void syncSettings(client, answer);
   return answer;
 }
 
@@ -329,6 +411,7 @@ function forgetDeletedAccount(): void {
   newAccount = false;
   writeStorage(KEY_STORAGE, null);
   writeStorage(UNKNOWN_KEY_STORAGE, null);
+  if (hostedLogin) writeStorage(hostedLogin.tokenStorage, null);
   const profile = PlayerProfile.load();
   profile.name = PlayerProfile.defaultName();
   profile.save();
@@ -342,4 +425,6 @@ export function resetAccountSessionForTests(): void {
   sessionValues.clear();
   sessionOnly.clear();
   memoryOnly.clear();
+  hostedLogin = null;
+  endedLogin = null;
 }

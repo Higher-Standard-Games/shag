@@ -285,6 +285,12 @@ describe("deciding on login", () => {
     expect(decideSync(local, { ...both, editedAt: 150 }, "1", remote(theirs, 200))).toBe("apply");
   });
 
+  it("lets the account's copy win in a hosted build, whose storage other games can write", () => {
+    expect(decideSync(local, synced({ synced: theirs }), "1", remote(theirs, 100), true)).toBe("apply");
+    expect(decideSync(local, { ...synced(), editedAt: 300 }, "1", remote(theirs, 200), true)).toBe("apply");
+    expect(decideSync(local, null, "1", remote(null), true)).toBe("upload");
+  });
+
   it("does nothing when both agree, and leaves a copy it cannot read alone", () => {
     expect(decideSync(local, null, "1", remote(local))).toBe("none");
     expect(decideSync(local, null, "1", remote(JSON.stringify({ v: 9 })))).toBe("keep");
