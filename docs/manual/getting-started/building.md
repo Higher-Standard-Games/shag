@@ -48,9 +48,11 @@ in three ways, all set by `VITE_HOSTED` in `.env.itch`:
   to other sites open in a new tab.
 
 The staging build (`VITE_LOCAL_REGION=1` in `.env.itch-staging`) also offers
-"Local": the lobby on `ws://localhost:9000` and data from the dev server on
-`http://localhost:3000`, which allows `https://html-classic.itch.zone`. Run the
-lobby and `npm run dev` to play it from an itch.io draft page. A region's host
+"Local" when it is served from this machine (`npx vite preview --mode
+itch-staging`): the lobby on `ws://localhost:9000` and data from the dev server
+on `http://localhost:3000`. On an itch.io page it offers EU and US only:
+browsers do not let a page there reach `localhost` (itch.io's frame does not
+grant local network access). A region's host
 must send CORS headers for `https://html-classic.itch.zone` on `/data/` before
 the build can play there.
 
