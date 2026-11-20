@@ -175,9 +175,17 @@ export function keyKeptElsewhere(): boolean {
   return hostedLogin !== null && storedPlayerKey() === null;
 }
 
-/** A hosted build with the key in this session, which is the one chance to save it. */
+/**
+ * The key, when this session has it, to offer for saving. A hosted build has
+ * it only in the session that made or pasted it (keyKeptOnlyThisVisit).
+ */
 export function keyToSaveNow(): string | null {
-  return hostedLogin ? storedPlayerKey() : null;
+  return storedPlayerKey();
+}
+
+/** Whether this page forgets the key when it is left: a hosted build. */
+export function keyKeptOnlyThisVisit(): boolean {
+  return hostedLogin !== null;
 }
 
 /** Why this browser's saved login was refused, when it was; the welcome screen says so. */
