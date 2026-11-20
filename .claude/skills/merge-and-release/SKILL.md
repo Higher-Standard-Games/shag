@@ -211,9 +211,49 @@ released and `<next>` the one after it.
 4. Commit: `chore: release v<version>`.
 5. Tag that commit, annotated: `git tag -a v<version> -m "v<version>"`.
 6. Push, when asked: `git push origin main && git push origin v<version>`.
+7. Push the itch.io builds from the tagged commit (see "Publishing to
+   itch.io"), with the host deploy.
 
 Tags are annotated, sit on the release commit, and are made in the outer repo
 only. Tag every release; older untagged releases are not backfilled.
+
+## Publishing to itch.io
+
+Washoi has two itch.io pages under the `higherstandardgames` account, both
+served from itch.io's own host and playing on our regions:
+
+| Page | Build | Pushed |
+|---|---|---|
+| `washoi` (public) | `npm run build:itch` → `dist-itch/` | every release, from the tagged commit |
+| `washoi-staging` (Draft, secret link) | `npm run build:itch-staging` → `dist-itch-staging/` | at a release, and whenever a staging test needs it |
+
+One command builds and pushes, with butler:
+
+```bash
+npm run itch:push -- --staging --production    # a release: both pages
+npm run itch:push -- --staging                 # testing a change on itch
+```
+
+butler comes from `BUTLER` (a path) or the `PATH`, logged in once with
+`butler login` (or `BUTLER_API_KEY` without a browser). The production build
+is labelled with the release version, staging with the version and commit.
+
+- **Push with the host deploy.** An itch build that falls behind the servers'
+  protocol cannot play, and nothing on itch.io updates it by itself.
+- **Lobby first when the login protocol changes** (`auth`, `welcome`, the
+  hosted login tokens): wait until both regions' lobbies run the release
+  (`systemctl show washoi-lobby -p ActiveEnterTimestamp` on each host), then
+  push. An older lobby ignores the token and makes a new account at every
+  visit.
+- **Check after the push:** `butler status higherstandardgames/washoi:html5`
+  shows the new version once itch.io has processed it (a minute or so).
+- **CORS:** the hosts allow `https://html-classic.itch.zone` on `/data/` and
+  washoi.net's `/regions.json` (each host's `/srv/washoi.md`). A new region
+  needs the same before the itch build can load its data.
+- Never let anything make or log in to a real account on a production lobby
+  in a probe of the itch build: a remembered region skips the picker and
+  connects at once. Test against a local lobby, or block the socket before
+  the page boots.
 
 ## Beginning the next release cycle
 
@@ -226,4 +266,4 @@ start the next cycle or authorize publishing its version in that release.
 ## Report
 
 Say which commits landed on each destination branch, the fps pin, the tag if
-any, and whether anything was pushed. If you stopped before pushing, say so plainly.
+any, whether anything was pushed, and which itch.io builds went out. If you stopped before pushing, say so plainly.

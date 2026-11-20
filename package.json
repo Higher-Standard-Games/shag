@@ -14,6 +14,7 @@
     "build:prod": "npm run tools:textures && npm run build",
     "build:itch": "tsc && vite build --mode itch",
     "build:itch-staging": "tsc && vite build --mode itch-staging",
+    "itch:push": "node scripts/itch-push.mjs",
     "preview": "vite preview",
     "lint": "biome lint ./src",
     "format": "biome format --write ./src",

@@ -21,7 +21,13 @@ npm run preview
 ```bash
 npm run build:itch           # writes dist-itch/
 npm run build:itch-staging   # writes dist-itch-staging/, with a "Local" region
+npm run itch:push -- --staging --production   # build both and push them with butler
 ```
+
+`itch:push` pushes `dist-itch` to the `washoi` page and `dist-itch-staging` to
+the `washoi-staging` draft, channel `html5`, with butler (from `BUTLER` or the
+`PATH`, logged in once with `butler login`). Releases push with the host
+deploy; see the release procedure.
 
 A hosted build runs on a site we don't own, so it differs from the web build
 in three ways, all set by `VITE_HOSTED` in `.env.itch`:
