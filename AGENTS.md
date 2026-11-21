@@ -76,6 +76,7 @@ relevant file before doing that job.
 | `merge-and-release` | Merging a branch to `main` in both repositories, re-pinning fps, cutting a release |
 | `regression-check` | Running and reporting the gates and the renderer/networking regression set |
 | `browser-probe` | Verifying in a headless browser on the real GPU: private Vite server, CDP driver, demo probe, lobby QA |
+| `video-export` | Rendering a demo to MP4 unattended (highlight reel or full match, with a song) and fetching demos from production |
 | `docs-edit` | Writing docs, the changelog and `AGENTS.md` with every claim checked against the source |
 | `shared-worktree` | Safe git in a two-repository tree that several agents edit at once |
 | `protocol-change` | Every place a snapshot, message or demo-format change touches, and how to keep old demos playing |
