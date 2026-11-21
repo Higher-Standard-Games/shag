@@ -6,7 +6,8 @@ All notable changes to this project are documented in version-specific files.
 
 | Version | Date | Summary |
 |---------|------|---------|
-| [v1.0.3](./v1.0.3.md) | unreleased | Living changelog for the 1.0.3 release |
+| [v1.0.4](./v1.0.4.md) | unreleased | Living changelog for the 1.0.4 release |
+| [v1.0.3](./v1.0.3.md) | Nov 21, 2026 | Home, the lobby's new first page: Quick play, Campaign and Play online as three big cards; `npm run itch:push` for the itch.io builds |
 | [v1.0.2](./v1.0.2.md) | Nov 20, 2026 | itch.io build: the ✕ that leaves the full-window game moves to the top-left corner, as in demo playback |
 | [v1.0.1](./v1.0.1.md) | Nov 20, 2026 | Washoi on itch.io: a hosted browser build with a region picker and login tokens; room codes and Join lobby via invite in every client; the welcome guide's Your account step |
 | [v1.0.0](./v1.0.0.md) | Nov 20, 2026 | The first full release: the release candidate with gold Washoi mouse cursors in the menus, lobby, settings, demo viewer and editor |
