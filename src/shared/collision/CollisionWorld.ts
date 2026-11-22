@@ -109,6 +109,13 @@ export interface CollisionWorld {
   isInLadder?(min: Vec3, max: Vec3): boolean;
 
   /**
+   * The world's static solids as geometry, for a rigid-body engine to collide
+   * with: what `trace` treats as SOLID or PLAYERCLIP in the world model, built
+   * once per map. Optional: worlds without BSP data have none.
+   */
+  solidGeometry?(): SolidGeometry;
+
+  /**
    * Find all entities within a radius
    *
    * @param center - Center of search
@@ -176,6 +183,20 @@ export interface SweepBackend {
   pointContents(point: Vec3): number;
   /** See {@link CollisionWorld.isInLadder}. World-space AABB corners. */
   isInLadder?(min: Vec3, max: Vec3): boolean;
+  /** See {@link CollisionWorld.solidGeometry}. */
+  solidGeometry?(): SolidGeometry;
+}
+
+/**
+ * A map's static solids in world space (Y up): each convex brush as its corner
+ * points, and curved patches as triangle meshes. Listed in map order, so every
+ * side building from the same map gets the same geometry in the same order.
+ */
+export interface SolidGeometry {
+  /** One entry per convex solid: its corners, flattened x, y, z. */
+  hulls: Float32Array[];
+  /** Triangle meshes: vertices flattened x, y, z, and three vertex indices per triangle. */
+  meshes: Array<{ vertices: Float32Array; triangles: Uint32Array }>;
 }
 
 /**

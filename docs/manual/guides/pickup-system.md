@@ -9,6 +9,19 @@ across all tracked types. The game's `shared/items/ItemThrow.ts` supplies shared
 landing/toss rules, and `shared/items/ItemRespawn.ts` supplies respawn timing.
 Generic collision and the Babylon pickup base remain in SHAG.
 
+Washoi's weapons are Havok rigid bodies (`shared/items/ItemPhysics.ts`): a box
+the size of the weapon's model (`shared/items/WeaponBoxes.ts`) against the
+map's solids, which the collision backend exports as convex brush hulls and
+patch meshes (`CollisionWorld.solidGeometry()`). Map weapons are tossed once at
+map load from a seed of their pickup id, built without trigonometry, each in a
+world of its own. The server, the browser and the bots load the same Havok
+WebAssembly build, so all three land each weapon at the same position and
+rotation without replicating it. The pickup trigger is at the centre of the box.
+A dropped weapon is thrown live on the game server, and snapshots carry its
+position and rotation (entity flag `0x80`, see [Networking](networking.md)).
+`PickupOptions.restPose` draws a landed model at its rotation, offset from the
+centre of its box.
+
 Washoi's `shared/items/ItemGrants.ts` owns health and armor grant math;
 `shared/items/Powerups.ts` owns powerup durations, effects and mask assignments.
 Its `shared/items/PowerupGrant.ts` applies those rules to the shared ECS expiry

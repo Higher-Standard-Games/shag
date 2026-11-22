@@ -559,6 +559,7 @@ Entities:
       0x10 = movement state (every snapshot for a player)
       0x20 = weaponMeta (item entities)
       0x40 = powerup mask (every snapshot)
+      0x80 = extension byte follows
     if 0x01: x, y, z (float32 × 3)
     if 0x02: vx, vy, vz (float32 × 3)
     if 0x04: grounded (uint8)
@@ -577,6 +578,11 @@ Entities:
              commands instead.
     if 0x20: weaponId (string), settled (uint8)
     if 0x40: powerup mask (uint8)
+    if 0x80: extension (uint8)
+             bit 0: orientation (int16 × 4: quaternion x, y, z, w over
+                    -1..1), how a thrown weapon lies. Sent when it changes;
+                    otherwise the baseline's carries forward. A recording
+                    made before it never sets 0x80 and has no orientation.
 
 Players:
   count (uint16)

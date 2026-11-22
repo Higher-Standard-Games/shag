@@ -626,7 +626,8 @@ grab phases and crouch eye height, so a watched view leans, dips and crouches
 as their screen did). Format v6 retains that layout and adds optional persistent
 disabled brush models to S&D objective snapshots; v7 adds each free-for-all
 player's server-assigned body and colour; v8 adds the campaign mission to the
-header, after the privacy flag. The reader accepts v1–v8,
+header, after the privacy flag; v9 adds a thrown weapon's orientation to its
+item entity (entity flag 0x80). The reader accepts v1–v9,
 including v1–v3 recordings, which have no
 privacy flag and count as public. Featured picks leave out recordings marked
 private, even those featuring a public top-ten account. Private recordings

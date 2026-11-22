@@ -177,9 +177,10 @@ calibrated against real player demos.
 
 Lobby-spawned private matches pass `--private-match` to `net:server`, and the
 game server writes that privacy into the demo header (format v4 and later). New
-recordings are v8, retaining each player's view, S&D brush-model state and
-each free-for-all player's body and colour, and adding the campaign mission for
-a campaign match. Standalone recordings are public. The reader accepts v1–v8; an older browser build cannot
+recordings are v9, retaining each player's view, S&D brush-model state,
+each free-for-all player's body and colour and the campaign mission for a
+campaign match, and adding how each thrown weapon lies. Standalone recordings
+are public. The reader accepts v1–v9; an older browser build cannot
 play a newer recording until it is updated.
 
 Lobby-spawned campaign matches also pass `--campaign <mission>`. Such a server

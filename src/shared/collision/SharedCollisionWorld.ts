@@ -13,7 +13,14 @@
  */
 
 import type { Vec3 } from "../server/simulation/types";
-import type { AABB, CollisionWorld, StepSlideMoveResult, SweepBackend, TraceResult } from "./CollisionWorld";
+import type {
+  AABB,
+  CollisionWorld,
+  SolidGeometry,
+  StepSlideMoveResult,
+  SweepBackend,
+  TraceResult,
+} from "./CollisionWorld";
 
 // ═══════════════════════════════════════════════════════════════════
 // SHARED COLLISION WORLD
@@ -167,6 +174,10 @@ export class SharedCollisionWorld implements CollisionWorld {
 
   isInLadder(min: Vec3, max: Vec3): boolean {
     return this.backend.isInLadder?.(min, max) ?? false;
+  }
+
+  solidGeometry(): SolidGeometry {
+    return this.backend.solidGeometry?.() ?? { hulls: [], meshes: [] };
   }
 
   // ───────────────────────────────────────────────────────────────

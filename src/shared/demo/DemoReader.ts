@@ -132,8 +132,9 @@ export class DemoReader {
     offset += 1;
     // v6 retains v5's layout and adds optional bomb brush state in match JSON;
     // v7 adds an optional look byte to each player's snapshot record;
-    // v8 adds the campaign mission to the header.
-    if (version < 1 || version > 8) {
+    // v8 adds the campaign mission to the header;
+    // v9 adds thrown weapons' orientation to item entities (entity flag 0x80).
+    if (version < 1 || version > 9) {
       throw new Error(`Unsupported demo version: ${version}`);
     }
 

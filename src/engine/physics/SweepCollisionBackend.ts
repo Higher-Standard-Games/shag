@@ -14,8 +14,10 @@ import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import type { Scene } from "@babylonjs/core/scene";
 import { BrushModelState, extractBrushModels } from "../../shared/bsp/BrushModelState";
 import { extractLifts, LiftSystem } from "../../shared/bsp/LiftSystem";
+import type { SolidGeometry } from "../../shared/collision/CollisionWorld";
 import { devLog } from "../core/DevLog";
 import type { BspBrush, BspCollisionData, BspLeaf } from "../loader/bsp/BspLoader";
+import { brushCorners } from "./BrushCorners";
 import {
   type CollisionBackend,
   type CollisionStats,
@@ -257,6 +259,7 @@ export class SweepCollisionBackend implements CollisionBackend {
 
   async init(bsp: BspCollisionData, _scene?: Scene): Promise<void> {
     this.bsp = bsp;
+    this.solidGeometryCache = null;
     // A compiled trace holds the last map's tables
     this.compiledWorld = null;
     this.brushModels = new BrushModelState(extractBrushModels(bsp.entities, bsp.models));
@@ -476,6 +479,48 @@ export class SweepCollisionBackend implements CollisionBackend {
     }
     return false;
   }
+
+  /**
+   * The world model's SOLID and PLAYERCLIP brushes as convex corner sets, and
+   * its solid patches as triangles, in Babylon space: what the sweep collides
+   * with outside lifts and switchable models. Built once per map and kept.
+   */
+  solidGeometry(): SolidGeometry {
+    if (this.solidGeometryCache) return this.solidGeometryCache;
+    const geometry: SolidGeometry = { hulls: [], meshes: [] };
+    const bsp = this.bsp;
+    if (!bsp) return geometry;
+    const world = bsp.models[0];
+    const first = world?.firstBrush ?? 0;
+    const last = world ? world.firstBrush + world.numBrushes : bsp.brushes.length;
+    for (let b = first; b < last; b++) {
+      if (this.liftBrushes.has(b) || this.brushModelBrushes.has(b)) continue;
+      const brush = bsp.brushes[b];
+      if (!brush || brush.numSides < 4) continue;
+      const texture = this.getBrushTexture(brush);
+      if (!texture || !this.shouldCollideWith(texture, PLAYER_CONTENTS)) continue;
+      const planes: number[] = [];
+      for (let i = 0; i < brush.numSides; i++) {
+        const plane = bsp.planes[bsp.brushSides[brush.firstSide + i]?.planeIndex ?? -1];
+        if (plane) planes.push(plane.normal[0], plane.normal[1], plane.normal[2], plane.dist);
+      }
+      const corners = brushCorners(planes);
+      if (corners) geometry.hulls.push(corners);
+    }
+    for (const mesh of this.faceCollisionMeshes) {
+      if (!mesh || mesh.indices.length < 3) continue;
+      const vertices = new Float32Array(mesh.vertices.length * 3);
+      mesh.vertices.forEach((v, i) => {
+        vertices[i * 3] = v.x;
+        vertices[i * 3 + 1] = v.y;
+        vertices[i * 3 + 2] = v.z;
+      });
+      geometry.meshes.push({ vertices, triangles: Uint32Array.from(mesh.indices) });
+    }
+    this.solidGeometryCache = geometry;
+    return geometry;
+  }
+  private solidGeometryCache: SolidGeometry | null = null;
 
   /**
    * Collision geometry built for a BSP face, or null where a face carries none.

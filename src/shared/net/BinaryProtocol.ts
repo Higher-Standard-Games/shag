@@ -33,6 +33,10 @@
  *          player every snapshot (not delta-compressed) for the same reason as
  *          movement state: a stuck flag after a baseline-ACK mismatch would
  *          leave a player glowing with a quad they no longer have.
+ * - 0x80 = extension byte follows, its bits marking more components:
+ *          - 0x01 = orientation changed (8 bytes: quaternion x, y, z, w as
+ *                   int16 over -1..1) — how a thrown item lies. A recording
+ *                   made before it never sets 0x80.
  */
 
 import type { IComponent } from "./Component";
@@ -108,6 +112,26 @@ const phaseByte = (value: number | undefined) => Math.round(Math.max(0, Math.min
 interface WeaponMetaShape {
   weaponId: string;
   settled: boolean;
+}
+
+/** A thrown item's rotation as a unit quaternion. */
+interface OrientationShape {
+  x: number;
+  y: number;
+  z: number;
+  w: number;
+}
+
+/** A quaternion component on the wire: -1..1 as int16. */
+const quatWord = (value: number) => Math.max(-32767, Math.min(32767, Math.round(value * 32767)));
+
+function sameOrientation(a: OrientationShape, b: OrientationShape): boolean {
+  return (
+    quatWord(a.x) === quatWord(b.x) &&
+    quatWord(a.y) === quatWord(b.y) &&
+    quatWord(a.z) === quatWord(b.z) &&
+    quatWord(a.w) === quatWord(b.w)
+  );
 }
 
 /** Held powerups, packed as a bitmask over the game's POWERUP_KINDS. */
@@ -474,6 +498,15 @@ function encodeEntities(encoder: BinaryEncoder, state: GameState, baseline?: Gam
       flags |= 0x40;
     }
 
+    // Extension byte: orientation for thrown items, delta against the baseline
+    let ext = 0;
+    const orientation = entity.getComponent("orientation") as unknown as OrientationShape | undefined;
+    const baselineOrientation = baselineEntity?.getComponent("orientation") as unknown as OrientationShape | undefined;
+    if (orientation && (!baselineOrientation || !sameOrientation(orientation, baselineOrientation))) {
+      ext |= 0x01;
+    }
+    if (ext) flags |= 0x80;
+
     encoder.writeUint8(flags);
 
     // Encode changed components
@@ -529,6 +562,17 @@ function encodeEntities(encoder: BinaryEncoder, state: GameState, baseline?: Gam
     // Flag 0x40: Powerup mask (1 byte — bit per POWERUP_KINDS entry)
     if (flags & 0x40 && powerups) {
       encoder.writeUint8(powerups.mask & 0xff);
+    }
+
+    // Flag 0x80: extension byte, then the components it marks
+    if (flags & 0x80) {
+      encoder.writeUint8(ext);
+      if (ext & 0x01 && orientation) {
+        encoder.writeInt16(quatWord(orientation.x));
+        encoder.writeInt16(quatWord(orientation.y));
+        encoder.writeInt16(quatWord(orientation.z));
+        encoder.writeInt16(quatWord(orientation.w));
+      }
     }
   }
 }
@@ -754,6 +798,24 @@ function decodeEntities(decoder: BinaryDecoder, state: GameState, baseline?: Gam
         deserialize: _noopDeserialize,
         clone: _shallowClone,
       });
+    }
+
+    // Flag 0x80: extension byte. Orientation (0x01) is delta-compressed: absent
+    // means unchanged, so the baseline's carries forward.
+    const ext = flags & 0x80 ? decoder.readUint8() : 0;
+    if (ext & 0x01) {
+      entity.addComponent("orientation", {
+        x: decoder.readInt16() / 32767,
+        y: decoder.readInt16() / 32767,
+        z: decoder.readInt16() / 32767,
+        w: decoder.readInt16() / 32767,
+        serialize: _noopSerialize,
+        deserialize: _noopDeserialize,
+        clone: _shallowClone,
+      });
+    } else {
+      const baselineOrientation = baselineEntity?.getComponent("orientation");
+      if (baselineOrientation) entity.addComponent("orientation", baselineOrientation.clone());
     }
   }
 }

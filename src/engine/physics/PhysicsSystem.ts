@@ -161,6 +161,11 @@ export class PhysicsSystem {
     return this.havokInstance !== null;
   }
 
+  /** The loaded Havok module, for code that drives it directly; null until loaded. */
+  getHavok(): HavokPhysicsWithBindings | null {
+    return this.havokInstance;
+  }
+
   // ==================== Body Management ====================
   // Note: World collision is handled by BSP collision system (CollisionManager)
   // PhysicsSystem handles gravity, velocity, and impulse for dynamic entities

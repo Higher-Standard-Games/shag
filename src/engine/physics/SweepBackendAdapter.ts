@@ -9,7 +9,12 @@
  */
 
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
-import { Contents, type SweepBackend, type SweepBackendTraceOptions } from "../../shared/collision/CollisionWorld";
+import {
+  Contents,
+  type SolidGeometry,
+  type SweepBackend,
+  type SweepBackendTraceOptions,
+} from "../../shared/collision/CollisionWorld";
 import type { Vec3 } from "../../shared/server/simulation/types";
 import { ContentFlags } from "./ContentFlags";
 import type { SweepCollisionBackend } from "./SweepCollisionBackend";
@@ -111,5 +116,9 @@ export class SweepBackendAdapter implements SweepBackend {
 
   isInLadder(min: Vec3, max: Vec3): boolean {
     return this.backend.isInLadder(inA(min), inB(max));
+  }
+
+  solidGeometry(): SolidGeometry {
+    return this.backend.solidGeometry();
   }
 }

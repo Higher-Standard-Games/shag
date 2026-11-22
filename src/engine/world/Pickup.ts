@@ -24,7 +24,7 @@
 
 import { Ray } from "@babylonjs/core/Culling/ray";
 import type { PointLight } from "@babylonjs/core/Lights/pointLight";
-import { Vector3 } from "@babylonjs/core/Maths/math.vector";
+import { Quaternion, Vector3 } from "@babylonjs/core/Maths/math.vector";
 import type { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh";
 import { Mesh } from "@babylonjs/core/Meshes/mesh";
 import { TransformNode } from "@babylonjs/core/Meshes/transformNode";
@@ -65,6 +65,15 @@ export interface PickupOptions {
   scale?: number;
   /** Yaw (radians) the model rests at, so a row of the same item does not read as copies. */
   yaw?: number;
+  /**
+   * How a landed model lies, overriding `yaw`: its rotation, and where its
+   * origin sits relative to the pickup's position (world units). A thrown
+   * weapon's position is the centre of its collision box, not its origin.
+   */
+  restPose?: {
+    rotation: { x: number; y: number; z: number; w: number };
+    modelOffset: { x: number; y: number; z: number };
+  };
   /** Drop to the floor after spawn (BSP raycast). */
   gravity?: boolean;
   /**
@@ -276,8 +285,18 @@ export class Pickup extends TransformNode {
           // Havok physics bodies require root-level meshes (no parent).
           leaderMesh.parent = null;
           leaderMesh.position.copyFrom(this.getAbsolutePosition());
-          leaderMesh.rotationQuaternion = null;
-          leaderMesh.rotation.set(0, this.options.yaw ?? 0, 0);
+          const rest = this.options.restPose;
+          if (rest) {
+            leaderMesh.rotationQuaternion = new Quaternion(
+              rest.rotation.x,
+              rest.rotation.y,
+              rest.rotation.z,
+              rest.rotation.w,
+            );
+          } else {
+            leaderMesh.rotationQuaternion = null;
+            leaderMesh.rotation.set(0, this.options.yaw ?? 0, 0);
+          }
           leaderMesh.isVisible = true;
           leaderMesh.scaling.setAll(pickupScale);
 
@@ -335,6 +354,8 @@ export class Pickup extends TransformNode {
           this.settled = true;
           if (leaderMesh) {
             leaderMesh.position.copyFrom(this.getAbsolutePosition());
+            const offset = this.options.restPose?.modelOffset;
+            if (offset) leaderMesh.position.addInPlaceFromFloats(offset.x, offset.y, offset.z);
             if (this.options.bobbing) this.bobRestY = this.floatHeight(leaderMesh);
           }
         }
