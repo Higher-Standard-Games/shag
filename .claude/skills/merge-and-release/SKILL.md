@@ -211,8 +211,9 @@ released and `<next>` the one after it.
 4. Commit: `chore: release v<version>`.
 5. Tag that commit, annotated: `git tag -a v<version> -m "v<version>"`.
 6. Push, when asked: `git push origin main && git push origin v<version>`.
-7. Push the itch.io builds from the tagged commit (see "Publishing to
-   itch.io"), with the host deploy.
+7. Check the itch.io builds (see "Publishing to itch.io"): EU's deploy pushes
+   the public build once every region runs the release; push the staging page
+   by hand.
 
 Tags are annotated, sit on the release commit, and are made in the outer repo
 only. Tag every release; older untagged releases are not backfilled.
@@ -224,27 +225,36 @@ served from itch.io's own host and playing on our regions:
 
 | Page | Build | Pushed |
 |---|---|---|
-| `washoi` (public) | `npm run build:itch` → `dist-itch/` | every release, from the tagged commit |
-| `washoi-staging` (Draft, secret link) | `npm run build:itch-staging` → `dist-itch-staging/` | at a release, and whenever a staging test needs it |
+| `washoi` (public) | `npm run build:itch` → `dist-itch/` | every release, by EU's deploy once every region runs it |
+| `washoi-staging` (Draft, secret link) | `npm run build:itch-staging` → `dist-itch-staging/` | by hand, at a release and whenever a staging test needs it |
 
-One command builds and pushes, with butler:
+**The public build is pushed by EU's deploy** (the `itch` surface, see
+`src/games/fps/scripts/deployment/README.md`). Each region's activation
+writes its `release.json` once its restarted lobby runs the pair; EU builds
+`dist-itch` and pushes it when both regions name the pair, so it never runs
+ahead of a region's lobby, including when the login protocol changes. Follow
+it in EU's deploy log (`/srv/washoi/logs/deploy-*.log`, lines starting
+`itch:`): `waiting for <region>`, then `pushed`.
+
+**By hand,** for the staging page, or when EU's log says the surface is
+skipped (`no butler key`) or failing:
 
 ```bash
-npm run itch:push -- --staging --production    # a release: both pages
-npm run itch:push -- --staging                 # testing a change on itch
+npm run itch:push -- --staging                 # the staging page
+npm run itch:push -- --staging --production    # both, when EU cannot push
 ```
 
 butler comes from `BUTLER` (a path) or the `PATH`, logged in once with
 `butler login` (or `BUTLER_API_KEY` without a browser). The production build
 is labelled with the release version, staging with the version and commit.
 
-- **Push with the host deploy.** An itch build that falls behind the servers'
-  protocol cannot play, and nothing on itch.io updates it by itself.
-- **Lobby first when the login protocol changes** (`auth`, `welcome`, the
-  hosted login tokens): wait until both regions' lobbies run the release
-  (`systemctl show washoi-lobby -p ActiveEnterTimestamp` on each host), then
-  push. An older lobby ignores the token and makes a new account at every
-  visit.
+- **By hand, push after both regions' lobbies run the release.** An itch
+  build that runs ahead of a region's protocol cannot play there, and when
+  the login protocol changes (`auth`, `welcome`, the hosted login tokens) an
+  older lobby ignores the token and makes a new account at every visit.
+  `curl -s https://eu.washoi.net/release.json https://us.washoi.net/release.json`
+  shows the pair each region runs (`systemctl show washoi-lobby -p
+  ActiveEnterTimestamp` on each host, for a region that does not write one yet).
 - **Check after the push:** `butler status higherstandardgames/washoi:html5`
   shows the new version once itch.io has processed it (a minute or so).
 - **CORS:** the hosts allow `https://html-classic.itch.zone` on `/data/` and

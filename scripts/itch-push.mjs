@@ -12,9 +12,10 @@
  * production build is labelled with the release version, the staging build
  * with the version and the commit it was built from.
  *
- * A release pushes production together with the host deploy: an itch build
- * that falls behind the servers' protocol cannot play. When a release changes
- * the lobby's login protocol, the lobby must be live before the itch build.
+ * EU's deploy runs this with --production --skip-build once every region's
+ * lobby runs the release (the `itch` surface, itch-release.sh): an itch build
+ * that runs ahead of a region's protocol cannot play there. By hand, push
+ * after both regions' lobbies run the release.
  */
 
 import { execFileSync, spawnSync } from "node:child_process";
