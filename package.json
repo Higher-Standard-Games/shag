@@ -27,6 +27,7 @@
     "test:run": "vitest run",
     "test:coverage": "vitest run --coverage",
     "cli:bsp": "npx vite-node src/cli/headless-bsp.ts --",
+    "blockmap": "npx vite-node src/cli/blockmap/blockmap.ts --",
     "net:client": "npx vite-node src/cli/headless-netclient.ts --",
     "ranking:simulate": "npx vite-node src/cli/ranking-simulate.ts",
     "ranking:delivery": "npx vite-node src/cli/ranking-delivery.ts --",

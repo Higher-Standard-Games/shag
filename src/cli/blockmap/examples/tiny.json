@@ -1,0 +1,24 @@
+{
+  "name": "tiny",
+  "boxes": [
+    {
+      "mins": [0, 0, -64],
+      "maxs": [256, 256, 0],
+      "textures": { "top": "textures/proto/grass", "side": "textures/proto/soil" }
+    },
+    {
+      "mins": [96, 96, 0],
+      "maxs": [160, 160, 64],
+      "textures": { "top": "textures/proto/roof", "side": "textures/proto/plaster" }
+    }
+  ],
+  "lighting": {
+    "sunDirection": [0.6, -0.4, -0.7],
+    "sunColor": [0.95, 0.8, 0.6],
+    "skyAmbient": [0.42, 0.48, 0.64],
+    "groundAmbient": [0.28, 0.25, 0.22],
+    "points": [],
+    "occlusion": { "radius": 40, "strength": 0.75 }
+  },
+  "entities": [{ "classname": "info_player_start", "origin": "32 32 24" }]
+}
