@@ -6,7 +6,7 @@ The repository has three delivery paths, at different levels of maturity.
 | --- | --- | --- |
 | Web | Vite static build | Primary and directly buildable |
 | Android | Capacitor 8 project in `android/` | Project exists; native startup and lifecycle need verifying on a device |
-| Desktop | Electron 40 and electron-builder | Shell and packaging config exist; installers need testing per platform |
+| Desktop | Electron 45 and electron-builder | Shell and packaging config exist; installers need testing per platform |
 | iOS | Capacitor | No iOS project is committed |
 
 Start with a clean web build:

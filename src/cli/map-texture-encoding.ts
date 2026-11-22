@@ -10,7 +10,7 @@
 
 import fs from "node:fs/promises";
 import path from "node:path";
-import sharp from "sharp";
+import sharp, { type WebpOptions } from "sharp";
 import { decodeTGAPixels } from "../engine/loader/texture/TgaDecoder";
 
 export const ENCODING_LIST = "config/map-texture-encoding.json";
@@ -19,7 +19,7 @@ export const ENCODING_LIST = "config/map-texture-encoding.json";
 export type TextureEncoding = "colour" | "alpha" | "normal" | "gloss" | "sky" | "keep";
 
 /** WebP quality per class; `alpha` also keeps its alpha channel lossless, for cut-out edges. */
-export const ENCODING_SETTINGS: Record<Exclude<TextureEncoding, "keep">, sharp.WebpOptions> = {
+export const ENCODING_SETTINGS: Record<Exclude<TextureEncoding, "keep">, WebpOptions> = {
   colour: { quality: 85, effort: 6 },
   alpha: { quality: 85, alphaQuality: 100, effort: 6 },
   normal: { quality: 92, effort: 6 },

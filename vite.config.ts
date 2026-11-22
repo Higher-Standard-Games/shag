@@ -141,7 +141,10 @@ export default defineConfig(({ mode }) => {
       },
     },
     server: {
-      fs: { allow: [__dirname, application.directory] },
+      // The allow list guards what the dev server hands to a browser. vite-node
+      // opens no HTTP server and runs the script it is given, which may live
+      // outside the tree (a test helper in the system temp directory).
+      fs: isViteNode ? { strict: false } : { allow: [__dirname, application.directory] },
       cors: { origin: DEV_SERVER_ORIGINS },
       port: 3000,
       host: true, // Allow external access for Capacitor live reload
