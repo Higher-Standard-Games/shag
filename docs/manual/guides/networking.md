@@ -316,6 +316,74 @@ Projectiles (rockets, grenades, plasma) are server-authoritative:
 
 **Client-predicted explosions:** For responsiveness, the client shows explosions immediately on local impact. Server events are deduplicated via position + defId matching.
 
+### 9b. Dropped Weapons
+
+The game server throws a dropped weapon as a Havok rigid body and sends where
+it is. A client runs no physics for it: it decodes the pose and draws it. This
+is what any client, the browser's `DroppedWeaponRenderer` or a native one, has
+to do.
+
+**What arrives.** Each dropped weapon is an `item_<n>` entity in every
+snapshot, sent to every client whatever it can see: one missing from a snapshot
+has been picked up or has expired (15 seconds after the drop). Its components
+(see [Snapshot Format](#snapshot-format)):
+
+- position (flag `0x01`): the **centre of the weapon's collision box**, not its
+  model's origin;
+- `weaponMeta` (flag `0x20`): the weapon id, and whether it has come to rest;
+- orientation (flag `0x80`, extension bit `0x01`): a unit quaternion x, y, z, w,
+  each an int16 divided by 32767. It is delta-compressed: when the bit is not
+  set, the baseline's orientation still holds. A resting weapon sends none.
+
+A `weapon_drop` event also marks the moment of the drop, with its start and
+velocity. A client can ignore its throw: the entity's poses already follow it.
+
+**Placing the model.** Position and quaternion are in the game's Y-up space,
+like every other entity. A client that maps positions into its own space (for
+example negating z for a right-handed renderer) applies the same mapping to the
+quaternion; negating z turns (x, y, z, w) into (−x, −y, z, w). Then:
+
+```text
+rotation     = orientation
+model origin = position − rotate(orientation, centre)
+```
+
+`centre` is the box's centre in the model's own space, already scaled, from
+`src/games/fps/shared/items/WeaponBoxes.ts`. That file is the reference; at
+the time of writing (units, barrel along +x):
+
+| Weapon | Box size (x, y, z) | Centre (x, y, z) |
+| --- | --- | --- |
+| `machinegun` | 99.2, 31.8, 9.4 | 21.8, 3.3, 0 |
+| `riotgun` | 82, 27.1, 10 | 21, 7, 0 |
+| `glauncher` | 67.6, 26.9, 13.5 | 31.6, 7.6, 0 |
+| `rlauncher` | 85.6, 24.3, 14 | 29, 6.9, 0 |
+| `plasmagun` | 79, 28.6, 17.2 | 20.5, 7.7, 0 |
+| `voltaic`, `lasergun` | 71.2, 26, 10.1 | 23.2, 7, 0 |
+| `electrobolt` | 95.9, 27.7, 14.2 | 27.9, 7.2, 0 |
+| any other | 80, 27, 12 | 24, 6, 0 |
+
+The model is drawn as a map weapon pickup is at no rotation: its GLB meshes'
+vertices, without the glTF root's transform, times the weapon's scale. The
+boxes were measured that way, so a model drawn otherwise will not sit on the
+floor.
+
+**Smoothing.** Keep the last few samples per weapon: the snapshot tick
+(header, 125 ticks a second), position and orientation. Draw at a render tick
+that advances with real time but never passes the newest snapshot's tick;
+between samples, lerp the position and slerp the orientation. Between
+snapshots a weapon then moves from the last pose to the newest, and with no new
+snapshots (a paused demo) it holds still. A sample older than the newest (a
+demo seek back) starts the samples again from it.
+
+**Recordings before demo v9** have no orientation, and the position is the
+point a drop was stepped as, about 4 units above the floor. The browser draws
+those on their side (a quarter roll about the barrel) at a heading from a hash
+of the entity id, the box centre lifted half the box's z size less 4.
+
+Map weapons are not sent: each client lands them itself at map load (see
+[Pickup system](pickup-system.md)).
+
 ### 10. Knockback System
 
 Server-side knockback, replicated as state:
