@@ -11,6 +11,7 @@
 import { VertexBuffer } from "@babylonjs/core/Buffers/buffer";
 import { BoundingInfo } from "@babylonjs/core/Culling/boundingInfo";
 import { Constants } from "@babylonjs/core/Engines/constants";
+import type { Material } from "@babylonjs/core/Materials/material";
 import { PBRMaterial } from "@babylonjs/core/Materials/PBR/pbrMaterial";
 import { ShaderMaterial } from "@babylonjs/core/Materials/shaderMaterial";
 import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
@@ -1143,6 +1144,9 @@ export class BspMeshBuilder {
 
     // Get all materials from world mesh and children
     const meshes = [result.worldMesh, ...result.worldMesh.getChildMeshes()];
+    // The builder's stand-in materials, which texturing replaces
+    const standIns = new Set<Material>();
+    for (const mesh of meshes) if (mesh.material) standIns.add(mesh.material);
 
     // Get shader registry for looking up actual texture paths
     const { Q3ShaderRegistry } = await import("../shader/Q3ShaderRegistry");
@@ -1746,8 +1750,12 @@ export class BspMeshBuilder {
       }
     }
 
-    // Also try to apply texture to main world mesh (first opaque texture)
-    // For now, just count what we loaded
+    // Stand-ins no mesh draws with any more (material passes dispose their own)
+    const live = new Set(scene.materials);
+    for (const material of standIns) {
+      if (live.has(material) && material.getBindedMeshes().length === 0) material.dispose(false, false);
+    }
+
     devLog(`[BspMeshBuilder] Applied ${loadedCount} textures`);
     return loadedCount;
   }

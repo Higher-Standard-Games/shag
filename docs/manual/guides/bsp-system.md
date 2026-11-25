@@ -313,6 +313,28 @@ meshes, 66 draws becoming 37.
 `r_surface_arrays 0` keeps every surface separate on the next map load, for
 diagnostics; it is not persisted.
 
+The merge compares materials by `material.serialize()` with
+`Texture.SerializeBuffers` off, so it never reads an image back from the GPU:
+the images it compares by id alone.
+
+Two options are off by default, for games that want them:
+
+- `mergeBspSurfaceArrays(result, { alphaTested: true })` merges alpha-tested
+  (not blended) surfaces too, with others of exactly the same alpha settings,
+  at the lowest alpha index among them. The array sample is what the alpha
+  test reads, so each keeps its own cut-out in the colour pass; a depth or
+  shadow pass that tests alpha with the material's own image would cut every
+  merged surface with the first one's shape.
+- `atlasBspLightmaps(result, bsp, scene)` (`LightmapAtlas`) packs a Q3 (IBSP)
+  map's lightmap pages into one atlas, each page in a cell with a one-texel
+  copied border, and moves the lightmap UVs onto the cells. Surfaces on
+  different pages then share a lightmap and can merge; the light is byte for
+  byte what the pages gave. FBSP maps keep their layered pages.
+
+`MapLoader.getInstance().setSurfaceMerge(merge)` replaces the merge for maps
+the loader loads, for example with the atlas and the alpha-tested option;
+`null` restores `mergeBspSurfaceArrays(result)`.
+
 ## Experimental spatial grouping
 
 `r_bsp_cellsize` changes grouping on the next map load. The default is `0` (off); positive values use 128-4096 map-unit cells. Only eligible opaque texture/lightmap/patch groups with at least 1,024 triangles split. Small batches, liquids, transparent surfaces, animated materials and sprites retain their existing grouping. Existing fog associations carry across split cells. Whole faces are preserved, so large faces can extend outside their assigned cell.

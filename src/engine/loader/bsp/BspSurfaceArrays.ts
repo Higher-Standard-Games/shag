@@ -2,6 +2,8 @@ import type { Material } from "@babylonjs/core/Materials/material";
 import { PBRMaterial } from "@babylonjs/core/Materials/PBR/pbrMaterial";
 import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
 import type { BaseTexture } from "@babylonjs/core/Materials/Textures/baseTexture";
+import { Texture } from "@babylonjs/core/Materials/Textures/texture";
+import type { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh";
 import { Mesh } from "@babylonjs/core/Meshes/mesh";
 import type { Scene } from "@babylonjs/core/scene";
 import { Cvar } from "../../core/Cvar";
@@ -79,7 +81,10 @@ const image = (material: Material, slot: string) =>
 
 /**
  * Every setting of the material except its identity and its images, as
- * Babylon serializes it; other images enter by identity.
+ * Babylon serializes it; other images enter by identity. Run with
+ * `Texture.SerializeBuffers` off: on, Babylon reads every image loaded from a
+ * blob URL (every PK3 texture) back from the GPU and encodes it as base64,
+ * only for the id to replace it.
  */
 function settings(material: Material): unknown {
   let data: Record<string, unknown>;
@@ -195,6 +200,28 @@ function signature(mesh: Mesh): string | null {
   ]);
 }
 
+export interface SurfaceArrayOptions {
+  /**
+   * Merge alpha-tested (not blended) surfaces too, with others of exactly the
+   * same alpha settings: the array's sample is the one the test reads, so
+   * each keeps its own cut-out. A depth or shadow pass that tests alpha with
+   * the material's own image would cut every merged surface with the first
+   * one's shape, so use it where such passes draw these surfaces without the
+   * test, or not at all. Animated surfaces never merge. Off by default.
+   */
+  alphaTested?: boolean;
+}
+
+/** A still, alpha-tested map surface the builder left out of the merge. */
+function alphaTestedStill(mesh: AbstractMesh): boolean {
+  const metadata = mesh.metadata ?? {};
+  const material = mesh.material;
+  if (!material || metadata.surfaceArrayEligible || !mesh.name.startsWith("bsp_tex_")) return false;
+  if (metadata.needsAnimation || metadata.autosprite || metadata.autosprite2 || metadata.liquidKind) return false;
+  if (metadata.isGlowOverlay || metadata.generatedCubemap) return false;
+  return material.needAlphaTesting() && !material.needAlphaBlending();
+}
+
 export interface SurfaceArrayResult {
   /** Meshes merged away */
   merged: number;
@@ -208,21 +235,56 @@ export interface SurfaceArrayResult {
  * Merge eligible surfaces of the world mesh. Run once textures and lightmaps
  * are on the materials, before anything holds on to individual surfaces.
  */
-export function mergeBspSurfaceArrays(result: BspMeshBuildResult): SurfaceArrayResult {
+export function mergeBspSurfaceArrays(
+  result: BspMeshBuildResult,
+  options: SurfaceArrayOptions = {},
+): SurfaceArrayResult {
   const outcome: SurfaceArrayResult = { merged: 0, meshes: 0, arrays: 0 };
   if (!Cvar.getBool("r_surface_arrays")) return outcome;
   const world = result.worldMesh;
   const scene = world.getScene();
-  const groups = new Map<string, Mesh[]>();
-  for (const mesh of world.getChildMeshes(true)) {
-    if (!(mesh instanceof Mesh) || !mesh.name.startsWith("bsp_tex_")) continue;
-    const key = signature(mesh);
-    if (!key) continue;
-    const members = groups.get(key);
-    if (members) members.push(mesh);
-    else groups.set(key, [mesh]);
+  const admitted = new Map<AbstractMesh, number>();
+  if (options.alphaTested) {
+    for (const mesh of world.getChildMeshes(true)) {
+      if (!alphaTestedStill(mesh)) continue;
+      mesh.metadata = { ...mesh.metadata, surfaceArrayEligible: true };
+      admitted.set(mesh, mesh.alphaIndex);
+    }
+    // The builder orders each cut-out surface by its own alpha index, which
+    // would keep every one apart; they share the lowest while they merge. A
+    // merged mesh keeps its members in their order and draws at that index
+    const first = Math.min(...admitted.values());
+    for (const mesh of admitted.keys()) mesh.alphaIndex = first;
   }
+  const groups = new Map<string, Mesh[]>();
+  const serializeBuffers = Texture.SerializeBuffers;
+  Texture.SerializeBuffers = false;
+  try {
+    for (const mesh of world.getChildMeshes(true)) {
+      if (!(mesh instanceof Mesh) || !mesh.name.startsWith("bsp_tex_")) continue;
+      const key = signature(mesh);
+      if (!key) continue;
+      const members = groups.get(key);
+      if (members) members.push(mesh);
+      else groups.set(key, [mesh]);
+    }
+  } finally {
+    Texture.SerializeBuffers = serializeBuffers;
+  }
+  try {
+    mergeGroups(groups, scene, outcome, world);
+  } finally {
+    // Admitted surfaces left on their own stay as the builder made them
+    for (const [mesh, alphaIndex] of admitted) {
+      if (mesh.isDisposed()) continue;
+      mesh.metadata.surfaceArrayEligible = false;
+      mesh.alphaIndex = alphaIndex;
+    }
+  }
+  return outcome;
+}
 
+function mergeGroups(groups: Map<string, Mesh[]>, scene: Scene, outcome: SurfaceArrayResult, world: Mesh): void {
   const arrays: BaseTexture[] = [];
   for (const members of groups.values()) {
     if (members.length < 2) continue;
@@ -266,7 +328,6 @@ export function mergeBspSurfaceArrays(result: BspMeshBuildResult): SurfaceArrayR
     world.onDisposeObservable.addOnce(() => {
       for (const array of arrays) array.dispose();
     });
-  return outcome;
 }
 
 function disposeMaterial(material: Material): void {

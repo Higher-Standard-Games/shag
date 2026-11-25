@@ -29,6 +29,17 @@ export function neutralizeFallbackVertexRgb(mesh: Mesh): void {
   mesh.metadata.bakedVertexRgbNeutralized = true;
 }
 
+/**
+ * The Q3 (IBSP) lightmap transfer curve for each byte, `min(255, (v / 255) ^ 0.7 * 510)`,
+ * truncated as a byte store truncates it: a table, so encoding a page takes no
+ * `pow` per channel.
+ */
+export const Q3_LIGHTMAP_CURVE: Uint8Array = (() => {
+  const curve = new Uint8Array(256);
+  for (let v = 0; v < 256; v++) curve[v] = Math.min(255, (v / 255) ** 0.7 * 255 * 2);
+  return curve;
+})();
+
 /** One page's RGBA, written into `rgba` from `offset`: the baked-light encoding every lightmap texture uses. */
 function writeBspLightmapRgba(
   rgb: Uint8Array,
@@ -41,9 +52,9 @@ function writeBspLightmapRgba(
   for (let i = 0; i < size * size; i++) {
     const o = offset + i * 4;
     // FBSP keeps authored bytes; IBSP retains its legacy transfer curve.
-    rgba[o] = raw ? rgb[i * 3] : Math.min(255, (rgb[i * 3] / 255) ** 0.7 * 255 * 2);
-    rgba[o + 1] = raw ? rgb[i * 3 + 1] : Math.min(255, (rgb[i * 3 + 1] / 255) ** 0.7 * 255 * 2);
-    rgba[o + 2] = raw ? rgb[i * 3 + 2] : Math.min(255, (rgb[i * 3 + 2] / 255) ** 0.7 * 255 * 2);
+    rgba[o] = raw ? rgb[i * 3] : Q3_LIGHTMAP_CURVE[rgb[i * 3]];
+    rgba[o + 1] = raw ? rgb[i * 3 + 1] : Q3_LIGHTMAP_CURVE[rgb[i * 3 + 1]];
+    rgba[o + 2] = raw ? rgb[i * 3 + 2] : Q3_LIGHTMAP_CURVE[rgb[i * 3 + 2]];
     rgba[o + 3] = 255;
     if (direction) {
       const converted = q3ToBabylon(rgb[i * 3], rgb[i * 3 + 1], rgb[i * 3 + 2]);
