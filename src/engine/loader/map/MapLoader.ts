@@ -35,7 +35,7 @@ import { waterMapLights, waterSurfaceLights } from "../../rendering/water/WaterS
 import { registerBspEntityHandlers, setCurrentBspForHandlers } from "../bsp/BspEntityHandlers";
 import { type BspFile, BspLoader } from "../bsp/BspLoader";
 import { BspMeshBuilder, type BspMeshBuildResult } from "../bsp/BspMeshBuilder";
-import { mergeBspSurfaceArrays } from "../bsp/BspSurfaceArrays";
+import { mergeBspSurfaceArrays, type SurfaceArrayResult } from "../bsp/BspSurfaceArrays";
 import { parseWorldFog } from "../bsp/WorldFog";
 import { PK3Index } from "../pk3/PK3Index";
 import { PK3Loader } from "../pk3/PK3Loader";
@@ -129,6 +129,13 @@ function describeNotReady(scene: Scene): string {
   );
 }
 
+/**
+ * Replaces the texture-array merge of a loaded map's surfaces (see
+ * `MapLoader.setSurfaceMerge`). Runs where the merge would, once textures
+ * and lightmaps are on the materials and before anything is frozen.
+ */
+export type MapSurfaceMerge = (result: BspMeshBuildResult, bsp: BspFile) => SurfaceArrayResult;
+
 export class MapLoader {
   private static instance: MapLoader;
 
@@ -145,6 +152,8 @@ export class MapLoader {
   private surfaceCubemaps: SurfaceCubemaps | null = null;
   /** The sky portal's view while the map has one. */
   private skyPortal: SkyPortalView | null = null;
+  /** A game's own surface merge, or null for `mergeBspSurfaceArrays`. */
+  private surfaceMerge: MapSurfaceMerge | null = null;
 
   /** True while a BSP map is being loaded */
   private isLoadingMap: boolean = false;
@@ -181,6 +190,17 @@ export class MapLoader {
       MapLoader.instance = new MapLoader();
     }
     return MapLoader.instance;
+  }
+
+  /**
+   * Merge loaded maps' surfaces with `merge` instead of
+   * `mergeBspSurfaceArrays(result)`, for a game that prepares them first (for
+   * example `atlasBspLightmaps`) or merges with other options. Null restores
+   * the default. A merge that throws is logged and the load goes on, as with
+   * the default.
+   */
+  setSurfaceMerge(merge: MapSurfaceMerge | null): void {
+    this.surfaceMerge = merge;
   }
 
   /**
@@ -557,7 +577,7 @@ export class MapLoader {
 
     // Surfaces differing only in their images share a draw through texture arrays
     try {
-      const arrays = mergeBspSurfaceArrays(meshResult);
+      const arrays = this.surfaceMerge ? this.surfaceMerge(meshResult, bsp) : mergeBspSurfaceArrays(meshResult);
       devLog(`[MapLoader] ${arrays.merged} surfaces now draw as ${arrays.meshes} (${arrays.arrays} texture arrays)`);
     } catch (e) {
       console.warn("[MapLoader] Texture-array merge failed; surfaces keep their own draws:", e);
@@ -1150,9 +1170,12 @@ export class MapLoader {
     this.surfaceCubemaps?.dispose();
     this.surfaceCubemaps = null;
 
+    // The world's materials, disposed below once no mesh draws with them
+    const worldMaterials = new Set<Material>();
     if (this.currentMeshResult) {
       // Dispose child meshes first
       for (const child of this.currentMeshResult.worldMesh.getChildMeshes()) {
+        if (child.material) worldMaterials.add(child.material);
         child.dispose();
       }
       this.currentMeshResult.worldMesh.dispose();
@@ -1179,6 +1202,15 @@ export class MapLoader {
       devLog("[MapLoader] Cleared TextureManager cache");
     } catch (e) {
       console.warn("[MapLoader] Error clearing caches:", e);
+    }
+
+    // After the caches, which dispose the materials they hold; some went with
+    // their meshes too (material passes dispose their own). Images stay
+    // with whatever else samples them
+    const scene = [...worldMaterials][0]?.getScene();
+    const live = new Set(scene?.materials ?? []);
+    for (const material of worldMaterials) {
+      if (live.has(material) && material.getBindedMeshes().length === 0) material.dispose(false, false);
     }
   }
 

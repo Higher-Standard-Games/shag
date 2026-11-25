@@ -1,8 +1,10 @@
 import { NullEngine } from "@babylonjs/core/Engines/nullEngine";
+import { Material } from "@babylonjs/core/Materials/material";
 import { PBRMaterial } from "@babylonjs/core/Materials/PBR/pbrMaterial";
 import { ShaderLanguage } from "@babylonjs/core/Materials/shaderLanguage";
 import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
 import { BaseTexture } from "@babylonjs/core/Materials/Textures/baseTexture";
+import { Texture } from "@babylonjs/core/Materials/Textures/texture";
 import { Mesh } from "@babylonjs/core/Meshes/mesh";
 import { VertexData } from "@babylonjs/core/Meshes/mesh.vertexData";
 import { Scene } from "@babylonjs/core/scene";
@@ -139,6 +141,62 @@ describe("texture-array surface merging", () => {
     Cvar.set("r_surface_arrays", 0);
     expect(merge()).toEqual({ merged: 0, meshes: 0, arrays: 0 });
     expect(scene.getMeshByName("bsp_tex_1")?.isDisposed()).toBe(false);
+  });
+
+  it("tells materials apart without serializing image buffers, and restores the setting", () => {
+    surface(1, "textures/a");
+    surface(2, "textures/b");
+    Texture.SerializeBuffers = true;
+    const seen: boolean[] = [];
+    const serialize = StandardMaterial.prototype.serialize;
+    const spy = vi.spyOn(StandardMaterial.prototype, "serialize").mockImplementation(function (this: StandardMaterial) {
+      seen.push(Texture.SerializeBuffers);
+      return serialize.call(this);
+    });
+    try {
+      expect(merge()).toEqual({ merged: 2, meshes: 1, arrays: 1 });
+    } finally {
+      spy.mockRestore();
+    }
+    expect(seen.length).toBeGreaterThan(0);
+    expect(seen.every((on) => !on)).toBe(true);
+    expect(Texture.SerializeBuffers).toBe(true);
+  });
+
+  /** An alpha-tested surface, left out of the merge by the builder, with its own alpha index. */
+  const cutout = (index: number, textureName: string, alphaIndex: number) => {
+    const mesh = surface(index, textureName);
+    const material = mesh.material as StandardMaterial;
+    material.transparencyMode = Material.MATERIAL_ALPHATEST;
+    material.alphaCutOff = 0.5;
+    mesh.metadata.surfaceArrayEligible = false;
+    mesh.alphaIndex = alphaIndex;
+    return mesh;
+  };
+  const mergeWith = (alphaTested: boolean) =>
+    mergeBspSurfaceArrays({ worldMesh: world } as BspMeshBuildResult, { alphaTested });
+
+  it("leaves alpha-tested surfaces alone by default", () => {
+    const [a, b] = [cutout(1, "textures/a", 3), cutout(2, "textures/b", 4)];
+    expect(mergeWith(false)).toEqual({ merged: 0, meshes: 0, arrays: 0 });
+    expect([a.alphaIndex, b.alphaIndex]).toEqual([3, 4]);
+    expect(a.metadata.surfaceArrayEligible).toBe(false);
+  });
+
+  it("merges alpha-tested surfaces of the same alpha settings with alphaTested, at the lowest alpha index", () => {
+    cutout(1, "textures/a", 5);
+    cutout(2, "textures/b", 3);
+    const loner = cutout(3, "textures/c", 7);
+    (loner.material as StandardMaterial).alphaCutOff = 0.25;
+    const animated = cutout(4, "textures/d", 8);
+    animated.metadata.needsAnimation = true;
+
+    expect(mergeWith(true)).toEqual({ merged: 2, meshes: 1, arrays: 1 });
+    expect((scene.getMeshByName("bsp_tex_1_array") as Mesh).alphaIndex).toBe(3);
+    // Those left alone are as the builder made them
+    expect([loner.alphaIndex, animated.alphaIndex]).toEqual([7, 8]);
+    expect(loner.metadata.surfaceArrayEligible).toBe(false);
+    expect(animated.isDisposed()).toBe(false);
   });
 });
 
